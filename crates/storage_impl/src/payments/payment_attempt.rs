@@ -546,12 +546,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<common_enums::PaymentMethod>,
-        payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-        card_network: Option<common_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -565,7 +565,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             &conn,
             merchant_id,
             active_attempt_ids,
-            connector.map(|val| val.to_string()),
+            connector
+                .as_ref()
+                .map(|vals| vals.iter().map(|v| v.to_string()).collect()),
             payment_method_type,
             payment_method_subtype,
             authentication_type,
@@ -1714,12 +1716,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<common_enums::PaymentMethod>,
-        payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-        card_network: Option<common_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store

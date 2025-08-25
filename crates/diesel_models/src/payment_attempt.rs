@@ -3848,6 +3848,15 @@ pub enum RedirectForm {
     Html {
         html_data: String,
     },
+    BarclaycardAuthSetup {
+        access_token: String,
+        ddc_url: String,
+        reference_id: String,
+    },
+    BarclaycardConsumerAuth {
+        access_token: String,
+        step_up_url: String,
+    },
     BlueSnap {
         payment_fields_token: String,
     },

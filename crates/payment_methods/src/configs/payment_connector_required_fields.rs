@@ -1291,7 +1291,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![],
                 vec![],
-                [card_basic(), full_name(), billing_address()].concat(),
+                [card_basic(), email(), full_name(), billing_address()].concat(),
             ),
         ),
         (Connector::Billwerk, fields(vec![], vec![], card_basic())),
@@ -1305,6 +1305,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Boku, fields(vec![], vec![], card_basic())),
         (Connector::Braintree, fields(vec![], vec![], card_basic())),
+        (Connector::Celero, fields(vec![], vec![], card_basic())),
         (Connector::Checkout, fields(vec![], card_basic(), vec![])),
         (
             Connector::Coinbase,
