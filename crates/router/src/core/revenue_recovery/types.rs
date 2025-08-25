@@ -54,7 +54,7 @@ use crate::{
 };
 
 type RecoveryResult<T> = error_stack::Result<T, errors::RecoveryError>;
-
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 /// The status of Passive Churn Payments
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum RevenueRecoveryPaymentsAttemptStatus {
@@ -156,10 +156,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     );
                 };
 
-                let is_hard_decline =
-                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
-                        .await
-                        .ok();
+                let is_hard_decline = revenue_recovery::check_hard_decline(state, &payment_attempt)
+                    .await
+                    .ok();
 
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
@@ -211,10 +210,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 let error_code = recovery_payment_attempt.error_code;
 
-                let is_hard_decline =
-                    revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
-                        .await
-                        .ok();
+                let is_hard_decline = revenue_recovery::check_hard_decline(state, &payment_attempt)
+                    .await
+                    .ok();
 
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
@@ -429,7 +427,7 @@ impl Action {
                             );
                         };
 
-                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                            let is_hard_decline = revenue_recovery::check_hard_decline(
                                 state,
                                 &payment_data.payment_attempt,
                             )
@@ -487,7 +485,7 @@ impl Action {
                                 .error
                                 .map(|error| error.code);
 
-                            let is_hard_decline = revenue_recovery::decide_retry_failure_action(
+                            let is_hard_decline = revenue_recovery::check_hard_decline(
                                 state,
                                 &payment_data.payment_attempt,
                             )
@@ -761,7 +759,7 @@ impl Action {
             revenue_recovery_payment_data,
         )
         .await;
-        let db = &*state.store;
+
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
                 RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
@@ -771,7 +769,7 @@ impl Action {
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
                     let is_hard_decline =
-                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        revenue_recovery::check_hard_decline(state, &payment_attempt)
                             .await
                             .ok();
 
@@ -802,7 +800,7 @@ impl Action {
                     let error_code = payment_attempt.clone().error.map(|error| error.code);
 
                     let is_hard_decline =
-                        revenue_recovery::decide_retry_failure_action(state, &payment_attempt)
+                        revenue_recovery::check_hard_decline(state, &payment_attempt)
                             .await
                             .ok();
 
@@ -1046,7 +1044,35 @@ impl Action {
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
+        let db = &*state.store;
         let next_retry_count = pt.retry_count + 1;
+        let error_message = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.message.clone());
+        let error_code = payment_attempt
+            .error
+            .as_ref()
+            .map(|details| details.code.clone());
+        let connector_name = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("unable to derive payment connector from payment attempt")?;
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code,
+            error_message,
+            connector_name,
+            REVENUE_RECOVERY.to_string(),
+        )
+        .await;
+        let is_hard_decline = gsm_record
+            .and_then(|gsm_record| gsm_record.error_category)
+            .map(|gsm_error_category| {
+                gsm_error_category == common_enums::ErrorCategory::HardDecline
+            })
+            .unwrap_or(false);
         let schedule_time = revenue_recovery_payment_data
             .get_schedule_time_based_on_retry_type(
                 state,
@@ -1054,6 +1080,7 @@ impl Action {
                 next_retry_count,
                 payment_attempt,
                 payment_intent,
+                is_hard_decline,
             )
             .await;
 

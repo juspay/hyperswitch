@@ -76,41 +76,9 @@ pub async fn upsert_calculate_pcr_task(
         )?;
 
     match existing_entry {
-        Some(existing_process)
-            if existing_process.status == common_enums::enums::ProcessTrackerStatus::Finish =>
-        {
-            // Entry exists - update the status to New and scheduled time to 1 hour from now
-            router_env::logger::info!(
-                "Found existing CALCULATE_WORKFLOW task for payment_intent_id: {}, updating status to New and rescheduling for 1 hour from now",
-                payment_id.get_string_repr()
-            );
-
-            let pt_update = storage::ProcessTrackerUpdate::Update {
-                name: Some(task.to_string()),
-                retry_count: Some(intent_retry_count.into()),
-                schedule_time: Some(schedule_time),
-                tracking_data: Some(existing_process.clone().tracking_data),
-                business_status: Some(business_status::PENDING.to_string()),
-                status: Some(enums::ProcessTrackerStatus::Pending),
-                updated_at: Some(common_utils::date_time::now()),
-            };
-
-            db.as_scheduler()
-                .update_process(existing_process, pt_update)
-                .await
-                .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-                .attach_printable(
-                    "Failed to update existing calculate workflow process tracker entry",
-                )?;
-
-            router_env::logger::info!(
-                "Successfully updated existing CALCULATE_WORKFLOW task for payment_intent_id: {}",
-                payment_id.get_string_repr()
-            );
-        }
         Some(existing_process) => {
-            router_env::logger::info!(
-                "Found existing CALCULATE_WORKFLOW task with  id: {}, but its business status is not in queued ",
+            router_env::logger::error!(
+                "Found existing CALCULATE_WORKFLOW task with  id: {}",
                 existing_process.id
             );
         }
@@ -474,11 +442,25 @@ pub async fn perform_calculate_workflow(
             revenue_recovery_payment_data.key_store.clone(),
         )));
 
+    let retry_algorithm_type = match profile
+        .revenue_recovery_retry_algorithm_type
+        .filter(|retry_type|
+             *retry_type != common_enums::RevenueRecoveryAlgorithmType::Monitoring) // ignore Monitoring in profile
+        .unwrap_or(tracking_data.revenue_recovery_retry)                                                                  // fallback to tracking_data
+    {
+        common_enums::RevenueRecoveryAlgorithmType::Smart => common_enums::RevenueRecoveryAlgorithmType::Smart,
+        common_enums::RevenueRecoveryAlgorithmType::Cascading => common_enums::RevenueRecoveryAlgorithmType::Cascading,
+        common_enums::RevenueRecoveryAlgorithmType::Monitoring => {
+            return Err(sch_errors::ProcessTrackerError::ProcessUpdateFailed);
+        }
+    };
+
     // 2. Get best available token
     let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_alogrithm_type(
         state,
         &connector_customer_id,
         payment_intent,
+        retry_algorithm_type,
         process.retry_count,
     )
     .await
@@ -716,7 +698,9 @@ async fn insert_execute_pcr_task_to_pt(
 
     match existing_entry {
         Some(existing_process)
-            if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FAILURE =>
+            if existing_process.business_status == business_status::EXECUTE_WORKFLOW_FAILURE
+                || existing_process.business_status
+                    == business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC =>
         {
             // Entry exists with EXECUTE_WORKFLOW_COMPLETE status - update it
             logger::info!(

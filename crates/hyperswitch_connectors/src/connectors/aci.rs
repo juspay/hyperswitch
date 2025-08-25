@@ -132,6 +132,7 @@ impl ConnectorCommon for Aci {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1067,7 +1068,8 @@ static ACI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "ACI",
     description:
         "ACI Payments delivers secure, real-time electronic payment solutions for businesses, banks, and governments, enabling seamless transactions across channels.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static ACI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
