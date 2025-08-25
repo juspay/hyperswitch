@@ -6606,6 +6606,7 @@ where
     Ok(router_data_and_should_continue_payment)
 }
 
+#[cfg(feature = "v1")]
 async fn complete_confirmation_for_click_to_pay_if_required<F, D>(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -10278,6 +10279,7 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
+    #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
 }
 
