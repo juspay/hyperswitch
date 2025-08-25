@@ -4395,7 +4395,7 @@ dependencies = [
  "async-trait",
  "common_utils",
  "error-stack 0.4.1",
- "masking",
+ "masking 0.1.0",
  "nom 7.1.3",
  "reqwest 0.12.7",
  "router_env",
