@@ -1,5 +1,5 @@
 use common_enums::{enums, Currency};
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{id_type::CustomerId, pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
     payment_method_data::PaymentMethodData,
@@ -12,20 +12,24 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{PaymentsCaptureData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{consts, errors};
+use hyperswitch_interfaces::{
+    consts,
+    errors::{self},
+};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
+        get_unimplemented_payment_method_error_message, AddressDetailsData,
+        PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -146,8 +150,14 @@ impl TryFrom<&DomainAddress> for CeleroAddress {
 #[serde(rename_all = "lowercase")]
 pub enum CeleroPaymentMethod {
     Card(CeleroCard),
+    Customer(CeleroCustomer),
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct CeleroCustomer {
+    id: Option<CustomerId>,
+    payment_method_id: Option<String>,
+}
 #[derive(Debug, Serialize, PartialEq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum CeleroEntryType {
@@ -244,21 +254,15 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             .get_optional_shipping()
             .and_then(|address| address.try_into().ok());
 
-        // Check if 3DS is requested
-        let is_three_ds = item.router_data.is_three_ds();
-
         // Determine CIT/MIT fields based on mandate data
-        let mandate_fields = determine_cit_mit_fields(item.router_data);
+        let (mandate_fields, payment_method) = determine_cit_mit_fields(item.router_data)?;
 
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
             transaction_type,
             amount: item.amount,
             currency: item.router_data.request.currency,
-            payment_method: CeleroPaymentMethod::try_from((
-                &item.router_data.request.payment_method_data,
-                is_three_ds,
-            ))?,
+            payment_method: payment_method,
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
@@ -284,24 +288,66 @@ pub struct CeleroMandateFields {
 }
 
 // Helper function to determine CIT/MIT fields based on mandate data
-fn determine_cit_mit_fields(router_data: &PaymentsAuthorizeRouterData) -> CeleroMandateFields {
+fn determine_cit_mit_fields(
+    router_data: &PaymentsAuthorizeRouterData,
+) -> Result<(CeleroMandateFields, CeleroPaymentMethod), error_stack::Report<errors::ConnectorError>>
+{
     // Default null values
     let mut mandate_fields = CeleroMandateFields::default();
 
-    // Check if this is a mandate payment
-    if router_data.request.is_mandate_payment() {
-        // This is a customer-initiated transaction for a recurring payment
-        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
-    } else {
-        // Regular merchant-initiated transaction
-        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
-        mandate_fields.initiated_by = Some(InitiatedBy::Merchant);
-        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
-        mandate_fields.billing_method = Some(BillingMethod::Recurring);
-        mandate_fields.initial_transaction_id = router_data.request.related_transaction_id.clone();
+    // First check if there's a mandate_id in the request
+    match router_data
+        .request
+        .mandate_id
+        .clone()
+        .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+    {
+        // If there's a connector mandate ID, this is a MIT (Merchant Initiated Transaction)
+        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+            connector_mandate_id,
+        )) => {
+            mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+            mandate_fields.initiated_by = Some(InitiatedBy::Merchant); // This is a MIT
+            mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+            mandate_fields.billing_method = Some(BillingMethod::Recurring);
+            mandate_fields.initial_transaction_id =
+                connector_mandate_id.get_connector_mandate_request_reference_id();
+            return Ok((
+                mandate_fields,
+                CeleroPaymentMethod::Customer(CeleroCustomer {
+                    id: Some(router_data.get_customer_id()?),
+                    payment_method_id: connector_mandate_id.get_payment_method_id(),
+                }),
+            ));
+        }
+        // For other mandate types that might not be supported
+        Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+        | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            // These might need different handling or return an error
+            return Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Celero"),
+            )
+            .into());
+        }
+        // If no mandate ID is present, check if it's a mandate payment
+        None => {
+            if router_data.request.is_mandate_payment() {
+                // This is a customer-initiated transaction for a recurring payment
+                mandate_fields.initiated_by = Some(InitiatedBy::Customer);
+                mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+                mandate_fields.billing_method = Some(BillingMethod::Recurring);
+                mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+            }
+            let is_three_ds = router_data.is_three_ds();
+            return Ok((
+                mandate_fields,
+                CeleroPaymentMethod::try_from((
+                    &router_data.request.payment_method_data,
+                    is_three_ds,
+                ))?,
+            ));
+        }
     }
-
-    mandate_fields
 }
 
 // Auth Struct for CeleroCommerce API key authentication
@@ -423,6 +469,22 @@ pub struct CeleroTransactionResponseData {
     pub status: Option<String>,
     pub response_code: Option<i32>,
     pub customer_id: Option<String>,
+    pub payment_method_id: Option<String>,
+}
+
+impl CeleroTransactionResponseData {
+    pub fn get_mandate_reference(&self) -> Box<Option<MandateReference>> {
+        if self.payment_method_id.is_some() {
+            Box::new(Some(MandateReference {
+                connector_mandate_id: None,
+                payment_method_id: self.payment_method_id.clone(),
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: Some(self.id.clone()),
+            }))
+        } else {
+            Box::new(None)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -497,9 +559,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                             Ok(Self {
                                 status: final_status,
                                 response: Ok(PaymentsResponseData::TransactionResponse {
-                                    resource_id: ResponseId::ConnectorTransactionId(data.id),
+                                    resource_id: ResponseId::ConnectorTransactionId(
+                                        data.id.clone(),
+                                    ),
                                     redirection_data: Box::new(None),
-                                    mandate_reference: Box::new(None),
+                                    mandate_reference: data.get_mandate_reference(),
                                     connector_metadata: None,
                                     network_txn_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
