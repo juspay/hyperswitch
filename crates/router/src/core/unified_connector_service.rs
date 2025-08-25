@@ -137,7 +137,7 @@ where
         payment_method,
         flow_name
     );
-    
+
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
 
     // Log gateway system decision
@@ -278,13 +278,17 @@ pub fn build_unified_connector_service_payment_method(
                 .transpose()?;
 
             let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(&card.card_number.get_card_no()).change_context(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
-                )?),
-                card_exp_month,
-                card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
-                card_cvc: card.card_cvc.peek().to_string(),
-                card_holder_name: card.card_holder_name.map(|name| name.expose()),
+                card_number: Some(
+                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                ),
+                card_exp_month: Some(card_exp_month.into()),
+                card_exp_year: Some(card.get_expiry_year_4_digit().expose().into()),
+                card_cvc: Some(card.card_cvc.expose().into()),
+                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: card.card_issuer.clone(),
                 card_network: card_network.map(|card_network| card_network.into()),
                 card_type: card.card_type.clone(),
@@ -319,14 +323,13 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
                     upi_collect_data,
                 ) => {
-                    let vpa_id = upi_collect_data.vpa_id.map(|vpa| vpa.expose());
-                    let upi_details = payments_grpc::UpiCollect { vpa_id };
+                    let upi_details = payments_grpc::UpiCollect {
+                        vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                    };
                     PaymentMethod::UpiCollect(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent { 
-                        app_name: None, 
-                    };
+                    let upi_details = payments_grpc::UpiIntent { app_name: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
             };
@@ -377,12 +380,10 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 card_number: Some(CardNumber::from_str(&external_vault_card.card_number.peek()).change_context(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
                 )?),
-                card_exp_month: external_vault_card.card_exp_month.peek().to_string(),
-                card_exp_year: external_vault_card.card_exp_year.peek().to_string(),
-                card_cvc: external_vault_card.card_cvc.peek().to_string(),
-                card_holder_name: external_vault_card
-                    .card_holder_name
-                    .map(|name| name.expose()),
+                card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+                card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
+                card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: external_vault_card.card_issuer.clone(),
                 card_network: card_network.map(|card_network| card_network.into()),
                 card_type: external_vault_card.card_type.clone(),

@@ -357,7 +357,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_interfaces",
- "masking",
+ "masking 0.1.0",
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
@@ -462,7 +462,7 @@ dependencies = [
  "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
- "masking",
+ "masking 0.1.0",
  "mime",
  "nutype",
  "reqwest 0.11.27",
@@ -1620,7 +1620,7 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack 0.4.1",
- "masking",
+ "masking 0.1.0",
  "regex",
  "router_env",
  "serde",
@@ -1846,7 +1846,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "masking",
+ "masking 0.1.0",
  "router_derive",
  "serde",
  "serde_json",
@@ -1865,7 +1865,7 @@ dependencies = [
  "diesel",
  "error-stack 0.4.1",
  "euclid",
- "masking",
+ "masking 0.1.0",
  "serde",
  "serde_json",
  "time",
@@ -1889,7 +1889,7 @@ dependencies = [
  "globset",
  "hex",
  "http 0.2.12",
- "masking",
+ "masking 0.1.0",
  "md5",
  "nanoid",
  "nutype",
@@ -2633,7 +2633,7 @@ dependencies = [
  "common_utils",
  "diesel",
  "error-stack 0.4.1",
- "masking",
+ "masking 0.1.0",
  "router_derive",
  "router_env",
  "serde",
@@ -2721,7 +2721,7 @@ dependencies = [
  "error-stack 0.4.1",
  "external_services",
  "hyperswitch_interfaces",
- "masking",
+ "masking 0.1.0",
  "mime",
  "redis_interface",
  "reqwest 0.11.27",
@@ -3020,7 +3020,7 @@ name = "events"
 version = "0.1.0"
 dependencies = [
  "error-stack 0.4.1",
- "masking",
+ "masking 0.1.0",
  "router_env",
  "serde",
  "serde_json",
@@ -3053,7 +3053,7 @@ dependencies = [
  "hyper-util",
  "hyperswitch_interfaces",
  "lettre",
- "masking",
+ "masking 0.1.0",
  "once_cell",
  "prost",
  "prost-types",
@@ -3377,8 +3377,9 @@ dependencies = [
 
 [[package]]
 name = "g2h"
-version = "0.4.0"
-source = "git+https://github.com/NishantJoshi00/g2h?branch=fixing-response-serializing#fd2c856b2c6c88a85d6fe51d95b4d3342b788d31"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d843f7c70cdae8a2452e0b2f463b7e483a57cece7687da89371d952d44e0445d"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",
@@ -3540,19 +3541,21 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
+source = "git+https://github.com/juspay/connector-service?rev=54eeaf13d3f79e14c190d8cd5de87cb0c5a40718#54eeaf13d3f79e14c190d8cd5de87cb0c5a40718"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
  "prost",
  "prost-build",
  "prost-types",
  "serde",
  "tonic 0.13.1",
  "tonic-build",
+ "ucs_cards",
 ]
 
 [[package]]
@@ -4046,7 +4049,7 @@ dependencies = [
  "isocountry",
  "josekit",
  "lazy_static",
- "masking",
+ "masking 0.1.0",
  "mime",
  "num-traits",
  "openssl",
@@ -4103,7 +4106,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "http 0.2.12",
- "masking",
+ "masking 0.1.0",
  "mime",
  "router_derive",
  "router_env",
@@ -4130,7 +4133,7 @@ dependencies = [
  "error-stack 0.4.1",
  "http 0.2.12",
  "hyperswitch_domain_models",
- "masking",
+ "masking 0.1.0",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -4584,7 +4587,7 @@ dependencies = [
  "criterion",
  "euclid",
  "hyperswitch_constraint_graph",
- "masking",
+ "masking 0.1.0",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -4816,6 +4819,23 @@ dependencies = [
  "erased-serde 0.4.6",
  "prost",
  "scylla",
+ "serde",
+ "serde_json",
+ "subtle",
+ "time",
+ "url",
+ "zeroize",
+]
+
+[[package]]
+name = "masking"
+version = "0.1.0"
+source = "git+https://github.com/juspay/hyperswitch?tag=v1.116.0#672d749e20bec7800613878e36a0ab3885177326"
+dependencies = [
+ "bytes 1.10.1",
+ "diesel",
+ "erased-serde 0.4.6",
+ "prost",
  "serde",
  "serde_json",
  "subtle",
@@ -5683,7 +5703,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
- "masking",
+ "masking 0.1.0",
  "rdkafka",
  "router_env",
  "scheduler",
@@ -5939,7 +5959,7 @@ dependencies = [
  "common_utils",
  "error-stack 0.4.1",
  "http 0.2.12",
- "masking",
+ "masking 0.1.0",
  "mime",
  "serde",
  "serde_json",
@@ -6786,7 +6806,7 @@ dependencies = [
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
- "masking",
+ "masking 0.1.0",
  "maud",
  "mimalloc",
  "mime",
@@ -6831,6 +6851,7 @@ dependencies = [
  "tokio 1.45.1",
  "totp-rs",
  "tracing-futures",
+ "ucs_cards",
  "unicode-segmentation",
  "url",
  "urlencoding",
@@ -6916,7 +6937,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=aae51574fed25b0a7849e3832cff8904bc310cf5#aae51574fed25b0a7849e3832cff8904bc310cf5"
+source = "git+https://github.com/juspay/connector-service?rev=54eeaf13d3f79e14c190d8cd5de87cb0c5a40718#54eeaf13d3f79e14c190d8cd5de87cb0c5a40718"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8122,7 +8143,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_domain_models",
- "masking",
+ "masking 0.1.0",
  "moka",
  "redis_interface",
  "router_derive",
@@ -8397,7 +8418,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "common_enums",
- "masking",
+ "masking 0.1.0",
  "rand 0.8.5",
  "regex",
  "reqwest 0.11.27",
@@ -9278,6 +9299,69 @@ name = "ucd-trie"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
+
+[[package]]
+name = "ucs_cards"
+version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=54eeaf13d3f79e14c190d8cd5de87cb0c5a40718#54eeaf13d3f79e14c190d8cd5de87cb0c5a40718"
+dependencies = [
+ "bytes 1.10.1",
+ "error-stack 0.4.1",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
+ "prost",
+ "regex",
+ "serde",
+ "thiserror 1.0.69",
+ "time",
+ "ucs_common_utils",
+]
+
+[[package]]
+name = "ucs_common_enums"
+version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=54eeaf13d3f79e14c190d8cd5de87cb0c5a40718#54eeaf13d3f79e14c190d8cd5de87cb0c5a40718"
+dependencies = [
+ "serde",
+ "strum 0.26.3",
+ "thiserror 1.0.69",
+ "utoipa",
+]
+
+[[package]]
+name = "ucs_common_utils"
+version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=54eeaf13d3f79e14c190d8cd5de87cb0c5a40718#54eeaf13d3f79e14c190d8cd5de87cb0c5a40718"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "bytes 1.10.1",
+ "chrono",
+ "error-stack 0.4.1",
+ "hex",
+ "http 1.3.1",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
+ "md5",
+ "nanoid",
+ "once_cell",
+ "quick-xml",
+ "rand 0.8.5",
+ "regex",
+ "reqwest 0.11.27",
+ "ring 0.17.14",
+ "rust_decimal",
+ "semver 1.0.26",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "strum 0.26.3",
+ "thiserror 1.0.69",
+ "time",
+ "tracing",
+ "ucs_common_enums",
+ "url",
+ "utoipa",
+ "uuid",
+]
 
 [[package]]
 name = "unarray"
