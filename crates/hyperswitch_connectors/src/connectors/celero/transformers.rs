@@ -312,22 +312,22 @@ fn determine_cit_mit_fields(
             mandate_fields.billing_method = Some(BillingMethod::Recurring);
             mandate_fields.initial_transaction_id =
                 connector_mandate_id.get_connector_mandate_request_reference_id();
-            return Ok((
+            Ok((
                 mandate_fields,
                 CeleroPaymentMethod::Customer(CeleroCustomer {
                     id: Some(router_data.get_customer_id()?),
                     payment_method_id: connector_mandate_id.get_payment_method_id(),
                 }),
-            ));
+            ))
         }
         // For other mandate types that might not be supported
         Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
         | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
             // These might need different handling or return an error
-            return Err(errors::ConnectorError::NotImplemented(
+            Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),
             )
-            .into());
+            .into())
         }
         // If no mandate ID is present, check if it's a mandate payment
         None => {
@@ -339,13 +339,13 @@ fn determine_cit_mit_fields(
                 mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
             }
             let is_three_ds = router_data.is_three_ds();
-            return Ok((
+            Ok((
                 mandate_fields,
                 CeleroPaymentMethod::try_from((
                     &router_data.request.payment_method_data,
                     is_three_ds,
                 ))?,
-            ));
+            ))
         }
     }
 }
