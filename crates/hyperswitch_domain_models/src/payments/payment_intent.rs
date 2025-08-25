@@ -1665,6 +1665,7 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -1734,6 +1735,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by,
 
             request_incremental_authorization: Some(request_incremental_authorization),
+            split_txns_enabled: Some(split_txns_enabled),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1887,6 +1889,7 @@ impl behaviour::Conversion for PaymentIntent {
                 request_incremental_authorization: storage_model
                     .request_incremental_authorization
                     .unwrap_or_default(),
+                split_txns_enabled: storage_model.split_txns_enabled.unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
@@ -1975,6 +1978,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by: self.updated_by,
 
             request_incremental_authorization: Some(self.request_incremental_authorization),
+            split_txns_enabled: Some(split_txns_enabled),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
