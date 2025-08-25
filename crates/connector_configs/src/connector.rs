@@ -270,6 +270,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    pub paysafe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
