@@ -48,7 +48,9 @@ describe("UCS Flow Testing", () => {
         const connectorConfig = { card_pm: config };
 
         if (!connectorConfig?.card_pm) {
-          throw new Error(`Failed to load configuration for connector: ${currentConnector}`);
+          throw new Error(
+            `Failed to load configuration for connector: ${currentConnector}`
+          );
         }
 
         const allRequests = Object.keys(connectorConfig.card_pm);
@@ -57,18 +59,36 @@ describe("UCS Flow Testing", () => {
         );
 
         // Log coverage information
-        cy.task("cli_log", `📊 Total requests available in ${currentConnector}.js: ${allRequests.length}`);
-        cy.task("cli_log", `✅ UCS-compatible requests found: ${testableRequests.length}`);
-        cy.task("cli_log", `📝 Testable requests: ${testableRequests.join(", ")}`);
-        cy.task("cli_log", `📈 Test Coverage: ${testableRequests.length}/${allRequests.length} (${((testableRequests.length / allRequests.length) * 100).toFixed(1)}%)`);
+        cy.task(
+          "cli_log",
+          `📊 Total requests available in ${currentConnector}.js: ${allRequests.length}`
+        );
+        cy.task(
+          "cli_log",
+          `✅ UCS-compatible requests found: ${testableRequests.length}`
+        );
+        cy.task(
+          "cli_log",
+          `📝 Testable requests: ${testableRequests.join(", ")}`
+        );
+        cy.task(
+          "cli_log",
+          `📈 Test Coverage: ${testableRequests.length}/${allRequests.length} (${((testableRequests.length / allRequests.length) * 100).toFixed(1)}%)`
+        );
 
         if (testableRequests.length === 0) {
-          throw new Error(`No UCS-compatible requests found for connector: ${currentConnector}`);
+          throw new Error(
+            `No UCS-compatible requests found for connector: ${currentConnector}`
+          );
         }
       });
 
       it("should setup UCS environment", () => {
-        cy.setupUCSEnvironment({ ...fixtures, payment_methods_enabled }, globalState, currentConnector);
+        cy.setupUCSEnvironment(
+          { ...fixtures, payment_methods_enabled },
+          globalState,
+          currentConnector
+        );
         if (shouldContinue) shouldContinue = true;
       });
 
@@ -77,11 +97,16 @@ describe("UCS Flow Testing", () => {
         it(`should test ${requestType}`, () => {
           // Skip test if request not available for this connector
           if (!testableRequests.includes(requestType)) {
-            cy.task("cli_log", `Skipping ${requestType} - not available for ${currentConnector}`);
+            cy.task(
+              "cli_log",
+              `Skipping ${requestType} - not available for ${currentConnector}`
+            );
             return;
           }
 
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][requestType];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ][requestType];
 
           if (!data?.Request || !data?.Response) {
             throw new Error(`Configuration missing for: ${requestType}`);
@@ -90,30 +115,46 @@ describe("UCS Flow Testing", () => {
           cy.task("cli_log", `Testing ${requestType}`);
 
           if (requestType.includes("MIT") || requestType.includes("Repeat")) {
-            cy.task("cli_log", `Skipping ${requestType} - requires existing mandate setup`);
+            cy.task(
+              "cli_log",
+              `Skipping ${requestType} - requires existing mandate setup`
+            );
             return;
           }
 
           if (requestType === "UCSZeroAuthMandate") {
             // Get full connector config for sequential flow
-            const connectorConfig = { card_pm: getConnectorDetails(currentConnector).card_pm };
-            cy.executeUCSSequentialFlow(connectorConfig, {}, currentConnector, globalState);
+            const connectorConfig = {
+              card_pm: getConnectorDetails(currentConnector).card_pm,
+            };
+            cy.executeUCSSequentialFlow(
+              connectorConfig,
+              {},
+              currentConnector,
+              globalState
+            );
           } else {
             // Individual UCS request test
-            cy.createUCSPayment(requestType, currentConnector, globalState, data.Request)
-              .then((response) => {
-                cy.validateUCSResponse(response, data.Response, requestType)
-                  .then((result) => {
-                    if (!result.success) {
-                      shouldContinue = false;
-                      throw new Error(`UCS Test Failed - ${result.error}`);
-                    }
-                  });
-              });
+            cy.createUCSPayment(
+              requestType,
+              currentConnector,
+              globalState,
+              data.Request
+            ).then((response) => {
+              cy.validateUCSResponse(response, data.Response, requestType).then(
+                (result) => {
+                  if (!result.success) {
+                    shouldContinue = false;
+                    throw new Error(`UCS Test Failed - ${result.error}`);
+                  }
+                }
+              );
+            });
           }
 
           // Use standard pattern for continuation
-          if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
       });
 
@@ -125,8 +166,14 @@ describe("UCS Flow Testing", () => {
   } else {
     context(`UCS Tests - Skipped for ${currentConnector}`, () => {
       it("should skip UCS tests for unsupported connector", () => {
-        cy.task("cli_log", `Connector ${currentConnector} is not supported for UCS tests`);
-        cy.task("cli_log", `Supported UCS connectors: ${UCS_SUPPORTED_CONNECTORS.join(", ")}`);
+        cy.task(
+          "cli_log",
+          `Connector ${currentConnector} is not supported for UCS tests`
+        );
+        cy.task(
+          "cli_log",
+          `Supported UCS connectors: ${UCS_SUPPORTED_CONNECTORS.join(", ")}`
+        );
       });
     });
   }
