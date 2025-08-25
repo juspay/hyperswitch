@@ -19,7 +19,10 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, transformers::{ForeignFrom, ForeignTryFrom}},
+    types::{
+        self, api, domain,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
 };
 
 #[cfg(feature = "v1")]
@@ -347,7 +350,8 @@ pub async fn setup_mandate_preprocessing_steps<F: Clone>(
     router_data: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
     confirm: bool,
     connector: &api::ConnectorData,
-) -> RouterResult<types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>> {
+) -> RouterResult<types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>>
+{
     if confirm {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PreProcessing,
@@ -379,12 +383,11 @@ pub async fn setup_mandate_preprocessing_steps<F: Clone>(
         .await
         .to_payment_failed_response()?;
 
-        let setup_mandate_router_data =
-            helpers::router_data_type_conversion::<_, F, _, _, _, _>(
-                resp.clone(),
-                router_data.request.to_owned(),
-                resp.response,
-            );
+        let setup_mandate_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
 
         Ok(setup_mandate_router_data)
     } else {
