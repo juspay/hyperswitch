@@ -66,7 +66,7 @@ pub struct RevenueRecoverySettings {
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,
-    pub redis_ttl_in_seconds: i64
+    pub redis_ttl_in_seconds: i64,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
