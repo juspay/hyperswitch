@@ -359,11 +359,17 @@ where
                                         )),
                                     );
 
+                                    store_raw_connector_response_if_required(
+                                        return_raw_connector_response,
+                                        &mut router_data,
+                                        &body,
+                                    )?;
+
                                     let error = match body.status_code {
                                         500..=511 => {
                                             let error_res = connector_integration
                                                 .get_5xx_error_response(
-                                                    body.clone(),
+                                                    body,
                                                     Some(&mut connector_event),
                                                 )?;
                                             state.event_handler().log_event(&connector_event);
@@ -372,7 +378,7 @@ where
                                         _ => {
                                             let error_res = connector_integration
                                                 .get_error_response(
-                                                    body.clone(),
+                                                    body,
                                                     Some(&mut connector_event),
                                                 )?;
                                             if let Some(status) = error_res.attempt_status {
@@ -384,12 +390,6 @@ where
                                     };
 
                                     router_data.response = Err(error);
-
-                                    store_raw_connector_response_if_required(
-                                        return_raw_connector_response,
-                                        &mut router_data,
-                                        &body,
-                                    )?;
 
                                     router_data
                                 }
