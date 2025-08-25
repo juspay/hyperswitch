@@ -87,6 +87,17 @@ pub struct CeleroPaymentsRequest {
     shipping_address: Option<CeleroAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_vault_record: Option<bool>,
+    // CIT/MIT fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card_on_file_indicator: Option<CardOnFileIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initiated_by: Option<InitiatedBy>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credential_indicator: Option<StoredCredentialIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_method: Option<BillingMethod>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -236,6 +247,15 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
         // Check if 3DS is requested
         let is_three_ds = item.router_data.is_three_ds();
 
+        // Determine CIT/MIT fields based on mandate data
+        let (
+            card_on_file_indicator,
+            initiated_by,
+            initial_transaction_id,
+            stored_credential_indicator,
+            billing_method,
+        ) = determine_cit_mit_fields(item.router_data);
+
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
             transaction_type,
@@ -248,10 +268,66 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
+            card_on_file_indicator,
+            initiated_by,
+            initial_transaction_id,
+            stored_credential_indicator,
+            billing_method,
         };
 
         Ok(request)
     }
+}
+
+// Helper function to determine CIT/MIT fields based on mandate data
+fn determine_cit_mit_fields(
+    router_data: &PaymentsAuthorizeRouterData,
+) -> (
+    Option<CardOnFileIndicator>,
+    Option<InitiatedBy>,
+    Option<String>,
+    Option<StoredCredentialIndicator>,
+    Option<BillingMethod>,
+) {
+    // Default values
+    let mut card_on_file_indicator = None;
+    let mut initiated_by = None;
+    let mut initial_transaction_id = None;
+    let mut stored_credential_indicator = None;
+    let mut billing_method = None;
+
+    // Check if this is a mandate payment
+    if router_data.request.is_mandate_payment() {
+        // This is a merchant-initiated transaction for a recurring payment
+        card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+        initiated_by = Some(InitiatedBy::Merchant);
+        stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+        billing_method = Some(BillingMethod::Recurring);
+        // Get the initial transaction ID if available
+        initial_transaction_id = router_data.request.related_transaction_id.clone();
+    } else if router_data.request.setup_mandate_details.is_some() {
+        // This is the initial transaction that will be used for future mandate payments
+        card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
+        initiated_by = Some(InitiatedBy::Customer);
+        stored_credential_indicator = Some(StoredCredentialIndicator::Stored);
+        billing_method = Some(BillingMethod::InitialRecurring);
+    } else if router_data.request.off_session.unwrap_or(false) {
+        // Off-session payment (merchant-initiated)
+        card_on_file_indicator = Some(CardOnFileIndicator::GeneralPurposeStorage);
+        initiated_by = Some(InitiatedBy::Merchant);
+        stored_credential_indicator = Some(StoredCredentialIndicator::Used);
+    } else {
+        // Regular customer-initiated transaction
+        initiated_by = Some(InitiatedBy::Customer);
+    }
+
+    (
+        card_on_file_indicator,
+        initiated_by,
+        initial_transaction_id,
+        stored_credential_indicator,
+        billing_method,
+    )
 }
 
 // Auth Struct for CeleroCommerce API key authentication
@@ -326,6 +402,38 @@ pub enum TransactionType {
     Sale,
     Authorize,
 }
+
+// CIT/MIT related enums
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum CardOnFileIndicator {
+    #[serde(rename = "C")]
+    GeneralPurposeStorage,
+    #[serde(rename = "R")]
+    RecurringPayment,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum InitiatedBy {
+    Customer,
+    Merchant,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum StoredCredentialIndicator {
+    Used,
+    Stored,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum BillingMethod {
+    Straight,
+    #[serde(rename = "initial_recurring")]
+    InitialRecurring,
+    Recurring,
+}
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde_with::skip_serializing_none]
 pub struct CeleroTransactionResponseData {
@@ -337,6 +445,10 @@ pub struct CeleroTransactionResponseData {
     pub response: CeleroPaymentMethodResponse,
     pub billing_address: Option<CeleroAddressResponse>,
     pub shipping_address: Option<CeleroAddressResponse>,
+    // Additional fields from the sample response
+    pub status: Option<String>,
+    pub response_code: Option<i32>,
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -427,6 +539,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                     }
                 } else {
                     // No transaction data in successful response
+                    // We don't have a transaction ID in this case
                     Ok(Self {
                         status: common_enums::AttemptStatus::Failure,
                         response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
@@ -450,6 +563,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                 let error_details =
                     CeleroErrorDetails::from_top_level_error(item.response.msg.clone());
 
+                // Extract transaction ID from the top-level data if available
+                let connector_transaction_id =
+                    item.response.data.as_ref().map(|data| data.id.clone());
+
                 Ok(Self {
                     status: common_enums::AttemptStatus::Failure,
                     response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
@@ -460,7 +577,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                         reason: error_details.decline_reason,
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
