@@ -285,32 +285,20 @@ pub struct CeleroMandateFields {
 
 // Helper function to determine CIT/MIT fields based on mandate data
 fn determine_cit_mit_fields(router_data: &PaymentsAuthorizeRouterData) -> CeleroMandateFields {
-    // Default values
+    // Default null values
     let mut mandate_fields = CeleroMandateFields::default();
 
     // Check if this is a mandate payment
     if router_data.request.is_mandate_payment() {
-        // This is a merchant-initiated transaction for a recurring payment
+        // This is a customer-initiated transaction for a recurring payment
+        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
+    } else {
+        // Regular merchant-initiated transaction
         mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
         mandate_fields.initiated_by = Some(InitiatedBy::Merchant);
         mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
         mandate_fields.billing_method = Some(BillingMethod::Recurring);
-        // Get the initial transaction ID if available
         mandate_fields.initial_transaction_id = router_data.request.related_transaction_id.clone();
-    } else if router_data.request.setup_mandate_details.is_some() {
-        // This is the initial transaction that will be used for future mandate payments
-        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::RecurringPayment);
-        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
-        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Stored);
-        mandate_fields.billing_method = Some(BillingMethod::InitialRecurring);
-    } else if router_data.request.off_session.unwrap_or(false) {
-        // Off-session payment (merchant-initiated)
-        mandate_fields.card_on_file_indicator = Some(CardOnFileIndicator::GeneralPurposeStorage);
-        mandate_fields.initiated_by = Some(InitiatedBy::Merchant);
-        mandate_fields.stored_credential_indicator = Some(StoredCredentialIndicator::Used);
-    } else {
-        // Regular customer-initiated transaction
-        mandate_fields.initiated_by = Some(InitiatedBy::Customer);
     }
 
     mandate_fields
