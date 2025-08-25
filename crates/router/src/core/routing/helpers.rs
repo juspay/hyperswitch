@@ -2584,7 +2584,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
         "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
         dynamic_routing_type
     );
-    let request = open_router::GetDecisionEngineAlgoRequest {
+    let request = open_router::GetDecisionEngineConfigRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
         algorithm: dynamic_routing_type,
     };

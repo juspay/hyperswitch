@@ -251,12 +251,6 @@ pub struct DecisionEngineConfigSetupRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetDecisionEngineConfigRequest {
     pub merchant_id: String,
-    pub config: DecisionEngineDynamicAlgorithmType,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetDecisionEngineAlgoRequest {
-    pub merchant_id: String,
     pub algorithm: DecisionEngineDynamicAlgorithmType,
 }
 
