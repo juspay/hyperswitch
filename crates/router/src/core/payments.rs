@@ -116,6 +116,7 @@ use crate::{
         payouts,
         routing::{self as core_routing},
         utils::{self as core_utils},
+        unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService}
     },
     db::StorageInterface,
     logger,
@@ -712,7 +713,6 @@ where
         .await?;
 
         if is_eligible_for_uas {
-            let should_do_uas_confirmation_call = false;
             operation
                 .to_domain()?
                 .call_unified_authentication_service_if_eligible(
@@ -723,7 +723,6 @@ where
                     &business_profile,
                     merchant_context.get_merchant_key_store(),
                     mandate_type,
-                    &should_do_uas_confirmation_call,
                 )
                 .await?;
         } else {
@@ -843,22 +842,6 @@ where
                     )
                     .await?;
 
-                    if is_eligible_for_uas {
-                        let should_do_uas_confirmation_call = true;
-                        operation
-                            .to_domain()?
-                            .call_unified_authentication_service_if_eligible(
-                                state,
-                                &mut payment_data,
-                                &mut should_continue_transaction,
-                                &connector_details,
-                                &business_profile,
-                                merchant_context.get_merchant_key_store(),
-                                mandate_type,
-                                &should_do_uas_confirmation_call,
-                            )
-                            .await?;
-                    }
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -910,6 +893,16 @@ where
                         )
                         .await?;
                     }
+
+                    if is_eligible_for_uas {
+                        complete_confirmation_for_click_to_pay_if_required(
+                            state,
+                            merchant_context,
+                            &payment_data,
+                        )
+                        .await?;
+                    }
+
 
                     payment_data
                 }
@@ -1022,23 +1015,6 @@ where
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
-                    if is_eligible_for_uas {
-                        let should_do_uas_confirmation_call = true;
-                        operation
-                            .to_domain()?
-                            .call_unified_authentication_service_if_eligible(
-                                state,
-                                &mut payment_data,
-                                &mut should_continue_transaction,
-                                &connector_details,
-                                &business_profile,
-                                merchant_context.get_merchant_key_store(),
-                                mandate_type,
-                                &should_do_uas_confirmation_call,
-                            )
-                            .await?;
-                    }
-
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
@@ -1085,6 +1061,16 @@ where
                         )
                         .await?;
                     }
+
+                    if is_eligible_for_uas {
+                        complete_confirmation_for_click_to_pay_if_required(
+                            state,
+                            merchant_context,
+                            &payment_data,
+                        )
+                        .await?;
+                    }
+
 
                     payment_data
                 }
@@ -6623,6 +6609,72 @@ where
     Ok(router_data_and_should_continue_payment)
 }
 
+async fn complete_confirmation_for_click_to_pay_if_required<F, D>(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_data: &D,
+) -> RouterResult<()>
+where 
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    let payment_intent = payment_data.get_payment_intent();
+    let service_details = payment_data.get_click_to_pay_service_details();
+    let authentication = payment_data.get_authentication();
+    
+    let should_do_uas_confirmation_call = service_details
+                        .as_ref()
+                        .map(|details| details.is_network_confirmation_call_required())
+                        .unwrap_or(true);
+    if should_do_uas_confirmation_call {
+        let authentication_connector_id = authentication.as_ref().and_then(|auth| auth.authentication.merchant_connector_id.clone()).ok_or(
+            errors::ApiErrorResponse::InternalServerError
+        ).attach_printable("Failed to get authentication connector id from authentication table")?;
+        let key_manager_state = &(state).into();
+        let key_store = merchant_context.get_merchant_key_store();
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+
+        let connector_mca = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                key_manager_state,
+                merchant_id,
+                &authentication_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: authentication_connector_id.get_string_repr().to_string(),
+                },
+            )?;
+
+                let payment_method = payment_attempt.payment_method.ok_or(
+            errors::ApiErrorResponse::InternalServerError
+        ).attach_printable("Failed to get payment method from payment attempt")?;
+
+        ClickToPay::confirmation(
+            state,
+            payment_attempt.authentication_id.as_ref(),
+            payment_intent.currency,
+            payment_attempt.status,
+            service_details.cloned(),
+            &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
+            &connector_mca.connector_name,
+            payment_method,
+            payment_attempt.net_amount.get_order_amount(),
+            Some(&payment_intent.payment_id),
+            merchant_id,
+        )
+        .await?;
+    Ok(())
+    }
+    else{
+Ok(())
+    }
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
@@ -10227,6 +10279,7 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
+    fn get_click_to_pay_service_details(&self) ->  Option<&api_models::payments::CtpServiceDetails>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -10461,6 +10514,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_connector_customer_id(&self) -> Option<String> {
         self.connector_customer_id.clone()
+    }
+
+    fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails> {
+        self.service_details.as_ref()
     }
 
     // #[cfg(feature = "v2")]
