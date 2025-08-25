@@ -8266,6 +8266,30 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PixQRExpirationDuration {
+    Immediate(ImmediateExpirationTime),
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: NaiveDate,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

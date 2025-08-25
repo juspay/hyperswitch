@@ -6267,6 +6267,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: data.request.enable_partial_authorization,
+        feature_metadata: None,
     }
 }
 

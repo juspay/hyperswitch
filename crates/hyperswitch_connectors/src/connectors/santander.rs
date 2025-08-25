@@ -309,20 +309,61 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<String, errors::ConnectorError> {
         let santander_mca_metadata =
             santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
-        match req.request.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => Ok(format!(
-                "{}cob/{}",
-                self.base_url(connectors),
-                req.payment_id
-            )),
-            Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                "{:?}{}/workspaces/{}/bank_slips",
-                connectors.santander.secondary_base_url.clone(),
-                santander_constants::SANTANDER_VERSION,
-                santander_mca_metadata.workspace_id
-            )),
+
+        match req.payment_method {
+            enums::PaymentMethod::BankTransfer => {
+                // Inside BankTransfer, check the PaymentMethodType
+                match req.request.payment_method_type {
+                    Some(enums::PaymentMethodType::Pix) => {
+                        match &req
+                            .request
+                            .feature_metadata
+                            .as_ref()
+                            .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                        {
+                            Some(api_models::payments::PixQRExpirationDuration::Immediate(
+                                _immediate,
+                            )) => Ok(format!(
+                                "{}cob/{}",
+                                self.base_url(connectors),
+                                req.payment_id
+                            )),
+                            Some(api_models::payments::PixQRExpirationDuration::Scheduled(
+                                _scheduled,
+                            )) => Ok(format!(
+                                "{}cobv/{}",
+                                self.base_url(connectors),
+                                req.payment_id
+                            )),
+                            None => Err(errors::ConnectorError::MissingRequiredField {
+                                field_name: "pix_qr_expiry_time",
+                            }
+                            .into()),
+                        }
+                    }
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method_type",
+                    }
+                    .into()),
+                }
+            }
+            enums::PaymentMethod::Voucher => {
+                // Inside Voucher, check the PaymentMethodType
+                match req.request.payment_method_type {
+                    Some(enums::PaymentMethodType::Boleto) => Ok(format!(
+                        "{:?}{}/workspaces/{}/bank_slips",
+                        connectors.santander.secondary_base_url.clone(),
+                        santander_constants::SANTANDER_VERSION,
+                        santander_mca_metadata.workspace_id
+                    )),
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method_type",
+                    }
+                    .into()),
+                }
+            }
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_type",
+                field_name: "payment_method",
             }
             .into()),
         }
@@ -966,7 +1007,7 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
+        Ok(true) // the source verification algorithm seems to be unclear as of now (Although MTLS is mentioned in the docs)
     }
 
     fn get_webhook_object_reference_id(
@@ -998,7 +1039,7 @@ impl webhooks::IncomingWebhook for Santander {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(webhook_body))
     }

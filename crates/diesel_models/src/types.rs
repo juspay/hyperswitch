@@ -112,6 +112,31 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// The system that the gateway is integrated with, e.g., `Direct`(through hyperswitch), `UnifiedConnectorService`(through ucs), etc.
     pub gateway_system: Option<common_enums::GatewaySystem>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub enum PixQRExpirationDuration {
+    Immediate(ImmediateExpirationTime),
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: chrono::NaiveDate,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
