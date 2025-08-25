@@ -223,6 +223,11 @@ impl MerchantAccount {
         &self.organization_id
     }
 
+    /// Get the merchant_details from MerchantAccount
+    pub fn get_merchant_details(&self) -> &OptionalEncryptableValue {
+        &self.merchant_details
+    }
+
     /// Check whether the merchant account is a platform account
     pub fn is_platform_account(&self) -> bool {
         matches!(

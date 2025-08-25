@@ -18782,6 +18782,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
+            "nullable": true
           }
         },
         "additionalProperties": false
