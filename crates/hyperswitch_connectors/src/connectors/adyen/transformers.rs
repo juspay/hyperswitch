@@ -1783,10 +1783,12 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
                         balance_pm,
                     )))
                 }
-                GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Balance".to_string(),
-                    connector: "adyen".to_string(),
-                }),
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
             },
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Balance".to_string(),
@@ -2133,6 +2135,10 @@ impl TryFrom<&GiftCardData> for AdyenPaymentMethod<'_> {
                 };
                 Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
             }
+            GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }

@@ -3339,9 +3339,7 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
-            network_transaction_id: payment_data
-                .get_payment_method_info()
-                .and_then(|info| info.network_transaction_id.clone()),
+            network_transaction_id: payment_attempt.network_transaction_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),

@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.25.0
+
+### Features
+
+- **connector:**
+  - [BHN] Add BHN GiftCard Flow( Alpha) ([#8701](https://github.com/juspay/hyperswitch/pull/8701)) ([`cb34ec5`](https://github.com/juspay/hyperswitch/commit/cb34ec51e0f2b4ba071602f5fe974429de542b80))
+  - [AFFIRM] BNPL flow added (Alpha) ([#8795](https://github.com/juspay/hyperswitch/pull/8795)) ([`ad247b7`](https://github.com/juspay/hyperswitch/commit/ad247b7663e46e9e53c0c7011f1a3acee1ebe36c))
+- **core:** Add network_transaction_id in payments Response ([#9032](https://github.com/juspay/hyperswitch/pull/9032)) ([`7047c3f`](https://github.com/juspay/hyperswitch/commit/7047c3faa1e71c7ad13592cd41b77be3cdc1a8a2))
+- **nuvei:** Googlepay , applepay and partial authorization integration for nuvei ([#8985](https://github.com/juspay/hyperswitch/pull/8985)) ([`049e6b5`](https://github.com/juspay/hyperswitch/commit/049e6b572d88d141fccf09e12854988daf146e67))
+- **payment_methods:** Add payment-methods/filter endpoint to list countries and currencies for connector payment method in v2 ([#8978](https://github.com/juspay/hyperswitch/pull/8978)) ([`6016377`](https://github.com/juspay/hyperswitch/commit/6016377ad8e424c58bb91af5c145741ba84e059f))
+- **router:**
+  - Verify service for applepay merchant registration v2 ([#8999](https://github.com/juspay/hyperswitch/pull/8999)) ([`0ba5d54`](https://github.com/juspay/hyperswitch/commit/0ba5d543496de040f637c5bf8d2529667d25e8a5))
+  - Add support to use signature_network and is_issuer_regulated as filters ([#9033](https://github.com/juspay/hyperswitch/pull/9033)) ([`ad05dc4`](https://github.com/juspay/hyperswitch/commit/ad05dc4176114dad3420a78af238d3842160e464))
+
+### Bug Fixes
+
+- **connectors:** [worldpayvantiv] map cnp_txn_id to connector_txn_id and enforce max length for customer_id and connector_request_reference_id ([#9031](https://github.com/juspay/hyperswitch/pull/9031)) ([`b1486f8`](https://github.com/juspay/hyperswitch/commit/b1486f8bd31dbe741ac01f36053bc4a2f3eaaa78))
+- **redis:** Add support for fetching multiple keys for redis cluster ([#9019](https://github.com/juspay/hyperswitch/pull/9019)) ([`cc44831`](https://github.com/juspay/hyperswitch/commit/cc44831c51893805d76afc284107597a9dcd9963))
+
+### Refactors
+
+- **core:** Refund sync process scheduled time ([#8930](https://github.com/juspay/hyperswitch/pull/8930)) ([`e9a8187`](https://github.com/juspay/hyperswitch/commit/e9a8187dfdc74a5b555140afd5b7ec05491f06ed))
+- **user_roles:** Implement parent group info based role APIs ([#8896](https://github.com/juspay/hyperswitch/pull/8896)) ([`e3c46b7`](https://github.com/juspay/hyperswitch/commit/e3c46b7de71d619b84beb2dba36b6f62a570d45f))
+
+**Full Changelog:** [`2025.08.22.0...2025.08.25.0`](https://github.com/juspay/hyperswitch/compare/2025.08.22.0...2025.08.25.0)
+
+- - -
+
 ## 2025.08.22.0
 
 ### Features

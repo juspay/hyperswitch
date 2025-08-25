@@ -982,6 +982,8 @@ diesel::table! {
         routing_approach -> Nullable<RoutingApproach>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
         is_overcapture_enabled -> Nullable<Bool>,
     }
 }

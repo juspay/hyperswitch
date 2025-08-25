@@ -4660,6 +4660,7 @@ impl AttemptType {
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         }
     }
 
