@@ -22,7 +22,7 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRevenueRecoveryAlgorithmType as RevenueRecoveryAlgorithmType, DbRoleScope as RoleScope,
         DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbRoutingApproach as RoutingApproach,
-        DbScaExemptionType as ScaExemptionType,
+        DbScaExemptionType as ScaExemptionType, DbSplitTxnsEnabled as SplitTxnsEnabled,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
         DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,

@@ -509,6 +509,10 @@ pub async fn filter_payment_methods(
                 payment_intent.amount_details.currency,
                 &payment_method_object,
             )
+            && filter_split_based(
+                &payment_method_object,
+                payment_intent.split_txns_enabled.as_bool(),
+            )
             && filter_amount_based(
                 &payment_method_object,
                 Some(payment_intent.amount_details.calculate_net_amount()),
@@ -644,6 +648,15 @@ fn filter_recurring_based(
     recurring_enabled.map_or(true, |enabled| {
         payment_method.recurring_enabled == Some(enabled)
     })
+}
+
+// filter based on split enabled parameter of request
+// return true if split_txns_enabled is false or both split_txns_enabled and payment_method.split_enabled are true
+fn filter_split_based(
+    payment_method: &common_types::payment_methods::RequestPaymentMethodTypes,
+    split_txns_enabled: bool,
+) -> bool {
+    !split_txns_enabled || payment_method.split_enabled == Some(true)
 }
 
 // filter based on valid amount range of payment method type

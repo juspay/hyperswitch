@@ -199,6 +199,7 @@ pub struct PaymentIntentUpdateFields {
     pub feature_metadata: Option<diesel_models::types::FeatureMetadata>,
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication:
@@ -491,6 +492,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
@@ -536,6 +538,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: feature_metadata.map(|val| *val),
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
@@ -579,6 +582,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
@@ -622,6 +626,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
@@ -668,6 +673,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 session_expiry: None,
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
@@ -706,6 +712,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     session_expiry,
                     frm_metadata,
                     request_external_three_ds_authentication,
+                    split_txns_enabled,
                     active_attempt_id,
                     updated_by,
                     force_3ds_challenge,
@@ -748,11 +755,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     feature_metadata,
                     payment_link_config,
                     request_incremental_authorization,
+                    split_txns_enabled,
                     session_expiry,
                     frm_metadata,
                     request_external_three_ds_authentication:
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
-
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
@@ -794,6 +801,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata: *feature_metadata,
                 payment_link_config: None,
                 request_incremental_authorization: None,
+                split_txns_enabled: None,
                 prerouting_algorithm: None,
                 session_expiry: None,
                 frm_metadata: None,
@@ -1665,6 +1673,7 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -1734,6 +1743,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by,
 
             request_incremental_authorization: Some(request_incremental_authorization),
+            split_txns_enabled: Some(split_txns_enabled),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1887,6 +1897,7 @@ impl behaviour::Conversion for PaymentIntent {
                 request_incremental_authorization: storage_model
                     .request_incremental_authorization
                     .unwrap_or_default(),
+                split_txns_enabled: storage_model.split_txns_enabled.unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
@@ -1975,6 +1986,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by: self.updated_by,
 
             request_incremental_authorization: Some(self.request_incremental_authorization),
+            split_txns_enabled: Some(self.split_txns_enabled),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
