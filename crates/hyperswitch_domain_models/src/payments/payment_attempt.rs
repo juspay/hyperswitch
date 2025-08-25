@@ -5,7 +5,7 @@ use common_enums as storage_enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+    ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -1021,6 +1021,7 @@ pub struct PaymentAttempt {
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
     pub network_transaction_id: Option<String>,
+    pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1438,6 +1439,7 @@ pub enum PaymentAttemptUpdate {
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
+        is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1739,6 +1741,7 @@ impl PaymentAttemptUpdate {
                 setup_future_usage_applied,
                 network_transaction_id,
                 debit_routing_savings: _,
+                is_overcapture_enabled,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1765,6 +1768,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
+                is_overcapture_enabled,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -2140,6 +2144,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            is_overcapture_enabled: self.is_overcapture_enabled,
         })
     }
 
@@ -2239,6 +2244,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
                 network_transaction_id: storage_model.network_transaction_id,
+                is_overcapture_enabled: storage_model.is_overcapture_enabled,
             })
         }
         .await
@@ -2499,6 +2505,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
             network_transaction_id,
+            is_overcapture_enabled: None,
         })
     }
 

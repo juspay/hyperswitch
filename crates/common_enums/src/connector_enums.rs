@@ -559,6 +559,10 @@ impl Connector {
         HashSet::new()
     }
 
+    pub fn is_overcapture_supported_by_connector(self) -> bool {
+        matches!(self, Self::Stripe | Self::Adyen)
+    }
+
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
         matches!(self, Self::Adyenplatform)
     }

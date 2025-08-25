@@ -2186,9 +2186,13 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
-    /// Time interval (in hours) for polling the connector to check dispute statuses
+    /// Time interval (in hours) for polling the connector to check  for new disputes
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[nutype::nutype(
@@ -2525,8 +2529,13 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2856,8 +2865,13 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check for new disputes
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v2")]

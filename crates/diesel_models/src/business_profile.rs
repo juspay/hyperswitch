@@ -78,6 +78,7 @@ pub struct Profile {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -194,6 +195,7 @@ pub struct ProfileUpdateInternal {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -249,6 +251,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             dispute_polling_interval,
+            always_enable_overcapture,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -335,6 +338,8 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
+            always_enable_overcapture: always_enable_overcapture
+                .or(source.always_enable_overcapture),
         }
     }
 }
@@ -399,6 +404,7 @@ pub struct Profile {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -698,6 +704,7 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: None,
+            always_enable_overcapture: None,
         }
     }
 }
