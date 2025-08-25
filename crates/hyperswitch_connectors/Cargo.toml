@@ -18,8 +18,6 @@ dummy_connector = [
 ]
 
 [dependencies]
-ordered-float = { version = "3", features = ["serde"] }
-chrono = "0.4"
 crc = "3"
 actix-web = "4.11.0"
 async-trait = "0.1.88"

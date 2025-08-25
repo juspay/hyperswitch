@@ -4,8 +4,6 @@ use std::{
     collections::{HashMap, HashSet},
     num::NonZeroI64,
 };
-
-use chrono::NaiveDate;
 pub mod additional_info;
 pub mod trait_impls;
 use cards::CardNumber;
@@ -4257,10 +4255,10 @@ pub struct BoletoVoucherData {
     #[schema(value_type = Option<Vec<String>>)]
     pub messages: Option<Vec<String>>,
 
-    #[serde(with = "common_utils::custom_serde::date_yyyy_mm_dd::option")]
+    // #[serde(with = "common_utils::custom_serde::date_yyyy_mm_dd::option")]
     #[schema(value_type = Option<String>, format = "date", example = "2025-08-22")]
     // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
-    pub due_date: Option<NaiveDate>,
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4968,7 +4966,7 @@ pub struct BankTransferNextStepsData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
     /// Voucher entry date
-    pub entry_date: Option<NaiveDate>,
+    pub entry_date: Option<String>,
     /// Voucher expiry date and time
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction

@@ -456,7 +456,6 @@ dependencies = [
  "actix-multipart",
  "actix-web",
  "cards",
- "chrono",
  "common_enums",
  "common_types",
  "common_utils",
@@ -466,7 +465,6 @@ dependencies = [
  "masking",
  "mime",
  "nutype",
- "ordered-float 3.9.2",
  "reqwest 0.11.27",
  "router_derive",
  "serde",
@@ -1883,7 +1881,6 @@ dependencies = [
  "base64-serde",
  "blake3",
  "bytes 1.10.1",
- "chrono",
  "common_enums",
  "diesel",
  "error-stack 0.4.1",
@@ -4032,7 +4029,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes 1.10.1",
  "cards",
- "chrono",
  "common_enums",
  "common_types",
  "common_utils",
@@ -4054,7 +4050,6 @@ dependencies = [
  "nanoid",
  "num-traits",
  "openssl",
- "ordered-float 3.9.2",
  "pem",
  "qrcode",
  "quick-xml",
@@ -4101,7 +4096,6 @@ dependencies = [
  "api_models",
  "async-trait",
  "cards",
- "chrono",
  "common_enums",
  "common_types",
  "common_utils",
@@ -4111,7 +4105,6 @@ dependencies = [
  "http 0.2.12",
  "masking",
  "mime",
- "ordered-float 3.9.2",
  "router_derive",
  "router_env",
  "rustc-hash 1.1.0",
@@ -5529,17 +5522,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ordered-float"
-version = "3.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1e1c390732d15f1d48471625cd92d154e66db2c56645e29a9cd26f4699f72dc"
-dependencies = [
- "num-traits",
- "rand 0.8.5",
- "serde",
-]
-
-[[package]]
 name = "ordered-multimap"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6316,7 +6298,6 @@ dependencies = [
  "libc",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
- "serde",
 ]
 
 [[package]]
@@ -6356,7 +6337,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.16",
- "serde",
 ]
 
 [[package]]
@@ -7505,7 +7485,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
 dependencies = [
- "ordered-float 2.10.1",
+ "ordered-float",
  "serde",
 ]
 

@@ -966,7 +966,7 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
+        Ok(true) // Hardcoded to true as the source verification algorithm for Santander remains to be unknown (in docs it is mentioned as MTLS)
     }
 
     fn get_webhook_object_reference_id(
@@ -998,7 +998,7 @@ impl webhooks::IncomingWebhook for Santander {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(webhook_body))
     }
