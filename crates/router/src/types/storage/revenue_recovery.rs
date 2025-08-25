@@ -1,7 +1,8 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
-use common_enums::enums;
+use common_enums::enums::{self, CardNetwork};
 use common_utils::{date_time, ext_traits::ValueExt, id_type};
+use error_stack::ResultExt;
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
@@ -10,6 +11,7 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::logger;
+use serde::{Deserialize, Serialize};
 
 use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -53,20 +55,7 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => {
-                if is_hard_decline {
-                    None
-                } else {
-                    // TODO: Integrate the smart retry call to return back a schedule time
-                    revenue_recovery::get_schedule_time_for_smart_retry(
-                        state,
-                        payment_attempt,
-                        payment_intent,
-                        retry_count,
-                    )
-                    .await
-                }
-            }
+            enums::RevenueRecoveryAlgorithmType::Smart => None,
         }
     }
 }
@@ -76,6 +65,8 @@ pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
+    pub card_config: RetryLimitsConfig,
+    pub redis_ttl_in_seconds: i64,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -87,6 +78,31 @@ impl Default for RecoveryTimestamp {
     fn default() -> Self {
         Self {
             initial_timestamp_in_hours: 1,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct RetryLimitsConfig(pub HashMap<CardNetwork, NetworkRetryConfig>);
+
+#[derive(Debug, serde::Deserialize, Clone, Default)]
+pub struct NetworkRetryConfig {
+    pub max_retries_per_day: i32,
+    pub max_retry_count_for_thirty_day: i32,
+}
+
+impl RetryLimitsConfig {
+    pub fn get_network_config(&self, network: Option<CardNetwork>) -> &NetworkRetryConfig {
+        // Hardcoded fallback default config
+        static DEFAULT_CONFIG: NetworkRetryConfig = NetworkRetryConfig {
+            max_retries_per_day: 20,
+            max_retry_count_for_thirty_day: 20,
+        };
+
+        if let Some(net) = network {
+            self.0.get(&net).unwrap_or(&DEFAULT_CONFIG)
+        } else {
+            self.0.get(&CardNetwork::Visa).unwrap_or(&DEFAULT_CONFIG)
         }
     }
 }
