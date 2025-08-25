@@ -1055,7 +1055,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Nordea".to_string(),
+            connector: "Nordea",
         }
         .into())
     }
@@ -1069,7 +1069,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Payments Cancel".to_string(),
-            connector: "Nordea".to_string(),
+            connector: "Nordea",
         }
         .into())
     }
