@@ -25,9 +25,7 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-#[cfg(feature = "v2")]
-use masking::PeekInterface;
-use masking::{ExposeInterface, Maskable, Secret};
+use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
@@ -1529,6 +1527,16 @@ where
     let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
+        let merchant_details = merchant_context
+            .get_merchant_account()
+            .get_merchant_details();
+        let merchant_tax_registration_id = merchant_details.as_ref().and_then(|details| {
+            details
+                .get_inner()
+                .peek()
+                .get("merchant_tax_registration_id")
+                .and_then(|id| id.as_str().map(|s| Secret::new(s.to_string())))
+        });
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
@@ -1571,6 +1579,7 @@ where
                 .as_ref()
                 .and_then(|addr| addr.address.as_ref())
                 .and_then(|details| details.city.clone()),
+            merchant_tax_registration_id,
         }
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
