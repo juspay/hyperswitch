@@ -80,6 +80,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Affirm => {
+                affirm::transformers::AffirmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Airwallex => {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
                 Ok(())
