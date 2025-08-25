@@ -115,8 +115,8 @@ use crate::{
         payment_methods::{cards, network_tokenization},
         payouts,
         routing::{self as core_routing},
+        unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils::{self as core_utils},
-        unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService}
     },
     db::StorageInterface,
     logger,
@@ -842,7 +842,6 @@ where
                     )
                     .await?;
 
-
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
@@ -902,7 +901,6 @@ where
                         )
                         .await?;
                     }
-
 
                     payment_data
                 }
@@ -1070,7 +1068,6 @@ where
                         )
                         .await?;
                     }
-
 
                     payment_data
                 }
@@ -6614,7 +6611,7 @@ async fn complete_confirmation_for_click_to_pay_if_required<F, D>(
     merchant_context: &domain::MerchantContext,
     payment_data: &D,
 ) -> RouterResult<()>
-where 
+where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
@@ -6622,15 +6619,19 @@ where
     let payment_intent = payment_data.get_payment_intent();
     let service_details = payment_data.get_click_to_pay_service_details();
     let authentication = payment_data.get_authentication();
-    
+
     let should_do_uas_confirmation_call = service_details
-                        .as_ref()
-                        .map(|details| details.is_network_confirmation_call_required())
-                        .unwrap_or(true);
+        .as_ref()
+        .map(|details| details.is_network_confirmation_call_required())
+        .unwrap_or(true);
     if should_do_uas_confirmation_call {
-        let authentication_connector_id = authentication.as_ref().and_then(|auth| auth.authentication.merchant_connector_id.clone()).ok_or(
-            errors::ApiErrorResponse::InternalServerError
-        ).attach_printable("Failed to get authentication connector id from authentication table")?;
+        let authentication_connector_id = authentication
+            .as_ref()
+            .and_then(|auth| auth.authentication.merchant_connector_id.clone())
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to get authentication connector id from authentication table",
+            )?;
         let key_manager_state = &(state).into();
         let key_store = merchant_context.get_merchant_key_store();
         let merchant_id = merchant_context.get_merchant_account().get_id();
@@ -6644,15 +6645,14 @@ where
                 key_store,
             )
             .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: authentication_connector_id.get_string_repr().to_string(),
-                },
-            )?;
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: authentication_connector_id.get_string_repr().to_string(),
+            })?;
 
-                let payment_method = payment_attempt.payment_method.ok_or(
-            errors::ApiErrorResponse::InternalServerError
-        ).attach_printable("Failed to get payment method from payment attempt")?;
+        let payment_method = payment_attempt
+            .payment_method
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get payment method from payment attempt")?;
 
         ClickToPay::confirmation(
             state,
@@ -6668,10 +6668,9 @@ where
             merchant_id,
         )
         .await?;
-    Ok(())
-    }
-    else{
-Ok(())
+        Ok(())
+    } else {
+        Ok(())
     }
 }
 
@@ -10279,7 +10278,7 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
-    fn get_click_to_pay_service_details(&self) ->  Option<&api_models::payments::CtpServiceDetails>;
+    fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
 }
 
 pub trait OperationSessionSetters<F> {
