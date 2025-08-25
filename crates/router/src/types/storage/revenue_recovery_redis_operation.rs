@@ -89,7 +89,7 @@ impl RedisTokenManager {
             .set_key_if_not_exists_with_expiry(
                 &lock_key.into(),
                 payment_id.get_string_repr(),
-                Some(seconds.clone()),
+                Some(*seconds),
             )
             .await
         {
@@ -232,7 +232,7 @@ impl RedisTokenManager {
             .set_hash_fields(
                 &tokens_key.into(),
                 serialized_payment_processor_tokens,
-                Some(seconds.clone()),
+                Some(*seconds),
             )
             .await
             .change_context(errors::StorageError::RedisError(
