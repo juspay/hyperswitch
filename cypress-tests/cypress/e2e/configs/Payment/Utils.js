@@ -409,6 +409,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    OVERCAPTURE: ["adyen"],
     // Add more inclusion lists
   },
 };
