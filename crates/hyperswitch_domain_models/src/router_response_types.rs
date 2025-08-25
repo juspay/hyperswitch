@@ -143,6 +143,12 @@ impl PaymentsResponseData {
             _ => None,
         }
     }
+    pub fn get_network_transaction_id(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse { network_txn_id, .. } => network_txn_id.clone(),
+            _ => None,
+        }
+    }
 
     pub fn get_connector_transaction_id(
         &self,
@@ -636,7 +642,9 @@ pub struct ConnectorInfo {
     /// Description of the connector.
     pub description: &'static str,
     /// Connector Type
-    pub connector_type: common_enums::PaymentConnectorCategory,
+    pub connector_type: common_enums::HyperswitchConnectorCategory,
+    /// Integration status of the connector
+    pub integration_status: common_enums::ConnectorIntegrationStatus,
 }
 
 pub trait SupportedPaymentMethodsExt {

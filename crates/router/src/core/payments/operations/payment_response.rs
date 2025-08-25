@@ -1726,6 +1726,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 types::ResponseId::ConnectorTransactionId(ref id)
                                 | types::ResponseId::EncodedData(ref id) => Some(id),
                             };
+                            let resp_network_transaction_id = router_data.response.as_ref()
+                                .map_err(|err| {
+                                    logger::error!(error = ?err, "Failed to obtain the network_transaction_id from payment response");
+                                })
+                                .ok()
+                                .and_then(|resp| resp.get_network_transaction_id());
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
@@ -1932,6 +1938,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .setup_future_usage_applied,
                                         debit_routing_savings,
+                                        network_transaction_id: resp_network_transaction_id,
                                     }),
                                 ),
                             };
