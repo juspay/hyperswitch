@@ -25,8 +25,7 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use masking::PeekInterface;
-use masking::{ExposeInterface, Maskable, Secret};
+use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
