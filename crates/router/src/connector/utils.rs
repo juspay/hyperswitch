@@ -204,8 +204,7 @@ where
                             .connector_transaction_id
                             .clone(),
                     })?
-                }
-                else if captured_amount.is_some_and(|captured_amount| {
+                } else if captured_amount.is_some_and(|captured_amount| {
                     MinorUnit::new(captured_amount) < total_capturable_amount
                 }) {
                     Ok(enums::AttemptStatus::PartialCharged)
