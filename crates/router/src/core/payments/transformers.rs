@@ -406,7 +406,10 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
-        merchant_order_reference_id: None,
+        merchant_order_reference_id: payment_data
+            .payment_intent
+            .merchant_reference_id
+            .map(|reference_id| reference_id.get_string_repr().to_owned()),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
@@ -3335,9 +3338,7 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
-            network_transaction_id: payment_data
-                .get_payment_method_info()
-                .and_then(|info| info.network_transaction_id.clone()),
+            network_transaction_id: payment_attempt.network_transaction_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),

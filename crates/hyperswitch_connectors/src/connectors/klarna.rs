@@ -552,6 +552,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::AliPayHk
                         | common_enums::PaymentMethodType::Alma
                         | common_enums::PaymentMethodType::AmazonPay
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
@@ -686,6 +687,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
                         | common_enums::PaymentMethodType::BcaBankTransfer
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
                         | common_enums::PaymentMethodType::CardRedirect
@@ -817,6 +819,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Bizum
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BcaBankTransfer
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
@@ -940,6 +943,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
                         | common_enums::PaymentMethodType::BcaBankTransfer
+                        | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BniVa
                         | common_enums::PaymentMethodType::BriVa
                         | common_enums::PaymentMethodType::CardRedirect
@@ -1422,7 +1426,8 @@ static KLARNA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static KLARNA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Klarna",
     description: "Klarna provides payment processing services for the e-commerce industry, managing store claims and customer payments.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static KLARNA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
