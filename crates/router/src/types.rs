@@ -37,9 +37,10 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
-        InitPayment, PSync, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
+        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
+        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
+        UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -47,15 +48,15 @@ use hyperswitch_domain_models::router_flow_types::{
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
-        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
-        ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
+        AccessToken, AccessTokenAuthenticationResponse, AdditionalPaymentMethodConnectorResponse,
+        ConnectorAuthType, ConnectorResponseData, ErrorResponse, GooglePayPaymentMethodDetails,
         GooglePayPredecryptDataInternal, L2L3Data, PaymentMethodBalance, PaymentMethodToken,
         RecurringMandatePaymentData, RouterData,
     },
     router_data_v2::{
-        AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2, UasFlowData,
-        WebhookSourceVerifyData,
+        AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
+        ExternalAuthenticationFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
+        RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
         revenue_recovery::{
@@ -67,10 +68,11 @@ pub use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
-        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund, DisputeSyncData,
+        AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
+        AuthorizeSessionTokenData, BrowserInformation, ChargeRefunds, ChargeRefundsOptions,
+        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
+        CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
+        DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -118,21 +120,22 @@ pub use hyperswitch_interfaces::{
     },
 };
 
+#[cfg(feature = "v2")]
+use crate::core::errors;
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
-    core::{
-        errors::{self},
-        payments::{OperationSessionGetters, PaymentData},
-    },
+    core::payments::{OperationSessionGetters, PaymentData},
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
 };
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type ExternalVaultProxyPaymentsRouterData =
+    RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
@@ -1133,36 +1136,19 @@ pub struct ConnectorsList {
     pub connectors: Vec<String>,
 }
 
-impl ForeignTryFrom<ConnectorAuthType> for AccessTokenRequestData {
-    type Error = errors::ApiErrorResponse;
-    fn foreign_try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
-        match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-            ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
-
-            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
+impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
+        Self {
+            amount_to_capture: data.amount_captured,
+            currency: data.request.currency,
+            connector_transaction_id: data.payment_id.clone(),
+            amount: Some(data.request.amount),
         }
     }
 }
 
-impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
-    fn foreign_from(data: &PaymentsAuthorizeRouterData) -> Self {
+impl ForeignFrom<&ExternalVaultProxyPaymentsRouterData> for AuthorizeSessionTokenData {
+    fn foreign_from(data: &ExternalVaultProxyPaymentsRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
@@ -1188,6 +1174,12 @@ impl Tokenizable for PaymentsAuthorizeData {
 
 impl Tokenizable for CompleteAuthorizeData {
     fn set_session_token(&mut self, _token: Option<String>) {}
+}
+
+impl Tokenizable for ExternalVaultProxyPaymentsData {
+    fn set_session_token(&mut self, token: Option<String>) {
+        self.session_token = token;
+    }
 }
 
 impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {

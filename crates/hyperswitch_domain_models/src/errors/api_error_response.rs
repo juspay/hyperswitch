@@ -319,6 +319,8 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Tokenization record not found for the given token_id {id}")]
+    TokenizationRecordNotFound { id: String },
 }
 
 #[derive(Clone)]
@@ -705,6 +707,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::InvalidPlatformOperation => {
                 AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
             }
+            Self::TokenizationRecordNotFound{ id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Tokenization record not found for the given token_id '{id}' "), None))
+            }
         }
     }
 }
@@ -734,6 +739,7 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }

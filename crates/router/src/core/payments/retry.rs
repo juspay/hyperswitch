@@ -517,6 +517,10 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                network_transaction_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -715,6 +719,7 @@ pub fn make_new_payment_attempt(
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
+        network_transaction_id: old_payment_attempt.network_transaction_id,
     }
 }
 

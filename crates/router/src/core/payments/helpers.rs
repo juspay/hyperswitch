@@ -4635,6 +4635,7 @@ impl AttemptType {
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         }
     }
 
@@ -4867,19 +4868,30 @@ pub async fn get_additional_payment_data(
                     "Card cobadge check failed due to an invalid card network regex",
                 )?;
 
-            let card_network = match (
-                is_cobadged_based_on_regex,
-                card_data.co_badged_card_data.is_some(),
-            ) {
-                (false, false) => {
+            let (card_network, signature_network, is_regulated) = card_data
+                .co_badged_card_data
+                .as_ref()
+                .map(|co_badged_data| {
+                    logger::debug!("Co-badged card data found");
+
+                    (
+                        card_data.card_network.clone(),
+                        co_badged_data
+                            .co_badged_card_networks_info
+                            .get_signature_network(),
+                        Some(co_badged_data.is_regulated),
+                    )
+                })
+                .or_else(|| {
+                    is_cobadged_based_on_regex.then(|| {
+                        logger::debug!("Card network is cobadged (regex-based detection)");
+                        (card_data.card_network.clone(), None, None)
+                    })
+                })
+                .unwrap_or_else(|| {
                     logger::debug!("Card network is not cobadged");
-                    None
-                }
-                _ => {
-                    logger::debug!("Card network is cobadged");
-                    card_data.card_network.clone()
-                }
-            };
+                    (None, None, None)
+                });
 
             let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
@@ -4904,6 +4916,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated,
+                        signature_network: signature_network.clone(),
                     }),
                 )))
             } else {
@@ -4934,6 +4948,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated,
+                                signature_network: signature_network.clone(),
                             },
                         ))
                     });
@@ -4954,6 +4970,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated,
+                            signature_network: signature_network.clone(),
                         },
                     ))
                 })))
@@ -5199,6 +5217,8 @@ pub async fn get_additional_payment_data(
                         // These are filled after calling the processor / connector
                         payment_checks: None,
                         authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
                     }),
                 )))
             } else {
@@ -5229,6 +5249,8 @@ pub async fn get_additional_payment_data(
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
+                                is_regulated: None,
+                                signature_network: None,
                             },
                         ))
                     });
@@ -5249,6 +5271,8 @@ pub async fn get_additional_payment_data(
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
                         },
                     ))
                 })))

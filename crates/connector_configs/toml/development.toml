@@ -1500,6 +1500,35 @@ merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[celero]
+[[celero.credit]]
+  payment_method_type = "AmericanExpress"
+[[celero.credit]]
+  payment_method_type = "Discover"
+[[celero.credit]]
+  payment_method_type = "DinersClub"
+[[celero.credit]]
+  payment_method_type = "JCB"
+[[celero.credit]]
+  payment_method_type = "Mastercard"
+[[celero.credit]]
+  payment_method_type = "Visa"
+[[celero.debit]]
+  payment_method_type = "AmericanExpress"
+[[celero.debit]]
+  payment_method_type = "Discover"
+[[celero.debit]]
+  payment_method_type = "DinersClub"
+[[celero.debit]]
+  payment_method_type = "JCB"
+[[celero.debit]]
+  payment_method_type = "Mastercard"
+[[celero.debit]]
+  payment_method_type = "Visa"
+[celero.connector_auth.HeaderKey]
+api_key="Celero API Key"
+
+
 [checkbook]
 [[checkbook.bank_transfer]]
 payment_method_type = "ach"
@@ -2102,6 +2131,21 @@ api_secret="Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[[dwolla.bank_debit]]
+  payment_method_type = "ach"
+[dwolla.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+[dwolla.connector_webhook_details]
+merchant_secret="Source verification key" 
+
+[dwolla.metadata.merchant_funding_source]
+name = "merchant_funding_source"
+label = "Funding Source ID"
+placeholder = "Enter your funding source ID"
+required = true
+type = "Text"
+
 [ebanx_payout]
 [[ebanx_payout.bank_transfer]]
   payment_method_type = "pix"
@@ -2149,11 +2193,12 @@ api_key = "Integration Key"
   payment_method_type = "google_pay"
 [[fiserv.wallet]]
   payment_method_type = "paypal"
+[[fiserv.wallet]]
+  payment_method_type = "apple_pay"
 [fiserv.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Merchant ID"
 api_secret="API Secret"
-
 [fiserv.metadata.terminal_id]
 name="terminal_id"
 label="Terminal ID"
@@ -2233,6 +2278,58 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiserv.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[fiserv.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[fiserv.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[fiserv.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector", "Hyperswitch"]
 
 [fiservemea]
 [[fiservemea.credit]]
@@ -6108,58 +6205,19 @@ key1="API Token"
 [inespay.connector_webhook_details]
 merchant_secret="API Key"
 
-[juspaythreedsserver]
-[juspaythreedsserver.metadata.mcc]
-name="mcc"
-label="MCC"
-placeholder="Enter MCC"
-required=false
-type="Text"
-
-[juspaythreedsserver.metadata.merchant_country_code]
-name="merchant_country_code"
-label="3 digit numeric country code"
-placeholder="Enter 3 digit numeric country code"
-required=false
-type="Text"
-[juspaythreedsserver.metadata.merchant_name]
-name="merchant_name"
-label="Name of the merchant"
-placeholder="Enter Name of the merchant"
-required=false
-type="Text"
 [juspaythreedsserver.metadata.three_ds_requestor_name]
-name="three_ds_requestor_name"
-label="ThreeDS requestor name"
-placeholder="Enter ThreeDS requestor name"
-required=false
-type="Text"
+name = "three_ds_requestor_name"
+label = "ThreeDS requestor name"
+placeholder = "Enter ThreeDS requestor name"
+required = false
+type = "Text"
 [juspaythreedsserver.metadata.three_ds_requestor_id]
-name="three_ds_requestor_id"
-label="ThreeDS request id"
-placeholder="Enter ThreeDS request id"
-required=false
-type="Text"
-[juspaythreedsserver.metadata.acquirer_bin]
-name="acquirer_bin"
-label="Acquirer Bin"
-placeholder="Enter Acquirer Bin"
-required=true
-type="Text"
-[juspaythreedsserver.metadata.acquirer_country_code]
-name="acquirer_country_code"
-label="Acquirer Country Code"
-placeholder="Enter Acquirer Country Code"
-required=true
-type="Text"
-[juspaythreedsserver.metadata.acquirer_merchant_id]
-name="acquirer_merchant_id"
-label="Acquirer Merchant Id"
-placeholder="Enter Acquirer Merchant Id"
-required=true
-type="Text"
-[juspaythreedsserver.connector_auth.HeaderKey]
-api_key="API Key"
+name = "three_ds_requestor_id"
+label = "ThreeDS request id"
+placeholder = "Enter ThreeDS request id"
+required = false
+type = "Text"
+[juspaythreedsserver.connector_auth.NoKey]
 
 [hipay]
 [[hipay.credit]]
@@ -6409,7 +6467,31 @@ placeholder = "Enter Acquirer Merchant ID"
 required = false
 type = "Text"
 
-
+[nordea]
+[[nordea.bank_debit]]
+  payment_method_type = "sepa"
+[nordea.connector_auth.SignatureKey]
+  api_key="Client Secret"
+  key1="Client ID"
+  api_secret="eIDAS Private Key"
+[nordea.metadata.creditor_account_type]
+  name="creditor_account_type"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Type e.g. IBAN"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_account_value]
+  name="creditor_account_value"
+  label="Creditor Account Type"
+  placeholder="Enter Beneficiary Account Number"
+  required=true
+  type="Text"
+[nordea.metadata.creditor_beneficiary_name]
+  name="creditor_beneficiary_name"
+  label="Creditor Account Beneficiary Name"
+  placeholder="Enter Beneficiary Name"
+  required=true
+  type="Text"
 
 [worldpayxml]
 [[worldpayxml.credit]]
@@ -6543,6 +6625,14 @@ placeholder="Enter the merchant name"
 required=true
 type="Text"
 
+[blackhawknetwork]
+[[blackhawknetwork.gift_card]]
+  payment_method_type = "bhn_card_network"
+[blackhawknetwork.connector_auth.SignatureKey]
+api_key="Client Id"
+api_secret="Client Secret"
+key1="Product Line Id"
+
 [payload]
 [[payload.credit]]
   payment_method_type = "AmericanExpress"
@@ -6585,12 +6675,11 @@ key1="Merchant Acceptor Key"
 merchant_secret="Source verification key"
 
 [affirm]
-[affirm.connector_auth.HeaderKey]
+[[affirm.pay_later]]
+  payment_method_type = "affirm"
+[affirm.connector_auth.BodyKey]
 api_key = "API Key"
-
-[blackhawknetwork]
-[blackhawknetwork.connector_auth.HeaderKey]
-api_key = "API Key"
+key1 = "API Secret"
 
 [trustpayments]
 [trustpayments.connector_auth.HeaderKey]
@@ -6656,3 +6745,8 @@ key1 = "Client secret"
 [[flexiti.pay_later]]
 payment_method_type = "flexiti"
 payment_experience = "redirect_to_url"
+
+[hyperwallet]
+[hyperwallet.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"

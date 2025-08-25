@@ -923,6 +923,8 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1112,6 +1114,7 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 64]
         external_vault_source -> Nullable<Varchar>,
+        external_vault_token_data -> Nullable<Bytea>,
     }
 }
 

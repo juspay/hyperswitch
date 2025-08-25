@@ -10,6 +10,7 @@ import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
 import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
+import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
@@ -59,7 +60,7 @@ import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
-
+import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -69,10 +70,12 @@ const connectorDetails = {
   authorizedotnet: authorizedotnetConnectorDetails,
   bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
@@ -403,6 +406,7 @@ export const CONNECTOR_LISTS = {
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
+      // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     // Add more inclusion lists
