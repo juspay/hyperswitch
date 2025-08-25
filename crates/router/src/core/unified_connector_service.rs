@@ -18,6 +18,7 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
+use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
@@ -136,7 +137,7 @@ where
         payment_method,
         flow_name
     );
-
+    
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
 
     // Log gateway system decision
@@ -277,7 +278,9 @@ pub fn build_unified_connector_service_payment_method(
                 .transpose()?;
 
             let card_details = CardDetails {
-                card_number: card.card_number.get_card_no(),
+                card_number: Some(CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
+                )?),
                 card_exp_month,
                 card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
                 card_cvc: card.card_cvc.peek().to_string(),
@@ -321,7 +324,9 @@ pub fn build_unified_connector_service_payment_method(
                     PaymentMethod::UpiCollect(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent {};
+                    let upi_details = payments_grpc::UpiIntent { 
+                        app_name: None, 
+                    };
                     PaymentMethod::UpiIntent(upi_details)
                 }
             };
@@ -369,7 +374,9 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
             let card_details = CardDetails {
-                card_number: external_vault_card.card_number.peek().to_string(),
+                card_number: Some(CardNumber::from_str(&external_vault_card.card_number.peek()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
+                )?),
                 card_exp_month: external_vault_card.card_exp_month.peek().to_string(),
                 card_exp_year: external_vault_card.card_exp_year.peek().to_string(),
                 card_cvc: external_vault_card.card_cvc.peek().to_string(),
