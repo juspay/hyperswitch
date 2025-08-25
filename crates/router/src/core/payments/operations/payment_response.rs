@@ -1848,7 +1848,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .connector_response
                                 .as_ref()
                                 .and_then(|connector_response| {
-                                    connector_response.is_is_overcapture_enabled()
+                                    connector_response.is_overcapture_enabled()
                                 }).or_else(|| {
                                     payment_data.payment_intent
                                                     .enable_overcapture

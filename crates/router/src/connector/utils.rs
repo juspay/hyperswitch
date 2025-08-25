@@ -179,20 +179,33 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_is_overcapture_enabled = *payment_data
+                let is_overcapture_enabled = *payment_data
                     .payment_attempt
                     .is_overcapture_enabled
                     .as_deref()
                     .unwrap_or(&false);
 
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
-                    || (is_is_overcapture_enabled
+                    || (is_overcapture_enabled
                         && captured_amount.is_some_and(|captured_amount| {
                             MinorUnit::new(captured_amount) > total_capturable_amount
                         }))
                 {
                     Ok(enums::AttemptStatus::Charged)
                 } else if captured_amount.is_some_and(|captured_amount| {
+                    MinorUnit::new(captured_amount) > total_capturable_amount
+                }) {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "captured_amount is greater than the total_capturable_amount"
+                            .to_string(),
+                        field_names: "captured_amount".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
+                }
+                else if captured_amount.is_some_and(|captured_amount| {
                     MinorUnit::new(captured_amount) < total_capturable_amount
                 }) {
                     Ok(enums::AttemptStatus::PartialCharged)
@@ -208,7 +221,7 @@ where
                     payment_data.payment_attempt.status,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_is_overcapture_enabled = *payment_data
+                let is_overcapture_enabled = *payment_data
                     .payment_attempt
                     .is_overcapture_enabled
                     .unwrap_or_default()
@@ -217,7 +230,7 @@ where
                 if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
                     || (capturable_amount.is_some_and(|capturable_amount| {
                         MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && is_is_overcapture_enabled)
+                    }) && is_overcapture_enabled)
                 {
                     Ok(enums::AttemptStatus::Authorized)
                 } else if capturable_amount.is_some_and(|capturable_amount| {
@@ -246,7 +259,7 @@ where
                     })?
                 } else if (capturable_amount.is_some_and(|capturable_amount| {
                     MinorUnit::new(capturable_amount) > total_capturable_amount
-                }) && !is_is_overcapture_enabled)
+                }) && !is_overcapture_enabled)
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is greater than the total attempt amount"

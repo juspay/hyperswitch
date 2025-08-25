@@ -493,7 +493,7 @@ impl ConnectorResponseData {
         self.extended_authorization_response_data.as_ref()
     }
 
-    pub fn is_is_overcapture_enabled(&self) -> Option<primitive_wrappers::OvercaptureEnabledBool> {
+    pub fn is_overcapture_enabled(&self) -> Option<primitive_wrappers::OvercaptureEnabledBool> {
         self.is_overcapture_enabled
     }
 }
