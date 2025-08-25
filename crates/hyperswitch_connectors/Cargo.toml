@@ -18,12 +18,13 @@ dummy_connector = [
 ]
 
 [dependencies]
-chrono = "0.4"
-crc = "3"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bytes = "1.10.1"
+chrono = "0.4"
+crc = "3"
+crypto = "0.2"
 encoding_rs = "0.8.35"
 error-stack = "0.4.1"
 hex = "0.4.3"
@@ -54,6 +55,7 @@ serde_urlencoded = "0.7.1"
 unidecode = "0.3.0"
 serde_with = "3.12.0"
 sha1 = { version = "0.10.6" }
+sha2 = "0.10"
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.41"
 unicode-normalization = "0.1.24"

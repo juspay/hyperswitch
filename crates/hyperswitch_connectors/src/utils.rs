@@ -521,7 +521,15 @@ pub trait RouterData {
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
+
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_city(&self) -> Result<String, Error>;
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error>;
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
@@ -671,6 +679,13 @@ impl<Flow, Request, Response> RouterData
             .get_shipping()
             .and_then(|shipping_address| shipping_address.clone().phone)
             .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
+    }
+
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
@@ -1009,6 +1024,38 @@ impl<Flow, Request, Response> RouterData
         self.get_optional_billing()
             .and_then(|billing_details| billing_details.address.as_ref())
             .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_full_name()
+            .ok_or_else(missing_field_err(
+                "shipping.address.first_name or shipping.address.last_name",
+            ))
+    }
+
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_line1()
+            .ok_or_else(missing_field_err("shipping.address.line1"))
+    }
+
+    fn get_required_shipping_city(&self) -> Result<String, Error> {
+        self.get_optional_shipping_city()
+            .ok_or_else(missing_field_err("shipping.address.city"))
+    }
+
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_state()
+            .ok_or_else(missing_field_err("shipping.address.state"))
+    }
+
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_zip()
+            .ok_or_else(missing_field_err("shipping.address.zip"))
+    }
+
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_phone_number_without_country_code()
+            .ok_or_else(missing_field_err("shipping.phone.number"))
     }
 
     #[cfg(feature = "payouts")]
@@ -5470,6 +5517,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Skrill,
     Paysera,
@@ -5608,6 +5656,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
