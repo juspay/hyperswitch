@@ -114,6 +114,7 @@ pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
+    pub account_type: Option<InputData>,
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
