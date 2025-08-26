@@ -5508,7 +5508,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             created_at: attempt.created_at,
             modified_at: attempt.modified_at,
             cancellation_reason: attempt.cancellation_reason.clone(),
-            payment_token: attempt.payment_token.clone(),
+            payment_token: attempt
+                .connector_token_details
+                .as_ref()
+                .and_then(|details| details.connector_mandate_id.clone()),
             connector_metadata: attempt.connector_metadata.clone(),
             payment_experience: attempt.payment_experience,
             payment_method_type: attempt.payment_method_type,
