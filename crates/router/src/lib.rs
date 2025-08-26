@@ -224,7 +224,8 @@ pub fn mk_app(
                 .service(routes::UserDeprecated::server(state.clone()))
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
-                .service(routes::Gsm::server(state.clone()));
+                .service(routes::Gsm::server(state.clone()))
+                .service(routes::PaymentMethodDataBackfill::server(state.clone()));
         }
     }
 

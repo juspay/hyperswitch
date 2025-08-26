@@ -27,6 +27,8 @@ pub mod locker_migration;
 pub mod mandates;
 pub mod open_router;
 pub mod organization;
+#[cfg(feature = "v2")]
+pub mod payment_method_backfill;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]

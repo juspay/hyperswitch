@@ -32,6 +32,8 @@ pub mod mandates;
 pub mod metrics;
 #[cfg(feature = "v1")]
 pub mod payment_link;
+#[cfg(feature = "v2")]
+pub mod payment_method_backfill;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
@@ -86,7 +88,7 @@ pub use self::app::Proxy;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 #[cfg(feature = "v2")]
-pub use self::app::Tokenization;
+pub use self::app::{Tokenization, PaymentMethodDataBackfill};
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,

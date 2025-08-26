@@ -154,6 +154,16 @@ pub trait PaymentAttemptInterface {
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &id_type::ProfileId,
+        connector_payment_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -2022,6 +2032,11 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_payment_id: Option<String>,
     },
+    /// Update the payment method data for backfill operations
+    PaymentMethodDataUpdate {
+        payment_method_data: Option<pii::SecretSerdeValue>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -2818,6 +2833,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2851,6 +2867,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: error.network_error_message,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2890,6 +2907,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id,
+                    payment_method_data: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2922,6 +2940,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2953,6 +2972,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2983,6 +3003,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                payment_method_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3011,6 +3032,38 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_to_capture: None,
                 connector_token_details: None,
                 authentication_type: Some(authentication_type),
+                feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                payment_method_data: None,
+            },
+            PaymentAttemptUpdate::PaymentMethodDataUpdate {
+                payment_method_data,
+                updated_by,
+            } => Self {
+                payment_method_data,
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                status: None,
+                payment_method_id: None,
+                error_message: None,
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
                 feature_metadata: None,
                 network_advice_code: None,
                 network_decline_code: None,

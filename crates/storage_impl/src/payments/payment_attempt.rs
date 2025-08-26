@@ -300,6 +300,36 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_payment_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_profile_id_connector_payment_id(
+            &conn,
+            profile_id,
+            connector_payment_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -1306,6 +1336,33 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_payment_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_payment_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        self.find_resource_by_id(
+            key_manager_state,
+            merchant_key_store,
+            storage_scheme,
+            DieselPaymentAttempt::find_by_profile_id_connector_payment_id(
+                &conn,
+                profile_id,
+                connector_payment_id,
+            ),
+            FindResourceBy::LookupId(label::get_profile_id_connector_payment_label(
+                profile_id.get_string_repr(),
+                connector_payment_id,
+            )),
+        )
+        .await
+    }
+
     #[instrument(skip_all)]
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
@@ -2241,6 +2298,13 @@ mod label {
         connector_transaction_id: &str,
     ) -> String {
         format!("profile_{profile_id}_conn_txn_{connector_transaction_id}")
+    }
+
+    pub(super) fn get_profile_id_connector_payment_label(
+        profile_id: &str,
+        connector_payment_id: &str,
+    ) -> String {
+        format!("profile_{profile_id}_conn_payment_{connector_payment_id}")
     }
 
     pub(super) fn get_global_id_label(

@@ -234,6 +234,47 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_by_profile_id_connector_payment_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_payment_id: &str,
+    ) -> StorageResult<Self> { 
+        let predicate = dsl::profile_id
+            .eq(profile_id.to_owned())
+            .and(dsl::connector_payment_id.eq(connector_payment_id.to_owned()));
+        
+        let result: StorageResult<Self> = generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            predicate,
+        )
+        .await;
+        
+        match &result {
+            Ok(payment_attempt) => {
+                router_env::tracing::info!(
+                    "PaymentAttempt::find_by_profile_id_connector_payment_id - SUCCESS: Found payment attempt with id: {:?}, payment_id: {:?}, merchant_id: {:?}",
+                    payment_attempt.id,
+                    payment_attempt.payment_id,
+                    payment_attempt.merchant_id
+                );
+            },
+            Err(error) => {
+                router_env::tracing::error!(
+                    "PaymentAttempt::find_by_profile_id_connector_payment_id - FAILED: Error occurred: {:?}",
+                    error
+                );
+                router_env::tracing::error!(
+                    "PaymentAttempt query failed for profile_id: {}, connector_payment_id: {}",
+                    profile_id.get_string_repr(),
+                    connector_payment_id
+                );
+            }
+        }
+        
+        result
+    }
+
     #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,

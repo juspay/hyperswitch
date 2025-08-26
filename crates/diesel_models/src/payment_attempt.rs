@@ -653,6 +653,10 @@ pub enum PaymentAttemptUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
+    PaymentMethodDataUpdate {
+        payment_method_data: Option<pii::SecretSerdeValue>,
+        updated_by: String,
+    },
     // Update {
     //     amount: MinorUnit,
     //     currency: storage_enums::Currency,
@@ -860,7 +864,7 @@ pub struct PaymentAttemptUpdateInternal {
     // payment_token: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    // payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     // payment_experience: Option<storage_enums::PaymentExperience>,
     // preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
@@ -902,6 +906,7 @@ impl PaymentAttemptUpdateInternal {
             authentication_type,
             error_message,
             connector_payment_id,
+            payment_method_data,
             modified_at,
             browser_info,
             error_code,
@@ -948,7 +953,7 @@ impl PaymentAttemptUpdateInternal {
             payment_token: source.payment_token,
             connector_metadata: connector_metadata.or(source.connector_metadata),
             payment_experience: source.payment_experience,
-            payment_method_data: source.payment_method_data,
+            payment_method_data: payment_method_data.or(source.payment_method_data),
             preprocessing_step_id: source.preprocessing_step_id,
             error_reason: error_reason.or(source.error_reason),
             multiple_capture_count: source.multiple_capture_count,
@@ -1336,8 +1341,40 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
-        todo!()
+    fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
+        match payment_attempt_update {
+            PaymentAttemptUpdate::PaymentMethodDataUpdate {
+                payment_method_data,
+                updated_by,
+            } => Self {
+                payment_method_data,
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                status: None,
+                authentication_type: None,
+                error_message: None,
+                connector_payment_id: None,
+                payment_method_id: None,
+                browser_info: None,
+                error_code: None,
+                connector_metadata: None,
+                error_reason: None,
+                connector_response_reference_id: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                merchant_connector_id: None,
+                connector: None,
+                redirection_data: None,
+                unified_code: None,
+                unified_message: None,
+                connector_token_details: None,
+                feature_metadata: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+            },
+        }
         // match payment_attempt_update {
         //     PaymentAttemptUpdate::Update {
         //         amount,

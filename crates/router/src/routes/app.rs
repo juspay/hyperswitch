@@ -2936,6 +2936,19 @@ impl Authentication {
             )
     }
 }
+#[cfg(feature = "v2")]
+pub struct PaymentMethodDataBackfill;
+#[cfg(feature = "v2")]
+impl PaymentMethodDataBackfill {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/recovery/payment-method-data-backfill")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(super::payment_method_backfill::payment_method_data_backfill)),
+            )
+    }
+}
 
 #[cfg(feature = "olap")]
 pub struct ProfileAcquirer;

@@ -74,3 +74,5 @@ pub mod revenue_recovery;
 
 pub mod chat;
 pub mod tokenization;
+#[cfg(feature = "v2")]
+pub mod payment_method_backfill;
