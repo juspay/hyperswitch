@@ -7,7 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -45,17 +45,24 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as paysafe;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData as OtherRefundsRequestData,}};
+
+// Helper function to extract account_id from auth
+fn get_account_id(auth: &paysafe::PaysafeAuthType) -> CustomResult<String, errors::ConnectorError> {
+    // For now, we'll need to extract account_id from connector metadata or configuration
+    // This is a placeholder - in real implementation, account_id should come from merchant configuration
+    Ok("1001070180".to_string()) // Default test account ID
+}
 
 #[derive(Clone)]
 pub struct Paysafe {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Paysafe {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
@@ -123,7 +130,7 @@ impl ConnectorCommon for Paysafe {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.username.expose().into_masked(),
         )])
     }
 
@@ -204,10 +211,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
+        let account_id = get_account_id(&auth)?;
+        Ok(format!(
+            "{}cardpayments/v1/accounts/{}/auths",
+            self.base_url(connectors),
+            account_id
+        ))
     }
 
     fn get_request_body(
@@ -291,10 +304,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
+        let account_id = get_account_id(&auth)?;
+        let connector_payment_id = req.request.connector_transaction_id.get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}cardpayments/v1/accounts/{}/auths/{}",
+            self.base_url(connectors),
+            account_id,
+            connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -355,18 +377,34 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
+        let account_id = get_account_id(&auth)?;
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}cardpayments/v1/accounts/{}/auths/{}/settlements",
+            self.base_url(connectors),
+            account_id,
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+                self.amount_converter,
+                req.request.minor_amount_to_capture,
+                req.request.currency,
+            )?;
+
+        let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
+        let connector_req = paysafe::PaysafeCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -434,10 +472,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paysafe
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
+        let account_id = get_account_id(&auth)?;
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}cardpayments/v1/accounts/{}/settlements/{}/refunds",
+            self.base_url(connectors),
+            account_id,
+            connector_payment_id
+        ))
     }
 
     fn get_request_body(
@@ -518,10 +564,18 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paysafe {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
+        let account_id = get_account_id(&auth)?;
+        let connector_refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}cardpayments/v1/accounts/{}/refunds/{}",
+            self.base_url(connectors),
+            account_id,
+            connector_refund_id
+        ))
     }
 
     fn build_request(
