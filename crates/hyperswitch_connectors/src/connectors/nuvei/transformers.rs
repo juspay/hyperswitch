@@ -105,7 +105,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     }
 
     fn get_related_transaction_id(&self) -> Option<String> {
-        None
+        self.related_transaction_id.clone()
     }
     fn get_is_moto(&self) -> Option<bool> {
         match self.payment_channel {

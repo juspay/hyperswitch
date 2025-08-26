@@ -379,12 +379,24 @@ pub async fn setup_mandate_preprocessing_steps<F: Clone>(
         .await
         .to_payment_failed_response()?;
 
-        let setup_mandate_router_data =
+        let mut setup_mandate_router_data =
             helpers::router_data_type_conversion::<_, F, _, _, _, _>(
                 resp.clone(),
                 router_data.request.to_owned(),
-                resp.response,
+                resp.response.clone(),
             );
+        
+        if connector.connector_name == api_models::enums::Connector::Nuvei {
+            let (enrolled_for_3ds, related_transaction_id) = match &setup_mandate_router_data.response {
+                Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                }) => (*enrolled_v2, related_transaction_id.clone()),
+                _ => (false, None),
+            };
+            setup_mandate_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+            setup_mandate_router_data.request.related_transaction_id = related_transaction_id;
+        }
 
         Ok(setup_mandate_router_data)
     } else {

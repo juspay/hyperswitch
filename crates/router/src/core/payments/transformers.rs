@@ -5118,6 +5118,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             payment_channel: payment_data.payment_intent.payment_channel,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }

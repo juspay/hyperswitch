@@ -1252,6 +1252,8 @@ pub struct SetupMandateRequestData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
