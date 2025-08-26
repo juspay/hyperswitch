@@ -1,9 +1,11 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::report;
 
 use super::generics;
 use crate::{
+    errors,
     schema::subscription::dsl,
-    subscription::{Subscription, SubscriptionNew},
+    subscription::{Subscription, SubscriptionNew, SubscriptionUpdate},
     PgPooledConn, StorageResult,
 };
 
@@ -28,5 +30,30 @@ impl Subscription {
                 .and(dsl::customer_id.eq(customer_id.to_owned())),
         )
         .await
+    }
+
+    pub async fn update_subscription_entry(
+        conn: &PgPooledConn,
+        id: String,
+        subscription_update: SubscriptionUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            SubscriptionUpdate,
+            _,
+            _,
+        >(
+            conn,
+            dsl::id
+                .eq(id.to_owned()),
+            subscription_update,
+        )
+        .await?
+        .first()
+        .cloned()
+        .ok_or_else(|| {
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable("Error while updating subscription entry")
+        })
     }
 }

@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -14,6 +14,7 @@ pub struct SubscriptionNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(
@@ -29,4 +30,13 @@ pub struct Subscription {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
+#[diesel(table_name = subscription)]
+pub struct SubscriptionUpdate {
+    pub subscription_id: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub modified_at: time::PrimitiveDateTime,
 }
