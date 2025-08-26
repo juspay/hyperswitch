@@ -40,3 +40,38 @@ pub struct SubscriptionUpdate {
     pub payment_method_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
 }
+
+impl SubscriptionNew {
+    pub fn new(
+        id: String,
+        subscription_id: Option<String>,
+        billing_processor: Option<String>,
+        payment_method_id: Option<String>,
+        customer_id: common_utils::id_type::CustomerId,
+        merchant_id: common_utils::id_type::MerchantId,
+        metadata: Option<serde_json::Value>,
+    ) -> Self {
+        let now = common_utils::date_time::now();
+        Self {
+            id,
+            subscription_id,
+            billing_processor,
+            payment_method_id,
+            customer_id,
+            merchant_id,
+            metadata,
+            created_at: now,
+            modified_at: now,
+        }
+    }
+}
+
+impl SubscriptionUpdate {
+    pub fn new(subscription_id: Option<String>, payment_method_id: Option<String>) -> Self {
+        Self {
+            subscription_id,
+            payment_method_id,
+            modified_at: common_utils::date_time::now(),
+        }
+    }
+}
