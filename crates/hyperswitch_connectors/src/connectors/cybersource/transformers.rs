@@ -36,8 +36,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
-        SetupMandateRequestData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -3973,6 +3973,99 @@ impl<F>
                 });
                 Ok(Self {
                     response,
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    ..item.data
+                })
+            }
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            CybersourceAuthSetupResponse,
+            PaymentsPreAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            CybersourceAuthSetupResponse,
+            PaymentsPreAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            CybersourceAuthSetupResponse::ClientAuthSetupInfo(info_response) => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(Some(RedirectForm::CybersourceAuthSetup {
+                        access_token: info_response
+                            .consumer_authentication_information
+                            .access_token,
+                        ddc_url: info_response
+                            .consumer_authentication_information
+                            .device_data_collection_url,
+                        reference_id: info_response
+                            .consumer_authentication_information
+                            .reference_id,
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(
+                        info_response
+                            .client_reference_information
+                            .code
+                            .unwrap_or(info_response.id.clone()),
+                    ),
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
+            CybersourceAuthSetupResponse::ErrorInformation(error_response) => {
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .to_owned()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|details| format!("{} : {}", details.field, details.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+
+                let reason = get_error_reason(
+                    error_response.error_information.message,
+                    detailed_error_info,
+                    None,
+                );
+                let error_message = error_response.error_information.reason;
+                Ok(Self {
+                    response: Err(ErrorResponse {
+                        code: error_message
+                            .clone()
+                            .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                        message: error_message.unwrap_or(
+                            hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string(),
+                        ),
+                        reason,
+                        status_code: item.http_code,
+                        attempt_status: None,
+                        connector_transaction_id: Some(error_response.id.clone()),
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
                 })

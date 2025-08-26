@@ -27,8 +27,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectForm,
@@ -814,7 +815,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
 impl api::PaymentsPreAuthenticate for Bluesnap {}
 
-impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
     for Bluesnap
 {
     fn get_headers(
@@ -846,11 +847,21 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsRespon
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+
+        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+
         let connector_router_data = bluesnap::BluesnapRouterData::try_from((amount, req))?;
 
         let connector_req =

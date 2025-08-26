@@ -43,8 +43,8 @@ use hyperswitch_domain_models::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
         VerifyWebhookSourceRequestData,
@@ -115,7 +115,7 @@ pub type PaymentsPreProcessingType =
 
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreAuthenticateType =
-    dyn ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>;
+    dyn ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsAuthenticateType =

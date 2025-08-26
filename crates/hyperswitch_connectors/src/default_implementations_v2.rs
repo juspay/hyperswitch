@@ -44,11 +44,11 @@ use hyperswitch_domain_models::{
         PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -224,7 +224,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl ConnectorIntegrationV2<
             PreAuthenticate,
             PaymentFlowData,
-                PaymentsAuthorizeData,
+                PaymentsPreAuthenticateData,
                 PaymentsResponseData,
             > for $path::$connector{}
             impl ConnectorIntegrationV2<

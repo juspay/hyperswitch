@@ -17,9 +17,9 @@ use hyperswitch_domain_models::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -208,7 +208,7 @@ pub trait PaymentsPreAuthenticateV2:
     ConnectorIntegrationV2<
     PreAuthenticate,
     PaymentFlowData,
-    PaymentsAuthorizeData,
+    PaymentsPreAuthenticateData,
     PaymentsResponseData,
 >
 {

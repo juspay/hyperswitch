@@ -27,10 +27,10 @@ use crate::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -51,7 +51,7 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPreAuthenticateRouterData =
-    RouterData<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>;
+    RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub type PaymentsAuthenticateRouterData =
     RouterData<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>;
 pub type PaymentsPostAuthenticateRouterData =

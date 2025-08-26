@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -732,7 +732,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     }
 }
 
-impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
     for Cybersource
 {
     fn get_headers(
@@ -760,11 +760,21 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsRespon
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+
+        let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
+
         let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourceAuthSetupRequest::try_from(&connector_router_data)?;

@@ -57,10 +57,10 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -1648,7 +1648,7 @@ macro_rules! default_imp_for_pre_authenticate_steps{
             impl
             ConnectorIntegration<
             PreAuthenticate,
-            PaymentsAuthorizeData,
+            PaymentsPreAuthenticateData,
             PaymentsResponseData,
         > for $path::$connector
         {}
@@ -8237,7 +8237,8 @@ impl<const T: u8>
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> ConnectorIntegration<PreAuthenticate, PaymentsAuthorizeData, PaymentsResponseData>
+impl<const T: u8>
+    ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

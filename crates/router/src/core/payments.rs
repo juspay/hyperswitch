@@ -241,12 +241,12 @@ where
                 )
                 .await?;
 
-            let connector_flow = decide_auth_flow(
-                &connector_data.connector_data,
-                &payment_data,
-                router_data.auth_type,
-                &operation,
-            );
+            // let connector_flow = decide_auth_flow(
+            //     &connector_data.connector_data,
+            //     &payment_data,
+            //     router_data.auth_type,
+            //     &operation,
+            // );
 
             let router_data = decide_unified_connector_service_call(
                 state,
@@ -2663,26 +2663,26 @@ pub async fn payments_execute_core(
         ConnectorCallType::PreDetermined(connector_data) => {
             use hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData;
 
-            // let operation: BoxedOperation<
-            //     '_,
-            //     hyperswitch_domain_models::router_flow_types::Authenticate,
-            //     payments_api::PaymentsConfirmIntentRequest,
-            //     PaymentConfirmData<hyperswitch_domain_models::router_flow_types::Authenticate>,
-            // > = Box::new(main_operation);
+            let operation: BoxedOperation<
+                '_,
+                hyperswitch_domain_models::router_flow_types::PreAuthenticate,
+                payments_api::PaymentsConfirmIntentRequest,
+                PaymentConfirmData<hyperswitch_domain_models::router_flow_types::PreAuthenticate>,
+            > = Box::new(main_operation);
 
-            // let mut payment_data: PaymentConfirmData<
-            //     hyperswitch_domain_models::router_flow_types::Authenticate,
-            // > = PaymentConfirmData {
-            //     flow: PhantomData,
-            //     payment_intent: payment_data.payment_intent,
-            //     payment_attempt: payment_data.payment_attempt,
-            //     payment_method_data: payment_data.payment_method_data,
-            //     payment_address: payment_data.payment_address,
-            //     mandate_data: payment_data.mandate_data,
-            //     payment_method: payment_data.payment_method,
-            //     merchant_connector_details: payment_data.merchant_connector_details,
-            //     redirect_response: payment_data.redirect_response,
-            // };
+            let mut payment_data: PaymentConfirmData<
+                hyperswitch_domain_models::router_flow_types::PreAuthenticate,
+            > = PaymentConfirmData {
+                flow: PhantomData,
+                payment_intent: payment_data.payment_intent,
+                payment_attempt: payment_data.payment_attempt,
+                payment_method_data: payment_data.payment_method_data,
+                payment_address: payment_data.payment_address,
+                mandate_data: payment_data.mandate_data,
+                payment_method: payment_data.payment_method,
+                merchant_connector_details: payment_data.merchant_connector_details,
+                redirect_response: payment_data.redirect_response,
+            };
 
             let (mca_type_details, updated_customer, mut router_data) =
                 call_connector_service_prerequisites(
@@ -2704,12 +2704,12 @@ pub async fn payments_execute_core(
                 )
                 .await?;
 
-            let connector_flow = decide_auth_flow(
-                &connector_data.connector_data,
-                &payment_data,
-                router_data.auth_type,
-                &operation,
-            );
+            // let connector_flow = decide_auth_flow(
+            //     &connector_data.connector_data,
+            //     &payment_data,
+            //     router_data.auth_type,
+            //     &operation,
+            // );
 
             let router_data = decide_unified_connector_service_call(
                 &state,
