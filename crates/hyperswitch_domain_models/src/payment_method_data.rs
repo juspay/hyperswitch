@@ -656,15 +656,22 @@ pub enum VoucherData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// The bank number associated with the boleto
     pub bank_number: Option<String>,
+    /// The type of document (e.g., CPF, CNPJ)
     pub document_type: Option<common_enums::DocumentKind>,
+    /// The percentage of fine applied for late payment
     pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
     pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
     pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
     pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
     pub messages: Option<Vec<String>>,
-    // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
-    pub due_date: Option<chrono::NaiveDate>,
+    /// The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

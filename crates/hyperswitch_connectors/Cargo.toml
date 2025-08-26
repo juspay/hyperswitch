@@ -18,8 +18,6 @@ dummy_connector = [
 ]
 
 [dependencies]
-ordered-float = { version = "3", features = ["serde"] }
-chrono = "0.4"
 crc = "3"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
@@ -56,7 +54,7 @@ unidecode = "0.3.0"
 serde_with = "3.12.0"
 sha1 = { version = "0.10.6" }
 strum = { version = "0.26", features = ["derive"] }
-time = "0.3.41"
+time = { version = "0.3.41", features = ["serde"] }
 unicode-normalization = "0.1.24"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
 url = "2.5.4"

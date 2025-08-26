@@ -164,7 +164,7 @@ impl ToDieselPixQR for api_models::payments::PixQRExpirationDuration {
             ),
             Self::Scheduled(v) => diesel_models::types::PixQRExpirationDuration::Scheduled(
                 diesel_models::types::ScheduledExpirationTime {
-                    date: v.date,
+                    date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
                 },
             ),
@@ -181,7 +181,7 @@ impl ToApiPixQR for diesel_models::types::PixQRExpirationDuration {
             ),
             Self::Scheduled(v) => api_models::payments::PixQRExpirationDuration::Scheduled(
                 api_models::payments::ScheduledExpirationTime {
-                    date: v.date,
+                    date: v.date.clone(),
                     validity_after_expiration: v.validity_after_expiration,
                 },
             ),
@@ -217,6 +217,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
             payment_revenue_recovery_metadata,
+            pix_qr_expiry_time,
         } = self;
 
         ApiFeatureMetadata {

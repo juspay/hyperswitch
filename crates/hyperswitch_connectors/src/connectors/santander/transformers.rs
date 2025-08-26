@@ -1,5 +1,4 @@
 use api_models::payments::{QrCodeInformation, VoucherNextStepData};
-use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -275,7 +274,10 @@ impl
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Environment::from(*value.2),
             nsu_code: value.0.router_data.payment_id.clone(), // size: 20
-            nsu_date: Utc::now().date_naive(),
+            nsu_date: time::OffsetDateTime::now_utc()
+                .date()
+                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
             covenant_code: santander_mca_metadata.covenant_code.clone(), // size: 9
             bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
@@ -283,12 +285,15 @@ impl
                 }
             })?, // size: 13
             client_number: Some(value.0.router_data.get_customer_id()?),
-            due_date: voucher_data.due_date.ok_or(
+            due_date: voucher_data.due_date.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "due_date",
                 },
             )?, // format: YYYY-MM-DD
-            issue_date: Utc::now().date_naive(),
+            issue_date: time::OffsetDateTime::now_utc()
+                .date()
+                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
             currency: Some(value.0.router_data.request.currency),
             nominal_value: value.0.amount.to_owned(),
             participant_code: value
@@ -315,9 +320,7 @@ impl
                 ),
                 neighborhood: value.0.router_data.get_billing_line1()?,
                 city: value.0.router_data.get_billing_city()?,
-                state: BrazilianState::try_from(
-                    value.0.router_data.get_billing_state()?.expose().as_str(),
-                )?,
+                state: value.0.router_data.get_billing_state()?,
                 zipcode: value.0.router_data.get_billing_zip()?,
             },
             beneficiary: None,
@@ -371,9 +374,7 @@ impl
             email: value.0.router_data.get_optional_billing_email(),
             street: value.0.router_data.get_optional_billing_line1(),
             city: value.0.router_data.get_optional_billing_city(),
-            uf: BrazilianState::try_from(
-                value.0.router_data.get_billing_state()?.expose().as_str(),
-            )?,
+            uf: value.0.router_data.get_billing_state()?,
             zip_code: value.0.router_data.get_optional_billing_zip(),
         });
 
@@ -392,7 +393,7 @@ impl
             }
             Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
                 SantanderPixCalendar::Scheduled(SantanderPixDueDateCalendar {
-                    due_date: val.date,
+                    due_date: val.date.clone(),
                     validity_after_expiration: val.validity_after_expiration,
                 })
             }
@@ -437,12 +438,12 @@ pub struct SantanderBoletoPaymentRequest {
     // pub workspace_id: String,
     pub environment: Environment,
     pub nsu_code: String,
-    pub nsu_date: chrono::NaiveDate,
+    pub nsu_date: String,
     pub covenant_code: String,
     pub bank_number: String,
     pub client_number: Option<id_type::CustomerId>,
-    pub due_date: chrono::NaiveDate,
-    pub issue_date: chrono::NaiveDate,
+    pub due_date: String,
+    pub issue_date: String,
     pub currency: Option<enums::Currency>,
     pub nominal_value: StringMajorUnit,
     pub participant_code: Option<String>,
@@ -470,37 +471,6 @@ pub struct SantanderBoletoPaymentRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum BrazilianState {
-    RR, // Roraima
-    AM, // Amazonas
-    AP, // Amapá
-    PA, // Pará
-    AC, // Acre
-    RO, // Rondônia
-    TO, // Tocantins
-    MA, // Maranhão
-    PI, // Piauí
-    CE, // Ceará
-    RN, // Rio Grande do Norte
-    PB, // Paraíba
-    PE, // Pernambuco
-    AL, // Alagoas
-    SE, // Sergipe
-    BA, // Bahia
-    MT, // Mato Grosso
-    DF, // Distrito Federal
-    GO, // Goiás
-    MS, // Mato Grosso do Sul
-    MG, // Minas Gerais
-    ES, // Espírito Santo
-    RJ, // Rio de Janeiro
-    SP, // São Paulo
-    PR, // Paraná
-    SC, // Santa Catarina
-    RS, // Rio Grande do Sul
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
@@ -509,7 +479,7 @@ pub struct Payer {
     pub address: Secret<String>,
     pub neighborhood: Secret<String>,
     pub city: String,
-    pub state: BrazilianState,
+    pub state: Secret<String>,
     pub zipcode: Secret<String>,
 }
 
@@ -672,7 +642,7 @@ pub struct SantanderDebtor {
     #[serde(rename = "cidade")]
     pub city: Option<String>,
     #[serde(rename = "uf")]
-    pub uf: BrazilianState,
+    pub uf: Secret<String>,
     #[serde(rename = "cep")]
     pub zip_code: Option<Secret<String>>,
     #[serde(rename = "cpf")]
@@ -722,46 +692,6 @@ impl From<SantanderPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-impl TryFrom<&str> for BrazilianState {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(name: &str) -> Result<Self, Self::Error> {
-        match name.to_lowercase().as_str() {
-            "roraima" => Ok(Self::RR),
-            "amazonas" => Ok(Self::AM),
-            "amapá" | "amapa" => Ok(Self::AP),
-            "pará" | "para" => Ok(Self::PA),
-            "acre" => Ok(Self::AC),
-            "rondônia" | "rondonia" => Ok(Self::RO),
-            "tocantins" => Ok(Self::TO),
-            "maranhão" | "maranhao" => Ok(Self::MA),
-            "piauí" | "piaui" => Ok(Self::PI),
-            "ceará" | "ceara" => Ok(Self::CE),
-            "rio grande do norte" => Ok(Self::RN),
-            "paraíba" | "paraiba" => Ok(Self::PB),
-            "pernambuco" => Ok(Self::PE),
-            "alagoas" => Ok(Self::AL),
-            "sergipe" => Ok(Self::SE),
-            "bahia" => Ok(Self::BA),
-            "mato grosso" => Ok(Self::MT),
-            "distrito federal" => Ok(Self::DF),
-            "goiás" | "goias" => Ok(Self::GO),
-            "mato grosso do sul" => Ok(Self::MS),
-            "minas gerais" => Ok(Self::MG),
-            "espírito santo" | "espirito santo" => Ok(Self::ES),
-            "rio de janeiro" => Ok(Self::RJ),
-            "são paulo" | "sao paulo" => Ok(Self::SP),
-            "paraná" | "parana" => Ok(Self::PR),
-            "santa catarina" => Ok(Self::SC),
-            "rio grande do sul" => Ok(Self::RS),
-            _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "state",
-            }
-            .into()),
-        }
-    }
-}
-
 impl From<router_env::env::Env> for Environment {
     fn from(item: router_env::env::Env) -> Self {
         match item {
@@ -781,12 +711,12 @@ pub enum SantanderPaymentsResponse {
 pub struct SantanderBoletoPaymentsResponse {
     pub environment: Environment,
     pub nsu_code: String,
-    pub nsu_date: chrono::NaiveDate,
+    pub nsu_date: String,
     pub covenant_code: String,
     pub bank_number: String,
     pub client_number: Option<id_type::CustomerId>,
-    pub due_date: chrono::NaiveDate,
-    pub issue_date: chrono::NaiveDate,
+    pub due_date: String,
+    pub issue_date: String,
     pub participant_code: Option<String>,
     pub nominal_value: StringMajorUnit,
     pub payer: Payer,
@@ -812,7 +742,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub messages: Option<Vec<String>>,
     pub barcode: Option<String>,
     pub digitable_line: Option<String>,
-    pub entry_date: Option<chrono::NaiveDate>,
+    pub entry_date: Option<String>,
     pub qr_code_pix: Option<String>,
     pub qr_code_url: Option<String>,
 }
@@ -825,14 +755,14 @@ pub enum SantanderPixResponseCalendar {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixDueDateResponseCalendar {
-    pub creation: chrono::NaiveDate,
-    pub due_date: chrono::NaiveDate,
+    pub creation: String,
+    pub due_date: String,
     pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixImmediateResponseCalendar {
-    pub creation: chrono::NaiveDate,
+    pub creation: String,
     pub expiration: i32,
 }
 
@@ -897,7 +827,7 @@ pub struct SantanderPixImmediateCalendar {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixDueDateCalendar {
     #[serde(rename = "dataDeVencimento")]
-    pub due_date: chrono::NaiveDate,
+    pub due_date: String,
     #[serde(rename = "validadeAposVencimento")]
     pub validity_after_expiration: Option<i32>,
 }
@@ -1332,8 +1262,8 @@ pub struct SantanderWebhookBody {
     pub message: MessageCode,   // meaning of this enum variant is not clear
     pub function: FunctionType, // event type of the webhook
     pub payment_type: WebhookPaymentType,
-    pub issue_date: chrono::NaiveDate,
-    pub payment_date: chrono::NaiveDate,
+    pub issue_date: String,
+    pub payment_date: String,
     pub bank_code: String,
     pub payment_channel: PaymentChannel,
     pub payment_kind: PaymentKind,

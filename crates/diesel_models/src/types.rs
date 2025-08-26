@@ -71,6 +71,8 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
 }
 
 #[cfg(feature = "v2")]
@@ -134,7 +136,7 @@ pub struct ImmediateExpirationTime {
 #[diesel(sql_type = Json)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
-    pub date: chrono::NaiveDate,
+    pub date: String,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<i32>,
 }
