@@ -1308,6 +1308,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_id: None,
         enable_partial_authorization: None,
         payment_channel: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5125,6 +5127,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             payment_channel: payment_data.payment_intent.payment_channel,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -5376,6 +5380,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             enrolled_for_3ds: true,
             split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
+            customer_acceptance: payment_data.customer_acceptance,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
         })
     }
 }
