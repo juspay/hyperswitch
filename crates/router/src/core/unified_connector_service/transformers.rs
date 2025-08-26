@@ -874,8 +874,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose().into())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose().into())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.clone().expose().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.clone().expose().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.clone().expose().into())),
@@ -883,7 +885,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
-                email: address.email.as_ref().map(|e| e.clone().expose().expose().into()),
+                email: address
+                    .email
+                    .as_ref()
+                    .map(|e| e.clone().expose().expose().into()),
                 phone_number: address
                     .phone
                     .as_ref()
@@ -904,8 +909,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
@@ -935,16 +942,26 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 });
 
                 payments_grpc::Address {
-                    first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
-                    last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
-                    line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
-                    line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
-                    line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
+                    first_name: details
+                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+                    last_name: details
+                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
+                    line1: details
+                        .and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
+                    line2: details
+                        .and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
+                    line3: details
+                        .and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
                     city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
-                    state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
-                    zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                    state: details
+                        .and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
+                    zip_code: details
+                        .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
-                    email: address.email.as_ref().map(|e| e.clone().expose().expose().into()),
+                    email: address
+                        .email
+                        .as_ref()
+                        .map(|e| e.clone().expose().expose().into()),
                     phone_number: address
                         .phone
                         .as_ref()
