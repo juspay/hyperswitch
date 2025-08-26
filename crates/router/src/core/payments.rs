@@ -2632,6 +2632,11 @@ pub async fn payments_execute_core(
         )
         .await?;
 
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(&state, &merchant_context, &profile, &mut payment_data)
+        .await?;
+
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(
