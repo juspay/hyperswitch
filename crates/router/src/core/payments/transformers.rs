@@ -1301,6 +1301,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_id: None,
         enable_partial_authorization: None,
         payment_channel: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3338,9 +3340,7 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
-            network_transaction_id: payment_data
-                .get_payment_method_info()
-                .and_then(|info| info.network_transaction_id.clone()),
+            network_transaction_id: payment_attempt.network_transaction_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),
@@ -5120,6 +5120,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             payment_channel: payment_data.payment_intent.payment_channel,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -5371,6 +5373,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             enrolled_for_3ds: true,
             split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
+            customer_acceptance: payment_data.customer_acceptance,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
         })
     }
 }
@@ -5510,7 +5514,10 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             created_at: attempt.created_at,
             modified_at: attempt.modified_at,
             cancellation_reason: attempt.cancellation_reason.clone(),
-            payment_token: attempt.payment_token.clone(),
+            payment_token: attempt
+                .connector_token_details
+                .as_ref()
+                .and_then(|details| details.connector_mandate_id.clone()),
             connector_metadata: attempt.connector_metadata.clone(),
             payment_experience: attempt.payment_experience,
             payment_method_type: attempt.payment_method_type,
