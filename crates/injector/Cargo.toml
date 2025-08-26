@@ -25,6 +25,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { version = "1.0.140" }
 thiserror = { version = "1.0.69" }
 tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"] }
+tracing = { version = "0.1.40" }
 url = { version = "2.5.4", features = ["serde"] }
 
 [lints]
