@@ -145,7 +145,7 @@ trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
-vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
+vgs.base_url = "https://api.sandbox.verygoodvault.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -850,11 +850,6 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
-
-
-[revenue_recovery]
-monitoring_threshold_in_seconds = 60
-retry_algorithm_type = "cascading"
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
