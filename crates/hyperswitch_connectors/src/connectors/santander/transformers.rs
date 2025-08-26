@@ -61,7 +61,7 @@ pub struct SantanderMetadataObject {
     pub merchant_city: String,
     pub merchant_name: String,
     pub workspace_id: String,
-    pub covenant_code: String,
+    pub covenant_code: String, // max_size : 9
 }
 
 // #[derive(Debug, Serialize, Deserialize)]
@@ -209,33 +209,23 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderAuthUpdateResponse, T, AccessT
     }
 }
 
-impl
-    TryFrom<(
-        &SantanderRouterData<&PaymentsAuthorizeRouterData>,
-        &router_env::env::Env,
-    )> for SantanderPaymentRequest
-{
+impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPaymentRequest {
     type Error = Error;
     fn try_from(
-        value: (
-            &SantanderRouterData<&PaymentsAuthorizeRouterData>,
-            &router_env::env::Env,
-        ),
+        value: &SantanderRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if value.0.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
+        if value.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
             return Err(errors::ConnectorError::FlowNotSupported {
-                flow: format!("{:?}", value.0.router_data.request.capture_method),
+                flow: format!("{:?}", value.router_data.request.capture_method),
                 connector: "Santander".to_string(),
             }
             .into());
         }
-        match value.0.router_data.request.payment_method_data.clone() {
+        match value.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
-                Self::try_from((value.0, bank_transfer_data.as_ref()))
+                Self::try_from((value, bank_transfer_data.as_ref()))
             }
-            PaymentMethodData::Voucher(ref voucher_data) => {
-                Self::try_from((value.0, voucher_data, value.1))
-            }
+            PaymentMethodData::Voucher(ref voucher_data) => Self::try_from((value, voucher_data)),
             _ => Err(errors::ConnectorError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Santander"),
             ))?,
@@ -247,7 +237,6 @@ impl
     TryFrom<(
         &SantanderRouterData<&PaymentsAuthorizeRouterData>,
         &VoucherData,
-        &router_env::env::Env,
     )> for SantanderPaymentRequest
 {
     type Error = Error;
@@ -255,7 +244,6 @@ impl
         value: (
             &SantanderRouterData<&PaymentsAuthorizeRouterData>,
             &VoucherData,
-            &router_env::env::Env,
         ),
     ) -> Result<Self, Self::Error> {
         let santander_mca_metadata =
@@ -271,14 +259,32 @@ impl
             }
         };
 
+        let nsu_code = if value
+            .0
+            .router_data
+            .is_payment_id_from_merchant
+            .unwrap_or(false)
+            && value.0.router_data.payment_id.len() > 20
+        {
+            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Santander".to_string(),
+                field_name: "payment_id".to_string(),
+                max_length: 20,
+                received_length: value.0.router_data.payment_id.len(),
+            }
+            .into());
+        } else {
+            value.0.router_data.payment_id.clone()
+        };
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
-            environment: Environment::from(*value.2),
-            nsu_code: value.0.router_data.payment_id.clone(), // size: 20
-            nsu_date: time::OffsetDateTime::now_utc()
+            environment: Environment::from(router_env::env::which()),
+            nsu_code,
+            nsu_date: OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
-            covenant_code: santander_mca_metadata.covenant_code.clone(), // size: 9
+            covenant_code: santander_mca_metadata.covenant_code.clone(),
             bank_number: voucher_data.bank_number.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "document_type",
@@ -289,8 +295,8 @@ impl
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "due_date",
                 },
-            )?, // format: YYYY-MM-DD
-            issue_date: time::OffsetDateTime::now_utc()
+            )?,
+            issue_date: OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -326,7 +332,7 @@ impl
             beneficiary: None,
             document_kind: BoletoDocumentKind::BillProposal, // to change
             discount: Some(Discount {
-                discount_type: DiscountType::Free, // to change
+                discount_type: DiscountType::Free,
                 discount_one: None,
                 discount_two: None,
                 discount_three: None,
@@ -435,7 +441,6 @@ pub struct Discount {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentRequest {
-    // pub workspace_id: String,
     pub environment: Environment,
     pub nsu_code: String,
     pub nsu_date: String,
@@ -552,8 +557,8 @@ pub enum DiscountType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct DiscountObject {
-    pub value: StringMajorUnit, // Changed from f64 → String for API safety
-    pub limit_date: String,     // YYYY-MM-DD
+    pub value: f64,
+    pub limit_date: String, // YYYY-MM-DD
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -588,7 +593,7 @@ pub enum PaymentType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sharing {
     pub code: String,
-    pub value: FloatMajorUnit, // Changed from f64 → String for monetary precision
+    pub value: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -372,7 +372,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_request_body(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
@@ -380,18 +380,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let url = connectors.santander.secondary_base_url.as_deref();
-        let env = if url
-            == Some("https://trust-sandbox.api.santander.com.br/collection_bill_management/")
-        {
-            router_env::env::Env::Sandbox // change later when PROD url is confirmed
-        } else {
-            router_env::env::Env::Production
-        };
-
         let connector_router_data = santander::SantanderRouterData::from((amount, req));
-        let connector_req =
-            santander::SantanderPaymentRequest::try_from((&connector_router_data, &env))?;
+        let connector_req = santander::SantanderPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
