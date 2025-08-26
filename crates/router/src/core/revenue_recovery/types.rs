@@ -111,8 +111,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
-        logger::info!("Entering update_pt_status_based_on_attempt_status_for_payments_sync");
-        
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
@@ -370,8 +368,6 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
-        logger::info!("Entering execute_payment");
-        
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
@@ -1114,8 +1110,6 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<()> {
-    logger::info!("Entering reopen_calculate_workflow_on_payment_failure");
-    
     let db = &*state.store;
     let id = payment_intent.id.clone();
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
@@ -1221,8 +1215,6 @@ fn create_calculate_workflow_tracking_data(
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData> {
-    logger::info!("Entering create_calculate_workflow_tracking_data");
-    
     let tracking_data = storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData {
         merchant_id: revenue_recovery_payment_data
             .merchant_account

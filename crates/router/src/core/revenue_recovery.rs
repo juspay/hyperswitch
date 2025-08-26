@@ -479,8 +479,6 @@ pub async fn perform_calculate_workflow(
         payment_intent,
         retry_algorithm_type,
         process.retry_count,
-        
-
     )
     .await
     {

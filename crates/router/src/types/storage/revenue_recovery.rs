@@ -14,7 +14,6 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{db::StorageInterface, routes::SessionState, types, workflows::revenue_recovery};
-
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -62,10 +61,7 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => {
-                logger::info!("Smart type found for Revenue Recovery retry payment");
-                None
-            }
+            enums::RevenueRecoveryAlgorithmType::Smart => None,
         }
     }
 }
@@ -76,6 +72,7 @@ pub struct RevenueRecoverySettings {
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,
+    pub redis_ttl_in_seconds: i64,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

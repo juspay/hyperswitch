@@ -370,9 +370,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
-                Self::GiftCard
-            }
+            api_enums::PaymentMethodType::Givex
+            | api_enums::PaymentMethodType::PaySafeCard
+            | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
@@ -1249,6 +1249,24 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(value: api_enums::PaymentMethod) -> Result<Self, Self::Error> {
+        match value {
+            api_enums::PaymentMethod::Card => Ok(Self::Card),
+            api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("PaymentMethod {value:?} is not supported for payouts"),
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert PaymentMethod to PayoutType"),
         }
     }
 }

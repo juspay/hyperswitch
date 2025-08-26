@@ -5225,6 +5225,14 @@ placeholder = "Enter the merchant name"
 required = true
 type = "Text"
 
+[blackhawknetwork]
+[[blackhawknetwork.gift_card]]
+  payment_method_type = "bhn_card_network"
+[blackhawknetwork.connector_auth.SignatureKey]
+api_key="Client Id"
+api_secret="Client Secret"
+key1="Product Line Id"
+
 [payload]
 [[payload.credit]]
 payment_method_type = "AmericanExpress"
@@ -5267,16 +5275,16 @@ key1="Merchant Acceptor Key"
 merchant_secret="Source verification key"
 
 [affirm]
-[affirm.connector_auth.HeaderKey]
+[[affirm.pay_later]]
+  payment_method_type = "affirm"
+[affirm.connector_auth.BodyKey]
 api_key = "API Key"
+key1 = "API Secret"
 
 [trustpayments]
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[blackhawknetwork]
-[blackhawknetwork.connector_auth.HeaderKey]
-api_key = "API Key"
 
 [flexiti]
 [flexiti.connector_auth.BodyKey]
@@ -5358,3 +5366,7 @@ type = "Text"
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+
+[paysafe]
+[paysafe.connector_auth.HeaderKey]
+api_key = "API Key"

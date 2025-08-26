@@ -739,29 +739,21 @@ impl RevenueRecoveryAttempt {
             }),
         };
 
-         // TODO! card info support needs to be added to populate card_information
-         let _card_info = revenue_recovery_attempt_data
-         .card_info
-         .card_isin
-         .clone()
-         .async_and_then(|isin| async move {
-             let issuer_identifier_number = isin.clone();
-             state
-                 .store
-                 .get_card_info(issuer_identifier_number.as_str())
-                 .await
-                 .map_err(|error| services::logger::warn!(card_info_error=?error))
-                 .ok()
-         })
-         .await
-         .flatten();
-        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
-            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
-                revenue_recovery_attempt_data.card_info.clone(),
-            )),
-            billing: None,
-        };
-
+        let card_info = revenue_recovery_attempt_data
+            .card_info
+            .card_isin
+            .clone()
+            .async_and_then(|isin| async move {
+                let issuer_identifier_number = isin.clone();
+                state
+                    .store
+                    .get_card_info(issuer_identifier_number.as_str())
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten();
 
         let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 

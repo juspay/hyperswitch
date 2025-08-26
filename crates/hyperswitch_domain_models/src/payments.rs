@@ -537,6 +537,7 @@ impl PaymentIntent {
                 },
             )
     }
+
     fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.feature_metadata
             .as_ref()

@@ -190,6 +190,7 @@ pub struct ConnectorConfig {
     pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
+    pub affirm: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub adyen_payout: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -269,6 +270,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    pub paysafe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
@@ -398,6 +400,7 @@ impl ConnectorConfig {
             Connector::Aci => Ok(connector_data.aci),
             Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
+            Connector::Affirm => Ok(connector_data.affirm),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Archipel => Ok(connector_data.archipel),
@@ -409,6 +412,7 @@ impl ConnectorConfig {
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Bluecode => Ok(connector_data.bluecode),
+            Connector::Blackhawknetwork => Ok(connector_data.blackhawknetwork),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),

@@ -571,7 +571,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
     Ok(scheduled_time)
 }
 
-
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,

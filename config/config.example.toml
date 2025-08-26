@@ -276,6 +276,7 @@ payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
+paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
 paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -309,7 +310,7 @@ trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
-vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
+vgs.base_url = "https://api.sandbox.verygoodvault.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -603,6 +604,9 @@ family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
+
+[pm_filters.affirm]
+affirm = { country = "CA,US", currency = "CAD,USD" }
 
 [pm_filters.airwallex]
 credit = { country = "AU,HK,SG,NZ,US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
@@ -1176,6 +1180,24 @@ billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billin
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
+redis_ttl_in_seconds=3888000  # ttl for redis for storing payment processor token details
+
+# Card specific configuration for Revenue Recovery
+[revenue_recovery.card_config.amex]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.mastercard]
+max_retries_per_day = 10
+max_retry_count_for_thirty_day = 35
+
+[revenue_recovery.card_config.visa]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.discover]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]
