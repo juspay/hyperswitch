@@ -144,6 +144,7 @@ pub trait StorageInterface:
     + payment_method_session::PaymentMethodsSessionInterface
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
+    + subscription::SubscriptionInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

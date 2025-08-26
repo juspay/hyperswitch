@@ -23,6 +23,12 @@ pub trait SubscriptionInterface {
         customer_id: &common_utils::id_type::CustomerId,
         subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError>;
+
+    async fn update_subscription_entry(
+        &self,
+        id: String,
+        data: storage::SubscriptionUpdate,
+    ) -> CustomResult<storage::Subscription, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -56,6 +62,18 @@ impl SubscriptionInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry(
+        &self,
+        id: String,
+        data: storage::SubscriptionUpdate,
+    ) -> CustomResult<storage::Subscription, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Subscription::update_subscription_entry(&conn, id, data)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -73,6 +91,14 @@ impl SubscriptionInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _customer_id: &common_utils::id_type::CustomerId,
         _subscription_id: String,
+    ) -> CustomResult<storage::Subscription, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_subscription_entry(
+        &self,
+        _id: String,
+        _data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -104,5 +130,14 @@ impl SubscriptionInterface for KafkaStore {
                 subscription_id,
             )
             .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry(
+        &self,
+        id: String,
+        data: storage::SubscriptionUpdate,
+    ) -> CustomResult<storage::Subscription, errors::StorageError> {
+        self.diesel_store.update_subscription_entry(id, data).await
     }
 }

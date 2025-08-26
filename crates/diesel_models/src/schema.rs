@@ -1483,6 +1483,7 @@ diesel::table! {
         customer_id -> Varchar,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
