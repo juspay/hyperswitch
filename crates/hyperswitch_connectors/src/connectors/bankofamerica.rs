@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use base64::Engine;
 use common_enums::enums;
