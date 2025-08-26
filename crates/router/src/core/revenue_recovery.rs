@@ -473,7 +473,7 @@ pub async fn perform_calculate_workflow(
     };
 
     // 2. Get best available token
-    let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_alogrithm_type(
+    let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
         state,
         &connector_customer_id,
         payment_intent,

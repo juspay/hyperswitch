@@ -504,7 +504,7 @@ pub struct ScheduledToken {
 }
 
 #[cfg(feature = "v2")]
-pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
+pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
