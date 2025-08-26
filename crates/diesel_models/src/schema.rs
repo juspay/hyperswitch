@@ -1469,11 +1469,12 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     subscription (id) {
-        id -> Int4,
+        #[max_length = 128]
+        id -> Varchar,
         #[max_length = 128]
         subscription_id -> Nullable<Varchar>,
         #[max_length = 128]
-        biling_processor -> Nullable<Varchar>,
+        billing_processor -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
         #[max_length = 64]

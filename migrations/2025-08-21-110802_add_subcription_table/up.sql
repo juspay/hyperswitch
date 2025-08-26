@@ -1,9 +1,7 @@
--- Your SQL goes here
-
 CREATE TABLE subscription (
-  id SERIAL PRIMARY KEY,
+  id VARCHAR(128) PRIMARY KEY,
   subscription_id VARCHAR(128),
-  biling_processor VARCHAR(128),
+  billing_processor VARCHAR(128),
   payment_method_id VARCHAR(128),
   merchant_id VARCHAR(64) NOT NULL,
   customer_id VARCHAR(64) NOT NULL,

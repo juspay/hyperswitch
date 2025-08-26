@@ -39,6 +39,7 @@ pub mod revenue_recovery;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -75,5 +76,5 @@ pub use self::{
     generic_link::*, gsm::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, merchant_key_store::*, payment_link::*, payment_method::*,
     process_tracker::*, refund::*, reverse_lookup::*, role::*, routing_algorithm::*,
-    unified_translations::*, user::*, user_authentication_method::*, user_role::*,
+    subscription::*, unified_translations::*, user::*, user_authentication_method::*, user_role::*,
 };
