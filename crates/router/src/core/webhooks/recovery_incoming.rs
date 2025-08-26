@@ -754,6 +754,12 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
+        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
+            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
+                revenue_recovery_attempt_data.card_info.clone(),
+            )),
+            billing: None,
+        };
 
         let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 

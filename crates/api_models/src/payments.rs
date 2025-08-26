@@ -4494,9 +4494,6 @@ pub struct CustomRecoveryPaymentMethodData {
 
     /// AdditionalCardInfo for the primary token.
     pub additional_payment_method_info: AdditionalCardInfo,
-    //  /// Any other tokens and their card info.
-    // #[serde(flatten)]
-    // pub units: HashMap<String, AdditionalCardInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
