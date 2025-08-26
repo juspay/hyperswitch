@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -794,6 +794,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::Paypal
+            | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
@@ -1416,12 +1417,12 @@ fn create_stripe_payment_method(
         .into()),
 
         PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
-            GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => Err(
-                ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
-                    "stripe",
-                ))
-                .into(),
-            ),
+            GiftCardData::Givex(_)
+            | GiftCardData::PaySafeCard {}
+            | GiftCardData::BhnCardNetwork(_) => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into()),
         },
         PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             CardRedirectData::Knet {}
@@ -2725,6 +2726,7 @@ where
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
+        //
         item: ResponseRouterData<F, PaymentIntentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();
@@ -3547,6 +3549,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -3583,6 +3586,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -3874,6 +3878,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -4510,6 +4515,7 @@ fn get_stripe_payments_response_data(
         network_error_message: response
             .as_ref()
             .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
+        connector_metadata: None,
     }))
 }
 

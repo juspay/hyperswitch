@@ -256,6 +256,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1111,6 +1112,7 @@ fn get_error_response(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             })
             .unwrap_or_else(|| ErrorResponse {
@@ -1123,6 +1125,7 @@ fn get_error_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })),
         Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
         | None => {
@@ -1142,6 +1145,7 @@ fn get_error_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -1259,7 +1263,8 @@ static  AUTHORIZEDOTNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Authorize.net",
     description:
         " Authorize.net supports payment processing by helping small businesses accept credit card and eCheck payments online, in person on the go.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static AUTHORIZEDOTNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

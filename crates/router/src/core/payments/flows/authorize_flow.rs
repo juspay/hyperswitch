@@ -945,7 +945,7 @@ async fn call_unified_connector_service_authorize(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_authorize_request =
-        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(router_data)
+        payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*router_data)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 

@@ -374,6 +374,55 @@ npm run lint -- --fix
 8. Use custom commands for repetitive tasks
 9. Use `cy.log` for debugging and do not use `console.log`
 
+## Mock Server
+
+The cypress-tests directory includes a mock server for simulating payment processor APIs during testing.
+
+### Architecture
+
+The mock server follows a router-based architecture:
+
+- `mockserver.js` - Main entry point that starts the Express server
+- `router.js` - Central router that forwards requests to connector-specific routers
+- Connector implementations (e.g., `Silverflow.js`) - Individual router implementations for each payment processor
+
+Each connector exports an Express router that is imported by the main router. This modular approach allows for easy addition of new connectors and simplified maintenance.
+
+### Running the Mock Server
+
+To start the mock server:
+
+```bash
+npm run mockserver
+```
+
+By default, the server runs on port 3010. You can change this by setting the `MOCKSERVER_PORT` environment variable:
+
+```bash
+MOCKSERVER_PORT=3010 npm run mockserver
+```
+
+### Testing with cURL
+
+Example curl command for testing the Silverflow API:
+
+```bash
+curl -X POST "http://localhost:3010/silverflow/charges" \
+-H "Content-Type: application/json" \
+-H "Authorization: Basic YXBrLXRlc3RrZXkxMjM6dGVzdHNlY3JldDQ1Ng==" \
+-d '{"merchantAcceptorResolver":"merchant123","card":{"number":"4111111111111111","expMonth":12,"expYear":2025,"cvc":"123"},"amount":{"value":1000,"currency":"USD"},"type":"authorization","clearingMode":"auto"}'
+```
+
+### Using with Hyperswitch
+
+To use the mock server with Hyperswitch, you need to redirect the base URL for the Silverflow connector to the mock server. Run Hyperswitch with the following environment variable:
+
+```bash
+ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010/silverflow cargo r
+```
+
+This will redirect all Silverflow API calls from Hyperswitch to your local mock server instead of the actual Silverflow API.
+
 ## Additional Resources
 
 - [Cypress Documentation](https://docs.cypress.io/)

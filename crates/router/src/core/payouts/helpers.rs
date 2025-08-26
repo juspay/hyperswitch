@@ -224,6 +224,49 @@ pub fn should_create_connector_transfer_method(
     Ok(connector_transfer_method_id)
 }
 
+pub async fn fetch_payout_method_data(
+    state: &SessionState,
+    payout_data: &mut PayoutData,
+    connector_data: &api::ConnectorData,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let connector_transfer_method_id =
+        should_create_connector_transfer_method(payout_data, connector_data)?;
+
+    if connector_transfer_method_id.is_some() {
+        logger::info!("Using stored transfer_method_id, skipping payout_method_data fetch");
+    } else {
+        let customer_id = payout_data
+            .payouts
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
+
+        let payout_method_data_clone = payout_data.payout_method_data.clone();
+        let payout_token = payout_data.payout_attempt.payout_token.clone();
+        let merchant_id = payout_data.payout_attempt.merchant_id.clone();
+        let payout_type = payout_data.payouts.payout_type;
+
+        let payout_method_data = make_payout_method_data(
+            state,
+            payout_method_data_clone.as_ref(),
+            payout_token.as_deref(),
+            &customer_id,
+            &merchant_id,
+            payout_type,
+            merchant_context.get_merchant_key_store(),
+            Some(payout_data),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?
+        .get_required_value("payout_method_data")?;
+
+        payout_data.payout_method_data = Some(payout_method_data);
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,

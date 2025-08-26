@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
 use common_enums::{enums, CallConnectorAction, PaymentAction};
@@ -9,6 +9,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     id_type,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -57,8 +58,17 @@ use crate::{
     utils::{self, is_mandate_supported, PaymentMethodDataType, RouterData as _},
 };
 
-#[derive(Debug, Clone)]
-pub struct Nuvei;
+#[derive(Clone)]
+pub struct Nuvei {
+    pub amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+impl Nuvei {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nuvei
 where
@@ -592,6 +602,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -629,7 +640,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .switch()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -1237,7 +1247,8 @@ static NUVEI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nuvei",
         description: "Nuvei is the Canadian fintech company accelerating the business of clients around the world.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 
 static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

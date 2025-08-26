@@ -55,11 +55,12 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSyncData,
+        RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -364,6 +365,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -498,6 +500,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
@@ -1024,6 +1027,10 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
         self.l2_l3_data.clone()
+    }
+
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_id.clone()
     }
 }
 
@@ -5614,6 +5621,7 @@ pub enum PaymentMethodDataType {
     PermataBankTransfer,
     BcaBankTransfer,
     BniVaBankTransfer,
+    BhnCardNetwork,
     BriVaBankTransfer,
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
@@ -5850,6 +5858,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                payment_method_data::GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork,
             },
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
@@ -6698,6 +6707,11 @@ impl SplitPaymentData for PaymentsCancelData {
 }
 
 impl SplitPaymentData for SetupMandateRequestData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
     }

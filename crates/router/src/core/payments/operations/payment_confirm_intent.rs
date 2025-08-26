@@ -276,6 +276,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method: None,
             merchant_connector_details,
             redirect_response: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -496,14 +497,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     network_tokenization: None,
                 };
 
-                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
-                    state,
-                    &state.get_req_state(),
-                    req,
-                    merchant_context,
-                    business_profile,
-                )
-                .await?;
+                let (_pm_response, payment_method) =
+                    Box::pin(payment_methods::create_payment_method_core(
+                        state,
+                        &state.get_req_state(),
+                        req,
+                        merchant_context,
+                        business_profile,
+                    ))
+                    .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)

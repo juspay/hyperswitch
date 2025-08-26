@@ -84,6 +84,9 @@ pub struct CreateOrder;
 pub struct PaymentGetListAttempts;
 
 #[derive(Debug, Clone)]
+pub struct ExternalVaultProxy;
+
+#[derive(Debug, Clone)]
 pub enum NextActionFlows {
     PreAuthenticate,
     Authenticate,
