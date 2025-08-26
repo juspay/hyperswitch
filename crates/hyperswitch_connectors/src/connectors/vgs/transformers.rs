@@ -74,7 +74,8 @@ impl<F> TryFrom<&VaultRouterData<F>> for VgsInsertRequest {
 pub struct VgsAuthType {
     pub(super) username: Secret<String>,
     pub(super) password: Secret<String>,
-    pub(super) vault_id: Secret<String>,
+    // vault_id is used in sessions API
+    pub(super) _vault_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for VgsAuthType {
@@ -88,7 +89,7 @@ impl TryFrom<&ConnectorAuthType> for VgsAuthType {
             } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
-                vault_id: api_secret.to_wned(),
+                _vault_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
