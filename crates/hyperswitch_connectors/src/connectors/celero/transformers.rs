@@ -999,7 +999,7 @@ pub fn get_avs_definition(code: &str) -> Option<&'static str> {
         "8" => Some("Cardholder name, address, and ZIP do not match"),
         _ => {
             router_env::logger::info!(
-                "Celero avs response code ({:?}) is not mapped to any defination.",
+                "Celero avs response code ({:?}) is not mapped to any definition.",
                 code
             );
 

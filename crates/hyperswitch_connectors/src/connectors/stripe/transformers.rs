@@ -794,6 +794,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::Paypal
+            | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
@@ -1416,12 +1417,12 @@ fn create_stripe_payment_method(
         .into()),
 
         PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
-            GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => Err(
-                ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
-                    "stripe",
-                ))
-                .into(),
-            ),
+            GiftCardData::Givex(_)
+            | GiftCardData::PaySafeCard {}
+            | GiftCardData::BhnCardNetwork(_) => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into()),
         },
         PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
             CardRedirectData::Knet {}
