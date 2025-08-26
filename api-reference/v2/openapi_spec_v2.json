@@ -5054,6 +5054,33 @@
           "unresolved"
         ]
       },
+      "BHNGiftCardDetails": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "pin",
+          "cvv2",
+          "expiration_date"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "The gift card or account number"
+          },
+          "pin": {
+            "type": "string",
+            "description": "The security PIN for gift cards requiring it"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "The CVV2 code for Open Loop/VPLN products"
+          },
+          "expiration_date": {
+            "type": "string",
+            "description": "The expiration date in MMYYYY format for Open Loop/VPLN products"
+          }
+        }
+      },
       "BacsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -8348,6 +8375,7 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
           "archipel",
           "authorizedotnet",
@@ -8358,6 +8386,7 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "blackhawknetwork",
           "bluecode",
           "boku",
           "braintree",
@@ -10724,7 +10753,9 @@
           "processor_downtime",
           "processor_decline_unauthorized",
           "issue_with_payment_method",
-          "processor_decline_incorrect_data"
+          "processor_decline_incorrect_data",
+          "hard_decline",
+          "soft_decline"
         ]
       },
       "ErrorDetails": {
@@ -11882,6 +11913,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -11906,6 +11948,17 @@
             "properties": {
               "pay_safe_card": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "$ref": "#/components/schemas/BHNGiftCardDetails"
               }
             }
           }
@@ -18261,6 +18314,7 @@
           "bni_va",
           "breadpay",
           "bri_va",
+          "bhn_card_network",
           "card_redirect",
           "cimb_va",
           "classic",
@@ -23440,6 +23494,7 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
           "archipel",
           "authorizedotnet",
@@ -23448,6 +23503,7 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
           "bluecode",
