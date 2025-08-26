@@ -370,6 +370,16 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.router_store
+            .find_payment_method_ids_by_billing_connector_subscription_id(subscription_id)
+            .await
+    }
+
     // Soft delete, Check if KV stuff is needed here
     #[cfg(feature = "v2")]
     async fn delete_payment_method(
@@ -666,6 +676,23 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        diesel_models::subscription::Subscription::find_payment_method_ids_by_billing_connector_subscription_id(
+            &conn,
+            subscription_id,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })
+    }
+
     #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
@@ -921,6 +948,33 @@ impl PaymentMethodInterface for MockDb {
             )
             .into()),
         }
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let subscriptions = self.subscriptions.lock().await;
+        let payment_method_ids: Vec<String> = subscriptions
+            .iter()
+            .filter(|sub| {
+                sub.subscription_id
+                    .as_ref()
+                    .map_or(false, |id| id == subscription_id)
+            })
+            .filter_map(|sub| sub.payment_method_id.clone())
+            .collect();
+        Ok(payment_method_ids)
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        _subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        // TODO: Implement for v2 when billing_connector_subscription_id is added to v2 schema
+        Ok(vec![])
     }
 
     async fn update_payment_method(

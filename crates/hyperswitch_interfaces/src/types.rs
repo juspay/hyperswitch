@@ -271,6 +271,14 @@ pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
     RevenueRecoveryRecordBackResponse,
 >;
 
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegration<SubscriptionRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type SubscriptionRecordBackType = dyn ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
 pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSync,

@@ -8,6 +8,8 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod revenue_recovery;
+#[cfg(feature = "v1")]
+pub mod subscriptions;
 pub mod unified_authentication_service;
 pub mod vault;
 pub mod webhooks;
@@ -20,6 +22,8 @@ pub use payments::*;
 pub use payouts::*;
 pub use refunds::*;
 pub use revenue_recovery::*;
+#[cfg(feature = "v1")]
+pub use subscriptions::*;
 pub use unified_authentication_service::*;
 pub use vault::*;
 pub use webhooks::*;

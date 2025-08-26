@@ -18,6 +18,11 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
+#[cfg(all(feature = "v2", feature = "v1"))]
+use hyperswitch_domain_models::{
+    router_data_v2::{flow_common_types::RevenueRecoveryRecordBackData, RouterDataV2},
+    router_flow_types::subscriptions::SubscriptionRecordBack,
+};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -42,6 +47,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -79,6 +85,205 @@ impl api::RefundSync for Chargebee {}
 impl api::PaymentToken for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
+#[cfg(feature = "v1")]
+impl api::subscriptions::Subscriptions for Chargebee {}
+#[cfg(feature = "v1")]
+impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
+
+#[cfg(feature = "v1")]
+impl
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+        hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+        hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_url(
+        &self,
+        req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        let url = self
+            .base_url(connectors)
+            .to_string()
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+        let invoice_id = req
+            .request
+            .merchant_reference_id
+            .get_string_repr()
+            .to_string();
+        Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = chargebee::ChargebeeRouterData::from((amount, req));
+        let connector_req =
+            chargebee::ChargebeeRecordPaymentRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::SubscriptionRecordBackType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::SubscriptionRecordBackType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::SubscriptionRecordBackType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<hyperswitch_domain_models::types::SubscriptionRecordBackRouterData, errors::ConnectorError> {
+        let response: chargebee::ChargebeeRecordbackResponse = res
+            .response
+            .parse_struct("chargebee ChargebeeRecordbackResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }          
+}
+#[cfg(all(feature = "v2", feature = "v1"))]
+impl
+    ConnectorIntegrationV2<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+        hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+        hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn build_request_v2(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response_v2(
+        &self,
+        _data: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: types::Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        >,
+        errors::ConnectorError,
+    > {
+        todo!()
+    }
+
+    fn get_error_response_v2(
+        &self,
+        _res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
+    }
+}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Chargebee
@@ -716,7 +921,6 @@ impl webhooks::IncomingWebhook for Chargebee {
         Ok(signature_auth == secret_auth)
     }
 
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -724,18 +928,28 @@ impl webhooks::IncomingWebhook for Chargebee {
         let webhook =
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
-        ))
+        
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+        {
+            Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
+                api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+            ))
+        }
+        
+        #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
+        {
+            // For v1 or non-revenue recovery, use subscription ID as object reference
+            // This allows the webhook to be processed without errors
+            let subscription_id = webhook.content.invoice.subscription_id
+                .unwrap_or_else(|| webhook.content.invoice.id.clone());
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentIntentId(
+                    common_utils::id_type::PaymentId::wrap(subscription_id)
+                        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                )
+            ))
+        }
     }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_object_reference_id(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -745,13 +959,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
