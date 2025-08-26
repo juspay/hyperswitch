@@ -284,9 +284,33 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     .billing_processor_details
                     .clone();
 
-                if let Some(details) = billing_processor_detail {
-                    let merchant_id = payment_data.payment_intent.merchant_id.to_owned();
+                if let Some((details, cust_id)) = billing_processor_detail.zip(customer_id) {
+                    let merchant_id = &payment_data.payment_intent.merchant_id;
                     // Update subscription record with the payment method id
+
+                    let subscription_record = state
+                        .store
+                        .find_by_merchant_id_customer_id_subscription_id(
+                            merchant_id,
+                            &cust_id,
+                            details.subscription_id.clone(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: format!(
+                                "subscription not found for id: {}",
+                                &details.subscription_id
+                            ),
+                        })?;
+
+                    let udpate = storage::SubscriptionUpdate::new(None, Some(pm_id.clone()));
+
+                    state
+                        .store
+                        .update_subscription_entry(subscription_record.id.clone(), udpate)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to update subscription with payment method")?;
                 }
             }
 

@@ -7709,8 +7709,30 @@ where
             message: "billing_processor_detail not found in payment".to_string(),
         })?;
 
+    let merchant_id = &payment_data.get_payment_intent().merchant_id;
+    let customer_id = payment_data
+        .get_payment_intent()
+        .customer_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id",
+        })?;
+
     let db = &*state.store;
     // Fetch Subscriptions record from DB
+    let subscription_record = db
+        .find_by_merchant_id_customer_id_subscription_id(
+            merchant_id,
+            &customer_id,
+            billing_processor_detail.subscription_id.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "subscription not found for id: {}",
+                &billing_processor_detail.subscription_id
+            ),
+        })?;
     // Fetch billing processor mca
     let mca_id = billing_processor_detail.processor_mca;
     let billing_processor_mca = db
