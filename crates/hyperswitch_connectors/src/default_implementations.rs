@@ -228,6 +228,7 @@ default_imp_for_authorize_session_token!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -374,6 +375,7 @@ default_imp_for_calculate_tax!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -432,6 +434,7 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -573,6 +576,7 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -802,6 +806,7 @@ default_imp_for_create_order!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -908,6 +913,7 @@ default_imp_for_update_metadata!(
     connectors::Katapult,
     connectors::Klarna,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
@@ -1049,6 +1055,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Katapult,
     connectors::Klarna,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
@@ -1138,6 +1145,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Paysafe,
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
@@ -1257,6 +1265,7 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1473,6 +1482,7 @@ default_imp_for_create_customer!(
     connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -1533,6 +1543,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Paysafe,
     connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
@@ -1653,6 +1664,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Paysafe,
     connectors::Trustpayments,
     connectors::Silverflow,
     connectors::Vgs,
@@ -1858,6 +1870,7 @@ default_imp_for_post_processing_steps!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -1999,6 +2012,7 @@ default_imp_for_approve!(
     connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payone,
@@ -2143,6 +2157,7 @@ default_imp_for_reject!(
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -2208,6 +2223,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2427,6 +2443,7 @@ default_imp_for_accept_dispute!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -2566,6 +2583,7 @@ default_imp_for_submit_evidence!(
     connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Payone,
     connectors::Paystack,
     connectors::Paytm,
@@ -2706,6 +2724,7 @@ default_imp_for_defend_dispute!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -2849,6 +2868,7 @@ default_imp_for_fetch_disputes!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paytm,
@@ -2991,6 +3011,7 @@ default_imp_for_dispute_sync!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paytm,
@@ -3140,6 +3161,7 @@ default_imp_for_file_upload!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -3196,6 +3218,7 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
+    connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
     connectors::Aci,
@@ -3331,6 +3354,7 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3470,6 +3494,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
+    connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3686,6 +3711,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payone,
@@ -3753,6 +3779,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
     connectors::Aci,
@@ -3963,6 +3990,7 @@ default_imp_for_payouts_cancel!(
     connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payone,
@@ -4105,6 +4133,7 @@ default_imp_for_payouts_quote!(
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4247,6 +4276,7 @@ default_imp_for_payouts_recipient!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4389,6 +4419,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4533,6 +4564,7 @@ default_imp_for_frm_sale!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4676,6 +4708,7 @@ default_imp_for_frm_checkout!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4819,6 +4852,7 @@ default_imp_for_frm_transaction!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -4962,6 +4996,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -5105,6 +5140,7 @@ default_imp_for_frm_record_return!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -5242,6 +5278,7 @@ default_imp_for_revoking_mandates!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -5382,6 +5419,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -5522,6 +5560,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -5675,6 +5714,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Multisafepay,
     connectors::Paybox,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Placetopay,
     connectors::Plaid,
     connectors::Rapyd,
@@ -5799,6 +5839,7 @@ default_imp_for_connector_request_id!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -5931,6 +5972,7 @@ default_imp_for_fraud_check!(
     connectors::Paystack,
     connectors::Paytm,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Payu,
     connectors::Phonepe,
     connectors::Powertranz,
@@ -6107,6 +6149,7 @@ default_imp_for_connector_authentication!(
     connectors::Paybox,
     connectors::Payme,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Placetopay,
     connectors::Plaid,
     connectors::Rapyd,
@@ -6229,6 +6272,7 @@ default_imp_for_uas_authentication!(
     connectors::Payeezy,
     connectors::Payload,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -6370,6 +6414,7 @@ default_imp_for_revenue_recovery!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -6514,6 +6559,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -6656,6 +6702,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -6798,6 +6845,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -6934,6 +6982,7 @@ default_imp_for_external_vault!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7076,6 +7125,7 @@ default_imp_for_external_vault_insert!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7218,6 +7268,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7360,6 +7411,7 @@ default_imp_for_external_vault_delete!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7502,6 +7554,7 @@ default_imp_for_external_vault_create!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7645,6 +7698,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7789,6 +7843,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
