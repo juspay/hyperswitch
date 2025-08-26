@@ -124,15 +124,14 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_connector_mandate_id(&self) -> Option<String> {
         self.mandate_id.as_ref().and_then(|mandate_ids| {
-            mandate_ids
-                .mandate_reference_id
-                .as_ref()
-                .and_then(|mandate_ref_id| match mandate_ref_id {
+            mandate_ids.mandate_reference_id.as_ref().and_then(
+                |mandate_ref_id| match mandate_ref_id {
                     api_models::payments::MandateReferenceId::ConnectorMandateId(id) => {
                         id.get_connector_mandate_id()
                     }
                     _ => None,
-                })
+                },
+            )
         })
     }
 
@@ -167,7 +166,8 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_minor_amount_required(
         &self,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
-        self.minor_amount.ok_or_else(missing_field_err("minor_amount"))
+        self.minor_amount
+            .ok_or_else(missing_field_err("minor_amount"))
     }
 
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
@@ -179,7 +179,8 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -246,7 +247,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.get_email()
     }
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         self.enable_partial_authorization
@@ -274,7 +276,8 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         self.get_email()
     }
     fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some()) && self.setup_future_usage == Some(FutureUsage::OffSession)
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 
     fn get_complete_authorize_url(&self) -> Option<String> {
@@ -1512,7 +1515,13 @@ where
 
         let billing_address: Option<BillingAddress> = address.map(|ref address| address.into());
 
-        let device_details = if request_data.device_details.ip_address.clone().expose().is_empty() {
+        let device_details = if request_data
+            .device_details
+            .ip_address
+            .clone()
+            .expose()
+            .is_empty()
+        {
             DeviceDetails::foreign_try_from(&item.request.get_browser_info())?
         } else {
             request_data.device_details.clone()
@@ -1575,7 +1584,7 @@ where
                                 .map_err(|_| errors::ConnectorError::DateFormattingFailed)?
                                 .date()
                                 .format(&time::macros::format_description!("[year][month][day]"))
-                                .map_err(|_| errors::ConnectorError::DateFormattingFailed)?
+                                .map_err(|_| errors::ConnectorError::DateFormattingFailed)?,
                         ),
                         rebill_frequency: Some("0".to_string()),
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
@@ -2202,7 +2211,7 @@ impl
             process_nuvei_payment_response(&item, amount)?;
 
         let (amount_captured, minor_amount_capturable) = item.response.get_amount_captured()?;
-        
+
         let ip_address = item
             .data
             .request
@@ -2305,7 +2314,8 @@ fn create_transaction_response(
                 .map(|id| MandateReference {
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
-                    mandate_metadata: ip_address.map(|ip| pii::SecretSerdeValue::new(serde_json::Value::String(ip))),
+                    mandate_metadata: ip_address
+                        .map(|ip| pii::SecretSerdeValue::new(serde_json::Value::String(ip))),
                     connector_mandate_request_reference_id: None,
                 }),
         ),
@@ -2358,10 +2368,9 @@ impl
         let ip_address = item
             .data
             .request
-            .browser_info.clone().and_then(|browser_info| {
-                browser_info
-                .ip_address.map(|ip| ip.to_string())
-            });
+            .browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.ip_address.map(|ip| ip.to_string()));
 
         Ok(Self {
             status,
@@ -2545,7 +2554,7 @@ where
             Ok(Self {
                 related_transaction_id,
                 device_details: DeviceDetails {
-                    ip_address: Secret::new(ip_address)
+                    ip_address: Secret::new(ip_address),
                 },
                 is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
                 user_token_id: Some(customer_id),

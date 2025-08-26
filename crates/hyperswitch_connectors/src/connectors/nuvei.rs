@@ -202,8 +202,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>, errors::ConnectorError>
-    {
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
         let response: nuvei::NuveiPaymentsResponse = res
             .response
             .parse_struct("NuveiPaymentsResponse")
