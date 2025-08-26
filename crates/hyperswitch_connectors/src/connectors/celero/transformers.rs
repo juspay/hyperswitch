@@ -262,7 +262,7 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             transaction_type,
             amount: item.amount,
             currency: item.router_data.request.currency,
-            payment_method: payment_method,
+            payment_method,
             billing_address,
             shipping_address,
             create_vault_record: Some(false),
