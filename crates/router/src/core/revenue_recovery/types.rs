@@ -291,7 +291,7 @@ impl Decision {
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         logger::info!("Entering get_decision_based_on_params");
-        
+
         Ok(match (intent_status, called_connector, active_attempt_id) {
             (
                 enums::IntentStatus::Failed,
@@ -591,7 +591,7 @@ impl Action {
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering execute_payment_task_response_handler");
-        
+
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
@@ -759,7 +759,7 @@ impl Action {
         payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
         logger::info!("Entering payment_sync_call");
-        
+
         let response = revenue_recovery_core::api::call_psync_api(
             state,
             payment_intent.get_id(),
@@ -865,7 +865,7 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering psync_response_handler");
-        
+
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
@@ -1242,7 +1242,7 @@ async fn record_back_to_billing_connector(
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
     logger::info!("Entering record_back_to_billing_connector");
-    
+
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1296,7 +1296,7 @@ pub fn construct_recovery_record_back_router_data(
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
     logger::info!("Entering construct_recovery_record_back_router_data");
-    
+
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
             .get_connector_account_details()
