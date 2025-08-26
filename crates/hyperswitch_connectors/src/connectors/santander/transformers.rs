@@ -1065,21 +1065,6 @@ fn get_qr_code_data<F, T>(
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
     let response = pix_data.clone();
-    // let expiration_time = response.calendar.expiration;
-
-    // let expiration_i64 = i64::from(expiration_time);
-
-    // let rfc3339_expiry = (OffsetDateTime::now_utc() + time::Duration::seconds(expiration_i64))
-    //     .format(&time::format_description::well_known::Rfc3339)
-    //     .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
-
-    // let qr_expiration_duration = OffsetDateTime::parse(
-    //     rfc3339_expiry.as_str(),
-    //     &time::format_description::well_known::Rfc3339,
-    // )
-    // .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?
-    // .unix_timestamp()
-    //     * 1000;
 
     let merchant_city = santander_mca_metadata.merchant_city.as_str();
 

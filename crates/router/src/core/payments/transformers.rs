@@ -4550,6 +4550,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
