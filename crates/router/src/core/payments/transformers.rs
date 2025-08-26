@@ -1301,6 +1301,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_id: None,
         enable_partial_authorization: None,
         payment_channel: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
