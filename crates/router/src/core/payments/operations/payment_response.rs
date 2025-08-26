@@ -277,6 +277,19 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             } else {
                 None
             };
+
+            if let Some(ref pm_id) = payment_method_id {
+                let billing_processor_detail = payment_data
+                    .payment_intent
+                    .billing_processor_details
+                    .clone();
+
+                if let Some(details) = billing_processor_detail {
+                    let merchant_id = payment_data.payment_intent.merchant_id.to_owned();
+                    // Update subscription record with the payment method id
+                }
+            }
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
                 .clone()

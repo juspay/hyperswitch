@@ -860,6 +860,16 @@ where
                             .await?;
                     }
 
+                    operation
+                        .to_domain()?
+                        .perform_subscriptions_operations(
+                            state,
+                            &mut payment_data,
+                            &business_profile,
+                            merchant_context.get_merchant_key_store(),
+                        )
+                        .await?;
+
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 

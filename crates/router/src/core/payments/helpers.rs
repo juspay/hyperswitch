@@ -3899,6 +3899,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3983,6 +3984,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4065,6 +4067,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -7679,4 +7682,49 @@ pub async fn get_merchant_connector_account_v2(
         })
         .attach_printable("merchant_connector_id is not provided"),
     }
+}
+
+pub async fn perform_billing_processor_record_back<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    _business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
+{
+    let billing_processor_detail = payment_data
+        .get_payment_intent()
+        .billing_processor_details
+        .clone();
+    let attempt_status = payment_data.get_payment_attempt().status;
+
+    if billing_processor_detail.is_none() || !attempt_status.is_success() {
+        return Ok(());
+    }
+
+    let billing_processor_detail =
+        billing_processor_detail.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "billing_processor_detail not found in payment".to_string(),
+        })?;
+
+    let db = &*state.store;
+    // Fetch Subscriptions record from DB
+    // Fetch billing processor mca
+    let mca_id = billing_processor_detail.processor_mca;
+    let billing_processor_mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &state.into(),
+            &payment_data.get_payment_intent().merchant_id,
+            &mca_id,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: mca_id.get_string_repr().to_string(),
+        })?;
+
+    // Record back on billing processor
+    Ok(())
 }

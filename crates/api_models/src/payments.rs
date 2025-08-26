@@ -859,6 +859,13 @@ impl AmountDetailsUpdate {
         self.tax_on_surcharge
     }
 }
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BillingConnectorDetails {
+    pub processor_mca: id_type::MerchantConnectorAccountId,
+    pub subscription_id: String,
+    pub invoice_id: String,
+}
 #[cfg(feature = "v1")]
 #[derive(
     Default,
@@ -1217,6 +1224,8 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    pub billing_processor_details: Option<BillingConnectorDetails>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

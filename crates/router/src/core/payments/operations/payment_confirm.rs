@@ -1595,6 +1595,22 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         Ok(())
     }
 
+    async fn perform_subscriptions_operations<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::perform_billing_processor_record_back(
+            state,
+            payment_data,
+            business_profile,
+            key_store,
+        )
+        .await
+    }
+
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,

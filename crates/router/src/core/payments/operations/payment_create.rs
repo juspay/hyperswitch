@@ -828,6 +828,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
+
+    // do we need this here
+    async fn perform_subscriptions_operations<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::perform_billing_processor_record_back(
+            state,
+            payment_data,
+            business_profile,
+            key_store,
+        )
+        .await
+    }
 }
 
 #[async_trait]
@@ -1629,6 +1646,7 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
+            billing_processor_details: request.billing_processor_details.clone(),
         })
     }
 

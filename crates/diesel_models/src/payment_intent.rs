@@ -177,6 +177,7 @@ pub struct PaymentIntent {
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub enable_partial_authorization: Option<bool>,
+    pub billing_processor_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -465,6 +466,7 @@ pub struct PaymentIntentNew {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub billing_processor_details: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]

@@ -360,6 +360,16 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    async fn perform_subscriptions_operations<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,

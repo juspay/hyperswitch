@@ -123,6 +123,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub billing_processor_details: Option<api_models::payments::BillingConnectorDetails>,
 }
 
 impl PaymentIntent {
