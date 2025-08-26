@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::{HashSet, HashMap}, net::IpAddr, str::FromStr};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    net::IpAddr,
+    str::FromStr,
+};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -92,7 +97,9 @@ use crate::{
         RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
-        self, crypto::{self, SignMessage}, OptionExt, StringExt
+        self,
+        crypto::{self, SignMessage},
+        OptionExt, StringExt,
     },
 };
 #[cfg(feature = "v2")]
@@ -2063,9 +2070,7 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
     let context = EvaluationContext {
         custom_fields: HashMap::from([(
             "ucs_enabled".to_string(),
-            open_feature::EvaluationContextFieldValue::String(
-                config_key.to_string(),
-            ),
+            open_feature::EvaluationContextFieldValue::String(config_key.to_string()),
         )]),
         targeting_key: Some(config_key.to_string()),
     };
@@ -7526,7 +7531,6 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
@@ -7659,7 +7663,11 @@ async fn get_payment_update_enabled_for_client_auth(
     let mut update_enabled = false;
     if let Some(superposition_client) = &state.superposition_client {
         update_enabled = superposition_client
-            .get_bool_value("payment_update_enabled_for_client_auth", Some(&context), None)
+            .get_bool_value(
+                "payment_update_enabled_for_client_auth",
+                Some(&context),
+                None,
+            )
             .await
             .unwrap_or(false);
     }
