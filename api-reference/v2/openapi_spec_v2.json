@@ -18945,6 +18945,14 @@
             ],
             "nullable": true
           },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "nullable": true
+          },
           "session_expiry": {
             "type": "integer",
             "format": "int32",
@@ -19305,6 +19313,14 @@
           },
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "nullable": true
           },
           "expires_on": {
             "type": "string",
@@ -19700,6 +19716,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+              }
+            ],
+            "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
               }
             ],
             "nullable": true
@@ -24627,6 +24651,14 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
+      "SplitTxnsEnabled": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false",
+          "default"
+        ]
       },
       "StaticRoutingAlgorithm": {
         "oneOf": [
