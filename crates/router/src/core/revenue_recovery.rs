@@ -60,10 +60,13 @@ pub async fn perform_execute_payment(
         types::Decision::Execute => {
             // record attempt call
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
-
-            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_payment_processor_token_with_schedule_time(
+            let token = revenue_recovery_metadata.billing_connector_payment_details
+            .payment_processor_token
+            .to_owned();
+            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_payment_processor_token_details(
                 state,
                 &connector_customer_id,
+                &token,
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
