@@ -2146,6 +2146,25 @@ where
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
+
+        let is_cit_transaction =
+            payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession;
+
+        let mandate_type = if payment_intent.customer_present
+            == common_enums::PresenceOfCustomerDuringPayment::Absent
+        {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        let payment_type = helpers::infer_payment_type(
+            payment_intent.amount_details.order_amount.into(),
+            mandate_type.as_ref(),
+        );
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -2199,6 +2218,7 @@ where
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
+                payment_type,
             },
             vec![],
         )))
