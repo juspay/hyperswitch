@@ -147,6 +147,7 @@ pub struct ConfigMetadata {
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
+    pub merchant_funding_source: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
