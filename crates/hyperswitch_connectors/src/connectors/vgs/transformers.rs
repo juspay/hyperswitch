@@ -80,7 +80,8 @@ impl TryFrom<&ConnectorAuthType> for VgsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            // Even though we only use 2 fields, the auth_type is SignatureKey as api_secret is used in sessions call
+            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
             }),
