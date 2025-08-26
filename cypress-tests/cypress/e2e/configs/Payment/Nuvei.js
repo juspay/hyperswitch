@@ -61,31 +61,6 @@ const payment_method_data_no3ds = {
   billing: null,
 };
 
-const payment_method_data_3ds = {
-  card: {
-    last4: "0961",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "RIVER VALLEY CREDIT UNION",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "400002",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "25",
-    card_holder_name: "CL-BRW1",
-    payment_checks: {
-      avs_description: null,
-      avs_result_code: "",
-      cvv_2_reply_code: "",
-      cvv_2_description: null,
-      merchant_advice_code: "",
-      merchant_advice_code_description: null,
-    },
-    authentication_data: {},
-  },
-  billing: null,
-};
-
 export const connectorDetails = {
   card_pm: {
     // Basic payment intent creation
@@ -223,7 +198,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          // payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -344,7 +318,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: customerAcceptance
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -379,7 +353,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -475,7 +449,7 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
-        "amount_to_capture" : 6000
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
