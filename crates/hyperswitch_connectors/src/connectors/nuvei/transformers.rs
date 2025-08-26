@@ -69,7 +69,7 @@ fn to_boolean(string: String) -> bool {
 // The dimensions of the challenge window for full screen.
 const CHALLENGE_WINDOW_SIZE: &str = "05";
 // The challenge preference for the challenge flow.
-const CHALLENGE_PREFERNCE: &str = "01";
+const CHALLENGE_PREFERENCE: &str = "01";
 
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
@@ -1557,7 +1557,7 @@ where
         .and_then(|billing_details| billing_details.address.as_ref());
 
     if let Some(address) = address {
-        // mandatory feilds check
+        // mandatory fields check
         address.get_first_name()?;
         item.request.get_email_required()?;
         item.get_billing_country()?;
@@ -1579,7 +1579,7 @@ where
                         ),
                         rebill_frequency: Some("0".to_string()),
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
-                        challenge_preference: Some(CHALLENGE_PREFERNCE.to_string()),
+                        challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
                     item.request.get_customer_id_required(),
                 )
@@ -1591,7 +1591,7 @@ where
                     rebill_expiry: None,
                     rebill_frequency: None,
                     challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
-                    challenge_preference: Some(CHALLENGE_PREFERNCE.to_string()),
+                    challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                 }),
                 None,
             ),
@@ -2200,6 +2200,8 @@ impl
 
         let (status, redirection_data, connector_response_data) =
             process_nuvei_payment_response(&item, amount)?;
+
+        let (amount_captured, minor_amount_capturable) = item.response.get_amount_captured()?;
         
         let ip_address = item
             .data
@@ -2218,11 +2220,17 @@ impl
 
         Ok(Self {
             status,
-            response: Ok(create_transaction_response(
-                &item.response,
-                redirection_data,
-                Some(ip_address),
-            )?),
+            response: if let Some(err) = build_error_response(&item.response, item.http_code) {
+                Err(err)
+            } else {
+                Ok(create_transaction_response(
+                    &item.response,
+                    redirection_data,
+                    Some(ip_address),
+                )?)
+            },
+            amount_captured,
+            minor_amount_capturable,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -2351,8 +2359,8 @@ impl
             .data
             .request
             .browser_info.clone().and_then(|browser_info| {
-            browser_info
-            .ip_address.map(|ip| ip.to_string())
+                browser_info
+                .ip_address.map(|ip| ip.to_string())
             });
 
         Ok(Self {
