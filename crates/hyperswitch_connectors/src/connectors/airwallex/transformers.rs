@@ -719,9 +719,7 @@ fn get_bankredirect_details(
         }
         BankRedirectData::Ideal { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(IdealData {
-                ideal: IdealDetails {
-                    bank_name: None,
-                },
+                ideal: IdealDetails { bank_name: None },
                 payment_method_type: AirwallexPaymentType::Ideal,
             }))
         }

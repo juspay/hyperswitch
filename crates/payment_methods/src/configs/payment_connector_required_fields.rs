@@ -1665,7 +1665,11 @@ fn get_bank_redirect_required_fields(
                         non_mandate: HashMap::from([
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT", "SE", "SK"]).to_tuple(),
+                            RequiredField::BillingAddressCountries(vec![
+                                "DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT",
+                                "SE", "SK",
+                            ])
+                            .to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },
@@ -2846,7 +2850,8 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([RequiredField::BillingAddressCountries(vec![
-                            "AT", "BE", "FI", "FR", "DE", "GR", "IE", "IT", "NL", "PT", "ES", "DK", "NO", "PL", "SE", "CH", "GB", "CZ", "US",
+                            "AT", "BE", "FI", "FR", "DE", "GR", "IE", "IT", "NL", "PT", "ES", "DK",
+                            "NO", "PL", "SE", "CH", "GB", "CZ", "US",
                         ])
                         .to_tuple()]),
                         common: HashMap::new(),
