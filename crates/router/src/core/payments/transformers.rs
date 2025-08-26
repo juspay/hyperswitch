@@ -358,6 +358,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            payment_data.payment_attempt
+                .payment_method_data
+                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -412,7 +419,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .map(|reference_id| reference_id.get_string_repr().to_owned()),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        additional_payment_method_data: None,
+        additional_payment_method_data,
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: None,

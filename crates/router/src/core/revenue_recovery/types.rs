@@ -71,6 +71,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         db: &dyn StorageInterface,
         execute_task_process: &storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
+        logger::info!("Entering update_pt_status_based_on_attempt_status_for_execute_payment");
         match &self {
             Self::Succeeded | Self::Failed | Self::Processing => {
                 // finish the current execute task
@@ -110,6 +111,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
+        logger::info!("Entering update_pt_status_based_on_attempt_status_for_payments_sync");
+        
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
@@ -289,6 +292,8 @@ impl Decision {
         revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
+        logger::info!("Entering get_decision_based_on_params");
+        
         Ok(match (intent_status, called_connector, active_attempt_id) {
             (
                 enums::IntentStatus::Failed,
@@ -365,6 +370,8 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
     ) -> RecoveryResult<Self> {
+        logger::info!("Entering execute_payment");
+        
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
@@ -587,6 +594,8 @@ impl Action {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
+        logger::info!("Entering execute_payment_task_response_handler");
+        
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
@@ -753,6 +762,8 @@ impl Action {
         merchant_context: domain::MerchantContext,
         payment_attempt: PaymentAttempt,
     ) -> RecoveryResult<Self> {
+        logger::info!("Entering payment_sync_call");
+        
         let response = revenue_recovery_core::api::call_psync_api(
             state,
             payment_intent.get_id(),
@@ -857,6 +868,8 @@ impl Action {
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     ) -> Result<(), errors::ProcessTrackerError> {
+        logger::info!("Entering psync_response_handler");
+        
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
@@ -1101,6 +1114,8 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<()> {
+    logger::info!("Entering reopen_calculate_workflow_on_payment_failure");
+    
     let db = &*state.store;
     let id = payment_intent.id.clone();
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
@@ -1206,6 +1221,8 @@ fn create_calculate_workflow_tracking_data(
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
 ) -> RecoveryResult<storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData> {
+    logger::info!("Entering create_calculate_workflow_tracking_data");
+    
     let tracking_data = storage::revenue_recovery::RevenueRecoveryWorkflowTrackingData {
         merchant_id: revenue_recovery_payment_data
             .merchant_account
@@ -1232,6 +1249,8 @@ async fn record_back_to_billing_connector(
     payment_intent: &PaymentIntent,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
+    logger::info!("Entering record_back_to_billing_connector");
+    
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1284,6 +1303,8 @@ pub fn construct_recovery_record_back_router_data(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
+    logger::info!("Entering construct_recovery_record_back_router_data");
+    
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
             .get_connector_account_details()

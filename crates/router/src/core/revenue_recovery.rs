@@ -25,7 +25,7 @@ use crate::{
     types::{
         domain,
         storage::{self, revenue_recovery as pcr},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     workflows,
 };
@@ -177,12 +177,29 @@ pub async fn perform_execute_payment(
     // TODO decide if its a global failure or is it requeueable error
     match decision {
         types::Decision::Execute => {
+            let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
+
+            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_payment_processor_token_with_schedule_time(
+                state,
+                &connector_customer_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch token details from redis".to_string(),
+            })?
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to fetch token details from redis".to_string(),
+            })?;
+            logger::info!("Token fetched from redis success");
+            let card_info =
+                api_models::payments::AdditionalCardInfo::foreign_from(&processor_token);
             // record attempt call
             let record_attempt = api::record_internal_attempt_api(
                 state,
                 payment_intent,
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
+                card_info,
             )
             .await;
 
@@ -462,6 +479,8 @@ pub async fn perform_calculate_workflow(
         payment_intent,
         retry_algorithm_type,
         process.retry_count,
+        
+
     )
     .await
     {

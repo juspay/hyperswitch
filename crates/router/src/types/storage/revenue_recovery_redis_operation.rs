@@ -643,6 +643,7 @@ impl RedisTokenManager {
             && tokens_map
                 .values()
                 .all(|token| token.is_hard_decline.unwrap_or(false));
+        
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,

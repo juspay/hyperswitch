@@ -166,6 +166,18 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         }
     }
 }
+
+// #[instrument(skip_all)]
+// async fn error_handler<'a>(
+//     &'a self,
+//     state: &'a SessionState,
+//     process: storage::ProcessTracker,
+//     error: errors::ProcessTrackerError,
+// ) -> CustomResult<(), errors::ProcessTrackerError> {
+//     logger::error!("Encountered error");
+//     consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
+// }
+
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
@@ -208,10 +220,12 @@ pub(crate) async fn extract_data_and_perform_action(
 
     let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {
         merchant_account,
-        profile,
+        profile: profile.clone(),
         key_store,
         billing_mca,
-        retry_algorithm: tracking_data.revenue_recovery_retry,
+        retry_algorithm: profile
+            .revenue_recovery_retry_algorithm_type
+            .unwrap_or(tracking_data.revenue_recovery_retry),
     };
     Ok(pcr_payment_data)
 }
@@ -556,6 +570,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
 
     Ok(scheduled_time)
 }
+
 
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available_for_smart_retry(
