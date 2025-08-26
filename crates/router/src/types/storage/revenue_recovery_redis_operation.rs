@@ -634,6 +634,21 @@ impl RedisTokenManager {
 
         Ok(scheduled_token)
     }
+
+    pub async fn get_payment_processor_token_details(
+        state: &SessionState,
+        connector_customer_id: &str,
+        payment_processor_token_id: &str,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
+        let tokens_map =
+            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                .await?;
+
+        Ok(tokens_map
+            .get(payment_processor_token_id)
+            .map(|status| status.clone()))
+    }
+
     #[instrument(skip_all)]
     pub async fn get_token_with_max_retry_remaining(
         state: &SessionState,
