@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.26.0
+
+### Features
+
+- **connector:**
+  - Add VGS connector impls ([#7942](https://github.com/juspay/hyperswitch/pull/7942)) ([`ddf1a6a`](https://github.com/juspay/hyperswitch/commit/ddf1a6a5f36fcc8fd8e6a0497ee7f7ff7a5b98fa))
+  - [Adyenplatform] process payouts using PSP tokens ([#9040](https://github.com/juspay/hyperswitch/pull/9040)) ([`b8c5bf3`](https://github.com/juspay/hyperswitch/commit/b8c5bf3f6d0809ba318694d69db1e4431b2c4c0b))
+- **injector:** Add support for new crate - injector for external vault proxy ([#8959](https://github.com/juspay/hyperswitch/pull/8959)) ([`d18a941`](https://github.com/juspay/hyperswitch/commit/d18a94188ea93d07c4581888880088a9e676b1fd))
+- **revenue_recovery:**
+  - Add redis-based payment processor token tracking for revenue recovery ([#8846](https://github.com/juspay/hyperswitch/pull/8846)) ([`0b59b90`](https://github.com/juspay/hyperswitch/commit/0b59b9086cd68eef346413a27d03fa61fb6bb1f7))
+  - Introducing new calculate job for card switching and invoice queueing ([#8848](https://github.com/juspay/hyperswitch/pull/8848)) ([`5efe4d9`](https://github.com/juspay/hyperswitch/commit/5efe4d9751bd88861bbe3e609bb815983fca9778))
+
+### Bug Fixes
+
+- **connector:** Add Support for CUSTOMERREQUEST Refund Reason in Adyen ([#9035](https://github.com/juspay/hyperswitch/pull/9035)) ([`2da681a`](https://github.com/juspay/hyperswitch/commit/2da681a265ef85e90f5282acda3140e78aa847d5))
+
+**Full Changelog:** [`2025.08.25.0...2025.08.26.0`](https://github.com/juspay/hyperswitch/compare/2025.08.25.0...2025.08.26.0)
+
+- - -
+
 ## 2025.08.25.0
 
 ### Features
