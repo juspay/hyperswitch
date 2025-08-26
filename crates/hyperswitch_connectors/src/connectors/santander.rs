@@ -312,14 +312,35 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => Ok(format!(
-                    "{}cob/{}",
-                    self.base_url(connectors),
-                    req.payment_id
-                )),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: req.payment_method.to_string(),
-                    connector: "Santander",
+                Some(enums::PaymentMethodType::Pix) => {
+                    match &req
+                        .request
+                        .feature_metadata
+                        .as_ref()
+                        .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                    {
+                        Some(api_models::payments::PixQRExpirationDuration::Immediate(
+                            _immediate,
+                        )) => Ok(format!(
+                            "{}cob/{}",
+                            self.base_url(connectors),
+                            req.payment_id
+                        )),
+                        Some(api_models::payments::PixQRExpirationDuration::Scheduled(
+                            _scheduled,
+                        )) => Ok(format!(
+                            "{}cobv/{}",
+                            self.base_url(connectors),
+                            req.payment_id
+                        )),
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "pix_qr_expiry_time",
+                        }
+                        .into()),
+                    }
+                }
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
                 }
                 .into()),
             },
@@ -330,15 +351,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     santander_constants::SANTANDER_VERSION,
                     santander_mca_metadata.workspace_id
                 )),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: req.payment_method.to_string(),
-                    connector: "Santander",
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
                 }
                 .into()),
             },
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: req.payment_method.to_string(),
-                connector: "Santander",
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method",
             }
             .into()),
         }
@@ -670,14 +689,36 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let connector_payment_id = req.request.connector_transaction_id.clone();
-                Ok(format!(
-                    "{}cob/{}",
-                    self.base_url(connectors),
-                    connector_payment_id
-                ))
-            }
+            enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => {
+                    let connector_payment_id = req.request.connector_transaction_id.clone();
+                    Ok(format!(
+                        "{}cob/{}",
+                        self.base_url(connectors),
+                        connector_payment_id
+                    ))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            },
+            enums::PaymentMethod::Voucher => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Boleto) => {
+                    let connector_payment_id = req.request.connector_transaction_id.clone();
+                    Ok(format!(
+                        "{}cobv/{}",
+                        self.base_url(connectors),
+                        connector_payment_id
+                    ))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
                 connector: "Santander",
@@ -760,27 +801,34 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let end_to_end_id = req
-                    .request
-                    .connector_metadata
-                    .as_ref()
-                    .and_then(|metadata| metadata.get("end_to_end_id"))
-                    .and_then(|val| val.as_str().map(|id| id.to_string()))
-                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                        field_name: "end_to_end_id",
-                    })?;
+            enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => {
+                    let end_to_end_id = req
+                        .request
+                        .connector_metadata
+                        .as_ref()
+                        .and_then(|metadata| metadata.get("end_to_end_id"))
+                        .and_then(|val| val.as_str().map(|id| id.to_string()))
+                        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                            field_name: "end_to_end_id",
+                        })?;
 
-                let refund_id = req.request.connector_refund_id.clone();
-                Ok(format!(
-                    "{}{}{}{}{:?}",
-                    self.base_url(connectors),
-                    "pix/",
-                    end_to_end_id,
-                    "/refund/",
-                    refund_id
-                ))
-            }
+                    let refund_id = req.request.connector_refund_id.clone();
+                    Ok(format!(
+                        "{}{}{}{}{:?}",
+                        self.base_url(connectors),
+                        "pix/",
+                        end_to_end_id,
+                        "/refund/",
+                        refund_id
+                    ))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
                 connector: "Santander",
@@ -972,7 +1020,7 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true) // Hardcoded to true as the source verification algorithm for Santander remains to be unknown (in docs it is mentioned as MTLS)
+        Ok(true) // the source verification algorithm seems to be unclear as of now (Although MTLS is mentioned in the docs)
     }
 
     fn get_webhook_object_reference_id(

@@ -420,6 +420,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: None,
+        feature_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3990,6 +3991,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
+            feature_metadata: None,
         })
     }
 }
@@ -4032,6 +4034,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed parsing ConnectorMetadata")
+            })
+            .transpose()?;
+
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|cm| {
+                cm.parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing FeatureMetadata")
             })
             .transpose()?;
 
@@ -4223,6 +4236,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            feature_metadata,
         })
     }
 }
@@ -4536,6 +4550,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata,
             webhook_url,
             capture_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
@@ -5679,6 +5694,9 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             apple_pay_recurring_details: apple_pay_details,
             redirect_response: redirect_res,
             search_tags: feature_metadata.search_tags.clone(),
+            pix_qr_expiry_time: None,
+            pix_additional_details: None,
+            boleto_expiry_details: None,
         }
     }
 }
