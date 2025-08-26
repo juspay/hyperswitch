@@ -256,10 +256,19 @@ impl
             value.0.router_data.payment_id.clone()
         };
 
+        let due_date = value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .clone()
+            .and_then(|fm| fm.boleto_expiry_details)
+            .unwrap_or_else(|| "boleto_expiry_details".to_string());
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Environment::from(router_env::env::which()),
             nsu_code,
-            nsu_date: OffsetDateTime::now_utc()
+            nsu_date: time::OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -270,12 +279,8 @@ impl
                 }
             })?, // size: 13
             client_number: Some(value.0.router_data.get_customer_id()?),
-            due_date: voucher_data.due_date.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "due_date",
-                },
-            )?,
-            issue_date: OffsetDateTime::now_utc()
+            due_date,
+            issue_date: time::OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -309,20 +314,48 @@ impl
                 zipcode: value.0.router_data.get_billing_zip()?,
             },
             beneficiary: None,
-            document_kind: BoletoDocumentKind::BillProposal, // to change
+            document_kind: BoletoDocumentKind::BillProposal, // Need confirmation
             discount: Some(Discount {
                 discount_type: DiscountType::Free,
                 discount_one: None,
                 discount_two: None,
                 discount_three: None,
             }),
-            fine_percentage: voucher_data.fine_percentage.clone(),
-            fine_quantity_days: voucher_data.fine_quantity_days.clone(),
-            interest_percentage: voucher_data.interest_percentage.clone(),
+            fine_percentage: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|fine| fine.fine_percentage.clone()),
+            fine_quantity_days: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|days| days.fine_quantity_days.clone()),
+            interest_percentage: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|interest| interest.interest_percentage.clone()),
             deduction_value: None,
             protest_type: None,
             protest_quantity_days: None,
-            write_off_quantity_days: voucher_data.write_off_quantity_days.clone(),
+            write_off_quantity_days: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|days| days.write_off_quantity_days.clone()),
             payment_type: PaymentType::Registration,
             parcels_quantity: None,
             value_type: None,
@@ -332,7 +365,14 @@ impl
             sharing: None,
             key: None,
             tx_id: None,
-            messages: voucher_data.messages.clone(),
+            messages: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|messages| messages.messages.clone()),
         })))
     }
 }

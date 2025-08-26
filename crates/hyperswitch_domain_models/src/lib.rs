@@ -115,6 +115,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
             pix_qr_expiry_time,
+            pix_additional_details,
+            boleto_expiry_details,
             ..
         } = from;
 
@@ -125,6 +127,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(ApplePayRecurringDetails::convert_from),
             gateway_system: None,
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
+            boleto_expiry_details,
         }
     }
 
@@ -134,6 +138,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details,
             pix_qr_expiry_time,
+            pix_additional_details,
+            boleto_expiry_details,
             ..
         } = self;
 
@@ -142,6 +148,60 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
+            boleto_expiry_details,
+        }
+    }
+}
+
+pub trait ToDieselPixAdditionalDetails {
+    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails;
+}
+
+pub trait ToApiPixAdditionalDetails {
+    fn to_api(&self) -> api_models::payments::PixAdditionalDetails;
+}
+
+// pub trait ToDieselBoletoExpiryDetails {
+//     fn to_diesel(&self) -> Option<String>;
+// }
+
+// pub trait ToApiBoletoExpiryDetails {
+//     fn to_api(&self) -> Option<String>;
+// }
+
+// impl ToDieselBoletoExpiryDetails for Option<String> {
+//     fn to_diesel(&self) -> Option<String> {
+//         self.clone()
+//     }
+// }
+
+// impl ToApiBoletoExpiryDetails for Option<String> {
+//     fn to_api(&self) -> Option<String> {
+//         self.clone()
+//     }
+// }
+
+impl ToDieselPixAdditionalDetails for api_models::payments::PixAdditionalDetails {
+    fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
+        diesel_models::types::PixAdditionalDetails {
+            fine_percentage: self.fine_percentage.clone(),
+            fine_quantity_days: self.fine_quantity_days.clone(),
+            interest_percentage: self.interest_percentage.clone(),
+            write_off_quantity_days: self.write_off_quantity_days.clone(),
+            messages: self.messages.clone(),
+        }
+    }
+}
+
+impl ToApiPixAdditionalDetails for diesel_models::types::PixAdditionalDetails {
+    fn to_api(&self) -> api_models::payments::PixAdditionalDetails {
+        api_models::payments::PixAdditionalDetails {
+            fine_percentage: self.fine_percentage.clone(),
+            fine_quantity_days: self.fine_quantity_days.clone(),
+            interest_percentage: self.interest_percentage.clone(),
+            write_off_quantity_days: self.write_off_quantity_days.clone(),
+            messages: self.messages.clone(),
         }
     }
 }
@@ -195,6 +255,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details,
             revenue_recovery: payment_revenue_recovery_metadata,
             pix_qr_expiry_time,
+            pix_additional_details,
+            boleto_expiry_details,
         } = from;
 
         Self {
@@ -205,6 +267,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_diesel()),
+            boleto_expiry_details,
         }
     }
 
@@ -215,6 +279,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details,
             payment_revenue_recovery_metadata,
             pix_qr_expiry_time,
+            pix_additional_details,
+            boleto_expiry_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -225,6 +291,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(|value| value.convert_back()),
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
             pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()),
+            pix_additional_details: pix_additional_details.map(|v| v.to_api()),
+            boleto_expiry_details,
         }
     }
 }

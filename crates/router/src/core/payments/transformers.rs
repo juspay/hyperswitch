@@ -5695,6 +5695,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             redirect_response: redirect_res,
             search_tags: feature_metadata.search_tags.clone(),
             pix_qr_expiry_time: None,
+            pix_additional_details: None,
+            boleto_expiry_details: None,
         }
     }
 }

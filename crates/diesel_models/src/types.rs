@@ -73,6 +73,25 @@ pub struct FeatureMetadata {
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
     /// Pix QR Code expiry time for Merchants
     pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAdditionalDetails {
+    /// The percentage of fine applied for late payment
+    pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
+    pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
+    pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
+    pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
+    pub messages: Option<Vec<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -116,6 +135,10 @@ pub struct FeatureMetadata {
     pub gateway_system: Option<common_enums::GatewaySystem>,
     /// Pix QR Code expiry time for Merchants
     pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
