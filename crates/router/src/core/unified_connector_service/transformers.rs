@@ -1230,60 +1230,8 @@ pub struct WebhookTransformData {
 pub fn transform_ucs_webhook_response(
     response: PaymentServiceTransformResponse,
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type = match response.event_type {
-        0 => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
-        // Payment intent events
-        1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
-        2 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
-        3 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
-        4 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentPartiallyFunded,
-        5 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
-        6 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure,
-        7 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess,
-        8 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure,
-        9 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess,
-        10 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure,
-        11 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired,
-        12 => api_models::webhooks::IncomingWebhookEvent::PaymentActionRequired,
-        // Source events
-        13 => api_models::webhooks::IncomingWebhookEvent::SourceChargeable,
-        14 => api_models::webhooks::IncomingWebhookEvent::SourceTransactionCreated,
-        // Refund events
-        15 => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
-        16 => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
-        // Dispute events
-        17 => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
-        18 => api_models::webhooks::IncomingWebhookEvent::DisputeExpired,
-        19 => api_models::webhooks::IncomingWebhookEvent::DisputeAccepted,
-        20 => api_models::webhooks::IncomingWebhookEvent::DisputeCancelled,
-        21 => api_models::webhooks::IncomingWebhookEvent::DisputeChallenged,
-        22 => api_models::webhooks::IncomingWebhookEvent::DisputeWon,
-        23 => api_models::webhooks::IncomingWebhookEvent::DisputeLost,
-        // Mandate events
-        24 => api_models::webhooks::IncomingWebhookEvent::MandateActive,
-        25 => api_models::webhooks::IncomingWebhookEvent::MandateRevoked,
-        // Miscellaneous events
-        26 => api_models::webhooks::IncomingWebhookEvent::EndpointVerification,
-        27 => api_models::webhooks::IncomingWebhookEvent::ExternalAuthenticationARes,
-        28 => api_models::webhooks::IncomingWebhookEvent::FrmApproved,
-        29 => api_models::webhooks::IncomingWebhookEvent::FrmRejected,
-        // Payout events
-        #[cfg(feature = "payouts")]
-        30 => api_models::webhooks::IncomingWebhookEvent::PayoutSuccess,
-        #[cfg(feature = "payouts")]
-        31 => api_models::webhooks::IncomingWebhookEvent::PayoutFailure,
-        #[cfg(feature = "payouts")]
-        32 => api_models::webhooks::IncomingWebhookEvent::PayoutProcessing,
-        #[cfg(feature = "payouts")]
-        33 => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
-        #[cfg(feature = "payouts")]
-        34 => api_models::webhooks::IncomingWebhookEvent::PayoutCreated,
-        #[cfg(feature = "payouts")]
-        35 => api_models::webhooks::IncomingWebhookEvent::PayoutExpired,
-        #[cfg(feature = "payouts")]
-        36 => api_models::webhooks::IncomingWebhookEvent::PayoutReversed,
-        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
-    };
+    let event_type =
+        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
     Ok(WebhookTransformData {
         event_type,
