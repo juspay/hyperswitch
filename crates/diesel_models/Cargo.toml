@@ -15,7 +15,6 @@ v2 = ["common_utils/v2", "common_types/v2"]
 tokenization_v2 = []
 
 [dependencies]
-chrono = "0.4"
 async-bb8-diesel = "0.2.1"
 diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "128-column-tables"] }
 error-stack = "0.4.1"

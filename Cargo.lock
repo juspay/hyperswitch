@@ -2628,7 +2628,6 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
- "chrono",
  "common_enums",
  "common_types",
  "common_utils",

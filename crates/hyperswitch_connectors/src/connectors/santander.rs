@@ -311,57 +311,51 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         match req.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                // Inside BankTransfer, check the PaymentMethodType
-                match req.request.payment_method_type {
-                    Some(enums::PaymentMethodType::Pix) => {
-                        match &req
-                            .request
-                            .feature_metadata
-                            .as_ref()
-                            .and_then(|f| f.pix_qr_expiry_time.as_ref())
-                        {
-                            Some(api_models::payments::PixQRExpirationDuration::Immediate(
-                                _immediate,
-                            )) => Ok(format!(
-                                "{}cob/{}",
-                                self.base_url(connectors),
-                                req.payment_id
-                            )),
-                            Some(api_models::payments::PixQRExpirationDuration::Scheduled(
-                                _scheduled,
-                            )) => Ok(format!(
-                                "{}cobv/{}",
-                                self.base_url(connectors),
-                                req.payment_id
-                            )),
-                            None => Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "pix_qr_expiry_time",
-                            }
-                            .into()),
+            enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => {
+                    match &req
+                        .request
+                        .feature_metadata
+                        .as_ref()
+                        .and_then(|f| f.pix_qr_expiry_time.as_ref())
+                    {
+                        Some(api_models::payments::PixQRExpirationDuration::Immediate(
+                            _immediate,
+                        )) => Ok(format!(
+                            "{}cob/{}",
+                            self.base_url(connectors),
+                            req.payment_id
+                        )),
+                        Some(api_models::payments::PixQRExpirationDuration::Scheduled(
+                            _scheduled,
+                        )) => Ok(format!(
+                            "{}cobv/{}",
+                            self.base_url(connectors),
+                            req.payment_id
+                        )),
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "pix_qr_expiry_time",
                         }
+                        .into()),
                     }
-                    _ => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_type",
-                    }
-                    .into()),
                 }
-            }
-            enums::PaymentMethod::Voucher => {
-                // Inside Voucher, check the PaymentMethodType
-                match req.request.payment_method_type {
-                    Some(enums::PaymentMethodType::Boleto) => Ok(format!(
-                        "{:?}{}/workspaces/{}/bank_slips",
-                        connectors.santander.secondary_base_url.clone(),
-                        santander_constants::SANTANDER_VERSION,
-                        santander_mca_metadata.workspace_id
-                    )),
-                    _ => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_type",
-                    }
-                    .into()),
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
                 }
-            }
+                .into()),
+            },
+            enums::PaymentMethod::Voucher => match req.request.payment_method_type {
+                Some(enums::PaymentMethodType::Boleto) => Ok(format!(
+                    "{:?}{}/workspaces/{}/bank_slips",
+                    connectors.santander.secondary_base_url.clone(),
+                    santander_constants::SANTANDER_VERSION,
+                    santander_mca_metadata.workspace_id
+                )),
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                }
+                .into()),
+            },
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method",
             }

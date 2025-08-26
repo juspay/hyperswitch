@@ -19,7 +19,6 @@ use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-// use time::OffsetDateTime;
 use url::Url;
 
 use crate::{
@@ -56,32 +55,12 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
-    // pub expiration_time: PixQRExpirationDuration,
     pub cpf: Secret<String>,
     pub merchant_city: String,
     pub merchant_name: String,
     pub workspace_id: String,
     pub covenant_code: String, // max_size : 9
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub enum PixQRExpirationDuration {
-//     Immediate(ImmediateExpirationTime),
-//     Scheduled(DueDateExpirationTime),
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ImmediateExpirationTime {
-//     pub time_in_seconds: i32, // in seconds
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct DueDateExpirationTime {
-//     pub date: chrono::NaiveDate,                // in YYYY-MM-DD format
-//     pub validity_after_expiration: Option<i32>, // in days
-// }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -603,23 +582,6 @@ pub struct Key {
     pub dict_key: Option<String>,
 }
 
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct SantanderPixQRCodeRequest {
-//     #[serde(rename = "calendario")]
-//     pub calender: SantanderCalendar,
-//     #[serde(rename = "devedor")]
-//     pub debtor: SantanderDebtor,
-//     #[serde(rename = "valor")]
-//     pub value: SantanderValue,
-//     #[serde(rename = "chave")]
-//     pub key: Secret<String>,
-//     #[serde(rename = "solicitacaoPagador")]
-//     pub request_payer: Option<String>,
-//     #[serde(rename = "infoAdicionais")]
-//     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-// }
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixQRPaymentRequest {
@@ -823,8 +785,6 @@ pub enum SantanderPixCalendar {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixImmediateCalendar {
-    // #[serde(rename = "calendario")]
-    // pub creation: String,
     #[serde(rename = "expiracao")]
     pub expiration: i32,
 }

@@ -124,7 +124,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(ApplePayRecurringDetails::convert_from),
             gateway_system: None,
-            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()), // API -> Diesel
+            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()),
         }
     }
 
@@ -141,12 +141,11 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response: redirect_response.map(|v| v.convert_back()),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
-            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()), // Diesel -> API
+            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()),
         }
     }
 }
 
-// In hyperswitch_domain_models (local crate)
 pub trait ToDieselPixQR {
     fn to_diesel(&self) -> diesel_models::types::PixQRExpirationDuration;
 }
@@ -155,7 +154,6 @@ pub trait ToApiPixQR {
     fn to_api(&self) -> api_models::payments::PixQRExpirationDuration;
 }
 
-// Implement local trait for API type
 impl ToDieselPixQR for api_models::payments::PixQRExpirationDuration {
     fn to_diesel(&self) -> diesel_models::types::PixQRExpirationDuration {
         match self {
@@ -172,7 +170,6 @@ impl ToDieselPixQR for api_models::payments::PixQRExpirationDuration {
     }
 }
 
-// Implement local trait for Diesel type
 impl ToApiPixQR for diesel_models::types::PixQRExpirationDuration {
     fn to_api(&self) -> api_models::payments::PixQRExpirationDuration {
         match self {
@@ -207,7 +204,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(ApplePayRecurringDetails::convert_from),
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
-            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()), // API -> Diesel
+            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_diesel()),
         }
     }
 
@@ -227,7 +224,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(|value| value.convert_back()),
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
-            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()), // Diesel -> API
+            pix_qr_expiry_time: pix_qr_expiry_time.map(|v| v.to_api()),
         }
     }
 }
