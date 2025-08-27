@@ -351,12 +351,19 @@ pub fn build_unified_connector_service_payment_method(
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet) => {
             let wallet_type = match payment_method_type {
                 PaymentMethodType::Mifinity => {
-                    if let hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(mifinity_data) = wallet {
+                    if let hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
+                        mifinity_data,
+                    ) = wallet
+                    {
                         let mifinity_wallet_data = payments_grpc::MifinityWallet {
                             date_of_birth: mifinity_data.date_of_birth.peek().to_string(),
                             language_preference: mifinity_data.language_preference,
                         };
-                        Some(payments_grpc::wallet_payment_method_type::WalletType::Mifinity(mifinity_wallet_data))
+                        Some(
+                            payments_grpc::wallet_payment_method_type::WalletType::Mifinity(
+                                mifinity_wallet_data,
+                            ),
+                        )
                     } else {
                         return Err(UnifiedConnectorServiceError::InvalidDataFormat {
                             field_name: "wallet_data",
