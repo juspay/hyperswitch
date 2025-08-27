@@ -527,7 +527,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
 
         let original_amount = match response {
             santander::SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
-                pix_data.value.original.clone()
+                pix_data.base.value.original.clone()
             }
             santander::SantanderPaymentsSyncResponse::Boleto(ref boleto_data) => {
                 boleto_data.nominal_value.clone()
@@ -719,7 +719,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: santander::SantanderVoidResponse = res
+        let response: santander::SantanderPixVoidResponse = res
             .response
             .parse_struct("Santander PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
