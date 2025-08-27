@@ -2147,7 +2147,7 @@ where
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
 
-        let is_cit_transaction = payment_intent.setup_future_usage.is_off_session()
+        let is_cit_transaction = payment_intent.setup_future_usage.is_off_session();
 
         let mandate_type = if payment_intent.customer_present
             == common_enums::PresenceOfCustomerDuringPayment::Absent
