@@ -5026,25 +5026,24 @@ type = "Text"
   api_key="Client Secret"
   key1="Client ID"
   api_secret="eIDAS Private Key"
-[nordea.metadata.creditor_account_type]
-  name="creditor_account_type"
+[nordea.metadata.account_type]
+  name="account_type"
   label="Creditor Account Type"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.creditor_account_value]
-  name="creditor_account_value"
-  label="Creditor Account Type"
+[nordea.metadata.account_value]
+  name="destination_account_number"
+  label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
   required=true
   type="Text"
-[nordea.metadata.creditor_beneficiary_name]
-  name="creditor_beneficiary_name"
+[nordea.metadata.merchant_name]
+  name="merchant_name"
   label="Creditor Account Beneficiary Name"
   placeholder="Enter Beneficiary Name"
   required=true
   type="Text"
-
 
 [worldpayxml]
 [[worldpayxml.credit]]
@@ -5366,3 +5365,7 @@ type = "Text"
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+
+[paysafe]
+[paysafe.connector_auth.HeaderKey]
+api_key = "API Key"
