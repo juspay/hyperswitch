@@ -8,7 +8,7 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod revenue_recovery;
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 pub mod subscriptions;
 pub mod unified_authentication_service;
 pub mod vault;

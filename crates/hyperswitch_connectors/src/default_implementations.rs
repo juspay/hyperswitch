@@ -6,20 +6,21 @@ use common_enums::{CallConnectorAction, PaymentAction};
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
 use common_utils::errors::CustomResult;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    SubscriptionRecordBack,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
     RevenueRecoveryRecordBackRequest,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
     RevenueRecoveryRecordBackResponse,
@@ -97,7 +98,7 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
     PayoutRecipientAccount, PayoutSync,
 };
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery::{
@@ -123,7 +124,7 @@ use hyperswitch_interfaces::{
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        revenue_recovery::RevenueRecovery,
+        revenue_recovery::{RevenueRecovery, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6293,6 +6294,141 @@ macro_rules! default_imp_for_revenue_recovery {
     };
 }
 
+macro_rules! default_imp_for_subscriptions {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl Subscriptions for $path::$connector {}
+        )*
+    };
+}
+
+default_imp_for_subscriptions!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
 default_imp_for_revenue_recovery!(
     connectors::Vgs,
     connectors::Aci,
@@ -6564,7 +6700,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Zsl
 );
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
@@ -6853,11 +6989,12 @@ default_imp_for_billing_connector_invoice_sync!(
 #[cfg(feature = "v1")]
 macro_rules! default_imp_for_subscription_record_back {
     ($($path:ident::$connector:ident),*) => {
-        $( impl
+        $( impl recovery_traits::SubscriptionsRecordBack for $path::$connector {}
+            impl
             ConnectorIntegration<
             hyperswitch_domain_models::router_flow_types::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
             > for $path::$connector
             {}
         )*
@@ -6968,6 +7105,7 @@ default_imp_for_subscription_record_back!(
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stripe,
+    connectors::Stripebilling,
     connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
@@ -8425,6 +8563,22 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> recovery_traits::SubscriptionsRecordBack for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionRecordBack,
+        RevenueRecoveryRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]

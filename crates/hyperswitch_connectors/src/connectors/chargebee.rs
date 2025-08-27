@@ -11,14 +11,14 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
+    router_flow_types::revenue_recovery::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
-#[cfg(all(feature = "v2", feature = "v1"))]
+#[cfg(any(feature = "v2", feature = "v1"))]
 use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types::RevenueRecoveryRecordBackData, RouterDataV2},
     router_flow_types::subscriptions::SubscriptionRecordBack,
@@ -89,6 +89,8 @@ impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 impl api::subscriptions::Subscriptions for Chargebee {}
 #[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
+
+impl api::revenue_recovery::SubscriptionsRecordBack for Chargebee {}
 
 #[cfg(feature = "v1")]
 impl

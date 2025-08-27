@@ -1,3 +1,4 @@
+use crate::core::payments::helpers::MerchantConnectorAccountType;
 use api_models::payments::BillingConnectorDetails;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
@@ -8,7 +9,6 @@ use hyperswitch_domain_models::{
     router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response,
 };
-use crate::core::payments::helpers::MerchantConnectorAccountType;
 
 use hyperswitch_interfaces::conversion_impls;
 use router_env::logger;
@@ -223,7 +223,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     > = connector_data.connector.get_connector_integration();
 
                     let request = revenue_recovery_request::RevenueRecoveryRecordBackRequest {
-                        merchant_reference_id: common_utils::id_type::PaymentReferenceId::new(invoice_id),
+                        merchant_reference_id: common_utils::id_type::PaymentReferenceId::new(
+                            invoice_id,
+                        ),
                         amount: payment_data.payment_attempt.get_total_amount(),
                         currency: payment_data
                             .payment_intent
