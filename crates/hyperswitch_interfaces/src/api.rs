@@ -22,7 +22,7 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
-#[cfg(feature = "v1")]
+pub mod subscriptions_v2;
 pub mod subscriptions;
 pub mod vault;
 pub mod vault_v2;
@@ -106,7 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
-    + revenue_recovery::Subscriptions
+    + subscriptions::Subscriptions
 {
 }
 
@@ -130,7 +130,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + revenue_recovery::Subscriptions,
+            + subscriptions::Subscriptions,
     > Connector for T
 {
 }

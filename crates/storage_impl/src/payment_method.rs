@@ -968,15 +968,6 @@ impl PaymentMethodInterface for MockDb {
         Ok(payment_method_ids)
     }
 
-    #[cfg(feature = "v2")]
-    async fn find_payment_method_ids_by_billing_connector_subscription_id(
-        &self,
-        _subscription_id: &str,
-    ) -> CustomResult<Vec<String>, errors::StorageError> {
-        // TODO: Implement for v2 when billing_connector_subscription_id is added to v2 schema
-        Ok(vec![])
-    }
-
     async fn update_payment_method(
         &self,
         state: &KeyManagerState,

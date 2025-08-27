@@ -22,7 +22,7 @@ pub use payments::*;
 pub use payouts::*;
 pub use refunds::*;
 pub use revenue_recovery::*;
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 pub use subscriptions::*;
 pub use unified_authentication_service::*;
 pub use vault::*;

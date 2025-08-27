@@ -34,8 +34,6 @@ pub trait RevenueRecoveryV2:
 /// trait RevenueRecoveryV2
 pub trait RevenueRecoveryV2 {}
 
-pub trait SubscriptionsV2: SubscriptionsRecordBackV2 {}
-
 /// trait BillingConnectorPaymentsSyncIntegrationV2
 pub trait BillingConnectorPaymentsSyncIntegrationV2:
     ConnectorIntegrationV2<
@@ -58,15 +56,6 @@ pub trait RevenueRecoveryRecordBackV2:
 {
 }
 
-pub trait SubscriptionsRecordBackV2:
-    ConnectorIntegrationV2<
-    SubscriptionRecordBack,
-    RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->
-{
-}
 /// trait BillingConnectorInvoiceSyncIntegrationV2
 pub trait BillingConnectorInvoiceSyncIntegrationV2:
     ConnectorIntegrationV2<

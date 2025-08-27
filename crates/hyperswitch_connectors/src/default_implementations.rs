@@ -9,7 +9,7 @@ use common_utils::errors::CustomResult;
 // #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
-    SubscriptionRecordBack,
+    SubscriptionRecordBack as SubscriptionRecordBackFlow,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -124,7 +124,8 @@ use hyperswitch_interfaces::{
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing,
             PaymentsPreProcessing, TaxCalculation,
         },
-        revenue_recovery::{RevenueRecovery, Subscriptions},
+        revenue_recovery::RevenueRecovery,
+        subscriptions::{Subscriptions,SubscriptionRecordBack},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6989,10 +6990,10 @@ default_imp_for_billing_connector_invoice_sync!(
 #[cfg(feature = "v1")]
 macro_rules! default_imp_for_subscription_record_back {
     ($($path:ident::$connector:ident),*) => {
-        $( impl recovery_traits::SubscriptionsRecordBack for $path::$connector {}
+        $( impl SubscriptionRecordBack for $path::$connector {}
             impl
             ConnectorIntegration<
-            hyperswitch_domain_models::router_flow_types::SubscriptionRecordBack,
+            SubscriptionRecordBackFlow,
             RevenueRecoveryRecordBackRequest,
             RevenueRecoveryRecordBackResponse
             > for $path::$connector
@@ -8565,12 +8566,12 @@ impl<const T: u8>
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> recovery_traits::SubscriptionsRecordBack for connectors::DummyConnector<T> {}
+impl<const T: u8> SubscriptionRecordBack for connectors::DummyConnector<T> {}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
-        SubscriptionRecordBack,
+        SubscriptionRecordBackFlow,
         RevenueRecoveryRecordBackRequest,
         RevenueRecoveryRecordBackResponse,
     > for connectors::DummyConnector<T>

@@ -6,9 +6,11 @@ use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 use api_models::payments::BillingConnectorDetails;
 
+#[cfg(feature = "v1")]
+use crate::routes::payments::{get_or_generate_payment_id};
 use crate::{
     core::{errors::RecoveryError::ProcessTrackerFailure, payments},
-    routes::{payments::get_or_generate_payment_id, SessionState},
+    routes::SessionState,
     services,
     types::{api as api_types, domain, storage},
 };
@@ -16,6 +18,7 @@ pub struct ExecuteSubscriptionWorkflow;
 
 #[async_trait]
 impl ProcessTrackerWorkflow<SessionState> for ExecuteSubscriptionWorkflow {
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -40,8 +43,16 @@ impl ProcessTrackerWorkflow<SessionState> for ExecuteSubscriptionWorkflow {
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        todo!()
+    }
 }
-
+#[cfg(feature = "v1")]
 async fn perform_subscription_mit_payment(
     state: &SessionState,
     process: &storage::ProcessTracker,

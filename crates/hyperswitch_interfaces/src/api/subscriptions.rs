@@ -8,12 +8,8 @@ use hyperswitch_domain_models::{
 
 use super::{ConnectorCommon, ConnectorIntegration};
 
-/// trait Subscriptions for V1
 #[cfg(feature = "v1")]
-pub trait Subscriptions: ConnectorCommon + SubscriptionRecordBack {}
-
 /// trait SubscriptionRecordBack for V1
-#[cfg(feature = "v1")]
 pub trait SubscriptionRecordBack:
     ConnectorIntegration<
         SubscriptionRecordBackFlow,
@@ -22,11 +18,18 @@ pub trait SubscriptionRecordBack:
     >
 {
 }
-
-#[cfg(not(feature = "v1"))]
-/// trait Subscriptions (disabled when not V1)
-pub trait Subscriptions {}
+/// trait Subscriptions 
+#[cfg(feature = "v1")]
+pub trait Subscriptions:
+    ConnectorCommon
+    + SubscriptionRecordBack
+{
+}
 
 #[cfg(not(feature = "v1"))]
 /// trait SubscriptionRecordBack (disabled when not V1)
 pub trait SubscriptionRecordBack {}
+
+/// trait Subscriptions (disabled when not V1)
+#[cfg(not(feature = "v1"))]
+pub trait Subscriptions {}

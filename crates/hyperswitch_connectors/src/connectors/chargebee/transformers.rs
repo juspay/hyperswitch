@@ -595,6 +595,7 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            ChargebeeEventType::InvoiceGenerated => todo!(),
         }
     }
 }

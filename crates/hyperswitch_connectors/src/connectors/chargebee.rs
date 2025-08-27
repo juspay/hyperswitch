@@ -23,6 +23,9 @@ use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types::RevenueRecoveryRecordBackData, RouterDataV2},
     router_flow_types::subscriptions::SubscriptionRecordBack,
 };
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::revenue_recovery;
+
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -85,12 +88,12 @@ impl api::RefundSync for Chargebee {}
 impl api::PaymentToken for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
-#[cfg(feature = "v1")]
-impl api::subscriptions::Subscriptions for Chargebee {}
+// #[cfg(feature = "v1")]
+// impl api::subscriptions::Subscriptions for Chargebee {}
 #[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
 
-impl api::revenue_recovery::SubscriptionsRecordBack for Chargebee {}
+// impl api::revenue_recovery::SubscriptionsRecordBack for Chargebee {}
 
 #[cfg(feature = "v1")]
 impl

@@ -134,8 +134,8 @@ impl
 }
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
-impl api::revenue_recovery_v2::SubscriptionsV2 for Recurly {}
-impl api::revenue_recovery_v2::SubscriptionsRecordBackV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsRecordBackV2 for Recurly {}
 impl
     ConnectorIntegrationV2<
         SubscriptionRecordBack,

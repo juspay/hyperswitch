@@ -223,9 +223,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     > = connector_data.connector.get_connector_integration();
 
                     let request = revenue_recovery_request::RevenueRecoveryRecordBackRequest {
-                        merchant_reference_id: common_utils::id_type::PaymentReferenceId::new(
-                            invoice_id,
-                        ),
+                        merchant_reference_id: invoice_id,
                         amount: payment_data.payment_attempt.get_total_amount(),
                         currency: payment_data
                             .payment_intent
