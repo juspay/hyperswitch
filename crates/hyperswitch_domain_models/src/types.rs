@@ -1,16 +1,16 @@
 pub use diesel_models::types::OrderDetailsWithAmount;
 
 use crate::{
-    router_data::{AccessToken, RouterData},
+    router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
-        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
-        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, IncrementalAuthorization,
-        PSync, PaymentMethodToken, PostAuthenticate, PostSessionTokens, PreAuthenticate,
-        PreProcessing, RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-        VerifyWebhookSource, Void,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, Authorize,
+        AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
+        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
+        ExternalVaultProxy, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
+        PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
@@ -22,9 +22,10 @@ use crate::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, CreateOrderRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
+        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
@@ -45,6 +46,8 @@ pub use crate::{router_request_types::PayoutsData, router_response_types::Payout
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type ExternalVaultProxyPaymentsRouterData =
+    RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
@@ -52,6 +55,8 @@ pub type PaymentsPreProcessingRouterData =
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureRouterData =
+    RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
@@ -65,6 +70,11 @@ pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+pub type AccessTokenAuthenticationRouterData = RouterData<
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
+>;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
@@ -153,4 +163,11 @@ pub type VaultRouterDataV2<F> = RouterDataV2<
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     VaultRequestData,
     VaultResponseData,
+>;
+
+pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
+    ExternalVaultProxy,
+    router_data_v2::flow_common_types::ExternalVaultProxyFlowData,
+    ExternalVaultProxyPaymentsData,
+    PaymentsResponseData,
 >;

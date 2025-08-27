@@ -661,6 +661,8 @@ impl MandateInterface for MockDb {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
+        let customer_user_agent_extended = mandate_new.get_customer_user_agent_extended();
+
         let mandate = storage_types::Mandate {
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
@@ -688,10 +690,7 @@ impl MandateInterface for MockDb {
             connector_mandate_ids: mandate_new.connector_mandate_ids,
             merchant_connector_id: mandate_new.merchant_connector_id,
             updated_by: mandate_new.updated_by,
-            // Using customer_user_agent as a fallback
-            customer_user_agent_extended: mandate_new
-                .customer_user_agent_extended
-                .or_else(|| mandate_new.customer_user_agent.clone()),
+            customer_user_agent_extended,
         };
         mandates.push(mandate.clone());
         Ok(mandate)

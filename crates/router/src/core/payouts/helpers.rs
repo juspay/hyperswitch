@@ -222,6 +222,49 @@ pub fn should_create_connector_transfer_method(
     Ok(connector_transfer_method_id)
 }
 
+pub async fn fetch_payout_method_data(
+    state: &SessionState,
+    payout_data: &mut PayoutData,
+    connector_data: &api::ConnectorData,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<()> {
+    let connector_transfer_method_id =
+        should_create_connector_transfer_method(payout_data, connector_data)?;
+
+    if connector_transfer_method_id.is_some() {
+        logger::info!("Using stored transfer_method_id, skipping payout_method_data fetch");
+    } else {
+        let customer_id = payout_data
+            .payouts
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
+
+        let payout_method_data_clone = payout_data.payout_method_data.clone();
+        let payout_token = payout_data.payout_attempt.payout_token.clone();
+        let merchant_id = payout_data.payout_attempt.merchant_id.clone();
+        let payout_type = payout_data.payouts.payout_type;
+
+        let payout_method_data = make_payout_method_data(
+            state,
+            payout_method_data_clone.as_ref(),
+            payout_token.as_deref(),
+            &customer_id,
+            &merchant_id,
+            payout_type,
+            merchant_context.get_merchant_key_store(),
+            Some(payout_data),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?
+        .get_required_value("payout_method_data")?;
+
+        payout_data.payout_method_data = Some(payout_method_data);
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
@@ -767,6 +810,7 @@ pub(super) async fn get_or_create_customer_details(
                                     .clone()
                                     .map(|a| a.expose().switch_strategy()),
                                 phone: customer_details.phone.clone(),
+                                tax_registration_id: customer_details.tax_registration_id.clone(),
                             },
                         ),
                     ),
@@ -810,6 +854,7 @@ pub(super) async fn get_or_create_customer_details(
                     default_payment_method_id: None,
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
+                    tax_registration_id: encryptable_customer.tax_registration_id,
                 };
 
                 Ok(Some(
@@ -1371,12 +1416,18 @@ pub(super) fn get_customer_details_from_request(
         .and_then(|customer_details| customer_details.phone_country_code.clone())
         .or(request.phone_country_code.clone());
 
+    let tax_registration_id = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.tax_registration_id.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+        tax_registration_id,
     }
 }
 

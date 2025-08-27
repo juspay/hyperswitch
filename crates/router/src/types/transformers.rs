@@ -161,6 +161,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::AutoRefunded
@@ -168,6 +169,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartiallyAuthorized
             | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
@@ -290,7 +292,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::KakaoPay
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
-            | api_enums::PaymentMethodType::RevolutPay => Self::Wallet,
+            | api_enums::PaymentMethodType::RevolutPay
+            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -365,9 +368,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
-                Self::GiftCard
-            }
+            api_enums::PaymentMethodType::Givex
+            | api_enums::PaymentMethodType::PaySafeCard
+            | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
@@ -525,6 +528,7 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
+                origin_zip: address.origin_zip.clone().map(Encryptable::into_inner),
             })
         };
 
@@ -571,6 +575,7 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
+                origin_zip: address.origin_zip.clone().map(Encryptable::into_inner),
             })
         };
 
@@ -1246,6 +1251,24 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(value: api_enums::PaymentMethod) -> Result<Self, Self::Error> {
+        match value {
+            api_enums::PaymentMethod::Card => Ok(Self::Card),
+            api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("PaymentMethod {value:?} is not supported for payouts"),
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert PaymentMethod to PayoutType"),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -1543,6 +1566,7 @@ impl From<domain::Address> for payments::AddressDetails {
             state: addr.state.map(Encryptable::into_inner),
             first_name: addr.first_name.map(Encryptable::into_inner),
             last_name: addr.last_name.map(Encryptable::into_inner),
+            origin_zip: addr.origin_zip.map(Encryptable::into_inner),
         }
     }
 }
@@ -1639,7 +1663,7 @@ impl
             hyperswitch_domain_models::gsm::GatewayStatusMap,
         ),
     ) -> Self {
-        let gsm_db_record_infered_feature = match gsm_db_record.feature_data.get_decision() {
+        let gsm_db_record_inferred_feature = match gsm_db_record.feature_data.get_decision() {
             api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
                 api_enums::GsmFeature::Retry
             }
@@ -1647,7 +1671,7 @@ impl
 
         let gsm_feature = gsm_update_request
             .feature
-            .unwrap_or(gsm_db_record_infered_feature);
+            .unwrap_or(gsm_db_record_inferred_feature);
 
         match gsm_feature {
             api_enums::GsmFeature::Retry => {

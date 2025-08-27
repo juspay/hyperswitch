@@ -185,8 +185,7 @@ Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
       response.body.connectors.forEach((item) => {
         expect(item).to.have.property("description").and.not.empty;
         expect(item).to.have.property("category").and.not.empty;
-        expect(item).to.have.property("supported_payment_methods").and.not
-          .empty;
+        expect(item).to.have.property("integration_status").and.not.empty;
       });
     });
   });
@@ -1893,6 +1892,18 @@ Cypress.Commands.add(
                   globalState.set("nextActionType", "image_data_url");
                 }
                 break;
+              case "ach":
+                if (
+                  response.body.next_action
+                    ?.bank_transfer_steps_and_charges_details != null
+                ) {
+                  globalState.set(
+                    "nextActionType",
+                    "bank_transfer_steps_and_charges_details"
+                  );
+                }
+
+                break;
               default:
                 expect(response.body)
                   .to.have.property("next_action")
@@ -3231,7 +3242,12 @@ Cypress.Commands.add(
     const nextActionType = globalState.get("nextActionType");
 
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    let redirectionUrl = null;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch {
+      /* banktransfer may not have redirection url */
+    }
 
     handleRedirection(
       "bank_transfer",

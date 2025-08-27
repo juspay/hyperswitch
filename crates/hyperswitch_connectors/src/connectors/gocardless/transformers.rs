@@ -2,6 +2,7 @@ use common_enums::{enums, CountryAlpha2, UsStatesAbbreviation};
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
+    types::MinorUnit,
 };
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -15,7 +16,7 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -28,19 +29,16 @@ use crate::{
 };
 
 pub struct GocardlessRouterData<T> {
-    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for GocardlessRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -547,7 +545,7 @@ pub struct GocardlessPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GocardlessPayment {
-    amount: i64,
+    amount: MinorUnit,
     currency: enums::Currency,
     description: Option<String>,
     metadata: PaymentMetaData,
@@ -583,7 +581,7 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             .into())
         }?;
         let payments = GocardlessPayment {
-            amount: item.router_data.request.amount,
+            amount: item.router_data.request.minor_amount,
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
             metadata: PaymentMetaData {
@@ -733,7 +731,7 @@ pub struct GocardlessRefundRequest {
 
 #[derive(Default, Debug, Serialize)]
 pub struct GocardlessRefund {
-    amount: i64,
+    amount: MinorUnit,
     metadata: RefundMetaData,
     links: RefundLink,
 }
