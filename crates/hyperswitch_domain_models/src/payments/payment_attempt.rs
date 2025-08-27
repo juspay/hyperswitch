@@ -1089,6 +1089,10 @@ impl NetAmount {
             + self.tax_on_surcharge.unwrap_or_default()
     }
 
+    pub fn get_additional_amount(&self) -> MinorUnit {
+        self.get_total_amount() - self.get_order_amount()
+    }
+
     pub fn set_order_amount(&mut self, order_amount: MinorUnit) {
         self.order_amount = order_amount;
     }
