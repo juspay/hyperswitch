@@ -1171,7 +1171,7 @@ pub struct PaymentsSessionData {
     pub customer_name: Option<Secret<String>>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Default)]

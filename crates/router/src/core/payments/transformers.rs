@@ -4906,7 +4906,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        let metadata = payment_data.payment_intent.metadata.clone();
+        let metadata = payment_data
+            .payment_intent
+            .metadata
+            .clone()
+            .map(Secret::new);
 
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module

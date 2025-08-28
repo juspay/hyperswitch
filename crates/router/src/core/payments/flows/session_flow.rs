@@ -1307,11 +1307,12 @@ async fn create_amazon_pay_session_token(
     let delivery_options_request = router_data
         .request
         .metadata
-        .as_ref()
+        .clone()
         .and_then(|metadata| {
             metadata
+                .expose()
                 .get("delivery_options")
-                .and_then(|value| value.as_array())
+                .and_then(|value| value.as_array().cloned())
         })
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "metadata.delivery_options",
@@ -1319,7 +1320,7 @@ async fn create_amazon_pay_session_token(
 
     let mut delivery_options =
         payment_types::AmazonPayDeliveryOptions::parse_delivery_options_request(
-            delivery_options_request,
+            &delivery_options_request,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "delivery_options".to_string(),
