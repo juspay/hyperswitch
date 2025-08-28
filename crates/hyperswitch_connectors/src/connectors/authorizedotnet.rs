@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use common_enums::{enums, PaymentAction};
 use common_utils::{
@@ -7,6 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -53,16 +54,27 @@ use masking::Maskable;
 use transformers as authorizedotnet;
 
 use crate::{
+    connectors::authorizedotnet::transformers::AuthorizedotnetRouterData,
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self as connector_utils, ForeignTryFrom, PaymentMethodDataType,
+        self as connector_utils, convert_amount, ForeignTryFrom, PaymentMethodDataType,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
     },
 };
 
-#[derive(Debug, Clone)]
-pub struct Authorizedotnet;
+#[derive(Clone)]
+pub struct Authorizedotnet {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Authorizedotnet {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authorizedotnet
 where
@@ -369,12 +381,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = AuthorizedotnetRouterData::try_from((amount, req))?;
         let connector_req =
             authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
 
@@ -550,14 +563,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = AuthorizedotnetRouterData::try_from((amount, req))?;
         let connector_req =
             authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -731,12 +746,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authori
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = AuthorizedotnetRouterData::try_from((amount, req))?;
         let connector_req = authorizedotnet::CreateRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -819,12 +835,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authorize
         req: &RefundsRouterData<RSync>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = AuthorizedotnetRouterData::try_from((amount, req))?;
         let connector_req =
             authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
 
@@ -910,12 +927,14 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = AuthorizedotnetRouterData::try_from((amount, req))?;
+
         let connector_req =
             authorizedotnet::PaypalConfirmRequest::try_from(&connector_router_data)?;
 
