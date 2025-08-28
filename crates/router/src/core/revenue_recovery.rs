@@ -1,7 +1,9 @@
 pub mod api;
 pub mod transformers;
 pub mod types;
-use api_models::{enums, process_tracker::revenue_recovery, webhooks};
+use api_models::{
+    enums, payments::PaymentsGetIntentRequest, process_tracker::revenue_recovery, webhooks,
+};
 use common_utils::{
     self,
     errors::CustomResult,
@@ -11,13 +13,16 @@ use common_utils::{
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    payments::PaymentIntent, revenue_recovery as domain_revenue_recovery,
-    ApiModelToDieselModelConvertor,
+    payments::{PaymentIntent, PaymentIntentData},
+    revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
 
 use crate::{
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payments::{self, operations},
+    },
     db::StorageInterface,
     logger,
     routes::{app::ReqState, metrics, SessionState},
@@ -27,11 +32,8 @@ use crate::{
         storage::{self, revenue_recovery as pcr},
         transformers::{ForeignFrom, ForeignInto},
     },
-    workflows,
+    workflows::revenue_recovery as revenue_recovery_workflow,
 };
-
-pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
-pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 
 #[allow(clippy::too_many_arguments)]
@@ -922,4 +924,105 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         business_status: process_tracker.business_status,
     };
     Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn resume_revenue_recovery_process_tracker(
+    state: SessionState,
+    id: id_type::GlobalPaymentId,
+    request_retrigger: revenue_recovery::RevenueRecoveryRetriggerRequest,
+) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
+    let db = &*state.store;
+    let task = request_retrigger.revenue_recovery_task;
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+    let process_tracker_id = id.get_execute_revenue_recovery_id(&task, runner);
+
+    let process_tracker = db
+        .find_process_by_id(&process_tracker_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("error retrieving the process tracker id")?
+        .get_required_value("Process Tracker")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Entry For the following id doesn't exists".to_owned(),
+        })?;
+
+    let tracking_data = process_tracker
+        .tracking_data
+        .clone()
+        .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
+
+    //Call payment intent to check the status
+    let request = PaymentsGetIntentRequest { id: id.clone() };
+    let revenue_recovery_payment_data =
+        revenue_recovery_workflow::extract_data_and_perform_action(&state, &tracking_data)
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Failed to extract the revenue recovery data".to_owned(),
+            })?;
+    let merchant_context_from_revenue_recovery_payment_data =
+        domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+            revenue_recovery_payment_data.merchant_account.clone(),
+            revenue_recovery_payment_data.key_store.clone(),
+        )));
+    let (payment_data, _, _) = payments::payments_intent_operation_core::<
+        api_types::PaymentGetIntent,
+        _,
+        _,
+        PaymentIntentData<api_types::PaymentGetIntent>,
+    >(
+        &state,
+        state.get_req_state(),
+        merchant_context_from_revenue_recovery_payment_data,
+        revenue_recovery_payment_data.profile.clone(),
+        payments::operations::PaymentGetIntent,
+        request,
+        tracking_data.global_payment_id.clone(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+    )
+    .await?;
+
+    match payment_data.payment_intent.status {
+        enums::IntentStatus::Failed => {
+            let pt_update = storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: request_retrigger.status,
+                retry_count: process_tracker.retry_count + 1,
+                schedule_time: request_retrigger.schedule_time.unwrap_or(
+                    common_utils::date_time::now().saturating_add(time::Duration::seconds(600)),
+                ),
+            };
+            let updated_pt = db
+                .update_process(process_tracker, pt_update)
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to update the process tracker".to_owned(),
+                })?;
+            let response = revenue_recovery::RevenueRecoveryResponse {
+                id: updated_pt.id,
+                name: updated_pt.name,
+                schedule_time_for_payment: updated_pt.schedule_time,
+                schedule_time_for_psync: None,
+                status: updated_pt.status,
+                business_status: updated_pt.business_status,
+            };
+            Ok(ApplicationResponse::Json(response))
+        }
+        enums::IntentStatus::Succeeded
+        | enums::IntentStatus::Cancelled
+        | enums::IntentStatus::CancelledPostCapture
+        | enums::IntentStatus::Processing
+        | enums::IntentStatus::RequiresCustomerAction
+        | enums::IntentStatus::RequiresMerchantAction
+        | enums::IntentStatus::RequiresPaymentMethod
+        | enums::IntentStatus::RequiresConfirmation
+        | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::PartiallyCaptured
+        | enums::IntentStatus::PartiallyCapturedAndCapturable
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | enums::IntentStatus::Conflicted
+        | enums::IntentStatus::Expired => Err(report!(ApiErrorResponse::NotSupported {
+            message: "Invalid Payment Status ".to_owned(),
+        })),
+    }
 }
