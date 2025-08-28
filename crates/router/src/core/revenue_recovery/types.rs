@@ -36,7 +36,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
-        revenue_recovery::{self as revenue_recovery_core, perform_calculate_workflow,pcr},
+        revenue_recovery::{self as revenue_recovery_core, pcr, perform_calculate_workflow},
         webhooks::recovery_incoming as recovery_incoming_flow,
     },
     db::StorageInterface,
@@ -375,15 +375,20 @@ impl Action {
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to extract customer ID from payment intent")?;
 
-        let tracking_data: pcr::RevenueRecoveryWorkflowTrackingData = serde_json::from_value(process.tracking_data.clone())
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+        let tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+            serde_json::from_value(process.tracking_data.clone())
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to deserialize the tracking data from process tracker")?;
 
         let last_token_used = payment_intent
             .feature_metadata
             .as_ref()
             .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rr| rr.billing_connector_payment_details.payment_processor_token.clone());
+            .map(|rr| {
+                rr.billing_connector_payment_details
+                    .payment_processor_token
+                    .clone()
+            });
 
         let recovery_algorithm = tracking_data.revenue_recovery_retry;
 
@@ -412,7 +417,9 @@ impl Action {
                     payment_intent,
                     revenue_recovery_payment_data,
                     revenue_recovery_metadata,
-                    &scheduled_token.payment_processor_token_details.payment_processor_token,
+                    &scheduled_token
+                        .payment_processor_token_details
+                        .payment_processor_token,
                 )
                 .await;
 
@@ -1378,7 +1385,6 @@ pub fn construct_recovery_record_back_router_data(
     Ok(old_router_data)
 }
 
-
 pub fn get_payment_processor_token_id_from_payment_attempt(
     payment_attempt: &PaymentAttempt,
 ) -> Option<String> {
@@ -1389,5 +1395,4 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
     );
 
     used_token
-    
 }

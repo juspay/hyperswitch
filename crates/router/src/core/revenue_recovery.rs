@@ -180,10 +180,14 @@ pub async fn perform_execute_payment(
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
 
             let last_token_used = payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-            .map(|rr| rr.billing_connector_payment_details.payment_processor_token.clone());
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+                .map(|rr| {
+                    rr.billing_connector_payment_details
+                        .payment_processor_token
+                        .clone()
+                });
 
             let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
                 state,
@@ -208,7 +212,9 @@ pub async fn perform_execute_payment(
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
                 card_info,
-                &processor_token.payment_processor_token_details.payment_processor_token,
+                &processor_token
+                    .payment_processor_token_details
+                    .payment_processor_token,
             )
             .await;
 
@@ -741,16 +747,18 @@ async fn insert_execute_pcr_task_to_pt(
                 "Found existing EXECUTE_WORKFLOW task with COMPLETE status, updating to PENDING with incremented retry count"
             );
 
-            let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData = serde_json::from_value(existing_process.tracking_data.clone())
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+            let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+                serde_json::from_value(existing_process.tracking_data.clone())
+                    .change_context(errors::RecoveryError::ValueNotFound)
+                    .attach_printable(
+                        "Failed to deserialize the tracking data from process tracker",
+                    )?;
 
-            tracking_data.revenue_recovery_retry= revenue_recovery_retry;
-            
+            tracking_data.revenue_recovery_retry = revenue_recovery_retry;
+
             let tracking_data_json = serde_json::to_value(&tracking_data)
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to serialize the tracking data to json")?;
-
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to serialize the tracking data to json")?;
 
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: Some(task.to_string()),
