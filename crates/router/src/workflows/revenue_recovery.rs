@@ -3,9 +3,9 @@ use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
+use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::{
-    errors::CustomResult,
     ext_traits::AsyncExt,
     ext_traits::{StringExt, ValueExt},
     id_type,
@@ -28,8 +28,15 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
-use router_env::{logger, tracing};
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
+use rand::Rng;
+use router_env::{
+    logger,
+    tracing::{self, instrument},
+};
+use scheduler::{
+    consumer::{self, workflows::ProcessTrackerWorkflow},
+    errors,
+};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
@@ -165,7 +172,18 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
+    #[instrument(skip_all)]
+    async fn error_handler<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+        error: errors::ProcessTrackerError,
+    ) -> CustomResult<(), errors::ProcessTrackerError> {
+        logger::error!("Encountered error");
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
+    }
 }
+
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
     state: &SessionState,
@@ -208,10 +226,12 @@ pub(crate) async fn extract_data_and_perform_action(
 
     let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {
         merchant_account,
-        profile,
+        profile: profile.clone(),
         key_store,
         billing_mca,
-        retry_algorithm: tracking_data.revenue_recovery_retry,
+        retry_algorithm: profile
+            .revenue_recovery_retry_algorithm_type
+            .unwrap_or(tracking_data.revenue_recovery_retry),
     };
     Ok(pcr_payment_data)
 }
@@ -295,7 +315,11 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_issuer_str = card_info.card_issuer.clone();
 
-    let card_funding_str = card_info.card_type.clone();
+    let card_funding_str = match card_info.card_type.as_deref() {
+        Some("card") => None,
+        Some(s) => Some(s.to_string()),
+        None => None,
+    };
 
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
@@ -490,7 +514,7 @@ pub struct ScheduledToken {
 }
 
 #[cfg(feature = "v2")]
-pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
+pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
@@ -514,33 +538,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             scheduled_time = Some(time);
-
-            let token =
-                RedisTokenManager::get_token_with_max_retry_remaining(state, connector_customer_id)
-                    .await
-                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-            match token {
-                Some(token) => {
-                    RedisTokenManager::update_payment_processor_token_schedule_time(
-                        state,
-                        connector_customer_id,
-                        &token
-                            .token_status
-                            .payment_processor_token_details
-                            .payment_processor_token,
-                        scheduled_time,
-                    )
-                    .await
-                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-                    logger::debug!("PSP token available for cascading retry");
-                }
-                None => {
-                    logger::debug!("No PSP token available for cascading retry");
-                    scheduled_time = None;
-                }
-            }
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
@@ -553,8 +550,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_alogrithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
+    let delayed_schedule_time = scheduled_time.map(add_random_delay_to_schedule_time);
 
-    Ok(scheduled_time)
+    Ok(delayed_schedule_time)
 }
 
 #[cfg(feature = "v2")]
@@ -646,7 +644,7 @@ async fn process_token_for_retry(
     match skip {
         true => {
             logger::info!(
-                "Skipping decider call due to hard decline for attempt_id: {}",
+                "Skipping decider call due to hard decline token inserted by attempt_id: {}",
                 inserted_by_attempt_id.get_string_repr()
             );
             Ok(None)
@@ -683,6 +681,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             None => {
                 let utc_schedule_time =
                     time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+
                 let schedule_time = time::PrimitiveDateTime::new(
                     utc_schedule_time.date(),
                     utc_schedule_time.time(),
@@ -773,4 +772,14 @@ pub async fn check_hard_decline(
         .unwrap_or(false);
 
     Ok(is_hard_decline)
+}
+
+#[cfg(feature = "v2")]
+pub fn add_random_delay_to_schedule_time(
+    schedule_time: time::PrimitiveDateTime,
+) -> time::PrimitiveDateTime {
+    let mut rng = rand::thread_rng();
+    let random_secs = rng.gen_range(1..=3600);
+    logger::info!("Adding random delay of {random_secs} seconds to schedule time");
+    schedule_time + time::Duration::seconds(random_secs)
 }

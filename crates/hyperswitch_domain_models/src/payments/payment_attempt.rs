@@ -847,6 +847,15 @@ impl PaymentAttempt {
             }),
         };
 
+        let payment_method_data = request
+            .payment_method_data
+            .as_ref()
+            .map(|data| data.payment_method_data.clone().encode_to_value())
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode additional payment method data")?
+            .map(pii::SecretSerdeValue::new);
+
         let payment_method_billing_address = encrypted_data
             .payment_method_billing_address
             .as_ref()
@@ -882,7 +891,7 @@ impl PaymentAttempt {
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_data: None,
+            payment_method_data,
             routing_result: None,
             preprocessing_step_id: None,
             multiple_capture_count: None,
