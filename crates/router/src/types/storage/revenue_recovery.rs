@@ -43,12 +43,17 @@ impl RevenueRecoveryPaymentData {
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
+        if is_hard_decline {
+            logger::info!("Hard Decline encountered");
+            return None;
+        }
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
                 None
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
+                logger::info!("Cascading type found for Revenue Recovery retry payment");
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     merchant_id,
