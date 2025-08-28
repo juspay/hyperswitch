@@ -430,12 +430,16 @@ pub async fn resume_revenue_recovery_process_tracker(
 
     match payment_data.payment_intent.status {
         enums::IntentStatus::Failed => {
-            let pt_update = storage::ProcessTrackerUpdate::StatusRetryUpdate {
-                status: request_retrigger.status,
-                retry_count: process_tracker.retry_count + 1,
-                schedule_time: request_retrigger.schedule_time.unwrap_or(
+            let pt_update = storage::ProcessTrackerUpdate::Update {
+                name: process_tracker.name.clone(),
+                tracking_data: Some(process_tracker.tracking_data.clone()),
+                business_status: Some(request_retrigger.business_status.clone()),
+                status: Some(request_retrigger.status),
+                updated_at: Some(common_utils::date_time::now()),
+                retry_count: Some(process_tracker.retry_count + 1),
+                schedule_time: Some(request_retrigger.schedule_time.unwrap_or(
                     common_utils::date_time::now().saturating_add(time::Duration::seconds(600)),
-                ),
+                )),
             };
             let updated_pt = db
                 .update_process(process_tracker, pt_update)
