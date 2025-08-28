@@ -892,6 +892,15 @@ impl PaymentMethodsController for PmCards<'_> {
     }
 
     #[cfg(feature = "v1")]
+    async fn get_mca_connector_type(
+        &self,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        merchant_context: &domain::MerchantContext,
+    ) -> errors::RouterResult<ConnectorType> {
+        helpers::get_mca_connector_type(self.state, merchant_connector_id, merchant_context).await
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_card_details_from_locker(
         &self,
         pm: &domain::PaymentMethod,
