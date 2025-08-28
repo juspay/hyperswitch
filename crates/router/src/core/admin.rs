@@ -1220,8 +1220,6 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
-    // Call to DE here
-
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
