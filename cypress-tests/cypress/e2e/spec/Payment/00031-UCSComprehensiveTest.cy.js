@@ -6,16 +6,19 @@ import { cardCreditEnabled } from "../../configs/PaymentMethodList/Commons";
 let globalState;
 
 describe("UCS Comprehensive Test", () => {
-  before("Initialize and Setup", () => {
+  before("Initialize and Setup", function () {
+    const UCS_SUPPORTED_CONNECTORS = ["authorizedotnet"];
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      
-      // Set default values if environment variables are missing
-      const baseUrl = Cypress.env("BASEURL") || "http://localhost:8081";
-      const adminApiKey = Cypress.env("ADMINAPIKEY") || "test_admin";
-      const connectorId = Cypress.env("CYPRESS_CONNECTOR") || "authorizedotnet";
-      const authFilePath = Cypress.env("CONNECTOR_AUTH_FILE_PATH") || "./creds.json";
-      
+      const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+      if (!UCS_SUPPORTED_CONNECTORS.includes(connectorId)) {
+        cy.log(`Skipping UCS tests - connector not supported: ${connectorId}`);
+        this.skip();
+      }
+      cy.log(`Running UCS tests for: ${connectorId}`);
+      const baseUrl = Cypress.env("BASEURL");
+      const adminApiKey = Cypress.env("ADMINAPIKEY");
+      const authFilePath = Cypress.env("CONNECTOR_AUTH_FILE_PATH");
       globalState.set("baseUrl", baseUrl);
       globalState.set("adminApiKey", adminApiKey);
       globalState.set("connectorId", connectorId);
