@@ -5448,7 +5448,7 @@ pub struct PaymentsResponse {
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
 
-    /// Bool indicating if overcapture  must be requested for all payments
+    /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 
