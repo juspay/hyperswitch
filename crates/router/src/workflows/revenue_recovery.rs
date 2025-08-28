@@ -1,11 +1,10 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
-
+use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
 #[cfg(feature = "v2")]
 use common_utils::{
-    errors::CustomResult,
     ext_traits::AsyncExt,
     ext_traits::{StringExt, ValueExt},
     id_type,
@@ -27,7 +26,6 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "v2")]
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -42,7 +40,8 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use time::Date;
-
+#[cfg(feature = "v2")]
+use rand::Rng;
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
 #[cfg(feature = "v2")]
@@ -314,7 +313,13 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_issuer_str = card_info.card_issuer.clone();
 
-    let card_funding_str = card_info.card_type.clone();
+    let card_funding_str = match card_info.card_type {
+        "card" => None,
+        other => Some(other.clone()),
+    };
+    
+
+    
 
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
@@ -769,6 +774,7 @@ pub async fn check_hard_decline(
     Ok(is_hard_decline)
 }
 
+#[cfg(feature = "v2")]
 pub fn add_random_delay_to_schedule_time(
     schedule_time: time::PrimitiveDateTime,
 ) -> time::PrimitiveDateTime {
