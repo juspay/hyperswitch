@@ -23938,7 +23938,7 @@
           },
           "enable_overcapture": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
             "nullable": true
           },
           "is_overcapture_enabled": {
@@ -25349,7 +25349,7 @@
           },
           "enable_overcapture": {
             "type": "boolean",
-            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
             "nullable": true
           },
           "is_overcapture_enabled": {
