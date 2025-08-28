@@ -1647,7 +1647,7 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
                 ),
             },
         );
-        
+
         #[cfg(feature = "v2")]
         worldpayvantiv_supported_payment_methods.add(
             common_enums::PaymentMethod::Card,
