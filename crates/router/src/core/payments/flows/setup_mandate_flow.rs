@@ -281,7 +281,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 .attach_printable("Failed to construct Payment Setup Mandate Request")?;
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account.clone(),
+            merchant_connector_account,
             &merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
