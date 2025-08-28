@@ -854,15 +854,14 @@ async fn call_unified_connector_service_authorize(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
-    let payment_authorize_request_clone = payment_authorize_request.clone();
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
-        &payment_authorize_request,
-        |mut router_data| async move {
+        payment_authorize_request,
+        |mut router_data, payment_authorize_request| async move {
             let response = client
                 .payment_authorize(
-                    payment_authorize_request_clone,
+                    payment_authorize_request,
                     connector_auth_metadata,
                     state.get_grpc_headers(),
                 )
@@ -925,15 +924,14 @@ async fn call_unified_connector_service_repeat_payment(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
-    let payment_repeat_request_clone = payment_repeat_request.clone();
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
-        &payment_repeat_request,
-        |mut router_data| async move {
+        payment_repeat_request,
+        |mut router_data, payment_repeat_request| async move {
             let response = client
                 .payment_repeat(
-                    payment_repeat_request_clone,
+                    payment_repeat_request,
                     connector_auth_metadata.clone(),
                     state.get_grpc_headers(),
                 )

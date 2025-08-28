@@ -264,9 +264,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        // Clone data to avoid lifetime issues
-        let merchant_connector_account = merchant_connector_account.clone();
-        let merchant_context = merchant_context.clone();
 
         let client = state
             .grpc_client
@@ -282,20 +279,19 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            &merchant_context,
+            merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
 
-        let payment_register_request_clone = payment_register_request.clone();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
-            &payment_register_request,
-            |mut router_data| async move {
+            payment_register_request,
+            |mut router_data, payment_register_request| async move {
                 let response = client
                     .payment_setup_mandate(
-                        payment_register_request_clone,
+                        payment_register_request,
                         connector_auth_metadata,
                         state.get_grpc_headers(),
                     )

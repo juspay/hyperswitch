@@ -753,7 +753,7 @@ pub fn extract_webhook_content_from_ucs_response(
 pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
-    grpc_request: &GrpcReq,
+    grpc_request: GrpcReq,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -762,7 +762,7 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
-    F: FnOnce(RouterData<T, Req, Resp>) -> Fut + Send,
+    F: FnOnce(RouterData<T, Req, Resp>, GrpcReq) -> Fut + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
@@ -777,7 +777,7 @@ where
     let dispute_id = router_data.dispute_id.clone();
 
     // Log the actual gRPC request with masking
-    let grpc_request_body = masking::masked_serialize(grpc_request)
+    let grpc_request_body = masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -797,7 +797,7 @@ where
 
     // Execute UCS function and measure timing
     let start_time = Instant::now();
-    let result = handler(router_data).await;
+    let result = handler(router_data, grpc_request).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call

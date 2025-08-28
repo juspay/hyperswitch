@@ -367,9 +367,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        // Clone data to avoid lifetime issues
-        let merchant_connector_account = merchant_connector_account.clone();
-        let merchant_context = merchant_context.clone();
 
         let client = state
             .grpc_client
@@ -386,20 +383,19 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &merchant_context,
+                merchant_context,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
-        let payment_authorize_request_clone = payment_authorize_request.clone();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
-            &payment_authorize_request,
-            |mut router_data| async move {
+            payment_authorize_request,
+            |mut router_data, payment_authorize_request| async move {
                 let response = client
                     .payment_authorize(
-                        payment_authorize_request_clone,
+                        payment_authorize_request,
                         connector_auth_metadata,
                         state.get_grpc_headers(),
                     )

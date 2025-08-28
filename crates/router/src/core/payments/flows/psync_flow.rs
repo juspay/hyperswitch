@@ -226,9 +226,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-        // Clone data to avoid lifetime issues
-        let merchant_connector_account = merchant_connector_account.clone();
-        let merchant_context = merchant_context.clone();
 
         let client = state
             .grpc_client
@@ -243,20 +240,19 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            &merchant_context,
+            merchant_context,
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
 
-        let payment_get_request_clone = payment_get_request.clone();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
-            &payment_get_request,
-            |mut router_data| async move {
+            payment_get_request,
+            |mut router_data, payment_get_request| async move {
                 let response = client
                     .payment_get(
-                        payment_get_request_clone,
+                        payment_get_request,
                         connector_auth_metadata,
                         state.get_grpc_headers(),
                     )
