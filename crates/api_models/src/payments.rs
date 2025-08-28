@@ -2628,6 +2628,16 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
+/// The payment method information provided for making a payment
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct RecordAttemptPaymentMethodDataRequest {
+    /// Additional details for the payment method (e.g., card expiry date, card network).
+    #[serde(flatten)]
+    pub payment_method_data: AdditionalPaymentData,
+    /// billing details for the payment method.
+    pub billing: Option<Address>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct ProxyPaymentMethodDataRequest {
     /// This field is optional because, in case of saved cards we pass the payment_token
@@ -3116,7 +3126,7 @@ pub struct AdditionalCardInfo {
     pub signature_network: Option<api_enums::CardNetwork>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
@@ -4482,8 +4492,12 @@ pub struct PaymentMethodDataResponseWithBilling {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
-    #[serde(flatten)]
-    pub units: HashMap<String, AdditionalCardInfo>,
+    /// Primary payment method token at payment processor end.
+    #[schema(value_type = String, example = "token_1234")]
+    pub primary_processor_payment_method_token: Secret<String>,
+
+    /// AdditionalCardInfo for the primary token.
+    pub additional_payment_method_info: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9214,6 +9228,12 @@ impl PaymentRevenueRecoveryMetadata {
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
+
+    pub fn get_connector_customer_id(&self) -> String {
+        self.billing_connector_payment_details
+            .connector_customer_id
+            .to_owned()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -9272,8 +9292,8 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// The payment instrument data to be used for the payment attempt.
-    pub payment_method_data: Option<PaymentMethodDataRequest>,
+    /// The additional payment data to be used for the payment attempt.
+    pub payment_method_data: Option<RecordAttemptPaymentMethodDataRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -9361,10 +9381,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// primary payment method token at payment processor end.
-    #[schema(value_type = String, example = "token_1234")]
-    pub primary_processor_payment_method_token: Secret<String>,
-
     /// The time at which payment attempt was created.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -9388,7 +9404,7 @@ pub struct RecoveryPaymentsCreate {
     pub connector_transaction_id: Option<Secret<String>>,
 
     /// payment method token units at payment processor end.
-    pub payment_method_units: CustomRecoveryPaymentMethodData,
+    pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
