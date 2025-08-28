@@ -143,13 +143,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::perform_billing_processor_record_back(
-            state,
-            payment_data,
-            business_profile,
-            key_store,
-        )
-        .await
+        // helpers::perform_billing_processor_record_back(state, payment_data, key_store).await
+        Ok(())
     }
 }
 

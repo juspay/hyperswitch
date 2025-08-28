@@ -7760,7 +7760,6 @@ where
 pub async fn perform_billing_processor_record_back<F, D>(
     state: &SessionState,
     payment_data: &mut D,
-    _business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
