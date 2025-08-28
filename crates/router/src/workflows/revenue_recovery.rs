@@ -320,7 +320,6 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         Some(s) => Some(s.to_string()),
         None => None,
     };
-    
 
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
