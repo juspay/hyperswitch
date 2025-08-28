@@ -31,4 +31,5 @@ pub struct RevenueRecoveryRetriggerRequest {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time: Option<PrimitiveDateTime>,
     pub status: enums::ProcessTrackerStatus,
+    pub business_status: String,
 }
