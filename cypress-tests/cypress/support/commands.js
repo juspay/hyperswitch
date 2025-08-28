@@ -1124,12 +1124,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -2491,13 +2491,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -4083,21 +4083,17 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
   });
 });
 
+Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
+  cy.setConfigs(globalState, key, value, "CREATE").then((response) => {
+    if (response.status !== 200) {
+      cy.setConfigs(globalState, key, value, "UPDATE");
+    }
+  });
+});
+
 // UCS Configuration Commands
 Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
-  // First delete ucs_enabled if it exists, then create it fresh
-  cy.request({
-    method: "DELETE",
-    url: `${globalState.get("baseUrl")}/configs/ucs_enabled`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    failOnStatusCode: false,
-  }).then(() => {
-    // Now create ucs_enabled fresh
-    cy.setConfigs(globalState, "ucs_enabled", "true", "CREATE");
-  });
+  cy.setupConfigs(globalState, "ucs_enabled", "true");
 
   const merchantId = globalState.get("merchantId");
   const rolloutConfigs = [
@@ -4107,7 +4103,7 @@ Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
   ];
 
   rolloutConfigs.forEach((key) => {
-    cy.setConfigs(globalState, key, "1.0", "CREATE");
+    cy.setupConfigs(globalState, key, "1.0");
   });
 });
 

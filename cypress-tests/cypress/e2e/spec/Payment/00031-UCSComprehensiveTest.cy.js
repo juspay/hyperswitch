@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails from "../../configs/Payment/Utils";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 import { cardCreditEnabled } from "../../configs/PaymentMethodList/Commons";
 
 let globalState;
@@ -11,18 +11,11 @@ describe("UCS Comprehensive Test", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       const connectorId = Cypress.env("CYPRESS_CONNECTOR");
-      if (!UCS_SUPPORTED_CONNECTORS.includes(connectorId)) {
+      if (utils.shouldIncludeConnector(connectorId, utils.CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS)) {
         cy.log(`Skipping UCS tests - connector not supported: ${connectorId}`);
         this.skip();
       }
       cy.log(`Running UCS tests for: ${connectorId}`);
-      const baseUrl = Cypress.env("BASEURL");
-      const adminApiKey = Cypress.env("ADMINAPIKEY");
-      const authFilePath = Cypress.env("CONNECTOR_AUTH_FILE_PATH");
-      globalState.set("baseUrl", baseUrl);
-      globalState.set("adminApiKey", adminApiKey);
-      globalState.set("connectorId", connectorId);
-      globalState.set("connectorAuthFilePath", authFilePath);
     });
   });
 
@@ -30,7 +23,7 @@ describe("UCS Comprehensive Test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("00032-UCS Setup", () => {
+  context("00031-UCS Setup", () => {
     it("merchant-create-call-test", () => {
       cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
     });

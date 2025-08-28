@@ -23,6 +23,14 @@
       "last_name": "Doe"
     }
   },
+  "webhook_details": {
+    "webhook_version": "1.0.1",
+    "webhook_username": "ekart_retail",
+    "webhook_password": "password_ekart@123",
+    "payment_created_enabled": true,
+    "payment_succeeded_enabled": true,
+    "payment_failed_enabled": true
+  },
   "return_url": "https://example.com",
   "sub_merchants_enabled": false,
   "metadata": {
