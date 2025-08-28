@@ -1212,11 +1212,78 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 "CALCULATE_WORKFLOW process tracker not found, creating new entry"
             );
 
-            // Create tracking data for the new CALCULATE_WORKFLOW
-            let tracking_data = create_calculate_workflow_tracking_data(
-                payment_intent,
-                revenue_recovery_payment_data,
-            )?;
+            let task = "CALCULATE_WORKFLOW";
+
+            let db = &*state.store;
+
+            // Create process tracker ID in the format: CALCULATE_WORKFLOW_{payment_intent_id}
+            let process_tracker_id = format!("{runner}_{task}_{}", id.get_string_repr());
+
+            // Set scheduled time to 1 hour from now
+            let schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
+
+            // Check if a process tracker entry already exists for this payment intent
+            let existing_entry = db
+                .as_scheduler()
+                .find_process_by_id(&process_tracker_id)
+                .await
+                .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                .attach_printable(
+                    "Failed to check for existing calculate workflow process tracker entry",
+                )?;
+
+            match existing_entry {
+                Some(existing_process) => {
+                    router_env::logger::error!(
+                        "Found existing CALCULATE_WORKFLOW task with  id: {}",
+                        existing_process.id
+                    );
+                }
+                None => {
+                    // No entry exists - create a new one
+                    router_env::logger::info!(
+                    "No existing CALCULATE_WORKFLOW task found for payment_intent_id: {}, creating new entry scheduled for 1 hour from now",
+                    id.get_string_repr()
+                );
+
+                    let tag = ["PCR"];
+                    let task = "CALCULATE_WORKFLOW";
+                    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+
+                    let process_tracker_entry = storage::ProcessTrackerNew::new(
+                        &process_tracker_id,
+                        task,
+                        runner,
+                        tag,
+                        process.tracking_data.clone(),
+                        Some(process.retry_count),
+                        schedule_time,
+                        common_types::consts::API_VERSION,
+                    )
+                    .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                    .attach_printable(
+                        "Failed to construct calculate workflow process tracker entry",
+                    )?;
+
+                    // Insert into process tracker with status New
+                    db.as_scheduler()
+                        .insert_process(process_tracker_entry)
+                        .await
+                        .change_context(errors::RecoveryError::ProcessTrackerFailure)
+                        .attach_printable(
+                            "Failed to enter calculate workflow process_tracker_entry in DB",
+                        )?;
+
+                    router_env::logger::info!(
+                    "Successfully created new CALCULATE_WORKFLOW task for payment_intent_id: {}",
+                    id.get_string_repr()
+                );
+                }
+            }
+
+            let tracking_data = serde_json::from_value(process.tracking_data.clone())
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to deserialize the tracking data from process tracker")?;
 
             // Call the existing perform_calculate_workflow function
             perform_calculate_workflow(
