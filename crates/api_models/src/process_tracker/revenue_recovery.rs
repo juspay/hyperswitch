@@ -19,3 +19,10 @@ pub struct RevenueRecoveryResponse {
 pub struct RevenueRecoveryId {
     pub revenue_recovery_id: id_type::GlobalPaymentId,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct RevenueRecoveryRetriggerRequest {
+    pub revenue_recovery_task: String,
+    pub schedule_time: Option<PrimitiveDateTime>,
+    pub status: enums::ProcessTrackerStatus,
+}
