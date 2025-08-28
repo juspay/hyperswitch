@@ -4083,6 +4083,65 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
   });
 });
 
+// UCS Configuration Commands
+Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
+  // First delete ucs_enabled if it exists, then create it fresh
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/configs/ucs_enabled`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then(() => {
+    // Now create ucs_enabled fresh
+    cy.setConfigs(globalState, "ucs_enabled", "true", "CREATE");
+  });
+
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`, 
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`
+  ];
+  
+  rolloutConfigs.forEach(key => {
+    cy.setConfigs(globalState, key, "1.0", "CREATE");
+  });
+});
+
+Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`
+  ];
+  
+  rolloutConfigs.forEach(key => {
+    cy.request({
+      method: "DELETE",
+      url: `${globalState.get("baseUrl")}/configs/${key}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      failOnStatusCode: false,
+    });
+  });
+
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/configs/ucs_enabled`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  });
+});
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",

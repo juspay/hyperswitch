@@ -16,7 +16,6 @@
 // Import commands.js using ES2015 syntax:
 import "cypress-mochawesome-reporter/register";
 import "./commands";
-import "./ucs-commands";
 import "./redirectionHandler";
 
 Cypress.on("window:before:load", (win) => {

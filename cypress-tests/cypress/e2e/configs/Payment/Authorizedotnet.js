@@ -5,6 +5,7 @@ import {
 } from "./Commons";
 import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "12",
@@ -15,7 +16,8 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4111111111111111", // Visa test card (approved in Authorize.Net sandbox)
+  // Visa test card (approved in Authorize.Net sandbox)
+  card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2029",
   card_holder_name: "John Doe",
@@ -707,101 +709,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    UCSZeroAuthMandate: {
-      Request: {
-        amount: 0,
-        confirm: false,
-        currency: "USD",
-        customer_id: "Customer123_UCS",
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-
-    UCSConfirmMandate: {
-      Request: {
-        confirm: true,
-        customer_id: "Customer123_UCS",
-        payment_type: "setup_mandate",
-        customer_acceptance: {
-          acceptance_type: "online",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-        payment_method: "card",
-        payment_method_type: "credit",
-        email: generateRandomEmail(),
-        payment_method_data: {
-          card: {
-            card_number: "4349940199004549", // Visa from real mandate example
-            card_exp_month: "12",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doe",
-            card_cvc: "396",
-            card_network: "VISA",
-          },
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "IT",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            email: generateRandomEmail(),
-            phone: {
-              number: "8056594427",
-              country_code: "+91",
-            },
-          },
-        },
-        all_keys_required: true,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-
-    UCSRecurringPayment: {
-      Request: {
-        amount: 100,
-        currency: "USD",
-        confirm: true,
-        capture_method: "automatic",
-        customer_id: "Customer123_UCS",
-        off_session: true,
-        recurring_details: {
-          type: "payment_method_id",
-          data: "pm_placeholder", // Will be dynamically set in tests
-        },
-        all_keys_required: true,
-        metadata: {
-          ucs_test: "recurring_payment",
-          payment_sequence: "recurring",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
         },
       },
     },

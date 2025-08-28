@@ -23,18 +23,8 @@
       "last_name": "Doe"
     }
   },
-  "return_url": "https://google.com/success",
-  "webhook_details": {
-    "webhook_version": "1.0.1",
-    "webhook_username": "ekart_retail",
-    "webhook_password": "password_ekart@123",
-    "webhook_url": "https://integ.hyperswitch.io/api/webhooks/cypress_merchant_GHAction_6dcfed64-ec62-46a2-9961-cafa3c1faa01/authorizedotnet",
-    "payment_created_enabled": true,
-    "payment_succeeded_enabled": true,
-    "payment_failed_enabled": true
-  },
+  "return_url": "https://example.com",
   "sub_merchants_enabled": false,
-  "parent_merchant_id": "merchant_123",
   "metadata": {
     "city": "NY",
     "unit": "245"
