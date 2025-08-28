@@ -271,6 +271,9 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 ),
                                 descriptor: None,
                             },
+                            tokenized_card: GooglePayTokenizedCard {
+                                transaction_type: TransactionType::InApp,
+                            },
                         },
                     )),
                     Some(PaymentSolution::GooglePay),
@@ -554,8 +557,15 @@ pub struct ApplePayPaymentInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MandatePaymentTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: CybersoucrePaymentInstrument,
+    tokenized_card: MandatePaymentTokenizedCard,
 }
 
 #[derive(Debug, Serialize)]
@@ -574,6 +584,13 @@ pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAP
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTokenPaymentInformation {
     fluid_data: FluidData,
+    tokenized_card: GooglePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTokenizedCard {
+    transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]
@@ -2064,6 +2081,9 @@ impl
                     ),
                     descriptor: None,
                 },
+                tokenized_card: GooglePayTokenizedCard {
+                    transaction_type: TransactionType::InApp,
+                },
             }));
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
@@ -2542,6 +2562,9 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
+                tokenized_card: MandatePaymentTokenizedCard {
+                    transaction_type: TransactionType::StoredCredentials,
+                },
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
