@@ -1,8 +1,9 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
-use common_utils::errors::CustomResult;
+
 #[cfg(feature = "v2")]
 use api_models::{enums::RevenueRecoveryAlgorithmType, payments::PaymentsGetIntentRequest};
+use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::AsyncExt,
@@ -26,6 +27,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use rand::Rng;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -40,8 +43,7 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use time::Date;
-#[cfg(feature = "v2")]
-use rand::Rng;
+
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
 #[cfg(feature = "v2")]
@@ -317,9 +319,6 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         "card" => None,
         other => Some(other.clone()),
     };
-    
-
-    
 
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
