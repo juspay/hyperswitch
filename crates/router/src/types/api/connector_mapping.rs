@@ -127,18 +127,18 @@ impl ConnectorData {
                 enums::Connector::Authipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Authipay::new())))
                 }
-                enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
-                }
+                enums::Connector::Authorizedotnet => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Authorizedotnet::new(),
+                ))),
                 enums::Connector::Bambora => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new())))
                 }
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
-                enums::Connector::Bankofamerica => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
-                }
+                enums::Connector::Bankofamerica => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Bankofamerica::new(),
+                ))),
                 enums::Connector::Barclaycard => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard::new())))
                 }
@@ -438,7 +438,7 @@ impl ConnectorData {
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
                 // ))),
-                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(connector::Vgs::new()))),
+                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(&connector::Vgs))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))

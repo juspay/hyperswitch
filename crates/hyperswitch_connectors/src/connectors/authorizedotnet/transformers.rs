@@ -8,6 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::Email,
     request::Method,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -27,7 +28,7 @@ use hyperswitch_domain_models::{
         RefundsRouterData, SetupMandateRouterData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
@@ -67,16 +68,13 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct AuthorizedotnetRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AuthorizedotnetRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for AuthorizedotnetRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -155,7 +153,7 @@ pub enum WalletMethod {
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency_code: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     payment: Option<PaymentDetails>,
@@ -276,7 +274,7 @@ struct AuthorizationIndicator {
 struct TransactionVoidOrCaptureRequest {
     transaction_type: TransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
-    amount: Option<f64>,
+    amount: Option<FloatMajorUnit>,
     ref_trans_id: String,
 }
 
@@ -1636,7 +1634,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
 #[serde(rename_all = "camelCase")]
 struct RefundTransactionRequest {
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency_code: String,
     payment: PaymentDetails,
     #[serde(rename = "refTransId")]
