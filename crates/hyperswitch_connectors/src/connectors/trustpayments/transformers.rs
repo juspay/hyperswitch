@@ -31,7 +31,7 @@ pub enum TrustpaymentsSettleStatus {
     #[serde(rename = "1")]
     Settled,
     #[serde(rename = "2")]
-    SettlementFailed,
+    ManualCapture,
     #[serde(rename = "3")]
     Voided,
 }
@@ -67,7 +67,7 @@ impl TrustpaymentsSettleStatus {
         match self {
             Self::PendingSettlement => "0",
             Self::Settled => "1",
-            Self::SettlementFailed => "2",
+            Self::ManualCapture => "2",
             Self::Voided => "3",
         }
     }
@@ -208,31 +208,32 @@ impl TrustpaymentsErrorCode {
         matches!(self, Self::Success)
     }
 
-    pub fn get_attempt_status(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-    ) -> common_enums::AttemptStatus {
+    pub fn get_attempt_status(&self) -> common_enums::AttemptStatus {
         match self {
-            Self::Success => match capture_method {
-                Some(common_enums::CaptureMethod::Manual) => {
-                    common_enums::AttemptStatus::Authorized
-                }
-                Some(common_enums::CaptureMethod::Automatic) | None => {
-                    common_enums::AttemptStatus::Charged
-                }
-                Some(common_enums::CaptureMethod::ManualMultiple)
-                | Some(common_enums::CaptureMethod::Scheduled)
-                | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
-                    common_enums::AttemptStatus::Failure
-                }
-            },
+            // Success cases should be handled by get_payment_status() with settlestatus logic
+            Self::Success => common_enums::AttemptStatus::Authorized,
+            // Authentication and configuration errors
             Self::InvalidCredentials
             | Self::AuthenticationFailed
             | Self::InvalidSiteReference
             | Self::AccessDenied
             | Self::InvalidUsernameOrPassword
             | Self::AccountSuspended => common_enums::AttemptStatus::Failure,
+            // Card-related and payment errors that should be treated as failures
+            Self::InvalidCardNumber
+            | Self::InvalidExpiryDate
+            | Self::InvalidSecurityCode
+            | Self::InvalidCardType
+            | Self::CardExpired
+            | Self::InsufficientFunds
+            | Self::CardDeclined
+            | Self::CardRestricted
+            | Self::TransactionNotPermitted
+            | Self::ExceedsWithdrawalLimit
+            | Self::InvalidAmountValue => common_enums::AttemptStatus::Failure,
+            // Processing states that should remain pending
             Self::Processing => common_enums::AttemptStatus::Pending,
+            // Default fallback for unknown errors
             _ => common_enums::AttemptStatus::Pending,
         }
     }
@@ -322,6 +323,7 @@ pub struct TrustpaymentsPaymentRequestData {
     pub securitycode: Secret<String>,
     pub sitereference: String,
     pub credentialsonfile: String,
+    pub settlestatus: String,
 }
 
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
@@ -386,6 +388,21 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                         credentialsonfile:
                             TrustpaymentsCredentialsOnFile::CardholderInitiatedTransaction
                                 .to_string(),
+                        settlestatus: match item.router_data.request.capture_method {
+                            Some(common_enums::CaptureMethod::Manual) => {
+                                TrustpaymentsSettleStatus::ManualCapture
+                                    .as_str()
+                                    .to_string()
+                            }
+                            Some(common_enums::CaptureMethod::Automatic) | None => {
+                                TrustpaymentsSettleStatus::PendingSettlement
+                                    .as_str()
+                                    .to_string()
+                            }
+                            _ => TrustpaymentsSettleStatus::PendingSettlement
+                                .as_str()
+                                .to_string(),
+                        },
                     }],
                 })
             }
@@ -453,36 +470,25 @@ pub struct TrustpaymentsPaymentResponseData {
 }
 
 impl TrustpaymentsPaymentResponseData {
-    pub fn get_payment_status(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-    ) -> common_enums::AttemptStatus {
+    pub fn get_payment_status(&self) -> common_enums::AttemptStatus {
         match self.errorcode {
             TrustpaymentsErrorCode::Success => {
                 if self.authcode.is_some() {
                     match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
-                            match capture_method {
-                                Some(common_enums::CaptureMethod::Manual) => {
-                                    common_enums::AttemptStatus::Authorized
-                                }
-                                Some(common_enums::CaptureMethod::Automatic) | None => {
-                                    common_enums::AttemptStatus::Charged
-                                }
-                                Some(common_enums::CaptureMethod::ManualMultiple)
-                                | Some(common_enums::CaptureMethod::Scheduled)
-                                | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
-                                    common_enums::AttemptStatus::Failure
-                                }
-                            }
-                        }
-                        Some(TrustpaymentsSettleStatus::Settled) => {
+                            // settlestatus "0" = automatic capture, scheduled to settle
                             common_enums::AttemptStatus::Charged
                         }
-                        Some(TrustpaymentsSettleStatus::SettlementFailed) => {
-                            common_enums::AttemptStatus::Failure
+                        Some(TrustpaymentsSettleStatus::Settled) => {
+                            // settlestatus "1" or "100" = transaction has been settled
+                            common_enums::AttemptStatus::Charged
+                        }
+                        Some(TrustpaymentsSettleStatus::ManualCapture) => {
+                            // settlestatus "2" = suspended, manual capture needed
+                            common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
+                            // settlestatus "3" = transaction has been cancelled
                             common_enums::AttemptStatus::Voided
                         }
                         None => common_enums::AttemptStatus::Authorized,
@@ -491,7 +497,7 @@ impl TrustpaymentsPaymentResponseData {
                     common_enums::AttemptStatus::Failure
                 }
             }
-            _ => self.errorcode.get_attempt_status(capture_method),
+            _ => self.errorcode.get_attempt_status(),
         }
     }
 
@@ -512,8 +518,8 @@ impl TrustpaymentsPaymentResponseData {
                         Some(TrustpaymentsSettleStatus::Settled) => {
                             common_enums::AttemptStatus::Charged
                         }
-                        Some(TrustpaymentsSettleStatus::SettlementFailed) => {
-                            common_enums::AttemptStatus::Failure
+                        Some(TrustpaymentsSettleStatus::ManualCapture) => {
+                            common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
                             common_enums::AttemptStatus::Voided
@@ -524,7 +530,7 @@ impl TrustpaymentsPaymentResponseData {
                     common_enums::AttemptStatus::Pending
                 }
             }
-            _ => self.errorcode.get_attempt_status(None),
+            _ => self.errorcode.get_attempt_status(),
         }
     }
 
@@ -575,7 +581,7 @@ impl
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let status = response_data.get_payment_status(item.data.request.capture_method);
+        let status = response_data.get_payment_status();
         let transaction_id = response_data
             .transactionreference
             .clone()
@@ -725,7 +731,7 @@ impl
         let status = if response_data.errorcode.is_success() {
             common_enums::AttemptStatus::Charged
         } else {
-            response_data.get_payment_status(None)
+            response_data.get_payment_status()
         };
 
         if !response_data.errorcode.is_success() {
@@ -798,7 +804,7 @@ impl
         let status = if response_data.errorcode.is_success() {
             common_enums::AttemptStatus::Voided
         } else {
-            response_data.get_payment_status(None)
+            response_data.get_payment_status()
         };
 
         if !response_data.errorcode.is_success() {
@@ -1207,7 +1213,7 @@ impl
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let status = response_data.get_payment_status(None);
+        let status = response_data.get_payment_status();
         let token = response_data
             .transactionreference
             .clone()
@@ -1331,7 +1337,7 @@ impl TrustpaymentsPaymentResponseData {
             TrustpaymentsErrorCode::Success => match &self.settlestatus {
                 Some(TrustpaymentsSettleStatus::Settled) => enums::RefundStatus::Success,
                 Some(TrustpaymentsSettleStatus::PendingSettlement) => enums::RefundStatus::Pending,
-                Some(TrustpaymentsSettleStatus::SettlementFailed) => enums::RefundStatus::Failure,
+                Some(TrustpaymentsSettleStatus::ManualCapture) => enums::RefundStatus::Failure,
                 Some(TrustpaymentsSettleStatus::Voided) => enums::RefundStatus::Failure,
                 None => enums::RefundStatus::Success,
             },
