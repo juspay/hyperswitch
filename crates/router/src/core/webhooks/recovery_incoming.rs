@@ -900,7 +900,6 @@ impl RevenueRecoveryAttempt {
         Ok(payment_attempt_with_recovery_intent)
     }
 
-
     /// Store payment processor tokens in Redis for retry management
     async fn store_payment_processor_tokens_in_redis(
         &self,
