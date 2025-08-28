@@ -860,16 +860,6 @@ where
                             .await?;
                     }
 
-                    operation
-                        .to_domain()?
-                        .perform_subscriptions_operations(
-                            state,
-                            &mut payment_data,
-                            &business_profile,
-                            merchant_context.get_merchant_key_store(),
-                        )
-                        .await?;
-
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
@@ -1032,6 +1022,8 @@ where
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
 
+                    logger::debug!("PSync_4");
+
                     if is_eligible_for_uas {
                         let should_do_uas_confirmation_call = true;
                         operation
@@ -1048,16 +1040,6 @@ where
                             )
                             .await?;
                     }
-
-                    operation
-                        .to_domain()?
-                        .perform_subscriptions_operations(
-                            state,
-                            &mut payment_data,
-                            &business_profile,
-                            merchant_context.get_merchant_key_store(),
-                        )
-                        .await?;
 
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
@@ -1209,6 +1191,20 @@ where
             )
             .await?;
     }
+
+    logger::debug!("operation is: {:?} ", operation);
+
+    operation
+        .to_domain()?
+        .perform_subscriptions_operations(
+            state,
+            &mut payment_data,
+            &business_profile,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await?;
+
+    logger::debug!("PSync_6");
 
     let cloned_payment_data = payment_data.clone();
     let cloned_customer = customer.clone();

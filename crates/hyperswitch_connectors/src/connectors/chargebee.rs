@@ -114,12 +114,12 @@ impl
         req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let metadata: chargebee::ChargebeeMetadata =
-            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        // let metadata: chargebee::ChargebeeMetadata =
+        //     utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+            .replace("$", "hyperswitch-juspay-test"); // have to fix this
         let invoice_id = req
             .request
             .merchant_reference_id

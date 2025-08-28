@@ -6,8 +6,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{self, ErrorResponse, RouterData},
     router_flow_types as subscription_flow,
-    router_response_types::revenue_recovery as revenue_recovery_response,
     router_request_types::subscriptions as subscriptions_request,
+    router_response_types::revenue_recovery as revenue_recovery_response,
 };
 
 use hyperswitch_interfaces::conversion_impls;
@@ -157,118 +157,120 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Could not find profile_id in payment intent")?;
 
-                if let Some(billing_connector_details) = billing_connector_details {
-                    let (connector, _subscription_id, invoice_id) = (
-                        billing_connector_details.connector,
-                        billing_connector_details.subscription_id,
-                        billing_connector_details.invoice_id,
-                    );
+                // Do not remove the below commented code. It may be used
 
-                    let billing_connector_mca = db
-                        .find_merchant_connector_account_by_profile_id_connector_name(
-                            key_manager_state,
-                            &profile_id,
-                            connector.as_str(),
-                            merchant_context.get_merchant_key_store(),
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: format!(
-                                    "profile_id {} and connector_name {connector}",
-                                    profile_id.get_string_repr()
-                                ),
-                            },
-                        )?;
+                // if let Some(billing_connector_details) = billing_connector_details {
+                //     let (connector, _subscription_id, invoice_id) = (
+                //         billing_connector_details.connector,
+                //         billing_connector_details.subscription_id,
+                //         billing_connector_details.invoice_id,
+                //     );
 
-                    let auth_type = MerchantConnectorAccountType::DbVal(Box::new(
-                        billing_connector_mca.clone(),
-                    ))
-                    .get_connector_account_details()
-                    .parse_value("ConnectorAuthType")
-                    .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)?;
+                //     let billing_connector_mca = db
+                //         .find_merchant_connector_account_by_profile_id_connector_name(
+                //             key_manager_state,
+                //             &profile_id,
+                //             connector.as_str(),
+                //             merchant_context.get_merchant_key_store(),
+                //         )
+                //         .await
+                //         .to_not_found_response(
+                //             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                //                 id: format!(
+                //                     "profile_id {} and connector_name {connector}",
+                //                     profile_id.get_string_repr()
+                //                 ),
+                //             },
+                //         )?;
 
-                    let connector_data = api::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        &connector,
-                        api::GetToken::Connector,
-                        Some(billing_connector_mca.get_id()),
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "invalid connector name received in billing merchant connector account",
-                    )?;
+                //     let auth_type = MerchantConnectorAccountType::DbVal(Box::new(
+                //         billing_connector_mca.clone(),
+                //     ))
+                //     .get_connector_account_details()
+                //     .parse_value("ConnectorAuthType")
+                //     .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)?;
 
-                    let connector_enum =
-                        common_enums::connector_enums::Connector::from_str(connector.as_str())
-                            .change_context(
-                                errors::RecoveryError::RecordBackToBillingConnectorFailed,
-                            )
-                            .attach_printable("Cannot find connector from the connector_name")?;
+                //     let connector_data = api::ConnectorData::get_connector_by_name(
+                //         &state.conf.connectors,
+                //         &connector,
+                //         api::GetToken::Connector,
+                //         Some(billing_connector_mca.get_id()),
+                //     )
+                //     .change_context(errors::ApiErrorResponse::InternalServerError)
+                //     .attach_printable(
+                //         "invalid connector name received in billing merchant connector account",
+                //     )?;
 
-                    let connector_params =
-                                hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
-                                    &state.conf.connectors,
-                                    connector_enum,
-                                )
-                                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                                .attach_printable(format!(
-                                    "cannot find connector params for this connector {connector} in this flow",
-                                ))?;
+                //     let connector_enum =
+                //         common_enums::connector_enums::Connector::from_str(connector.as_str())
+                //             .change_context(
+                //                 errors::RecoveryError::RecordBackToBillingConnectorFailed,
+                //             )
+                //             .attach_printable("Cannot find connector from the connector_name")?;
 
-                    let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
-                        subscription_flow::SubscriptionRecordBack,
-                        subscriptions_request::SubscriptionsRecordBackRequest,
-                        revenue_recovery_response::RevenueRecoveryRecordBackResponse,
-                    > = connector_data.connector.get_connector_integration();
+                //     let connector_params =
+                //                 hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+                //                     &state.conf.connectors,
+                //                     connector_enum,
+                //                 )
+                //                 .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+                //                 .attach_printable(format!(
+                //                     "cannot find connector params for this connector {connector} in this flow",
+                //                 ))?;
 
-                    let request = subscriptions_request::SubscriptionsRecordBackRequest {
-                        merchant_reference_id: invoice_id,
-                        amount: payment_data.payment_attempt.get_total_amount(),
-                        currency: payment_data
-                            .payment_intent
-                            .currency
-                            .unwrap_or(common_enums::Currency::USD),
-                        payment_method_type: payment_data.payment_attempt.payment_method_type,
+                //     let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
+                //         subscription_flow::SubscriptionRecordBack,
+                //         subscriptions_request::SubscriptionsRecordBackRequest,
+                //         revenue_recovery_response::RevenueRecoveryRecordBackResponse,
+                //     > = connector_data.connector.get_connector_integration();
 
-                        attempt_status: payment_data.payment_attempt.status,
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone()
-                            .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id)),
-                        connector_params,
-                    };
+                //     let request = subscriptions_request::SubscriptionsRecordBackRequest {
+                //         merchant_reference_id: invoice_id,
+                //         amount: payment_data.payment_attempt.get_total_amount(),
+                //         currency: payment_data
+                //             .payment_intent
+                //             .currency
+                //             .unwrap_or(common_enums::Currency::USD),
+                //         payment_method_type: payment_data.payment_attempt.payment_method_type,
 
-                    let response = Err(ErrorResponse::default());
+                //         attempt_status: payment_data.payment_attempt.status,
+                //         connector_transaction_id: payment_data
+                //             .payment_attempt
+                //             .connector_transaction_id
+                //             .clone()
+                //             .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id)),
+                //         connector_params,
+                //     };
 
-                    let mut router_data = conversion_impls::get_default_router_data(
-                        state.tenant.tenant_id.clone(),
-                        "subscription_record_payment",
-                        request,
-                        response,
-                    );
+                //     let response = Err(ErrorResponse::default());
 
-                    router_data.connector_auth_type = auth_type;
+                //     let mut router_data = conversion_impls::get_default_router_data(
+                //         state.tenant.tenant_id.clone(),
+                //         "subscription_record_payment",
+                //         request,
+                //         response,
+                //     );
 
-                    let response = services::execute_connector_processing_step(
-                        state,
-                        connector_integration,
-                        &router_data,
-                        common_enums::CallConnectorAction::Trigger,
-                        None,
-                        None,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed while handling response of record back to billing connector",
-                    )?;
+                //     router_data.connector_auth_type = auth_type;
 
-                    if let Err(e) = response.response {
-                        logger::error!(?e, "Failed to record back to billing connector");
-                    }
-                }
+                //     let response = services::execute_connector_processing_step(
+                //         state,
+                //         connector_integration,
+                //         &router_data,
+                //         common_enums::CallConnectorAction::Trigger,
+                //         None,
+                //         None,
+                //     )
+                //     .await
+                //     .change_context(errors::ApiErrorResponse::InternalServerError)
+                //     .attach_printable(
+                //         "Failed while handling response of record back to billing connector",
+                //     )?;
+
+                //     if let Err(e) = response.response {
+                //         logger::error!(?e, "Failed to record back to billing connector");
+                //     }
+                // }
             }
             _ => {
                 let connector = payment_data

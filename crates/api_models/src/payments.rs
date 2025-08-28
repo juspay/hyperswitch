@@ -7200,12 +7200,12 @@ pub struct ApplepaySessionRequest {
     pub initiative: String,
     pub initiative_context: String,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct BillingConnectorDetails {
-    pub connector: String,
-    pub subscription_id: String,
-    pub invoice_id: String,
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+// pub struct BillingConnectorDetails {
+//     pub connector: String,
+//     pub subscription_id: String,
+//     pub invoice_id: String,
+// }
 /// Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConnectorMetadata {
