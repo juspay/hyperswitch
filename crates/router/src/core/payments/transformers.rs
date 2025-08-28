@@ -1301,6 +1301,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_id: None,
         enable_partial_authorization: None,
         payment_channel: None,
+        enrolled_for_3ds: true,
+        related_transaction_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2146,6 +2148,24 @@ where
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
+
+        let is_cit_transaction = payment_intent.setup_future_usage.is_off_session();
+
+        let mandate_type = if payment_intent.customer_present
+            == common_enums::PresenceOfCustomerDuringPayment::Absent
+        {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        let payment_type = helpers::infer_payment_type(
+            payment_intent.amount_details.order_amount.into(),
+            mandate_type.as_ref(),
+        );
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -2199,6 +2219,7 @@ where
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
+                payment_type,
             },
             vec![],
         )))
@@ -5118,6 +5139,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             payment_channel: payment_data.payment_intent.payment_channel,
+            related_transaction_id: None,
+            enrolled_for_3ds: true,
         })
     }
 }
@@ -5369,6 +5392,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             enrolled_for_3ds: true,
             split_payments: payment_data.payment_intent.split_payments,
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
+            customer_acceptance: payment_data.customer_acceptance,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
         })
     }
 }
