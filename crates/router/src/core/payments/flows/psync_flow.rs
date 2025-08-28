@@ -226,7 +226,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-
         let client = state
             .grpc_client
             .unified_connector_service_client

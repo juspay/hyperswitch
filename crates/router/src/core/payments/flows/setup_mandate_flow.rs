@@ -264,7 +264,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
-
         let client = state
             .grpc_client
             .unified_connector_service_client
