@@ -780,6 +780,21 @@ where
     let grpc_request_body = serde_json::to_value(grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
+    // Update connector call count metrics for UCS operations
+    crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector_name.clone()),
+            (
+                "flow",
+                std::any::type_name::<T>()
+                    .split("::")
+                    .last()
+                    .unwrap_or_default()
+            ),
+        ),
+    );
+
     // Execute UCS function and measure timing
     let start_time = Instant::now();
     let result = handler(router_data).await;
@@ -800,6 +815,15 @@ where
             (status, Some(grpc_response_body), Ok(updated_router_data))
         }
         Err(error) => {
+            // Update error metrics for UCS calls
+            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                1,
+                router_env::metric_attributes!((
+                    "connector",
+                    connector_name.clone(),
+                )),
+            );
+
             let error_body = serde_json::json!({
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
@@ -824,16 +848,22 @@ where
         status_code,
     );
 
-    // Set response body
+    // Set response body based on status code
     if let Some(body) = response_body {
-        if status_code >= 400 {
-            connector_event.set_error_response_body(&body);
-        } else {
-            connector_event.set_response_body(&body);
+        match status_code {
+            500..=599 => {
+                connector_event.set_error_response_body(&body);
+            }
+            400..=499 => {
+                connector_event.set_error_response_body(&body);
+            }
+            _ => {
+                connector_event.set_response_body(&body);
+            }
         }
     }
 
-    // Emit event to Kafka
+    // Emit event
     state.event_handler.log_event(&connector_event);
 
     router_result
