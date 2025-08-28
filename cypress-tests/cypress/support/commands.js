@@ -4102,11 +4102,11 @@ Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
   const merchantId = globalState.get("merchantId");
   const rolloutConfigs = [
     `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`, 
-    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
   ];
-  
-  rolloutConfigs.forEach(key => {
+
+  rolloutConfigs.forEach((key) => {
     cy.setConfigs(globalState, key, "1.0", "CREATE");
   });
 });
@@ -4116,10 +4116,10 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   const rolloutConfigs = [
     `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
     `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
-    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
   ];
-  
-  rolloutConfigs.forEach(key => {
+
+  rolloutConfigs.forEach((key) => {
     cy.request({
       method: "DELETE",
       url: `${globalState.get("baseUrl")}/configs/${key}`,

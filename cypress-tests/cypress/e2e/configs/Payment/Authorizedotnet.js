@@ -5,7 +5,6 @@ import {
 } from "./Commons";
 import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 
-
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "12",

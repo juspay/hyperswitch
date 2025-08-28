@@ -62,8 +62,16 @@ describe("UCS Comprehensive Test", () => {
 
   context("00004-NoThreeDSAutoCapture", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -71,30 +79,52 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("retrieve-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("create+confirm-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
-      cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("retrieve-payment-call-test-2", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.retrievePaymentCallTest(globalState, data);
     });
   });
 
   context("00005-ThreeDSAutoCapture", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -102,7 +132,9 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSAutoCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
@@ -114,8 +146,16 @@ describe("UCS Comprehensive Test", () => {
 
   context("00006-NoThreeDSManualCapture", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "manual", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -123,25 +163,39 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("capture-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
       cy.captureCallTest(fixtures.captureBody, data, globalState);
     });
 
     it("retrieve-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
       cy.retrievePaymentCallTest(globalState, data);
     });
   });
 
   context("00007-VoidPayment", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "manual", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -149,20 +203,32 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("void-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Void"];
       cy.voidCallTest(fixtures.voidBody, data, globalState);
     });
   });
 
   context("00008-SyncPayment", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -170,20 +236,32 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("sync-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncPayment"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SyncPayment"];
       cy.syncCallTest(data, globalState);
     });
   });
 
   context("00009-RefundPayment", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -191,20 +269,32 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("refund-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
       cy.refundCallTest(fixtures.refundBody, data, globalState);
     });
   });
 
   context("00010-SyncRefund", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -212,54 +302,117 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
     it("refund-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Refund"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
       cy.refundCallTest(fixtures.refundBody, data, globalState);
     });
 
     it("sync-refund-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SyncRefund"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SyncRefund"];
       cy.syncRefundCallTest(data, globalState);
     });
   });
 
   context("00011-CreateSingleuseMandate", () => {
     it("Confirm No 3DS CIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
-      cy.citForMandatesCallTest(fixtures.citConfirmBody, data, 6000, true, "automatic", "new_mandate", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateSingleUseNo3DSAutoCapture"];
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
     });
 
     it("Confirm No 3DS MIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-      cy.mitForMandatesCallTest(fixtures.mitConfirmBody, data, 6000, true, "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+      cy.mitForMandatesCallTest(
+        fixtures.mitConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        globalState
+      );
     });
   });
 
   context("00012-CreateMultiuseMandate", () => {
     it("Confirm No 3DS CIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateMultiUseNo3DSAutoCapture"];
-      cy.citForMandatesCallTest(fixtures.citConfirmBody, data, 6000, true, "automatic", "new_mandate", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateMultiUseNo3DSAutoCapture"];
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
     });
 
     it("Confirm No 3DS MIT 1", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-      cy.mitForMandatesCallTest(fixtures.mitConfirmBody, data, 6000, true, "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+      cy.mitForMandatesCallTest(
+        fixtures.mitConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        globalState
+      );
     });
 
     it("Confirm No 3DS MIT 2", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-      cy.mitForMandatesCallTest(fixtures.mitConfirmBody, data, 6000, true, "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+      cy.mitForMandatesCallTest(
+        fixtures.mitConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        globalState
+      );
     });
   });
 
   context("00013-ListAndRevokeMandate", () => {
     it("Confirm No 3DS CIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateSingleUseNo3DSAutoCapture"];
-      cy.citForMandatesCallTest(fixtures.citConfirmBody, data, 6000, true, "automatic", "new_mandate", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateSingleUseNo3DSAutoCapture"];
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        6000,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
     });
 
     it("list-mandate-call-test", () => {
@@ -267,15 +420,25 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("revoke-mandate-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MandateRevoke"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateRevoke"];
       cy.revokeMandateCallTest(fixtures.revokeMandateBody, data, globalState);
     });
   });
 
   context("00014-SaveCardFlow", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-      cy.createConfirmPaymentTest(fixtures.saveCardConfirmBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSAutoCapture"];
+      cy.createConfirmPaymentTest(
+        fixtures.saveCardConfirmBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("list-payment-method-call-test", () => {
@@ -283,8 +446,14 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("payment-method-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["SavedCardConfirm"];
-      cy.createConfirmWithSavedPMTest(fixtures.createConfirmPaymentBody, data, globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SavedCardConfirm"];
+      cy.createConfirmWithSavedPMTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        globalState
+      );
     });
   });
 
@@ -294,20 +463,47 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm No 3DS CIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ZeroAuthMandate"];
-      cy.citForMandatesCallTest(fixtures.citConfirmBody, data, 0, true, "automatic", "setup_mandate", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthMandate"];
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        0,
+        true,
+        "automatic",
+        "setup_mandate",
+        globalState
+      );
     });
 
     it("Confirm No 3DS MIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["MITAutoCapture"];
-      cy.mitUsingPMId(fixtures.pmIdConfirmBody, data, 7000, true, "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        7000,
+        true,
+        "automatic",
+        globalState
+      );
     });
   });
 
   context("00016-ThreeDSManualCapture", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "three_ds", "manual", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "manual",
+        globalState
+      );
     });
 
     it("payment_methods-call-test", () => {
@@ -315,7 +511,9 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("Confirm 3DS", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSManualCapture"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
@@ -325,31 +523,53 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("capture-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
       cy.captureCallTest(fixtures.captureBody, data, globalState);
     });
   });
 
   context("00017-BankTransfers", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("confirm-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["bank_transfer_pm"]["BankTransfer"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["BankTransfer"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
   });
 
   context("00018-BankRedirect", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["PaymentIntent"];
-      cy.createPaymentIntentTest(fixtures.createPaymentBody, data, "no_three_ds", "automatic", globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["PaymentIntent"];
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("confirm-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["bank_redirect_pm"]["BankRedirect"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "bank_redirect_pm"
+      ]["BankRedirect"];
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
   });
