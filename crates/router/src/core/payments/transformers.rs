@@ -1097,8 +1097,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         customer_name,
         metadata: payment_data
             .payment_intent
-            .metadata
-            .map(|secret| secret.expose()),
+            .metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
@@ -4825,8 +4824,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             customer_name: None,
             metadata: payment_data
                 .payment_intent
-                .metadata
-                .map(|secret| secret.expose()),
+                .metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         })
