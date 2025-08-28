@@ -776,8 +776,8 @@ where
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
 
-    // Log the actual gRPC request
-    let grpc_request_body = serde_json::to_value(grpc_request)
+    // Log the actual gRPC request with masking
+    let grpc_request_body = masking::masked_serialize(grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
