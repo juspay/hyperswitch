@@ -36,7 +36,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
-        revenue_recovery::{self as revenue_recovery_core, perform_calculate_workflow},
+        revenue_recovery::{self as revenue_recovery_core, perform_calculate_workflow,pcr},
         webhooks::recovery_incoming as recovery_incoming_flow,
     },
     db::StorageInterface,
@@ -132,6 +132,13 @@ impl RevenueRecoveryPaymentsAttemptStatus {
             &recovery_payment_intent,
             &recovery_payment_attempt,
         );
+        // .as_ref()
+        //     .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+        //     .map
+
+  
+        let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
+        // payment_attempt.connector_token_details.as_ref().and_then(|t| t.connector_mandate_id.as_ref() .map(|con|con.clone()));
 
         let retry_count = process_tracker.retry_count;
 
@@ -163,7 +170,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     &connector_customer_id,
                     &None,
                     // Since this is succeeded payment attempt, 'is_hard_decine' will be false.
-                    &Some(false)
+                    &Some(false),
+                    used_token.as_deref(),
                 )
                 .await;
 
@@ -217,7 +225,8 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &connector_customer_id,
                     &error_code,
-                    &is_hard_decline
+                    &is_hard_decline,
+                    used_token.as_deref(),
                 )
                 .await;
 
@@ -357,7 +366,7 @@ impl Action {
     #[allow(clippy::too_many_arguments)]
     pub async fn execute_payment(
         state: &SessionState,
-        merchant_id: &id_type::MerchantId,
+        _merchant_id: &id_type::MerchantId,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
         profile: &domain::Profile,
@@ -370,8 +379,24 @@ impl Action {
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to extract customer ID from payment intent")?;
 
-        let scheduled_token = match storage::revenue_recovery_redis_operation::
-        RedisTokenManager::get_payment_processor_token_with_schedule_time(state, &connector_customer_id)
+        let tracking_data: pcr::RevenueRecoveryWorkflowTrackingData = serde_json::from_value(process.tracking_data.clone())
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+
+        let last_token_used = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rr| rr.billing_connector_payment_details.payment_processor_token.clone());
+
+        let recovery_algorithm = tracking_data.revenue_recovery_retry;
+
+        let scheduled_token = match storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
+            state,
+            &connector_customer_id,
+            recovery_algorithm,
+            last_token_used.as_deref(),
+        )
         .await {
             Ok(scheduled_token_opt) => scheduled_token_opt,
             Err(e) => {
@@ -391,6 +416,7 @@ impl Action {
                     payment_intent,
                     revenue_recovery_payment_data,
                     revenue_recovery_metadata,
+                    &scheduled_token.payment_processor_token_details.payment_processor_token,
                 )
                 .await;
 
@@ -439,7 +465,8 @@ impl Action {
                                 state,
                                 &connector_customer_id,
                                 &None,
-                                &is_hard_decline
+                                &is_hard_decline,
+                                Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
                             )
                             .await;
 
@@ -496,7 +523,11 @@ impl Action {
                                 state,
                                 &connector_customer_id,
                                 &error_code,
-                                &is_hard_decline
+                                &is_hard_decline,
+                                Some(&scheduled_token
+                                    .payment_processor_token_details
+                                    .payment_processor_token)
+                                    ,
                             )
                             .await;
 
@@ -763,6 +794,7 @@ impl Action {
             revenue_recovery_payment_data,
         )
         .await;
+        let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
 
         match response {
             Ok(_payment_data) => match payment_attempt.status.foreign_into() {
@@ -782,7 +814,8 @@ impl Action {
                     state,
                     &connector_customer_id,
                     &None,
-                    &is_hard_decline
+                    &is_hard_decline,
+                    used_token.as_deref(),
                 )
                 .await;
 
@@ -812,7 +845,8 @@ impl Action {
                             state,
                             &connector_customer_id,
                             &error_code,
-                            &is_hard_decline
+                            &is_hard_decline,
+                            used_token.as_deref(),
                         )
                         .await;
 
@@ -1346,4 +1380,18 @@ pub fn construct_recovery_record_back_router_data(
             .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
             .attach_printable("Cannot construct record back router data")?;
     Ok(old_router_data)
+}
+
+
+pub fn get_payment_processor_token_id_from_payment_attempt(
+    payment_attempt: &PaymentAttempt,
+) -> Option<String> {
+    let used_token = payment_attempt.connector_token_details.as_ref().and_then(|t| t.connector_mandate_id.as_ref() .map(|con|con.clone()));
+    logger::info!(
+        "Used token in the payment attempt : {:?}",
+        used_token
+    );
+
+    used_token
+    
 }

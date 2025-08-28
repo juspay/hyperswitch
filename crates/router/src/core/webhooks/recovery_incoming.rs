@@ -521,12 +521,14 @@ impl RevenueRecoveryAttempt {
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
         card_info: api_payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
                 card_info,
+                payment_processor_token,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;

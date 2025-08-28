@@ -179,9 +179,17 @@ pub async fn perform_execute_payment(
         types::Decision::Execute => {
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
 
-            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_payment_processor_token_with_schedule_time(
-                state,
-                &connector_customer_id,
+            let last_token_used = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rr| rr.billing_connector_payment_details.payment_processor_token.clone());
+
+            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
+            state,
+            &connector_customer_id,
+            tracking_data.revenue_recovery_retry,
+            last_token_used.as_deref(),
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -200,6 +208,7 @@ pub async fn perform_execute_payment(
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
                 card_info,
+                &processor_token.payment_processor_token_details.payment_processor_token,
             )
             .await;
 
@@ -510,7 +519,7 @@ pub async fn perform_calculate_workflow(
                 &tracking_data.profile_id,
                 &tracking_data.payment_attempt_id,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-                tracking_data.revenue_recovery_retry,
+                retry_algorithm_type,
                 scheduled_time,
             )
             .await?;
@@ -645,7 +654,12 @@ async fn update_calculate_job_schedule_time(
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let new_schedule_time =
         base_time.unwrap_or_else(common_utils::date_time::now) + additional_time;
-
+    logger::info!(
+        new_schedule_time = %new_schedule_time,
+        process_id = %process.id,
+        connector_customer_id = %connector_customer_id,
+        "Rescheduling Calculate Job at "
+    );
     let pt_update = storage::ProcessTrackerUpdate::Update {
         name: Some("CALCULATE_WORKFLOW".to_string()),
         retry_count: Some(process.clone().retry_count),
@@ -727,11 +741,22 @@ async fn insert_execute_pcr_task_to_pt(
                 "Found existing EXECUTE_WORKFLOW task with COMPLETE status, updating to PENDING with incremented retry count"
             );
 
+            let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData = serde_json::from_value(existing_process.tracking_data.clone())
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+
+            tracking_data.revenue_recovery_retry= revenue_recovery_retry;
+            
+            let tracking_data_json = serde_json::to_value(&tracking_data)
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to serialize the tracking data to json")?;
+
+
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: Some(task.to_string()),
                 retry_count: Some(existing_process.clone().retry_count + 1),
                 schedule_time: Some(schedule_time),
-                tracking_data: Some(existing_process.clone().tracking_data),
+                tracking_data: Some(tracking_data_json),
                 business_status: Some(String::from(business_status::PENDING)),
                 status: Some(enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),

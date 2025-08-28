@@ -69,6 +69,8 @@ use crate::{
         },
     },
 };
+#[cfg(feature = "v2")]
+use rand::Rng;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
@@ -529,32 +531,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             scheduled_time = Some(time);
 
-            let token =
-                RedisTokenManager::get_token_with_max_retry_remaining(state, connector_customer_id)
-                    .await
-                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-            match token {
-                Some(token) => {
-                    RedisTokenManager::update_payment_processor_token_schedule_time(
-                        state,
-                        connector_customer_id,
-                        &token
-                            .token_status
-                            .payment_processor_token_details
-                            .payment_processor_token,
-                        scheduled_time,
-                    )
-                    .await
-                    .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
-
-                    logger::debug!("PSP token available for cascading retry");
-                }
-                None => {
-                    logger::debug!("No PSP token available for cascading retry");
-                    scheduled_time = None;
-                }
-            }
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
@@ -567,8 +543,11 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
+    let delayed_schedule_time = scheduled_time.map(|time| {
+        add_random_delay_to_schedule_time(time)
+    });
 
-    Ok(scheduled_time)
+    Ok(delayed_schedule_time)
 }
 
 #[cfg(feature = "v2")]
@@ -660,7 +639,7 @@ async fn process_token_for_retry(
     match skip {
         true => {
             logger::info!(
-                "Skipping decider call due to hard decline for attempt_id: {}",
+                "Skipping decider call due to hard decline token inserted by attempt_id: {}",
                 inserted_by_attempt_id.get_string_repr()
             );
             Ok(None)
@@ -697,6 +676,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             None => {
                 let utc_schedule_time =
                     time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+
                 let schedule_time = time::PrimitiveDateTime::new(
                     utc_schedule_time.date(),
                     utc_schedule_time.time(),
@@ -787,4 +767,13 @@ pub async fn check_hard_decline(
         .unwrap_or(false);
 
     Ok(is_hard_decline)
+}
+
+
+
+pub fn add_random_delay_to_schedule_time(schedule_time: time::PrimitiveDateTime) -> time::PrimitiveDateTime {
+    let mut rng = rand::thread_rng();
+    let random_secs = rng.gen_range(1..=3600);
+    logger::info!("Adding random delay of {random_secs} seconds to schedule time");
+    schedule_time + time::Duration::seconds(random_secs)
 }

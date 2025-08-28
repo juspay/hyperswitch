@@ -721,6 +721,7 @@ impl PaymentIntent {
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
         card_info: api_models::payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -752,9 +753,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token,
+            processor_payment_method_token: payment_processor_token.to_string(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
