@@ -28,8 +28,14 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
-use router_env::{logger, tracing::{self, instrument}};
-use scheduler::{consumer::{self, workflows::ProcessTrackerWorkflow}, errors};
+use router_env::{
+    logger,
+    tracing::{self, instrument},
+};
+use scheduler::{
+    consumer::{self, workflows::ProcessTrackerWorkflow},
+    errors,
+};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
@@ -176,8 +182,6 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }
-
-
 
 #[cfg(feature = "v2")]
 pub(crate) async fn extract_data_and_perform_action(
@@ -541,9 +545,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(
-        add_random_delay_to_schedule_time
-    );
+    let delayed_schedule_time = scheduled_time.map(add_random_delay_to_schedule_time);
 
     Ok(delayed_schedule_time)
 }

@@ -624,11 +624,8 @@ impl RedisTokenManager {
         let tokens_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
-        let token_details= tokens_map
-            .get(payment_processor_token)
-            .cloned();
-        
-    
+        let token_details = tokens_map.get(payment_processor_token).cloned();
+
         tracing::debug!(
             token_found = token_details.is_some(),
             customer_id = connector_customer_id,
@@ -648,8 +645,8 @@ impl RedisTokenManager {
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
         let all_hard_declined = tokens_map
-                .values()
-                .all(|token| token.is_hard_decline.unwrap_or(false));
+            .values()
+            .all(|token| token.is_hard_decline.unwrap_or(false));
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,
