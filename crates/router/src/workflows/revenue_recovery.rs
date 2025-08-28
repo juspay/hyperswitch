@@ -313,12 +313,11 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
 
     let card_issuer_str = card_info.card_issuer.clone();
 
-    let card_funding_str = match card_info.card_type {
-        "card" => None,
-        other => Some(other.clone()),
+    let card_funding_str = match card_info.card_type.as_deref() {
+        Some("card") => None,
+        Some(s) => Some(s.to_string()),
+        None => None,
     };
-    
-
     
 
     let start_time_primitive = payment_intent.created_at;
