@@ -1095,9 +1095,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
         customer_name,
-        metadata: payment_data
-            .payment_intent
-            .metadata,
+        metadata: payment_data.payment_intent.metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
@@ -4843,9 +4841,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             apple_pay_recurring_details,
             customer_name: None,
-            metadata: payment_data
-                .payment_intent
-                .metadata,
+            metadata: payment_data.payment_intent.metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         })
