@@ -188,7 +188,19 @@ pub fn make_dsl_input_for_payouts(
         payment_method_type: payout_data
             .payout_method_data
             .as_ref()
-            .map(api_enums::PaymentMethodType::foreign_from),
+            .map(api_enums::PaymentMethodType::foreign_from)
+            .or_else(|| {
+                payout_data.payment_method.as_ref().and_then(|pm| {
+                    #[cfg(feature = "v1")]
+                    {
+                        pm.payment_method_type
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        pm.payment_method_subtype
+                    }
+                })
+            }),
         card_network: None,
     };
     Ok(dsl_inputs::BackendInput {
