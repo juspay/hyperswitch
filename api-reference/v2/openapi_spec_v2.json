@@ -19157,7 +19157,8 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "payment_type"
         ],
         "properties": {
           "id": {
@@ -19318,6 +19319,9 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "payment_type": {
+            "$ref": "#/components/schemas/PaymentType"
           }
         },
         "additionalProperties": false
