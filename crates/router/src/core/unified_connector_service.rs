@@ -818,10 +818,7 @@ where
             // Update error metrics for UCS calls
             crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                 1,
-                router_env::metric_attributes!((
-                    "connector",
-                    connector_name.clone(),
-                )),
+                router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
 
             let error_body = serde_json::json!({
