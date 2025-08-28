@@ -4116,26 +4116,10 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   ];
 
   rolloutConfigs.forEach((key) => {
-    cy.request({
-      method: "DELETE",
-      url: `${globalState.get("baseUrl")}/configs/${key}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-      },
-      failOnStatusCode: false,
-    });
+    cy.setConfigs(globalState, key, null, "DELETE");
   });
 
-  cy.request({
-    method: "DELETE",
-    url: `${globalState.get("baseUrl")}/configs/ucs_enabled`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    failOnStatusCode: false,
-  });
+  cy.setConfigs(globalState, "ucs_enabled", null, "DELETE");
 });
 
 // DDC Race Condition Test Commands

@@ -7,7 +7,6 @@ let globalState;
 
 describe("UCS Comprehensive Test", () => {
   before("Initialize and Setup", function () {
-    const UCS_SUPPORTED_CONNECTORS = ["authorizedotnet"];
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       const connectorId = Cypress.env("CYPRESS_CONNECTOR");
