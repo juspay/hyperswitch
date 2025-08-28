@@ -186,17 +186,17 @@ pub async fn perform_execute_payment(
             .map(|rr| rr.billing_connector_payment_details.payment_processor_token.clone());
 
             let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
-            state,
-            &connector_customer_id,
-            tracking_data.revenue_recovery_retry,
-            last_token_used.as_deref(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Failed to fetch token details from redis".to_string(),
-            })?
-            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Failed to fetch token details from redis".to_string(),
+                state,
+                &connector_customer_id,
+                tracking_data.revenue_recovery_retry,
+                last_token_used.as_deref(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to fetch token details from redis".to_string(),
+                })?
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to fetch token details from redis".to_string(),
             })?;
             logger::info!("Token fetched from redis success");
             let card_info =

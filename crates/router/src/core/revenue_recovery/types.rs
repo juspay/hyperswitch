@@ -132,13 +132,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
             &recovery_payment_intent,
             &recovery_payment_attempt,
         );
-        // .as_ref()
-        //     .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
-        //     .map
 
   
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
-        // payment_attempt.connector_token_details.as_ref().and_then(|t| t.connector_mandate_id.as_ref() .map(|con|con.clone()));
 
         let retry_count = process_tracker.retry_count;
 
@@ -1386,7 +1382,7 @@ pub fn construct_recovery_record_back_router_data(
 pub fn get_payment_processor_token_id_from_payment_attempt(
     payment_attempt: &PaymentAttempt,
 ) -> Option<String> {
-    let used_token = payment_attempt.connector_token_details.as_ref().and_then(|t| t.connector_mandate_id.as_ref() .map(|con|con.clone()));
+    let used_token = payment_attempt.connector_token_details.as_ref().and_then(|t| t.connector_mandate_id.clone());
     logger::info!(
         "Used token in the payment attempt : {:?}",
         used_token

@@ -621,9 +621,11 @@ impl RedisTokenManager {
             .get(payment_processor_token)
             .cloned();
         
+    
         tracing::debug!(
-            connector_customer_id = connector_customer_id,
-            "Fetched payment processor token using token id",
+            token_found = token_details.is_some(),
+            customer_id = connector_customer_id,
+            "Fetched payment processor token & Checked existence ",
         );
         
         Ok(token_details)
@@ -638,8 +640,7 @@ impl RedisTokenManager {
         let tokens_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
-        let all_hard_declined = tokens_map.is_empty()
-            && tokens_map
+        let all_hard_declined = tokens_map
                 .values()
                 .all(|token| token.is_hard_decline.unwrap_or(false));
 
@@ -652,6 +653,7 @@ impl RedisTokenManager {
         Ok(all_hard_declined)
     }
 
+    // Get token based on retry type
     pub async fn get_token_based_on_retry_type(
         state: &SessionState,
         connector_customer_id: &str,
