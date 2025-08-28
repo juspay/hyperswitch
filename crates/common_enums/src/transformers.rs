@@ -2045,7 +2045,6 @@ impl super::SplitTxnsEnabled {
         match self {
             Self::True => true,
             Self::False => false,
-            Self::Default => false,
         }
     }
 }

@@ -2881,7 +2881,6 @@ pub enum SplitTxnsEnabled {
     True,
     #[default]
     False,
-    Default,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
