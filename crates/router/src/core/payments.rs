@@ -6625,7 +6625,10 @@ where
         .as_ref()
         .map(|details| details.is_network_confirmation_call_required())
         .unwrap_or(true);
-    if should_do_uas_confirmation_call {
+    if should_do_uas_confirmation_call
+        && (payment_intent.status == storage_enums::IntentStatus::Succeeded
+            || payment_intent.status == storage_enums::IntentStatus::Failed)
+    {
         let authentication_connector_id = authentication
             .as_ref()
             .and_then(|auth| auth.authentication.merchant_connector_id.clone())
