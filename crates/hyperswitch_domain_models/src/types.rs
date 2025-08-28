@@ -17,6 +17,7 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
+        subscriptions::SubscriptionsRecordBackRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -178,6 +179,6 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
 #[cfg(feature = "v1")]
 pub type SubscriptionRecordBackRouterData = RouterData<
     SubscriptionRecordBack,
-    RevenueRecoveryRecordBackRequest,
+    SubscriptionsRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >;

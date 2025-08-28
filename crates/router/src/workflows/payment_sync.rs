@@ -6,8 +6,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{self, ErrorResponse, RouterData},
     router_flow_types as subscription_flow,
-    router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response,
+    router_request_types::subscriptions as subscriptions_request,
 };
 
 use hyperswitch_interfaces::conversion_impls;
@@ -158,7 +158,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     .attach_printable("Could not find profile_id in payment intent")?;
 
                 if let Some(billing_connector_details) = billing_connector_details {
-                    let (connector, subscription_id, invoice_id) = (
+                    let (connector, _subscription_id, invoice_id) = (
                         billing_connector_details.connector,
                         billing_connector_details.subscription_id,
                         billing_connector_details.invoice_id,
@@ -218,11 +218,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                     let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
                         subscription_flow::SubscriptionRecordBack,
-                        revenue_recovery_request::RevenueRecoveryRecordBackRequest,
+                        subscriptions_request::SubscriptionsRecordBackRequest,
                         revenue_recovery_response::RevenueRecoveryRecordBackResponse,
                     > = connector_data.connector.get_connector_integration();
 
-                    let request = revenue_recovery_request::RevenueRecoveryRecordBackRequest {
+                    let request = subscriptions_request::SubscriptionsRecordBackRequest {
                         merchant_reference_id: invoice_id,
                         amount: payment_data.payment_attempt.get_total_amount(),
                         currency: payment_data

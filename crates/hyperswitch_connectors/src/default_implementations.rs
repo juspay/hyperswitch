@@ -6,25 +6,31 @@ use common_enums::{CallConnectorAction, PaymentAction};
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
 use common_utils::errors::CustomResult;
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+};
+
+use hyperswitch_domain_models::router_flow_types::{
     SubscriptionRecordBack as SubscriptionRecordBackFlow,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
 };
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
     RevenueRecoveryRecordBackRequest,
 };
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
-    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    RevenueRecoveryRecordBackResponse,
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
 };
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
+
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
     router_flow_types::{
@@ -46,6 +52,7 @@ use hyperswitch_domain_models::{
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
+        subscriptions::SubscriptionsRecordBackRequest,
         authentication,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -98,7 +105,7 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
     PayoutRecipientAccount, PayoutSync,
 };
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery::{
@@ -6743,7 +6750,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Zsl
 );
 
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
@@ -7038,7 +7045,7 @@ macro_rules! default_imp_for_subscription_record_back {
             impl
             ConnectorIntegration<
             SubscriptionRecordBackFlow,
-            RevenueRecoveryRecordBackRequest,
+            SubscriptionsRecordBackRequest,
             RevenueRecoveryRecordBackResponse
             > for $path::$connector
             {}
@@ -8620,7 +8627,7 @@ impl<const T: u8> SubscriptionRecordBack for connectors::DummyConnector<T> {}
 impl<const T: u8>
     ConnectorIntegration<
         SubscriptionRecordBackFlow,
-        RevenueRecoveryRecordBackRequest,
+        SubscriptionsRecordBackRequest,
         RevenueRecoveryRecordBackResponse,
     > for connectors::DummyConnector<T>
 {

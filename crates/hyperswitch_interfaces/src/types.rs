@@ -31,6 +31,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
+        subscriptions::SubscriptionsRecordBackRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -272,10 +273,10 @@ pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
 >;
 
 #[cfg(feature = "v1")]
-/// Type alias for `ConnectorIntegration<SubscriptionRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+/// Type alias for `ConnectorIntegration<SubscriptionRecordBack, SubscriptionsRecordBackRequest, RevenueRecoveryRecordBackResponse>`
 pub type SubscriptionRecordBackType = dyn ConnectorIntegration<
     hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-    RevenueRecoveryRecordBackRequest,
+    SubscriptionsRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >;
 

@@ -21,13 +21,16 @@ use hyperswitch_domain_models::{
         UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
-    router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
+};
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
+    router_request_types::subscriptions as subscriptions_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;
@@ -140,7 +143,7 @@ impl
     ConnectorIntegrationV2<
         SubscriptionRecordBack,
         recovery_flow_common_types::RevenueRecoveryRecordBackData,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
+        subscriptions_request_types::SubscriptionsRecordBackRequest,
         recovery_response_types::RevenueRecoveryRecordBackResponse,
     > for Recurly
 {

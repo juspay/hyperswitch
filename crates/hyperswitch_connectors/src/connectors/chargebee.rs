@@ -8,20 +8,18 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-#[cfg(feature = "v1")]
-use error_stack::report;
+
 use error_stack::ResultExt;
-// #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
-#[cfg(any(feature = "v2", feature = "v1"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types::RevenueRecoveryRecordBackData, RouterDataV2},
-    router_flow_types::subscriptions::SubscriptionRecordBack,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
@@ -50,12 +48,13 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
@@ -99,7 +98,7 @@ impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
 impl
     ConnectorIntegration<
         hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-        hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
         hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     > for Chargebee
 {
@@ -124,7 +123,6 @@ impl
         let invoice_id = req
             .request
             .merchant_reference_id
-            .get_string_repr()
             .to_string();
         Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
     }
@@ -203,7 +201,7 @@ impl
     ConnectorIntegrationV2<
         hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
         hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-        hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
         hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     > for Chargebee
 {
@@ -212,7 +210,7 @@ impl
         _req: &RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
@@ -224,7 +222,7 @@ impl
         _req: &RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<String, errors::ConnectorError> {
@@ -240,7 +238,7 @@ impl
         _req: &RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
@@ -252,7 +250,7 @@ impl
         _req: &RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
@@ -264,7 +262,7 @@ impl
         _data: &RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
         _event_builder: Option<&mut ConnectorEvent>,
@@ -273,7 +271,7 @@ impl
         RouterDataV2<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
             hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
         >,
         errors::ConnectorError,

@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
         RecoveryRecordBack,
     },
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_request_types::subscriptions::SubscriptionsRecordBackRequest,
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
@@ -888,7 +889,7 @@ impl
         ResponseRouterData<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             ChargebeeRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
+            SubscriptionsRecordBackRequest,
             RevenueRecoveryRecordBackResponse,
         >,
     > for hyperswitch_domain_models::types::SubscriptionRecordBackRouterData
@@ -898,7 +899,7 @@ impl
         item: ResponseRouterData<
             hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
             ChargebeeRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
+            SubscriptionsRecordBackRequest,
             RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {

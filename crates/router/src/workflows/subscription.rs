@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt, id_type};
+use common_utils::{ext_traits::ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;

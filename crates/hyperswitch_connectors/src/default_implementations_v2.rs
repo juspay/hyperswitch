@@ -26,7 +26,6 @@ use hyperswitch_domain_models::{
         revenue_recovery::{
             BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
         },
-        subscriptions::SubscriptionRecordBack,
         webhooks::VerifyWebhookSource,
         AccessTokenAuth, AccessTokenAuthentication, ExternalVaultCreateFlow,
         ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,

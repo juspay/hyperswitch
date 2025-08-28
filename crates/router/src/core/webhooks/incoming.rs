@@ -2511,13 +2511,13 @@ fn insert_mandate_details(
 #[instrument(skip_all)]
 async fn subscription_incoming_webhook_flow(
     state: SessionState,
-    req_state: ReqState,
+    _req_state: ReqState,
     merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
-    source_verified: bool,
+    _source_verified: bool,
     connector: &ConnectorEnum,
-    request_details: &IncomingWebhookRequestDetails<'_>,
+    _request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     // Only process invoice_generated events for MIT payments
@@ -2588,6 +2588,9 @@ async fn subscription_incoming_webhook_flow(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No payment method found for subscription ID")?
         .clone();
+
+
+    logger::info!("Payment method ID found: {}", payment_method_id);
 
     // Create tracking data for subscription MIT payment
     let tracking_data =

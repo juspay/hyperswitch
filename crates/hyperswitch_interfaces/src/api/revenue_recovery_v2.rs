@@ -7,7 +7,6 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
-        SubscriptionRecordBack,
     },
     router_request_types::revenue_recovery::{
         BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,

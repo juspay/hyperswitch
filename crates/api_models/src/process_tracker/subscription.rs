@@ -1,9 +1,5 @@
 use common_utils::id_type;
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
-use utoipa::ToSchema;
-
-use crate::enums;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionWorkflowTrackingData {

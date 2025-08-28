@@ -2,7 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::SubscriptionRecordBack as SubscriptionRecordBackFlow,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
+    router_request_types::subscriptions::SubscriptionsRecordBackRequest,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
 };
 
@@ -13,7 +13,7 @@ use super::{ConnectorCommon, ConnectorIntegration};
 pub trait SubscriptionRecordBack:
     ConnectorIntegration<
         SubscriptionRecordBackFlow,
-        RevenueRecoveryRecordBackRequest,
+        SubscriptionsRecordBackRequest,
         RevenueRecoveryRecordBackResponse,
     >
 {
