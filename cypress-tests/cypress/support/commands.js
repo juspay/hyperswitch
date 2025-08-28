@@ -1124,12 +1124,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -2491,13 +2491,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
