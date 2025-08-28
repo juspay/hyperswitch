@@ -736,7 +736,8 @@ static MULTISAFEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods>
 static MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Multisafepay",
     description: "MultiSafePay is a payment gateway and PSP enabling secure online transactions",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
