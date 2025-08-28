@@ -1049,6 +1049,16 @@ where
                             .await?;
                     }
 
+                    operation
+                        .to_domain()?
+                        .perform_subscriptions_operations(
+                            state,
+                            &mut payment_data,
+                            &business_profile,
+                            merchant_context.get_merchant_key_store(),
+                        )
+                        .await?;
+
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;

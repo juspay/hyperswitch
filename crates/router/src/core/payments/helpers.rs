@@ -7694,6 +7694,7 @@ where
     F: Clone,
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send,
 {
+    logger::info!("perform_billing_processor_record_back");
     let billing_processor_detail = payment_data
         .get_payment_intent()
         .billing_processor_details
