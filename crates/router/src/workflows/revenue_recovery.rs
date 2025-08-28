@@ -28,6 +28,8 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v2")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
+use rand::Rng;
+#[cfg(feature = "v2")]
 use router_env::{logger, tracing};
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
@@ -69,8 +71,6 @@ use crate::{
         },
     },
 };
-#[cfg(feature = "v2")]
-use rand::Rng;
 use crate::{routes::SessionState, types::storage};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
@@ -530,7 +530,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
             scheduled_time = Some(time);
-
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
@@ -543,9 +542,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(|time| {
-        add_random_delay_to_schedule_time(time)
-    });
+    let delayed_schedule_time = scheduled_time.map(|time| add_random_delay_to_schedule_time(time));
 
     Ok(delayed_schedule_time)
 }
@@ -769,9 +766,9 @@ pub async fn check_hard_decline(
     Ok(is_hard_decline)
 }
 
-
-
-pub fn add_random_delay_to_schedule_time(schedule_time: time::PrimitiveDateTime) -> time::PrimitiveDateTime {
+pub fn add_random_delay_to_schedule_time(
+    schedule_time: time::PrimitiveDateTime,
+) -> time::PrimitiveDateTime {
     let mut rng = rand::thread_rng();
     let random_secs = rng.gen_range(1..=3600);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
