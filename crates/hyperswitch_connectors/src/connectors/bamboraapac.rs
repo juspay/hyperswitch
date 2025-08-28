@@ -798,7 +798,8 @@ lazy_static! {
     static ref BAMBORAAPAC_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Bambora Asia-Pacific",
         description: "Bambora Asia-Pacific, provides comprehensive payment solutions, offering merchants smart and smooth payment processing capabilities.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref BAMBORAAPAC_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

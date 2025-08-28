@@ -1,12 +1,13 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
+use error_stack::report;
 
 use super::generics;
 use crate::{
     errors,
     schema::subscription::dsl,
-    subscription::{Subscription, SubscriptionNew},
+    subscription::{Subscription, SubscriptionNew, SubscriptionUpdate},
     PgPooledConn, StorageResult,
 };
 
@@ -33,6 +34,7 @@ impl Subscription {
         .await
     }
 
+
     pub async fn find_payment_method_ids_by_billing_connector_subscription_id(
         conn: &PgPooledConn,
         subscription_id: &str,
@@ -54,5 +56,30 @@ impl Subscription {
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to find payment method IDs by billing connector subscription ID")
         .map(|results| results.into_iter().filter_map(|x| x).collect())
+    }
+
+    pub async fn update_subscription_entry(
+        conn: &PgPooledConn,
+        id: String,
+        subscription_update: SubscriptionUpdate,
+    ) -> StorageResult<Self> {
+        generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            SubscriptionUpdate,
+            _,
+            _,
+        >(
+            conn,
+            dsl::id
+                .eq(id.to_owned()),
+            subscription_update,
+        )
+        .await?
+        .first()
+        .cloned()
+        .ok_or_else(|| {
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable("Error while updating subscription entry")
+        })
     }
 }

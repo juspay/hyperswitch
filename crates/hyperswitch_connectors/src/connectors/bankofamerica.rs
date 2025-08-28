@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -9,6 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -51,15 +50,26 @@ use transformers as bankofamerica;
 use url::Url;
 
 use crate::{
+    connectors::bankofamerica::transformers::BankOfAmericaRouterData,
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
 
-#[derive(Debug, Clone)]
-pub struct Bankofamerica;
+#[derive(Clone)]
+pub struct Bankofamerica {
+    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Bankofamerica {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Bankofamerica {}
 impl api::PaymentSession for Bankofamerica {}
@@ -481,14 +491,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = BankOfAmericaRouterData::try_from((amount, req))?;
         let connector_req =
             bankofamerica::BankOfAmericaPaymentsRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -682,14 +694,16 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = BankOfAmericaRouterData::try_from((amount, req))?;
         let connector_req =
             bankofamerica::BankOfAmericaCaptureRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -800,20 +814,22 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
-            &self.get_currency_unit(),
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?;
+        let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "Currency",
-                })?,
-            req.request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
-                })?,
-            req,
-        ))?;
+                })?;
+
+        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
+
+        let connector_router_data = BankOfAmericaRouterData::try_from((amount, req))?;
         let connector_req =
             bankofamerica::BankOfAmericaVoidRequest::try_from(&connector_router_data)?;
 
@@ -925,14 +941,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bankofa
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = bankofamerica::BankOfAmericaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = BankOfAmericaRouterData::try_from((amount, req))?;
         let connector_req =
             bankofamerica::BankOfAmericaRefundRequest::try_from(&connector_router_data)?;
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

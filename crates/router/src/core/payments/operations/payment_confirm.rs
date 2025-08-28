@@ -1967,6 +1967,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         card_discovery,
                         routing_approach: payment_data.payment_attempt.routing_approach,
                         connector_request_reference_id,
+                        network_transaction_id: payment_data
+                            .payment_attempt
+                            .network_transaction_id
+                            .clone(),
                     },
                     storage_scheme,
                 )

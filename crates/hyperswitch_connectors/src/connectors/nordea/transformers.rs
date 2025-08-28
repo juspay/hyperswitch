@@ -75,9 +75,12 @@ impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct NordeaConnectorMetadataObject {
-    pub creditor_account_value: Secret<String>,
-    pub creditor_account_type: String,
-    pub creditor_beneficiary_name: Secret<String>,
+    /// Account number of the beneficiary (merchant)
+    pub destination_account_number: Secret<String>,
+    /// Account type (example: IBAN, BBAN_SE, BBAN_DK, BBAN_NO, BGNR, PGNR, GIRO_DK, BBAN_OTHER)
+    pub account_type: String,
+    /// Name of the beneficiary (merchant)
+    pub merchant_name: Secret<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
@@ -222,14 +225,14 @@ fn get_creditor_account_from_metadata(
             })?;
     let creditor_account = CreditorAccount {
         account: AccountNumber {
-            account_type: AccountType::try_from(metadata.creditor_account_type.as_str())
+            account_type: AccountType::try_from(metadata.account_type.as_str())
                 .unwrap_or(AccountType::Iban),
             currency: router_data.request.currency,
-            value: metadata.creditor_account_value,
+            value: metadata.destination_account_number,
         },
         country: router_data.get_optional_billing_country(),
         // Merchant is the beneficiary in this case
-        name: Some(metadata.creditor_beneficiary_name),
+        name: Some(metadata.merchant_name),
         message: router_data
             .description
             .as_ref()
