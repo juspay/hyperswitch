@@ -209,9 +209,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel"
 card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,authorizedotnet"
+wallet.apple_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,authorizedotnet"
+wallet.google_pay.connector_list = "adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet"
 wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -258,7 +258,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
+connector_list = "adyen,archipel,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
 
 [payouts]
