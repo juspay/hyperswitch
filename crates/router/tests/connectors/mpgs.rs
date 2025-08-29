@@ -13,7 +13,7 @@ impl utils::Connector for MpgsTest {
         use router::connector::Mpgs;
         utils::construct_connector_data_old(
             Box::new(Mpgs::new()),
-            types::Connector::Plaid,
+            types::Connector::Mpgs,
             api::GetToken::Connector,
             None,
         )
@@ -36,11 +36,24 @@ impl utils::Connector for MpgsTest {
 static CONNECTOR: MpgsTest = MpgsTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
+    Some(utils::PaymentInfo {
+        amount: Some(100),
+        currency: Some(enums::Currency::USD),
+        ..Default::default()
+    })
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: PaymentMethodData::Card(Card {
+            card_number: Secret::new("4012888818888".to_string()),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            ..utils::CCardType::default().0
+        }),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
