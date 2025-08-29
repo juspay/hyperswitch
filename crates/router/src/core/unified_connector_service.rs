@@ -848,10 +848,7 @@ where
     // Set response body based on status code
     if let Some(body) = response_body {
         match status_code {
-            500..=599 => {
-                connector_event.set_error_response_body(&body);
-            }
-            400..=499 => {
+            400..=599 => {
                 connector_event.set_error_response_body(&body);
             }
             _ => {
