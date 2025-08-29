@@ -50,7 +50,7 @@ use url::Url;
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
-        convert_uppercase, deserialize_zero_minor_amount_as_none, from_timestamp_to_datetime,
+        convert_uppercase, deserialize_zero_minor_amount_as_none,
         ApplePay, RouterData as OtherRouterData,
     },
 };
@@ -2578,7 +2578,8 @@ pub struct StripeAdditionalCardDetails {
     three_d_secure: Option<Value>,
     network_transaction_id: Option<String>,
     extended_authorization: Option<StripeExtendedAuthorizationResponse>,
-    capture_before: Option<i64>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2641,7 +2642,7 @@ pub struct AdditionalPaymentMethodDetails {
     pub payment_checks: Option<Value>,
     pub authentication_details: Option<Value>,
     pub extended_authorization: Option<StripeExtendedAuthorizationResponse>,
-    pub capture_before: Option<i64>,
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorResponse {
@@ -2655,10 +2656,9 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
     }
 }
 
-impl TryFrom<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseData {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &AdditionalPaymentMethodDetails) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseData {
+    fn from(item: &AdditionalPaymentMethodDetails) -> Self {
+        Self {
             extended_authentication_applied: item.extended_authorization.as_ref().map(
                 |extended_authorization| {
                     primitive_wrappers::ExtendedAuthorizationAppliedBool::from(matches!(
@@ -2667,8 +2667,8 @@ impl TryFrom<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseD
                     ))
                 },
             ),
-            capture_before: from_timestamp_to_datetime(item.capture_before)?,
-        })
+            capture_before: item.capture_before,
+        }
     }
 }
 
@@ -2768,7 +2768,7 @@ pub struct SetupIntentResponse {
 
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
-) -> Result<Option<ConnectorResponseData>, error_stack::Report<ConnectorError>> {
+) -> Option<ConnectorResponseData> {
     let additional_payment_method_details =
         if let StripeChargeEnum::ChargeObject(charge_object) = stripe_charge_enum {
             charge_object
@@ -2784,10 +2784,8 @@ fn extract_payment_method_connector_response_from_latest_charge(
         .map(AdditionalPaymentMethodConnectorResponse::from);
     let extended_authorization_data = additional_payment_method_details
         .as_ref()
-        .map(ExtendedAuthorizationResponseData::try_from)
-        .transpose()?;
+        .map(ExtendedAuthorizationResponseData::from);
 
-    let connector_response_data =
         if additional_payment_method_data.is_some() || extended_authorization_data.is_some() {
             Some(ConnectorResponseData::new(
                 additional_payment_method_data,
@@ -2795,8 +2793,7 @@ fn extract_payment_method_connector_response_from_latest_charge(
             ))
         } else {
             None
-        };
-    Ok(connector_response_data)
+        }
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
@@ -2913,9 +2910,7 @@ where
             .response
             .latest_charge
             .as_ref()
-            .map(extract_payment_method_connector_response_from_latest_charge)
-            .transpose()?
-            .flatten();
+            .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         Ok(Self {
             status,
@@ -3179,9 +3174,7 @@ where
             .response
             .latest_charge
             .as_ref()
-            .map(extract_payment_method_connector_response_from_latest_charge)
-            .transpose()?
-            .flatten();
+            .and_then(extract_payment_method_connector_response_from_latest_charge);
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(

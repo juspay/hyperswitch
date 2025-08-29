@@ -6635,21 +6635,6 @@ impl SplitPaymentData for ExternalVaultProxyPaymentsData {
     }
 }
 
-pub fn from_timestamp_to_datetime(
-    time: Option<i64>,
-) -> Result<Option<PrimitiveDateTime>, errors::ConnectorError> {
-    if let Some(time) = time {
-        let time = time::OffsetDateTime::from_unix_timestamp(time).map_err(|err| {
-            logger::error!("Error: from_unix_timestamp: {}", err);
-            errors::ConnectorError::ResponseHandlingFailed
-        })?;
-
-        Ok(Some(PrimitiveDateTime::new(time.date(), time.time())))
-    } else {
-        Ok(None)
-    }
-}
-
 pub struct XmlSerializer;
 impl XmlSerializer {
     pub fn serialize_to_xml_bytes<T: Serialize>(
