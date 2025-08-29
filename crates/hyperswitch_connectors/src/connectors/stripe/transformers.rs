@@ -2909,7 +2909,8 @@ where
             .latest_charge
             .as_ref()
             .map(extract_payment_method_connector_response_from_latest_charge)
-            .transpose()?.flatten();
+            .transpose()?
+            .flatten();
 
         Ok(Self {
             status,
@@ -3174,7 +3175,8 @@ where
             .latest_charge
             .as_ref()
             .map(extract_payment_method_connector_response_from_latest_charge)
-            .transpose()?.flatten();
+            .transpose()?
+            .flatten();
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
