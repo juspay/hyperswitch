@@ -176,11 +176,10 @@ mod bool_wrappers {
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub struct AlwaysEnableOvercaptureBool(bool);
-    impl Deref for AlwaysEnableOvercaptureBool {
-        type Target = bool;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
+    impl AlwaysEnableOvercaptureBool {
+        /// returns the inner bool value
+         pub fn is_true(&self) -> bool {
+            self.0
         }
     }
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for AlwaysEnableOvercaptureBool
@@ -304,12 +303,6 @@ mod bool_wrappers {
         }
     }
 
-    impl Default for OvercaptureEnabledBool {
-        /// Default for `OvercaptureEnabledBool` is `false`
-        fn default() -> Self {
-            Self(false)
-        }
-    }
 }
 
 mod u32_wrappers {

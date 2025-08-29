@@ -1,7 +1,5 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
-#[cfg(feature = "v1")]
-use std::ops::Deref;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{SessionToken, VaultSessionDetails};
@@ -219,7 +217,7 @@ impl PaymentIntent {
         {
             self.enable_overcapture.or_else(|| {
                 always_enable_overcapture.map(|should_enable_overcapture| {
-                    EnableOvercaptureBool::from(*should_enable_overcapture.deref())
+                    EnableOvercaptureBool::from(should_enable_overcapture.is_true())
                 })
             })
         } else {
