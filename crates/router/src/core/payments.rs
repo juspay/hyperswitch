@@ -2607,6 +2607,42 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+pub async fn payments_check_gift_card_balance_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    profile: domain::Profile,
+    req_state: ReqState,
+    req: payments_api::PaymentsGiftCardBalanceCheckRequest,
+    header_payload: HeaderPayload,
+) -> RouterResponse<payments_api::GiftCardBalanceCheckResponse> {
+    let connector_name = Connector::Adyen; // always get the connector name from the merchant_connector_account
+    let connector_auth_type = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let resource_common_data = VaultConnectorFlowData {
+        merchant_id: merchant_account.get_id().to_owned(),
+    };
+
+    let router_data = types::RouterDataV2 {
+        flow: PhantomData,
+        resource_common_data,
+        tenant_id: state.tenant.tenant_id.clone(),
+        connector_auth_type,
+        request: types::VaultRequestData {
+            payment_method_vaulting_data,
+            connector_vault_id,
+            connector_customer_id,
+        },
+        response: Ok(types::VaultResponseData::default()),
+    };
+
+    // Ok(router_data)
+    todo!()
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn payments_get_intent_using_merchant_reference(
     state: SessionState,
     merchant_context: domain::MerchantContext,
