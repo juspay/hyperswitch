@@ -359,12 +359,12 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         }
     }
 
-    async fn call_unified_connector_service<'a>(
+    #[cfg(feature = "v2")]
+    async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
         state: &SessionState,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
         let client = state
@@ -387,10 +387,18 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
+        let external_vault_proxy_metadata =
+            unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata(
+                external_vault_merchant_connector_account
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct external vault proxy metadata")?;
+
         let response = client
             .payment_authorize(
                 payment_authorize_request,
                 connector_auth_metadata,
+                Some(external_vault_proxy_metadata),
                 state.get_grpc_headers(),
             )
             .await
