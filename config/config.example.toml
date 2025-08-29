@@ -1201,6 +1201,8 @@ max_retry_count_for_thirty_day = 20
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
 initial_timestamp_in_hours = 1          # number of hours added to start time for Decider service of Revenue Recovery
+job_schedule_buffer_time_in_minutes = 15 # time in minutes to be added in schedule time as a buffer 
+reopen_workflow_buffer_time_in_hours = 1  # time in hours to be added in scheduling for calculate workflow
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
