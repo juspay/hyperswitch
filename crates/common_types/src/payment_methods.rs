@@ -151,10 +151,6 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method supports split payments. Optional.
-    #[schema(example = true)]
-    pub split_enabled: Option<bool>,
-
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
@@ -171,7 +167,6 @@ impl From<RequestPaymentMethodTypesV1> for RequestPaymentMethodTypes {
             minimum_amount: value.minimum_amount,
             maximum_amount: value.maximum_amount,
             recurring_enabled: value.recurring_enabled,
-            split_enabled: value.split_enabled,
             installment_payment_enabled: value.installment_payment_enabled,
         }
     }
@@ -187,7 +182,6 @@ struct RequestPaymentMethodTypesV1 {
     pub minimum_amount: Option<common_utils::types::MinorUnit>,
     pub maximum_amount: Option<common_utils::types::MinorUnit>,
     pub recurring_enabled: Option<bool>,
-    pub split_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
 }
 
