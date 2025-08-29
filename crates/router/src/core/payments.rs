@@ -9099,15 +9099,11 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let mandate_reference_id = match action_type {
-        Some(ActionType::NetworkTokenWithNetworkTransactionId(nt_data)) => {
-            logger::info!("using network_tokenization with network_transaction_id for MIT flow");
+        Some(ActionType::NetworkTokenWithNetworkTransactionId(network_token_data)) => {
+            logger::info!("using network token with network_transaction_id for MIT flow");
 
             Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
-                payments_api::NetworkTokenWithNTIRef {
-                    network_transaction_id: nt_data.network_transaction_id.to_string(),
-                    token_exp_month: nt_data.token_exp_month,
-                    token_exp_year: nt_data.token_exp_year,
-                },
+                network_token_data.into(),
             ))
         }
         Some(ActionType::CardWithNetworkTransactionId(network_transaction_id)) => {
@@ -9145,16 +9141,7 @@ where
                 }
             }
 
-            payment_data.set_recurring_mandate_payment_data(
-                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
-                    payment_method_type: mandate_reference_record.payment_method_type,
-                    original_payment_authorized_amount: mandate_reference_record
-                        .original_payment_authorized_amount,
-                    original_payment_authorized_currency: mandate_reference_record
-                        .original_payment_authorized_currency,
-                    mandate_metadata: mandate_reference_record.mandate_metadata.clone(),
-                },
-            );
+            payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
             Some(payments_api::MandateReferenceId::ConnectorMandateId(
                 api_models::payments::ConnectorMandateReferenceId::new(
@@ -9239,16 +9226,8 @@ where
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
-                                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
-                                    payment_method_type: mandate_reference_record
-                                        .payment_method_type,
-                                    original_payment_authorized_amount: mandate_reference_record
-                                        .original_payment_authorized_amount,
-                                    original_payment_authorized_currency: mandate_reference_record
-                                        .original_payment_authorized_currency,
-                                    mandate_metadata: mandate_reference_record
-                                        .mandate_metadata.clone()
-                                });
+                                mandate_reference_record.into(),
+                            );
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;
                         }
@@ -9319,6 +9298,16 @@ pub struct NTWithNTIRef {
     pub network_transaction_id: String,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
+}
+
+impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
+    fn from(network_token_data: NTWithNTIRef) -> Self {
+        Self {
+            network_transaction_id: network_token_data.network_transaction_id,
+            token_exp_month: network_token_data.token_exp_month,
+            token_exp_year: network_token_data.token_exp_year,
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -9394,6 +9383,9 @@ impl ActionTypesBuilder {
                         payment_method_info,
                     )
                     .await
+                    .inspect_err(|e| {
+                        logger::error!("Status check for network token failed: {:?}", e)
+                    })
                     .ok()
                     .map(|(token_exp_month, token_exp_year)| {
                         ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
