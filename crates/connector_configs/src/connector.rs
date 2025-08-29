@@ -114,6 +114,7 @@ pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
+    pub account_type: Option<InputData>,
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
@@ -147,6 +148,7 @@ pub struct ConfigMetadata {
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
+    pub merchant_funding_source: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -190,6 +192,7 @@ pub struct ConnectorConfig {
     pub katapult: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
+    pub affirm: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub adyen_payout: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -269,6 +272,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    pub paysafe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
@@ -398,6 +402,7 @@ impl ConnectorConfig {
             Connector::Aci => Ok(connector_data.aci),
             Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
+            Connector::Affirm => Ok(connector_data.affirm),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
             Connector::Archipel => Ok(connector_data.archipel),
@@ -409,6 +414,7 @@ impl ConnectorConfig {
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
             Connector::Bluecode => Ok(connector_data.bluecode),
+            Connector::Blackhawknetwork => Ok(connector_data.blackhawknetwork),
             Connector::Boku => Ok(connector_data.boku),
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),
@@ -433,6 +439,7 @@ impl ConnectorConfig {
             Connector::Deutschebank => Ok(connector_data.deutschebank),
             Connector::Digitalvirgo => Ok(connector_data.digitalvirgo),
             Connector::Dlocal => Ok(connector_data.dlocal),
+            Connector::Dwolla => Ok(connector_data.dwolla),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Facilitapay => Ok(connector_data.facilitapay),

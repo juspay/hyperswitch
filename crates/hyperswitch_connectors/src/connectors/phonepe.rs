@@ -145,6 +145,7 @@ impl ConnectorCommon for Phonepe {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -622,7 +623,8 @@ lazy_static! {
         display_name: "PHONEPE",
         description:
             "PhonePe is a digital payments and financial services platform built on the UPI system. It allows users to make instant payments, recharge mobiles, pay bills, and access financial services like investments and insurance.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref PHONEPE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

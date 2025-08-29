@@ -26,9 +26,39 @@ use common_utils::{
     pii::{self, Email},
     types::{MinorUnit, StringMajorUnit},
 };
-#[cfg(feature = "v2")]
-use deserialize_form_style_query_parameter::option_form_vec_deserialize;
 use error_stack::ResultExt;
+
+#[cfg(feature = "v2")]
+fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    let opt_str: Option<String> = Option::deserialize(v)?;
+    match opt_str {
+        Some(s) if s.is_empty() => Ok(None),
+        Some(s) => {
+            // Estimate capacity based on comma count
+            let capacity = s.matches(',').count() + 1;
+            let mut result = Vec::with_capacity(capacity);
+
+            for item in s.split(',') {
+                let trimmed_item = item.trim();
+                if !trimmed_item.is_empty() {
+                    let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
+                        <D::Error as serde::de::Error>::custom(format!(
+                            "Invalid value '{trimmed_item}': {e}"
+                        ))
+                    })?;
+                    result.push(parsed_item);
+                }
+            }
+            Ok(Some(result))
+        }
+        None => Ok(None),
+    }
+}
 use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(feature = "v1")]
@@ -624,6 +654,10 @@ pub struct PaymentsIntentResponse {
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// The type of the payment that differentiates between normal and various types of mandate payments
+    #[schema(value_type = PaymentType)]
+    pub payment_type: api_enums::PaymentType,
 }
 
 #[cfg(feature = "v2")]
@@ -2594,6 +2628,16 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
+/// The payment method information provided for making a payment
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct RecordAttemptPaymentMethodDataRequest {
+    /// Additional details for the payment method (e.g., card expiry date, card network).
+    #[serde(flatten)]
+    pub payment_method_data: AdditionalPaymentData,
+    /// billing details for the payment method.
+    pub billing: Option<Address>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct ProxyPaymentMethodDataRequest {
     /// This field is optional because, in case of saved cards we pass the payment_token
@@ -2611,7 +2655,8 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(ProxyCardData),
+    VaultDataCard(Box<ProxyCardData>),
+    VaultToken(VaultToken),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2655,6 +2700,25 @@ pub struct ProxyCardData {
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
     pub nick_name: Option<Secret<String>>,
+
+    /// The first six digit of the card number
+    #[schema(value_type = String, example = "424242")]
+    pub bin_number: Option<String>,
+
+    /// The last four digit of the card number
+    #[schema(value_type = String, example = "4242")]
+    pub last_four: Option<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct VaultToken {
+    /// The tokenized CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
@@ -2974,6 +3038,7 @@ impl GetPaymentMethodType for GiftCardData {
         match self {
             Self::Givex(_) => api_enums::PaymentMethodType::Givex,
             Self::PaySafeCard {} => api_enums::PaymentMethodType::PaySafeCard,
+            Self::BhnCardNetwork(_) => api_enums::PaymentMethodType::BhnCardNetwork,
         }
     }
 }
@@ -2983,6 +3048,23 @@ impl GetPaymentMethodType for GiftCardData {
 pub enum GiftCardData {
     Givex(GiftCardDetails),
     PaySafeCard {},
+    BhnCardNetwork(BHNGiftCardDetails),
+}
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct BHNGiftCardDetails {
+    /// The gift card or account number
+    #[schema(value_type = String)]
+    pub account_number: Secret<String>,
+    /// The security PIN for gift cards requiring it
+    #[schema(value_type = String)]
+    pub pin: Option<Secret<String>>,
+    /// The CVV2 code for Open Loop/VPLN products
+    #[schema(value_type = String)]
+    pub cvv2: Option<Secret<String>>,
+    /// The expiration date in MMYYYY format for Open Loop/VPLN products
+    #[schema(value_type = String)]
+    pub expiration_date: Option<String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -3044,7 +3126,7 @@ pub struct AdditionalCardInfo {
     pub signature_network: Option<api_enums::CardNetwork>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
@@ -4410,8 +4492,12 @@ pub struct PaymentMethodDataResponseWithBilling {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
-    #[serde(flatten)]
-    pub units: HashMap<String, AdditionalCardInfo>,
+    /// Primary payment method token at payment processor end.
+    #[schema(value_type = String, example = "token_1234")]
+    pub primary_processor_payment_method_token: Secret<String>,
+
+    /// AdditionalCardInfo for the primary token.
+    pub additional_payment_method_info: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6259,26 +6345,33 @@ pub struct PaymentListConstraints {
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
     /// The connector to filter payments list
-    #[param(value_type = Option<Connector>)]
-    pub connector: Option<api_enums::Connector>,
+    #[param(value_type = Option<Vec<Connector>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The currency to filter payments list
-    #[param(value_type = Option<Currency>)]
-    pub currency: Option<enums::Currency>,
+    #[param(value_type = Option<Vec<Currency>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
     /// The payment status to filter payments list
-    #[param(value_type = Option<IntentStatus>)]
-    pub status: Option<enums::IntentStatus>,
+    #[param(value_type = Option<Vec<IntentStatus>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub status: Option<Vec<enums::IntentStatus>>,
     /// The payment method type to filter payments list
-    #[param(value_type = Option<PaymentMethod>)]
-    pub payment_method_type: Option<enums::PaymentMethod>,
+    #[param(value_type = Option<Vec<PaymentMethod>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_type: Option<Vec<enums::PaymentMethod>>,
     /// The payment method subtype to filter payments list
-    #[param(value_type = Option<PaymentMethodType>)]
-    pub payment_method_subtype: Option<enums::PaymentMethodType>,
+    #[param(value_type = Option<Vec<PaymentMethodType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_subtype: Option<Vec<enums::PaymentMethodType>>,
     /// The authentication type to filter payments list
-    #[param(value_type = Option<AuthenticationType>)]
-    pub authentication_type: Option<enums::AuthenticationType>,
+    #[param(value_type = Option<Vec<AuthenticationType>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The merchant connector id to filter payments list
-    #[param(value_type = Option<String>)]
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    #[param(value_type = Option<Vec<String>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     /// The field on which the payments list should be sorted
     #[serde(default)]
     pub order_on: SortOn,
@@ -6286,8 +6379,9 @@ pub struct PaymentListConstraints {
     #[serde(default)]
     pub order_by: SortBy,
     /// The card networks to filter payments list
-    #[param(value_type = Option<CardNetwork>)]
-    pub card_network: Option<enums::CardNetwork>,
+    #[param(value_type = Option<Vec<CardNetwork>>)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_network: Option<Vec<enums::CardNetwork>>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
 }
@@ -7984,7 +8078,7 @@ pub struct ListMethodsForPaymentsRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
     #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
@@ -7993,7 +8087,7 @@ pub struct ListMethodsForPaymentsRequest {
     pub amount: Option<MinorUnit>,
 
     /// The three-letter ISO currency code
-    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
@@ -8002,7 +8096,7 @@ pub struct ListMethodsForPaymentsRequest {
     pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for card networks
-    #[serde(deserialize_with = "option_form_vec_deserialize", default)]
+    #[serde(deserialize_with = "parse_comma_separated", default)]
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
@@ -9134,6 +9228,12 @@ impl PaymentRevenueRecoveryMetadata {
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
+
+    pub fn get_connector_customer_id(&self) -> String {
+        self.billing_connector_payment_details
+            .connector_customer_id
+            .to_owned()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -9192,8 +9292,8 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// The payment instrument data to be used for the payment attempt.
-    pub payment_method_data: Option<PaymentMethodDataRequest>,
+    /// The additional payment data to be used for the payment attempt.
+    pub payment_method_data: Option<RecordAttemptPaymentMethodDataRequest>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -9281,10 +9381,6 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// primary payment method token at payment processor end.
-    #[schema(value_type = String, example = "token_1234")]
-    pub primary_processor_payment_method_token: Secret<String>,
-
     /// The time at which payment attempt was created.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -9308,7 +9404,7 @@ pub struct RecoveryPaymentsCreate {
     pub connector_transaction_id: Option<Secret<String>>,
 
     /// payment method token units at payment processor end.
-    pub payment_method_units: CustomRecoveryPaymentMethodData,
+    pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,

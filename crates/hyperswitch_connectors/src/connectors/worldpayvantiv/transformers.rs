@@ -1,6 +1,5 @@
 use common_utils::{
     ext_traits::Encode,
-    id_type::CustomerId,
     types::{MinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
@@ -49,10 +48,11 @@ pub mod worldpayvantiv_constants {
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
-    pub const MAX_ID_LENGTH: usize = 26;
+    pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 28;
     pub const XML_STANDALONE: &str = "yes";
     pub const XML_CHARGEBACK: &str = "http://www.vantivcnp.com/chargebacks";
     pub const MAC_FIELD_NUMBER: &str = "39";
+    pub const CUSTOMER_ID_MAX_LENGTH: usize = 50;
     pub const CUSTOMER_REFERENCE_MAX_LENGTH: usize = 17;
 }
 
@@ -539,6 +539,12 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 .and_then(|detail| detail.response_reason_message.clone())
                 .unwrap_or(item.response.payment_status.to_string());
 
+            let connector_transaction_id = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
+
             Ok(Self {
                 status,
                 response: Err(ErrorResponse {
@@ -547,10 +553,11 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     reason: Some(error_message.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -597,6 +604,37 @@ where
                 phone: item.get_optional_billing_phone_number(),
             })
     })
+}
+
+fn extract_customer_id<T>(item: &T) -> Option<String>
+where
+    T: UtilsRouterData,
+{
+    item.get_optional_customer_id().and_then(|customer_id| {
+        let customer_id_str = customer_id.get_string_repr().to_string();
+        if customer_id_str.len() <= worldpayvantiv_constants::CUSTOMER_ID_MAX_LENGTH {
+            Some(customer_id_str)
+        } else {
+            None
+        }
+    })
+}
+
+fn get_valid_transaction_id(
+    id: String,
+    error_field_name: &str,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    if id.len() <= worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH {
+        Ok(id.clone())
+    } else {
+        Err(errors::ConnectorError::MaxFieldLengthViolated {
+            connector: "Worldpayvantiv".to_string(),
+            field_name: error_field_name.to_string(),
+            max_length: worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+            received_length: id.len(),
+        }
+        .into())
+    }
 }
 
 fn get_ship_to_address<T>(item: &T) -> Option<VantivAddressData>
@@ -671,11 +709,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             user: worldpayvantiv_auth_type.user,
             password: worldpayvantiv_auth_type.password,
         };
-        let customer_id = item
-            .router_data
-            .customer_id
-            .clone()
-            .map(|customer_id| customer_id.get_string_repr().to_string());
+        let customer_id = extract_customer_id(item.router_data);
 
         let bill_to_address = get_bill_to_address(item.router_data);
         let ship_to_address = get_ship_to_address(item.router_data);
@@ -685,16 +719,17 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             item.router_data.request.payment_method_data.clone(),
             item.router_data.request.payment_channel.clone(),
         ));
+
         let (authorization, sale) =
             if item.router_data.request.is_auto_capture()? && item.amount != MinorUnit::zero() {
+                let merchant_txn_id = get_valid_transaction_id(
+                    item.router_data.connector_request_reference_id.clone(),
+                    "sale.id",
+                )?;
                 (
                     None,
                     Some(Sale {
-                        id: format!(
-                            "{}_{}",
-                            OperationId::Sale,
-                            item.router_data.connector_request_reference_id
-                        ),
+                        id: format!("{}_{merchant_txn_id}", OperationId::Sale),
                         report_group: report_group.clone(),
                         customer_id,
                         order_id: item.router_data.connector_request_reference_id.clone(),
@@ -722,12 +757,13 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 } else {
                     OperationId::Auth
                 };
+                let merchant_txn_id = get_valid_transaction_id(
+                    item.router_data.connector_request_reference_id.clone(),
+                    "authorization.id",
+                )?;
                 (
                     Some(Authorization {
-                        id: format!(
-                            "{}_{}",
-                            operation_id, item.router_data.connector_request_reference_id
-                        ),
+                        id: format!("{operation_id}_{merchant_txn_id}"),
                         report_group: report_group.clone(),
                         customer_id,
                         order_id: item.router_data.connector_request_reference_id.clone(),
@@ -810,10 +846,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             user: worldpayvantiv_auth_type.user,
             password: worldpayvantiv_auth_type.password,
         };
-        let customer_id = item
-            .customer_id
-            .clone()
-            .map(|customer_id| customer_id.get_string_repr().to_string());
+        let customer_id = extract_customer_id(item);
 
         let bill_to_address = get_bill_to_address(item);
         let ship_to_address = get_ship_to_address(item);
@@ -828,12 +861,12 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
             item.request.payment_method_data.clone(),
             item.request.payment_channel.clone(),
         ));
+        let merchant_txn_id = get_valid_transaction_id(
+            item.connector_request_reference_id.clone(),
+            "authorization.id",
+        )?;
         let authorization_data = Authorization {
-            id: format!(
-                "{}_{}",
-                OperationId::Sale,
-                item.connector_request_reference_id
-            ),
+            id: format!("{}_{merchant_txn_id}", OperationId::Sale),
             report_group: report_group.clone(),
             customer_id,
             order_id: item.connector_request_reference_id.clone(),
@@ -933,8 +966,8 @@ where
             Some(common_enums::TaxStatus::Taxable) => Some(false),
             None => None,
         };
-
-        let customer_reference = get_vantiv_customer_reference(&l2_l3_data.customer_id);
+        let customer_reference =
+            get_vantiv_customer_reference(&l2_l3_data.merchant_order_reference_id);
 
         let enhanced_data = EnhancedData {
             customer_reference,
@@ -1017,12 +1050,12 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone(),
+            "capture.id",
+        )?;
         let capture = Some(Capture {
-            id: format!(
-                "{}_{}",
-                OperationId::Capture,
-                item.router_data.connector_request_reference_id
-            ),
+            id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
@@ -1065,19 +1098,14 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
-
-        let customer_id = item
-            .router_data
-            .customer_id
-            .clone()
-            .map(|customer_id| customer_id.get_string_repr().to_string());
+        let customer_id = extract_customer_id(item.router_data);
+        let merchant_txn_id = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone(),
+            "credit.id",
+        )?;
 
         let credit = Some(RefundRequest {
-            id: format!(
-                "{}_{}",
-                OperationId::Refund,
-                item.router_data.connector_request_reference_id
-            ),
+            id: format!("{}_{merchant_txn_id}", OperationId::Refund),
             report_group,
             customer_id,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
@@ -1381,6 +1409,7 @@ where
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1432,6 +1461,7 @@ where
                         network_advice_code: None,
                         network_decline_code,
                         network_error_message,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -1440,11 +1470,10 @@ where
     }
 }
 
-fn get_vantiv_customer_reference(customer_id: &Option<CustomerId>) -> Option<String> {
-    customer_id.as_ref().and_then(|id| {
-        let customer_id_str = id.get_string_repr().to_string();
-        if customer_id_str.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH {
-            Some(customer_id_str)
+fn get_vantiv_customer_reference(customer_id: &Option<String>) -> Option<String> {
+    customer_id.clone().and_then(|id| {
+        if id.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH {
+            Some(id)
         } else {
             None
         }
@@ -1495,6 +1524,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1543,10 +1573,11 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                         reason: Some(item.response.message.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
-                        connector_transaction_id: None,
+                        connector_transaction_id: None, // Transaction id not created at connector
                         network_advice_code: None,
                         network_decline_code,
                         network_error_message,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -1591,6 +1622,7 @@ impl<F>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1626,6 +1658,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -1671,6 +1704,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1712,6 +1746,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                         network_advice_code: None,
                         network_decline_code,
                         network_error_message,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })
@@ -1730,12 +1765,12 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
+        let merchant_txn_id = get_valid_transaction_id(
+            item.connector_request_reference_id.clone(),
+            "authReversal.id",
+        )?;
         let auth_reversal = Some(AuthReversal {
-            id: format!(
-                "{}_{}",
-                OperationId::Void,
-                item.connector_request_reference_id
-            ),
+            id: format!("{}_{merchant_txn_id}", OperationId::Void),
             report_group,
             cnp_txn_id: item.request.connector_transaction_id.clone(),
         });
@@ -1771,12 +1806,10 @@ impl TryFrom<&PaymentsCancelPostCaptureRouterData> for CnpOnlineRequest {
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
+        let merchant_txn_id =
+            get_valid_transaction_id(item.connector_request_reference_id.clone(), "void.id")?;
         let void = Some(Void {
-            id: format!(
-                "{}_{}",
-                OperationId::VoidPC,
-                item.connector_request_reference_id
-            ),
+            id: format!("{}_{merchant_txn_id}", OperationId::VoidPC,),
             report_group,
             cnp_txn_id: item.request.connector_transaction_id.clone(),
         });
@@ -1838,10 +1871,11 @@ impl<F>
                             reason: Some(sale_response.message.clone()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(sale_response.order_id.clone()),
+                            connector_transaction_id: Some(sale_response.cnp_txn_id.clone()),
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1905,10 +1939,11 @@ impl<F>
                             reason: Some(auth_response.message.clone()),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(auth_response.order_id.clone()),
+                            connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -1957,10 +1992,11 @@ impl<F>
                     reason: Some(item.response.message.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: None, // Transaction id not created at connector
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })},
@@ -2020,6 +2056,7 @@ impl<F>
                             network_advice_code: None,
                             network_decline_code,
                             network_error_message,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     })
@@ -2075,6 +2112,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -2112,6 +2150,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                 .as_ref()
                 .and_then(|detail| detail.response_reason_message.clone())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            let connector_transaction_id = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
 
             Ok(Self {
                 response: Err(ErrorResponse {
@@ -2120,10 +2163,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                     reason: Some(error_message.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -4454,6 +4498,7 @@ impl
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         };
 
@@ -4495,6 +4540,7 @@ impl
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             ..item.data.clone()
         })
