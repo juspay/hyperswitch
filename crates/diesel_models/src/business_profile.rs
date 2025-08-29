@@ -412,6 +412,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 impl Profile {
@@ -487,6 +488,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -546,6 +548,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -602,6 +605,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details,
             merchant_category_code,
             merchant_country_code,
+            split_txns_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -698,6 +702,7 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: None,
+            split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
         }
     }
 }

@@ -19315,6 +19315,7 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "split_txns_enabled",
           "expires_on",
           "request_external_three_ds_authentication",
           "payment_type"
@@ -19465,6 +19466,14 @@
           },
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
           },
           "expires_on": {
             "type": "string",
@@ -22077,6 +22086,15 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22110,7 +22128,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "split_txns_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -22362,6 +22381,14 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
           }
         }
       },
@@ -24812,6 +24839,13 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
+      "SplitTxnsEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
       },
       "StaticRoutingAlgorithm": {
         "oneOf": [
