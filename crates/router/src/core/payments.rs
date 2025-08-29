@@ -4263,7 +4263,13 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service(
+        if !matches!(
+            call_connector_action,
+            CallConnectorAction::UCSHandleResponse(_)
+        ) && !matches!(
+            call_connector_action,
+            CallConnectorAction::HandleResponse(_),
+        ) && should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,

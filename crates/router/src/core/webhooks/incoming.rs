@@ -695,6 +695,7 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
+                webhook_transform_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -931,9 +932,22 @@ async fn payments_incoming_webhook_flow(
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
-        payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
+        // Determine the appropriate action based on UCS availability
+        let resource_object = webhook_details.resource_object;
+
+        match webhook_transform_data.as_ref() {
+            Some(transform_data) => {
+                // Serialize the transform data to pass to UCS handler
+                let transform_data_bytes = serde_json::to_vec(transform_data.as_ref())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize UCS webhook transform data")?;
+                payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes)
+            }
+            None => payments::CallConnectorAction::HandleResponse(resource_object),
+        }
     } else {
         payments::CallConnectorAction::Trigger
     };
