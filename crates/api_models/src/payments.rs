@@ -658,6 +658,13 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GiftCardBalanceCheckResponse {
+    pub balance: String,
+    pub currency: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -5625,6 +5632,19 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+}
+
+// Serialize is implemented because, this will be serialized in the api events.
+// Usually request types should not have serialize implemented.
+//
+/// Request for Gift Card balance check
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsGiftCardBalanceCheckRequest {
+    brand: Option<Secret<String>>,
+    number: Secret<String>,
+    cvc: Secret<String>,
 }
 
 #[cfg(feature = "v2")]

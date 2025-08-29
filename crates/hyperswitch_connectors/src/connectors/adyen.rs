@@ -416,6 +416,7 @@ impl api::PaymentCapture for Adyen {}
 impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
+impl api::PaymentsGiftCardBalanceCheck for Adyen {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Adyen
@@ -1162,6 +1163,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ad
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+impl
+    ConnectorIntegration<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    > for Adyen
+{
 }
 
 impl api::Payouts for Adyen {}

@@ -648,6 +648,8 @@ pub enum Flow {
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
     TokenizationDelete,
+    /// Gift card balance check flow
+    GiftCardBalanceCheck,
 }
 
 /// Trait for providing generic behaviour to flow metric
