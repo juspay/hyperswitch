@@ -1391,11 +1391,12 @@ where
             .request
             .get_ntid()
             .ok_or_else(missing_field_err("network_transaction_id"))
-            .attach_printable("Nuvei unable to find ntid for MIT")?
+            .attach_printable("Nuvei unable to find NTID for MIT")?
             .into(),
-        brand: data
-            .card_network
-            .ok_or_else(missing_field_err("recurring_details.data.card_network"))?,
+        brand: Some(
+            data.card_network
+                .ok_or_else(missing_field_err("recurring_details.data.card_network"))?,
+        ),
     });
     let payment_option: PaymentOption = PaymentOption {
         card: Some(Card {
