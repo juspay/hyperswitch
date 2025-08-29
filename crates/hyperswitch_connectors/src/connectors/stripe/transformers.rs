@@ -2583,9 +2583,8 @@ pub struct StripeAdditionalCardDetails {
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StripeExtendedAuthorizationResponse {
-    status: Option<StripeExtendedAuthorizationStatus>
+    status: Option<StripeExtendedAuthorizationStatus>,
 }
-
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
