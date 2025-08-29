@@ -10,7 +10,12 @@ describe("UCS Comprehensive Test", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       const connectorId = Cypress.env("CYPRESS_CONNECTOR");
-      if (utils.shouldIncludeConnector(connectorId, utils.CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS)) {
+      if (
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS
+        )
+      ) {
         cy.log(`Skipping UCS tests - connector not supported: ${connectorId}`);
         this.skip();
       }
