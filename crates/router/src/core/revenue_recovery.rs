@@ -56,8 +56,8 @@ pub async fn upsert_calculate_pcr_task(
     // Create process tracker ID in the format: CALCULATE_WORKFLOW_{payment_intent_id}
     let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
 
-    // Scheduled time is now because this will be the first entry in
-    // process tracker and we dont want to wait
+    // Scheduled time is now because this will be the first entry in 
+    // process tracker and we dont want to wait 
     let schedule_time = common_utils::date_time::now();
 
     let payment_attempt_id = payment_attempt_id
@@ -581,13 +581,9 @@ pub async fn perform_calculate_workflow(
                     update_calculate_job_schedule_time(
                         db,
                         process,
-                        time::Duration::minutes(
-                            state
-                                .conf
-                                .revenue_recovery
-                                .recovery_timestamp
-                                .job_schedule_buffer_time_in_minutes,
-                        ),
+                        time::Duration::minutes(state.conf.revenue_recovery
+                            .recovery_timestamp
+                            .job_schedule_buffer_time_in_minutes),
                         scheduled_token.scheduled_at,
                         &connector_customer_id,
                     )
@@ -614,13 +610,9 @@ pub async fn perform_calculate_workflow(
                             update_calculate_job_schedule_time(
                                 db,
                                 process,
-                                time::Duration::minutes(
-                                    state
-                                        .conf
-                                        .revenue_recovery
-                                        .recovery_timestamp
-                                        .job_schedule_buffer_time_in_minutes,
-                                ),
+                                time::Duration::minutes(state.conf.revenue_recovery
+                                    .recovery_timestamp
+                                    .job_schedule_buffer_time_in_minutes),
                                 Some(common_utils::date_time::now()),
                                 &connector_customer_id,
                             )
