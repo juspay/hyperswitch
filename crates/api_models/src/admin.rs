@@ -662,6 +662,9 @@ pub struct MerchantDetails {
 
     /// The merchant's address details
     pub address: Option<AddressDetails>,
+
+    #[schema(value_type = Option<String>, example = "123456789")]
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
