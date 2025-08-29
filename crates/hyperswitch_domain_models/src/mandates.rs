@@ -174,6 +174,19 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
+impl From<&PaymentsMandateReferenceRecord> for crate::router_data::RecurringMandatePaymentData {
+    fn from(mandate_reference_record: &PaymentsMandateReferenceRecord) -> Self {
+        Self {
+            payment_method_type: mandate_reference_record.payment_method_type,
+            original_payment_authorized_amount: mandate_reference_record
+                .original_payment_authorized_amount,
+            original_payment_authorized_currency: mandate_reference_record
+                .original_payment_authorized_currency,
+            mandate_metadata: mandate_reference_record.mandate_metadata.clone(),
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
