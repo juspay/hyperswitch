@@ -324,9 +324,9 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
 
-    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::seconds(
-        recovery_timestamp_config.initial_timestamp_in_seconds,
-    ));
+    let modified_start_time_primitive = start_time_primitive.saturating_add(
+        time::Duration::seconds(recovery_timestamp_config.initial_timestamp_in_seconds),
+    );
 
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 

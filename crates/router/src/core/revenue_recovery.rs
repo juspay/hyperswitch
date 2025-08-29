@@ -581,9 +581,13 @@ pub async fn perform_calculate_workflow(
                     update_calculate_job_schedule_time(
                         db,
                         process,
-                        time::Duration::seconds(state.conf.revenue_recovery
-                            .recovery_timestamp
-                            .job_schedule_buffer_time_in_seconds),
+                        time::Duration::seconds(
+                            state
+                                .conf
+                                .revenue_recovery
+                                .recovery_timestamp
+                                .job_schedule_buffer_time_in_seconds,
+                        ),
                         scheduled_token.scheduled_at,
                         &connector_customer_id,
                     )
@@ -610,9 +614,13 @@ pub async fn perform_calculate_workflow(
                             update_calculate_job_schedule_time(
                                 db,
                                 process,
-                                time::Duration::seconds(state.conf.revenue_recovery
-                                    .recovery_timestamp
-                                    .job_schedule_buffer_time_in_seconds),
+                                time::Duration::seconds(
+                                    state
+                                        .conf
+                                        .revenue_recovery
+                                        .recovery_timestamp
+                                        .job_schedule_buffer_time_in_seconds,
+                                ),
                                 Some(common_utils::date_time::now()),
                                 &connector_customer_id,
                             )
