@@ -7793,20 +7793,21 @@ where
         })?;
 
     let db = &*state.store;
+
     // Fetch Subscriptions record from DB
-    let subscription_record = db
-        .find_by_merchant_id_customer_id_subscription_id(
-            merchant_id,
-            &customer_id,
-            billing_processor_detail.subscription_id.clone(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "subscription not found for id: {}",
-                &billing_processor_detail.subscription_id
-            ),
-        })?;
+    db.find_by_merchant_id_customer_id_subscription_id(
+        merchant_id,
+        &customer_id,
+        billing_processor_detail.subscription_id.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: format!(
+            "subscription not found for id: {}",
+            &billing_processor_detail.subscription_id
+        ),
+    })?;
+
     // Fetch billing processor mca
     let mca_id = billing_processor_detail.processor_mca.to_owned();
     let billing_processor_mca = db
@@ -7821,7 +7822,7 @@ where
             id: mca_id.get_string_repr().to_string(),
         })?;
 
-    // Record back on billing processor
+    // Record back to billing processor
 
     let auth_type = MerchantConnectorAccountType::DbVal(Box::new(billing_processor_mca.clone()))
         .get_connector_account_details()
@@ -7895,7 +7896,7 @@ where
             .to_owned()
     )?;
 
-    let response = services::execute_connector_processing_step(
+    services::execute_connector_processing_step(
         state,
         connector_integration,
         &router_data,

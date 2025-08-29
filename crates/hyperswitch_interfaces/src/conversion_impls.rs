@@ -24,7 +24,7 @@ use crate::{connector_integration_interface::RouterDataConversion, errors::Conne
 fn get_irrelevant_id_string(id_name: &str, flow_name: &str) -> String {
     format!("irrelevant {id_name} in {flow_name} flow")
 }
-pub fn get_default_router_data<F, Req, Resp>(
+fn get_default_router_data<F, Req, Resp>(
     tenant_id: id_type::TenantId,
     flow_name: &str,
     request: Req,
