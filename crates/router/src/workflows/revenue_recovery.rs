@@ -550,7 +550,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(|t| add_random_delay_to_schedule_time(&state, t));
+    let delayed_schedule_time =
+        scheduled_time.map(|t| add_random_delay_to_schedule_time(&state, t));
 
     Ok(delayed_schedule_time)
 }
@@ -780,7 +781,11 @@ pub fn add_random_delay_to_schedule_time(
     schedule_time: time::PrimitiveDateTime,
 ) -> time::PrimitiveDateTime {
     let mut rng = rand::thread_rng();
-    let delay_limit = state.conf.revenue_recovery.recovery_timestamp.max_random_schedule_delay_in_seconds;
+    let delay_limit = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .max_random_schedule_delay_in_seconds;
     let random_secs = rng.gen_range(1..=delay_limit);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
     schedule_time + time::Duration::seconds(random_secs)
