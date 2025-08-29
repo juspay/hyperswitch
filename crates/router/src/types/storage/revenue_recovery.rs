@@ -78,12 +78,16 @@ pub struct RevenueRecoverySettings {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct RecoveryTimestamp {
     pub initial_timestamp_in_hours: i64,
+    pub job_schedule_buffer_time_in_minutes: i64,
+    pub reopen_workflow_buffer_time_in_hours: i64,
 }
 
 impl Default for RecoveryTimestamp {
     fn default() -> Self {
         Self {
             initial_timestamp_in_hours: 1,
+            job_schedule_buffer_time_in_minutes: 15,
+            reopen_workflow_buffer_time_in_hours: 1,
         }
     }
 }
