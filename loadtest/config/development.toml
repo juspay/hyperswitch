@@ -80,7 +80,7 @@ affirm.base_url = "https://sandbox.affirm.com/api"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
-amazonpay.base_url = "https://pay-api.amazon.com/v2"
+amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
@@ -169,6 +169,7 @@ payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
+paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
 paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -427,6 +428,9 @@ ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.affirm]
 affirm = { country = "CA,US", currency = "CAD,USD" }
+
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
 
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }

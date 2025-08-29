@@ -7,19 +7,25 @@ use common_utils::{
 };
 use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
+use futures::stream::SelectNextSome;
 use hyperswitch_domain_models::{
-    payments as domain_payments, revenue_recovery, router_data_v2::flow_common_types,
-    router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
-    router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
+    payments as domain_payments,
+    revenue_recovery::{self, RecoveryPaymentIntent},
+    router_data_v2::flow_common_types,
+    router_flow_types,
+    router_request_types::revenue_recovery as revenue_recovery_request,
+    router_response_types::revenue_recovery as revenue_recovery_response,
+    types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use services::kafka;
+use storage::business_status;
 
 use crate::{
     core::{
-        admin,
+        self, admin,
         errors::{self, CustomResult},
         payments::{self, helpers},
     },
@@ -232,6 +238,7 @@ async fn handle_monitoring_threshold(
     }
     Ok(webhooks::WebhookResponseTracker::NoEffect)
 }
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -248,6 +255,8 @@ async fn handle_schedule_failed_payment(
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
+
+    // When intent_retry_count is less than or equal to threshold
     (intent_retry_count <= mca_retry_threshold)
         .then(|| {
             logger::error!(
@@ -258,12 +267,13 @@ async fn handle_schedule_failed_payment(
             Ok(webhooks::WebhookResponseTracker::NoEffect)
         })
         .async_unwrap_or_else(|| async {
-            RevenueRecoveryAttempt::insert_execute_pcr_task(
-                &billing_connector_account.get_id(),
-                &*state.store,
-                merchant_context.get_merchant_account().get_id().to_owned(),
-                recovery_intent_from_payment_attempt.clone(),
-                business_profile.get_id().to_owned(),
+            // Call calculate_job
+            core::revenue_recovery::upsert_calculate_pcr_task(
+                billing_connector_account,
+                state,
+                merchant_context,
+                recovery_intent_from_payment_attempt,
+                business_profile,
                 intent_retry_count,
                 recovery_attempt_from_payment_attempt
                     .as_ref()
@@ -510,11 +520,15 @@ impl RevenueRecoveryAttempt {
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
+        card_info: api_payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
+                card_info,
+                payment_processor_token,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;
@@ -742,8 +756,14 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
+        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
+            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
+                revenue_recovery_attempt_data.card_info.clone(),
+            )),
+            billing: None,
+        };
 
-        let card_issuer = card_info.and_then(|info| info.card_issuer);
+        let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
@@ -762,7 +782,7 @@ impl RevenueRecoveryAttempt {
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: None,
+            payment_method_data: Some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
@@ -878,81 +898,6 @@ impl RevenueRecoveryAttempt {
         };
 
         Ok(payment_attempt_with_recovery_intent)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn insert_execute_pcr_task(
-        billing_mca_id: &id_type::MerchantConnectorAccountId,
-        db: &dyn StorageInterface,
-        merchant_id: id_type::MerchantId,
-        payment_intent: revenue_recovery::RecoveryPaymentIntent,
-        profile_id: id_type::ProfileId,
-        intent_retry_count: u16,
-        payment_attempt_id: Option<id_type::GlobalAttemptId>,
-        runner: storage::ProcessTrackerRunner,
-        revenue_recovery_retry: api_enums::RevenueRecoveryAlgorithmType,
-    ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
-        let task = "EXECUTE_WORKFLOW";
-
-        let payment_id = payment_intent.payment_id.clone();
-
-        let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
-
-        let schedule_time = revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
-            db,
-            &merchant_id,
-            (intent_retry_count + 1).into(),
-        )
-        .await
-        .map_or_else(
-            || {
-                Err(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
-                    .attach_printable("Failed to get schedule time for pcr workflow")
-            },
-            Ok, // Simply returns `time` wrapped in `Ok`
-        )?;
-
-        let payment_attempt_id = payment_attempt_id
-            .ok_or(report!(
-                errors::RevenueRecoveryError::PaymentAttemptIdNotFound
-            ))
-            .attach_printable("payment attempt id is required for pcr workflow tracking")?;
-
-        let execute_workflow_tracking_data =
-            storage_revenue_recovery::RevenueRecoveryWorkflowTrackingData {
-                billing_mca_id: billing_mca_id.clone(),
-                global_payment_id: payment_id.clone(),
-                merchant_id,
-                profile_id,
-                payment_attempt_id,
-                revenue_recovery_retry,
-            };
-
-        let tag = ["PCR"];
-
-        let process_tracker_entry = storage::ProcessTrackerNew::new(
-            process_tracker_id,
-            task,
-            runner,
-            tag,
-            execute_workflow_tracking_data,
-            Some(intent_retry_count.into()),
-            schedule_time,
-            common_enums::ApiVersion::V2,
-        )
-        .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
-        .attach_printable("Failed to construct process tracker entry")?;
-
-        db.insert_process(process_tracker_entry)
-            .await
-            .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-            .attach_printable("Failed to enter process_tracker_entry in DB")?;
-        metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
-
-        Ok(webhooks::WebhookResponseTracker::Payment {
-            payment_id,
-            status: payment_intent.status,
-        })
     }
 
     /// Store payment processor tokens in Redis for retry management

@@ -518,6 +518,26 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    /// Extract customer_id from payment intent feature metadata
+    pub fn extract_connector_customer_id_from_payment_intent(
+        &self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery| {
+                recovery
+                    .billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+            .ok_or(
+                common_utils::errors::ValidationError::MissingRequiredField {
+                    field_name: "connector_customer_id".to_string(),
+                },
+            )
+    }
+
     fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.feature_metadata
             .as_ref()
@@ -700,6 +720,8 @@ impl PaymentIntent {
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        card_info: api_models::payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -731,9 +753,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token,
+            processor_payment_method_token: payment_processor_token.to_string(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -754,23 +774,7 @@ impl PaymentIntent {
             invoice_billing_started_at_time: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
-            card_info: api_models::payments::AdditionalCardInfo {
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                last4: None,
-                card_isin: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-                is_regulated: None,
-                signature_network: None,
-            },
+            card_info: card_info.clone(),
         })
     }
 

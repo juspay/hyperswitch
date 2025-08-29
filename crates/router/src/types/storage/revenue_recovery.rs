@@ -13,7 +13,7 @@ use masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
+use crate::{db::StorageInterface, routes::SessionState, types, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -22,6 +22,7 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub payment_attempt_id: id_type::GlobalAttemptId,
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
+    pub invoice_scheduled_time: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -42,12 +43,17 @@ impl RevenueRecoveryPaymentData {
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
+        if is_hard_decline {
+            logger::info!("Hard Decline encountered");
+            return None;
+        }
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
                 None
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
+                logger::info!("Cascading type found for Revenue Recovery retry payment");
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     merchant_id,
