@@ -227,7 +227,7 @@ impl MerchantAccount {
     pub fn get_merchant_details(&self) -> &OptionalEncryptableValue {
         &self.merchant_details
     }
-    
+
     /// Extract merchant_tax_registration_id from merchant_details
     pub fn get_merchant_tax_registration_id(&self) -> Option<Secret<String>> {
         self.merchant_details.as_ref().and_then(|details| {
