@@ -4083,6 +4083,42 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
   });
 });
 
+Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
+  cy.setConfigs(globalState, key, value, "DELETE");
+  cy.setConfigs(globalState, key, value, "CREATE");
+});
+
+// UCS Configuration Commands
+Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
+  cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "CREATE");
+  });
+});
+
+Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
+
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "DELETE");
+  });
+
+  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
+});
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",

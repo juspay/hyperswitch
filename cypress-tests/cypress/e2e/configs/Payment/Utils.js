@@ -409,6 +409,8 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    // ucs connectors
+    UCS_CONNECTORS: ["authorizedotnet"],
     // Add more inclusion lists
   },
 };
