@@ -5,6 +5,7 @@ pub mod db_utils;
 pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
+pub mod superposition;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
