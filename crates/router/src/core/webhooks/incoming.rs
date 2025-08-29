@@ -806,8 +806,6 @@ async fn process_webhook_business_logic(
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
 
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
         }
     };
 

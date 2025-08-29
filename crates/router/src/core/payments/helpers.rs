@@ -98,11 +98,11 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
+use crate::{core::admin as core_admin, headers};
 #[cfg(feature = "v1")]
 use crate::{
     core::payment_methods::cards::create_encrypted_data,
-    types::{storage::CustomerUpdate::Update, ConnectorAuthType},
+    types::{storage::CustomerUpdate::Update},
 };
 
 #[instrument(skip_all)]
@@ -7685,10 +7685,10 @@ pub async fn get_merchant_connector_account_v2(
         .attach_printable("merchant_connector_id is not provided"),
     }
 }
-
+#[cfg(feature = "v1")]
 fn create_subscription_router_data<F, Req, Res>(
     state: &SessionState,
-    billing_processor_details: api_models::payments::BillingConnectorDetails,
+    _billing_processor_details: api_models::payments::BillingConnectorDetails,
     merchant_id: id_type::MerchantId,
     customer_id: Option<id_type::CustomerId>,
     connector_name: String,
@@ -7756,7 +7756,7 @@ where
         minor_amount_capturable: None,
     })
 }
-
+#[cfg(feature = "v1")]
 pub async fn perform_billing_processor_record_back<F, D>(
     state: &SessionState,
     payment_data: &mut D,

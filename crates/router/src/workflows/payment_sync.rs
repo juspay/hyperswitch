@@ -1,25 +1,18 @@
+#[cfg(feature = "v1")]
 use crate::core::payments::helpers::{
-    perform_billing_processor_record_back, MerchantConnectorAccountType,
+    perform_billing_processor_record_back,
 };
-use api_models::payments::BillingConnectorDetails;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data::{self, ErrorResponse, RouterData},
-    router_flow_types as subscription_flow,
-    router_request_types::subscriptions as subscriptions_request,
-    router_response_types::revenue_recovery as revenue_recovery_response,
-};
 
-use hyperswitch_interfaces::conversion_impls;
+
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
-use std::collections::HashMap;
-use std::str::FromStr;
+
 
 use crate::{
     consts,
