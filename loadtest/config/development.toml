@@ -80,7 +80,7 @@ affirm.base_url = "https://sandbox.affirm.com/api"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
-amazonpay.base_url = "https://pay-api.amazon.com/v2"
+amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
@@ -169,6 +169,7 @@ payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
+paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
 paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -202,7 +203,7 @@ trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
-vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
+vgs.base_url = "https://api.sandbox.verygoodvault.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -427,6 +428,9 @@ ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.affirm]
 affirm = { country = "CA,US", currency = "CAD,USD" }
+
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
 
 [pm_filters.bambora]
 credit = { country = "US,CA", currency = "USD" }
@@ -786,3 +790,21 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 [chat]
 enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
+
+
+
+[revenue_recovery.card_config.amex]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.mastercard]
+max_retries_per_day = 10
+max_retry_count_for_thirty_day = 35
+
+[revenue_recovery.card_config.visa]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.discover]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20

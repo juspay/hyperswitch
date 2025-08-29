@@ -532,6 +532,26 @@ key1="Merchant ID"
 [authipay.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[amazonpay]
+[[amazonpay.wallet]]
+payment_method_type = "amazon_pay"
+[amazonpay.connector_auth.BodyKey]
+api_key="Public Key"
+key1="Private Key"
+
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="merchant_id"
+label="Merchant ID"
+placeholder="Enter Merchant ID"
+required=true
+type="Text"
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="store_id"
+label="Store ID"
+placeholder="Enter Store ID"
+required=true
+type="Text"
+
 [authorizedotnet]
 [[authorizedotnet.credit]]
   payment_method_type = "Mastercard"
@@ -2077,6 +2097,7 @@ api_secret="Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[dwolla]
 [[dwolla.bank_debit]]
   payment_method_type = "ach"
 [dwolla.connector_auth.BodyKey]
@@ -2084,7 +2105,6 @@ api_key="Client ID"
 key1="Client Secret"
 [dwolla.connector_webhook_details]
 merchant_secret="Source verification key" 
-
 [dwolla.metadata.merchant_funding_source]
 name = "merchant_funding_source"
 label = "Funding Source ID"
@@ -6420,20 +6440,20 @@ type = "Text"
   api_key="Client Secret"
   key1="Client ID"
   api_secret="eIDAS Private Key"
-[nordea.metadata.creditor_account_type]
-  name="creditor_account_type"
+[nordea.metadata.account_type]
+  name="account_type"
   label="Creditor Account Type"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.creditor_account_value]
-  name="creditor_account_value"
-  label="Creditor Account Type"
+[nordea.metadata.account_value]
+  name="destination_account_number"
+  label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
   required=true
   type="Text"
-[nordea.metadata.creditor_beneficiary_name]
-  name="creditor_beneficiary_name"
+[nordea.metadata.merchant_name]
+  name="merchant_name"
   label="Creditor Account Beneficiary Name"
   placeholder="Enter Beneficiary Name"
   required=true
@@ -6696,3 +6716,7 @@ payment_experience = "redirect_to_url"
 [hyperwallet.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+
+[paysafe]
+[paysafe.connector_auth.HeaderKey]
+api_key = "API Key"

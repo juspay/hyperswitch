@@ -1053,9 +1053,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
-            connector: "Nordea".to_string(),
+        Err(errors::ConnectorError::NotSupported {
+            message: "Capture".to_string(),
+            connector: "Nordea",
         }
         .into())
     }
@@ -1067,9 +1067,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
         _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payments Cancel".to_string(),
-            connector: "Nordea".to_string(),
+        Err(errors::ConnectorError::NotSupported {
+            message: "Payments Cancel".to_string(),
+            connector: "Nordea",
         }
         .into())
     }
@@ -1081,9 +1081,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea 
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Personal API Refunds".to_string(),
-            connector: "Nordea".to_string(),
+        Err(errors::ConnectorError::NotSupported {
+            message: "Personal API Refunds flow".to_string(),
+            connector: "Nordea",
         }
         .into())
     }
