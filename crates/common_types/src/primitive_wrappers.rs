@@ -245,9 +245,10 @@ mod u32_wrappers {
 
 /// Safe string wrapper that validates input against XSS attacks
 mod safe_string {
+    use std::ops::Deref;
+
     use common_utils::validation::contains_potential_xss;
     use serde::{de::Error, Deserialize, Serialize};
-    use std::ops::Deref;
 
     /// String wrapper that prevents XSS attacks
     #[derive(Clone, Debug, Eq, PartialEq)]

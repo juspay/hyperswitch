@@ -84,8 +84,9 @@ pub fn validate_domain_against_allowed_domains(
 
 /// checks whether the input string contains potential XSS attack vectors
 pub fn contains_potential_xss(input: &str) -> bool {
-    use ammonia::Builder as AmmoniaBuilder;
     use std::sync::OnceLock;
+
+    use ammonia::Builder as AmmoniaBuilder;
     let decoded_input = urlencoding::decode(input).unwrap_or_else(|_| input.into());
     let cleaned = AmmoniaBuilder::default()
         .tags(HashSet::new()) // allow no tags
