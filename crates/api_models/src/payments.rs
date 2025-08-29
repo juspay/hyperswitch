@@ -5744,12 +5744,12 @@ pub struct ExternalVaultProxyPaymentsRequest {
 
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and
 // `PaymentsConfirmIntentRequest`
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsRequest {
     /// The amount details for the payment
-    pub amount_details: AmountDetails,
+    pub amount_details: Option<AmountDetails>,
 
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5859,15 +5859,15 @@ pub struct PaymentsRequest {
         Option<common_enums::External3dsAuthenticationRequest>,
 
     /// The payment instrument data to be used for the payment
-    pub payment_method_data: PaymentMethodDataRequest,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
@@ -5899,7 +5899,7 @@ pub struct PaymentsRequest {
 impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
     fn from(request: &PaymentsRequest) -> Self {
         Self {
-            amount_details: request.amount_details.clone(),
+            amount_details: request.amount_details.clone().unwrap(),
             merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
             capture_method: request.capture_method,
@@ -5936,9 +5936,9 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
     fn from(request: &PaymentsRequest) -> Self {
         Self {
             return_url: request.return_url.clone(),
-            payment_method_data: request.payment_method_data.clone(),
-            payment_method_type: request.payment_method_type,
-            payment_method_subtype: request.payment_method_subtype,
+            payment_method_data: request.payment_method_data.clone().unwrap(),
+            payment_method_type: request.payment_method_type.unwrap(),
+            payment_method_subtype: request.payment_method_subtype.unwrap(),
             shipping: request.shipping.clone(),
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),

@@ -899,6 +899,7 @@ where
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
 }
 

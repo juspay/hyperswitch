@@ -1,4 +1,5 @@
 pub mod approve_flow;
+pub mod authenticate_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
@@ -8,6 +9,8 @@ pub mod complete_authorize_flow;
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
+// pub mod postauthenticate_flow;
+pub mod preauthenticate_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -21,7 +24,7 @@ use common_types::payments::CustomerAcceptance;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
+use hyperswitch_domain_models::router_request_types::{PaymentsAuthorizeData, PaymentsCaptureData};
 
 use crate::{
     core::{
@@ -147,6 +150,54 @@ pub trait Feature<F, T> {
         Ok(self)
     }
 
+    async fn preauthenticate_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
+    async fn authenticate_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
+    async fn postauthenticate_steps<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
+    fn has_redirect_response_params<'a>(&self) -> bool
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        false
+    }
+
     async fn postprocessing_steps<'a>(
         self,
         _state: &SessionState,
@@ -217,6 +268,16 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
         Ok(())
+    }
+
+    fn update_connector_flow_in_router_data<G>(self, conn_flow: G) -> Self
+    where
+        F: Clone,
+        G: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<G, T, types::PaymentsResponseData>,
+    {
+        self
     }
 }
 
