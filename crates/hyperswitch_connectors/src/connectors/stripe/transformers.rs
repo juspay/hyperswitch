@@ -2577,13 +2577,19 @@ pub struct StripeAdditionalCardDetails {
     checks: Option<Value>,
     three_d_secure: Option<Value>,
     network_transaction_id: Option<String>,
-    extended_authorization: Option<StripeExtendedAuthorization>,
+    extended_authorization: Option<StripeExtendedAuthorizationResponse>,
     capture_before: Option<i64>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StripeExtendedAuthorizationResponse {
+    status: Option<StripeExtendedAuthorizationStatus>
+}
+
+
+#[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum StripeExtendedAuthorization {
+pub enum StripeExtendedAuthorizationStatus {
     Disabled,
     Enabled,
 }
@@ -2635,7 +2641,7 @@ pub enum StripePaymentMethodDetailsResponse {
 pub struct AdditionalPaymentMethodDetails {
     pub payment_checks: Option<Value>,
     pub authentication_details: Option<Value>,
-    pub extended_authorization: Option<StripeExtendedAuthorization>,
+    pub extended_authorization: Option<StripeExtendedAuthorizationResponse>,
     pub capture_before: Option<i64>,
 }
 
@@ -2657,8 +2663,8 @@ impl TryFrom<&AdditionalPaymentMethodDetails> for ExtendedAuthorizationResponseD
             extended_authentication_applied: item.extended_authorization.as_ref().map(
                 |extended_authorization| {
                     primitive_wrappers::ExtendedAuthorizationAppliedBool::from(matches!(
-                        extended_authorization,
-                        StripeExtendedAuthorization::Enabled
+                        extended_authorization.status,
+                        Some(StripeExtendedAuthorizationStatus::Enabled)
                     ))
                 },
             ),
