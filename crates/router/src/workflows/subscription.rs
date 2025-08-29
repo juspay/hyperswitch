@@ -94,116 +94,113 @@ async fn perform_subscription_mit_payment(
 
     let profile_id = profile.get_id().clone();
 
-    // let billing_connector_details = BillingConnectorDetails {
-    //     connector: tracking_data.connector_name.clone(),
-    //     subscription_id: tracking_data.subscription_id.clone().ok_or_else(|| {
-    //         errors::ProcessTrackerError::SerializationFailed
-    //     })?,
-    //     invoice_id: tracking_data.invoice_id.clone(),
-    // };
+    let billing_connector_details = BillingConnectorDetails {
+        processor_mca: tracking_data.billing_connector_mca_id.clone(),
+        subscription_id: tracking_data.subscription_id.clone().ok_or_else(|| {
+            errors::ProcessTrackerError::SerializationFailed
+        })?,
+        invoice_id: tracking_data.invoice_id.clone(),
+    };
 
-    // logger::debug!(
-    //     "Executing subscription MIT payment for process: {:?}, tracking_data: {:?}",
-    //     process.id,
-    //     tracking_data
-    // );
+    logger::debug!(
+        "Executing subscription MIT payment for process: {:?}, tracking_data: {:?}",
+        process.id,
+        tracking_data
+    );
 
-    // let metadata_value = serde_json::json!({
-    //     "billing_connector_details": billing_connector_details
-    // });
 
-    // // Create MIT payment request with the determined payment_method_id
-    // let mut payment_request = api_types::PaymentsRequest {
-    //     amount: Some(api_types::Amount::from(tracking_data.amount)),
-    //     currency: Some(tracking_data.currency),
-    //     customer_id: tracking_data.customer_id.clone(),
-    //     recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
-    //         tracking_data.payment_method_id.clone(),
-    //     )),
-    //     merchant_id: Some(tracking_data.merchant_id.clone()),
-    //     metadata: Some(metadata_value),
-    //     confirm: Some(true),
-    //     off_session: Some(true),
-    //     ..Default::default()
-    // };
+    // Create MIT payment request with the determined payment_method_id
+    let mut payment_request = api_types::PaymentsRequest {
+        amount: Some(api_types::Amount::from(tracking_data.amount)),
+        currency: Some(tracking_data.currency),
+        customer_id: tracking_data.customer_id.clone(),
+        recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
+            tracking_data.payment_method_id.clone(),
+        )),
+        merchant_id: Some(tracking_data.merchant_id.clone()),
+        billing_processor_details: Some(billing_connector_details),
+        confirm: Some(true),
+        off_session: Some(true),
+        ..Default::default()
+    };
 
-    // logger::debug!(
-    //     "payment_request for subscription MIT payment: {:?}, process_id: {:?}, tracking_data: {:?}",
-    //     payment_request,
-    //     process.id,
-    //     payment_request
-    // );
+    logger::debug!(
+        "payment_request for subscription MIT payment: {:?}, process_id: {:?}, tracking_data: {:?}",
+        payment_request,
+        process.id,
+        payment_request
+    );
 
-    // if let Err(err) = get_or_generate_payment_id(&mut payment_request) {
-    //     return Err(err.into());
-    // }
+    if let Err(err) = get_or_generate_payment_id(&mut payment_request) {
+        return Err(err.into());
+    }
 
-    // // Execute MIT payment
-    // let payment_response = payments::payments_core::<
-    //     api_types::Authorize,
-    //     api_types::PaymentsResponse,
-    //     _,
-    //     _,
-    //     _,
-    //     payments::PaymentData<api_types::Authorize>,
-    // >(
-    //     state.clone(),
-    //     state.get_req_state(),
-    //     merchant_context,
-    //     Some(profile_id),
-    //     payments::PaymentCreate,
-    //     payment_request,
-    //     services::api::AuthFlow::Merchant,
-    //     payments::CallConnectorAction::Trigger,
-    //     None,
-    //     hyperswitch_domain_models::payments::HeaderPayload::with_source(
-    //         common_enums::PaymentSource::Webhook,
-    //     ),
-    // )
-    // .await;
+    // Execute MIT payment
+    let payment_response = payments::payments_core::<
+        api_types::Authorize,
+        api_types::PaymentsResponse,
+        _,
+        _,
+        _,
+        payments::PaymentData<api_types::Authorize>,
+    >(
+        state.clone(),
+        state.get_req_state(),
+        merchant_context,
+        Some(profile_id),
+        payments::PaymentCreate,
+        payment_request,
+        services::api::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        None,
+        hyperswitch_domain_models::payments::HeaderPayload::with_source(
+            common_enums::PaymentSource::Webhook,
+        ),
+    )
+    .await;
 
-    // let payment_res = match payment_response {
-    //     Ok(services::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
-    //     Ok(_) => Err(errors::ProcessTrackerError::FlowExecutionError {
-    //         flow: "SUBSCRIPTION_MIT_PAYMENT",
-    //     }),
-    //     Err(error) => {
-    //         logger::error!(?error);
-    //         Err(errors::ProcessTrackerError::FlowExecutionError {
-    //             flow: "SUBSCRIPTION_MIT_PAYMENT",
-    //         })
-    //     }
-    // }?;
+    let payment_res = match payment_response {
+        Ok(services::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
+        Ok(_) => Err(errors::ProcessTrackerError::FlowExecutionError {
+            flow: "SUBSCRIPTION_MIT_PAYMENT",
+        }),
+        Err(error) => {
+            logger::error!(?error);
+            Err(errors::ProcessTrackerError::FlowExecutionError {
+                flow: "SUBSCRIPTION_MIT_PAYMENT",
+            })
+        }
+    }?;
 
-    // if payment_res.status == common_enums::IntentStatus::Succeeded {
-    //     // Update the process tracker with the payment response
-    //     let updated_process = storage::ProcessTracker {
-    //         id: process.id.clone(),
-    //         status: common_enums::ProcessTrackerStatus::Finish,
-    //         ..process.clone()
-    //     };
+    if payment_res.status == common_enums::IntentStatus::Succeeded {
+        // Update the process tracker with the payment response
+        let updated_process = storage::ProcessTracker {
+            id: process.id.clone(),
+            status: common_enums::ProcessTrackerStatus::Finish,
+            ..process.clone()
+        };
 
-    //     state
-    //         .store
-    //         .as_scheduler()
-    //         .finish_process_with_business_status(
-    //             updated_process.clone(),
-    //             business_status::EXECUTE_WORKFLOW_COMPLETE,
-    //         )
-    //         .await
-    //         .change_context(ProcessTrackerFailure)
-    //         .attach_printable("Failed to update the process tracker")?;
-    // } else {
-    //     // Handle payment failure - log the payment status and return appropriate error
-    //     logger::error!(
-    //         "Payment failed for subscription MIT payment. Payment ID: {:?}, Status: {:?}",
-    //         payment_res.payment_id,
-    //         payment_res.status
-    //     );
-    //     return Err(errors::ProcessTrackerError::FlowExecutionError {
-    //         flow: "SUBSCRIPTION_MIT_PAYMENT",
-    //     });
-    // }
+        state
+            .store
+            .as_scheduler()
+            .finish_process_with_business_status(
+                updated_process.clone(),
+                business_status::EXECUTE_WORKFLOW_COMPLETE,
+            )
+            .await
+            .change_context(ProcessTrackerFailure)
+            .attach_printable("Failed to update the process tracker")?;
+    } else {
+        // Handle payment failure - log the payment status and return appropriate error
+        logger::error!(
+            "Payment failed for subscription MIT payment. Payment ID: {:?}, Status: {:?}",
+            payment_res.payment_id,
+            payment_res.status
+        );
+        return Err(errors::ProcessTrackerError::FlowExecutionError {
+            flow: "SUBSCRIPTION_MIT_PAYMENT",
+        });
+    }
 
     Ok(())
 }

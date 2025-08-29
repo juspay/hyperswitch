@@ -253,7 +253,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .decode_webhook_body(
                     &request_details,
                     merchant_context.get_merchant_account().get_id(),
-                    merchant_connector_account
+                    merchant_connector_account.clone()
                         .and_then(|mca| mca.connector_webhook_details.clone()),
                     &connector_name,
                 )
@@ -318,6 +318,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
+                merchant_connector_account.unwrap().merchant_connector_id,
             )
             .await;
 
@@ -500,6 +501,7 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
+    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -799,6 +801,7 @@ async fn process_webhook_business_logic(
                 &connector,
                 &request_details,
                 event_type,
+                billing_connector_mca_id,
             ))
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
@@ -2519,6 +2522,7 @@ async fn subscription_incoming_webhook_flow(
     connector: &ConnectorEnum,
     _request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
+    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     // Only process invoice_generated events for MIT payments
     if event_type != webhooks::IncomingWebhookEvent::InvoiceGenerated {
@@ -2604,6 +2608,7 @@ async fn subscription_incoming_webhook_flow(
             currency: mit_payment_data.currency_code,
             customer_id: mit_payment_data.customer_id,
             connector_name: connector.id().to_string(),
+            billing_connector_mca_id: billing_connector_mca_id.clone(),
         };
 
     // Create process tracker entry for subscription MIT payment
