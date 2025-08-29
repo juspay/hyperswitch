@@ -7243,25 +7243,6 @@ pub async fn validate_routing_id_with_profile_id(
     Ok(())
 }
 
-pub async fn get_mca_connector_type(
-    state: &SessionState,
-    merchant_connector_id: &id_type::MerchantConnectorAccountId,
-    merchant_context: &domain::MerchantContext,
-) -> RouterResult<ConnectorType> {
-    let db = &*state.store;
-    let mca = db
-        .find_merchant_connector_account_by_id(
-            &state.into(),
-            merchant_connector_id,
-            merchant_context.get_merchant_key_store(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch merchant connector account")?;
-
-    Ok(mca.connector_type)
-}
-
 #[cfg(feature = "v1")]
 pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     state: &SessionState,

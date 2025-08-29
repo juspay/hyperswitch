@@ -13,14 +13,12 @@ use common_utils::{
     generate_id,
 };
 use common_utils::{errors::CustomResult, id_type};
-#[cfg(feature = "v1")]
-use diesel_models::payment_method::{
-    PaymentsMandateReference as DieselPaymentsMandateReference,
-    PaymentsMandateReferenceRecord as DieselPaymentsMandateReferenceRecord,
-    PayoutsMandateReference as DieselPayoutsMandateReference,
-    PayoutsMandateReferenceRecord as DieselPayoutsMandateReferenceRecord,
-};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+    PayoutsMandateReference, PayoutsMandateReferenceRecord,
+};
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
     payment_methods::PaymentMethodUpdate,
@@ -200,7 +198,10 @@ pub async fn update_payment_method_record(
 );
     }
 
-    let existing_connector_mandate_details = payment_method.connector_mandate_details.clone();
+    let mandate_details = payment_method
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
 
     let updated_connector_mandate_details =
         match (&req.payment_instrument_id, &req.merchant_connector_id) {
@@ -213,19 +214,12 @@ pub async fn update_payment_method_record(
                 );
                 if is_mca_connector_type_payout {
                     // Handle PayoutsMandateReference
-                    let mut existing_payouts_mandate =
-                        if let Some(existing_details) = &existing_connector_mandate_details {
-                            serde_json::from_value::<DieselPayoutsMandateReference>(
-                                existing_details.clone(),
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to parse existing payout mandate details")?
-                        } else {
-                            DieselPayoutsMandateReference(HashMap::new())
-                        };
+                    let mut existing_payouts_mandate = mandate_details
+                        .payouts
+                        .unwrap_or_else(|| PayoutsMandateReference(HashMap::new()));
 
                     // Create new payout mandate record
-                    let new_payout_record = DieselPayoutsMandateReferenceRecord {
+                    let new_payout_record = PayoutsMandateReferenceRecord {
                         transfer_method_id: Some(payment_instrument_id.peek().to_string()),
                     };
 
@@ -238,99 +232,66 @@ pub async fn update_payment_method_record(
                             existing_record.transfer_method_id = Some(transfer_method_id.clone());
                         }
                     } else {
-                        // Insert new record
+                        // Insert new record in connector_mandate_details
                         existing_payouts_mandate
                             .0
                             .insert(merchant_connector_id.clone(), new_payout_record);
                     }
 
-                    // Serialize back to JSON
-                    Some(
-                        serde_json::to_value(&existing_payouts_mandate)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to serialize updated payout mandate details",
-                            )?,
-                    )
+                    // Create updated CommonMandateReference preserving payments section
+                    CommonMandateReference {
+                        payments: mandate_details.payments,
+                        payouts: Some(existing_payouts_mandate),
+                    }
                 } else {
                     // Handle PaymentsMandateReference
-                    let mut existing_payments_mandate =
-                        if let Some(existing_details) = &existing_connector_mandate_details {
-                            serde_json::from_value::<DieselPaymentsMandateReference>(
-                                existing_details.clone(),
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to parse existing payment mandate details")?
-                        } else {
-                            DieselPaymentsMandateReference(HashMap::new())
-                        };
-
-                    // Create new payment mandate record
-                    let new_payment_record = DieselPaymentsMandateReferenceRecord {
-                        connector_mandate_id: payment_instrument_id.peek().to_string(),
-                        payment_method_type: None,
-                        original_payment_authorized_amount: None,
-                        original_payment_authorized_currency: None,
-                        mandate_metadata: None,
-                        connector_mandate_status: None,
-                        connector_mandate_request_reference_id: None,
-                    };
+                    let mut existing_payments_mandate = mandate_details
+                        .payments
+                        .unwrap_or_else(|| PaymentsMandateReference(HashMap::new()));
 
                     // Check if record exists for this merchant_connector_id
                     if let Some(existing_record) =
                         existing_payments_mandate.0.get_mut(merchant_connector_id)
                     {
-                        // Update only fields that have values in new record
                         existing_record.connector_mandate_id =
-                            new_payment_record.connector_mandate_id.clone();
-                        if let Some(payment_method_type) = new_payment_record.payment_method_type {
-                            existing_record.payment_method_type = Some(payment_method_type);
-                        }
-                        if let Some(amount) = new_payment_record.original_payment_authorized_amount
-                        {
-                            existing_record.original_payment_authorized_amount = Some(amount);
-                        }
-                        if let Some(currency) =
-                            new_payment_record.original_payment_authorized_currency
-                        {
-                            existing_record.original_payment_authorized_currency = Some(currency);
-                        }
-                        if let Some(metadata) = new_payment_record.mandate_metadata {
-                            existing_record.mandate_metadata = Some(metadata);
-                        }
-                        if let Some(status) = new_payment_record.connector_mandate_status {
-                            existing_record.connector_mandate_status = Some(status);
-                        }
-                        if let Some(ref_id) =
-                            new_payment_record.connector_mandate_request_reference_id
-                        {
-                            existing_record.connector_mandate_request_reference_id = Some(ref_id);
-                        }
+                            payment_instrument_id.peek().to_string();
                     } else {
-                        // Insert new record
-                        existing_payments_mandate
-                            .0
-                            .insert(merchant_connector_id.clone(), new_payment_record);
+                        // Insert new record in connector_mandate_details
+                        existing_payments_mandate.0.insert(
+                            merchant_connector_id.clone(),
+                            PaymentsMandateReferenceRecord {
+                                connector_mandate_id: payment_instrument_id.peek().to_string(),
+                                payment_method_type: None,
+                                original_payment_authorized_amount: None,
+                                original_payment_authorized_currency: None,
+                                mandate_metadata: None,
+                                connector_mandate_status: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        );
                     }
 
-                    // Serialize back to JSON
-                    Some(
-                        serde_json::to_value(&existing_payments_mandate)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to serialize updated payment mandate details",
-                            )?,
-                    )
+                    // Create updated CommonMandateReference preserving payouts section
+                    CommonMandateReference {
+                        payments: Some(existing_payments_mandate), // Updated payments
+                        payouts: mandate_details.payouts,          // Preserve existing payouts
+                    }
                 }
             }
             _ => {
                 // If payment_instrument_id or merchant_connector_id is missing, keep existing details
-                existing_connector_mandate_details
+                mandate_details
             }
         };
+    let connector_mandate_details_value = updated_connector_mandate_details
+        .get_mandate_details_value()
+        .map_err(|err| {
+            logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+            errors::ApiErrorResponse::MandateUpdateFailed
+        })?;
     let pm_update =
         PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
-            connector_mandate_details: updated_connector_mandate_details,
+            connector_mandate_details: Some(connector_mandate_details_value),
             network_transaction_id,
             status,
         };

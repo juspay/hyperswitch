@@ -414,7 +414,7 @@ pub async fn migrate_payment_methods(
 }
 
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchUpdate))]
 pub async fn update_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
