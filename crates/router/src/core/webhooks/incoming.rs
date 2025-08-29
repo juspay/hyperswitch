@@ -2516,7 +2516,7 @@ async fn subscription_incoming_webhook_flow(
     merchant_context: domain::MerchantContext,
     business_profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
-    _source_verified: bool,
+    source_verified: bool,
     connector: &ConnectorEnum,
     _request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
@@ -2527,12 +2527,12 @@ async fn subscription_incoming_webhook_flow(
         return Ok(WebhookResponseTracker::NoEffect);
     }
 
-    // if !source_verified {
-    //     logger::error!("Webhook source verification failed for subscription webhook flow");
-    //     return Err(report!(
-    //         errors::ApiErrorResponse::WebhookAuthenticationFailed
-    //     ));
-    // }
+    if !source_verified {
+        logger::error!("Webhook source verification failed for subscription webhook flow");
+        return Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ));
+    }
 
     // Parse the webhook body to extract MIT payment data
     let mit_payment_data = match connector.id() {
