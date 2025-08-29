@@ -4,7 +4,6 @@ pub mod models {
     use common_utils::pii::SecretSerdeValue;
     use masking::Secret;
     use serde::{Deserialize, Serialize};
-    use url::Url;
 
     // Enums for the injector - making it standalone
 
@@ -74,7 +73,7 @@ pub mod models {
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct ConnectionConfig {
         /// Base URL of the connector endpoint
-        pub base_url: Url,
+        pub base_url: String,
         /// Path to append to the base URL for the specific endpoint
         pub endpoint_path: String,
         /// HTTP method to use for the request
@@ -151,7 +150,7 @@ pub mod models {
     #[derive(Clone, Debug)]
     pub struct DomainConnectionConfig {
         /// Base URL of the connector endpoint
-        pub base_url: Url,
+        pub base_url: String,
         /// Path to append to the base URL for the specific endpoint
         pub endpoint_path: String,
         /// HTTP method to use for the request

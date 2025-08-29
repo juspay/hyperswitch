@@ -393,13 +393,8 @@ pub mod core {
                 )))?;
             }
 
-            // Construct URL safely by joining base URL with endpoint path
-            let url = config.base_url.join(&config.endpoint_path).map_err(|e| {
-                logger::error!("Failed to join base URL with endpoint path: {}", e);
-                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid URL construction: {e}"
-                )))
-            })?;
+            // Construct URL by concatenating base URL with endpoint path
+            let url = format!("{}{}", config.base_url, config.endpoint_path);
 
             logger::debug!("Constructed URL: {}", url);
 
@@ -448,7 +443,7 @@ pub mod core {
             // Build request safely
             let mut request_builder = RequestBuilder::new()
                 .method(method)
-                .url(url.as_str())
+                .url(&url)
                 .headers(headers);
 
             if let Some(content) = request_content {
@@ -746,7 +741,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://api.stripe.com".parse().unwrap(),
+                base_url: "https://api.stripe.com".to_string(),
                 endpoint_path: "/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
@@ -823,11 +818,11 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://api.stripe.com".parse().unwrap(),
+                base_url: "https://api.stripe.com".to_string(),
                 endpoint_path: "/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
-                proxy_url: Some("https://proxy.example.com:8443".parse().unwrap()),
+                proxy_url: Some(masking::Secret::new("https://proxy.example.com:8443".to_string())),
                 // Certificate configuration - using insecure for testing
                 client_cert: None,
                 client_key: None,
