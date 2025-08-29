@@ -4084,11 +4084,8 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
 });
 
 Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
-  cy.setConfigs(globalState, key, value, "CREATE").then((response) => {
-    if (response.status !== 200) {
-      cy.setConfigs(globalState, key, value, "UPDATE");
-    }
-  });
+  cy.setConfigs(globalState, key, value, "DELETE");
+  cy.setConfigs(globalState, key, value, "CREATE");
 });
 
 // UCS Configuration Commands
@@ -4103,7 +4100,7 @@ Cypress.Commands.add("setupUCSConfigs", (globalState, connector) => {
   ];
 
   rolloutConfigs.forEach((key) => {
-    cy.setupConfigs(globalState, key, "1.0");
+    cy.setConfigs(globalState, key, "1.0", "CREATE");
   });
 });
 
@@ -4116,10 +4113,10 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   ];
 
   rolloutConfigs.forEach((key) => {
-    cy.setConfigs(globalState, key, null, "DELETE");
+    cy.setConfigs(globalState, key, "1.0", "DELETE");
   });
 
-  cy.setConfigs(globalState, "ucs_enabled", null, "DELETE");
+  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
 // DDC Race Condition Test Commands
