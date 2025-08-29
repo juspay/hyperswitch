@@ -1182,12 +1182,12 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             let new_retry_count = process.retry_count + 1;
             let new_schedule_time = common_utils::date_time::now() + time::Duration::hours(state.conf.revenue_recovery.recovery_timestamp.reopen_workflow_buffer_time_in_hours);
             let new_schedule_time = common_utils::date_time::now()
-                + time::Duration::hours(
+                + time::Duration::minutes(
                     state
                         .conf
                         .revenue_recovery
                         .recovery_timestamp
-                        .reopen_workflow_buffer_time_in_hours,
+                        .reopen_workflow_buffer_time_in_minutes,
                 );
 
             let pt_update = storage::ProcessTrackerUpdate::Update {

@@ -79,7 +79,7 @@ pub struct RevenueRecoverySettings {
 pub struct RecoveryTimestamp {
     pub initial_timestamp_in_hours: i64,
     pub job_schedule_buffer_time_in_minutes: i64,
-    pub reopen_workflow_buffer_time_in_hours: i64,
+    pub reopen_workflow_buffer_time_in_minutes: i64,
     pub max_random_schedule_delay_in_seconds: i64,
 }
 
@@ -88,7 +88,7 @@ impl Default for RecoveryTimestamp {
         Self {
             initial_timestamp_in_hours: 1,
             job_schedule_buffer_time_in_minutes: 15,
-            reopen_workflow_buffer_time_in_hours: 1,
+            reopen_workflow_buffer_time_in_minutes: 60,
             max_random_schedule_delay_in_seconds: 300,
         }
     }
