@@ -371,7 +371,6 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 feature_metadata: intent.feature_metadata,
                 payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),
-                split_txns_enabled: Some(intent.split_txns_enabled),
                 session_expiry: Some(intent.session_expiry),
                 frm_metadata: intent.frm_metadata,
                 request_external_three_ds_authentication: Some(

@@ -30,7 +30,6 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
-        DbSplitTxnsEnabled as SplitTxnsEnabled,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -2874,13 +2873,13 @@ pub enum RequestIncrementalAuthorization {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SplitTxnsEnabled {
-    True,
+    Enable,
     #[default]
-    False,
+    Skip,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]

@@ -639,7 +639,7 @@ impl PaymentIntent {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .unwrap_or_default(),
-            split_txns_enabled: request.split_txns_enabled.unwrap_or_default(),
+            split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,

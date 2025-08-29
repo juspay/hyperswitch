@@ -2039,16 +2039,6 @@ impl super::External3dsAuthenticationRequest {
     }
 }
 
-/// Get the boolean value of the `SplitTxnsEnabled`.
-impl super::SplitTxnsEnabled {
-    pub fn as_bool(&self) -> bool {
-        match self {
-            Self::True => true,
-            Self::False => false,
-        }
-    }
-}
-
 impl super::EnablePaymentLinkRequest {
     pub fn as_bool(&self) -> bool {
         match self {

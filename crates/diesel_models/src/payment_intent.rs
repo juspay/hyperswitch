@@ -675,7 +675,6 @@ pub struct PaymentIntentUpdateInternal {
     pub feature_metadata: Option<FeatureMetadata>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
-    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub request_external_three_ds_authentication: Option<bool>,
@@ -719,7 +718,6 @@ impl PaymentIntentUpdateInternal {
             feature_metadata,
             payment_link_config,
             request_incremental_authorization,
-            split_txns_enabled,
             session_expiry,
             frm_metadata,
             request_external_three_ds_authentication,
@@ -766,7 +764,6 @@ impl PaymentIntentUpdateInternal {
             payment_link_config: payment_link_config.or(source.payment_link_config),
             request_incremental_authorization: request_incremental_authorization
                 .or(source.request_incremental_authorization),
-            split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
             session_expiry: session_expiry.unwrap_or(source.session_expiry),
             frm_metadata: frm_metadata.or(source.frm_metadata),
             request_external_three_ds_authentication: request_external_three_ds_authentication
@@ -805,6 +802,7 @@ impl PaymentIntentUpdateInternal {
             duty_amount: source.duty_amount,
             order_date: source.order_date,
             enable_partial_authorization: None,
+            split_txns_enabled: source.split_txns_enabled,
         }
     }
 }

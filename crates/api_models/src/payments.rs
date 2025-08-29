@@ -290,10 +290,6 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<RequestIncrementalAuthorization>)]
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
-    /// Enable split payments, i.e., split the amount between multiple payment methods
-    #[schema(value_type = Option<SplitTxnsEnabled>)]
-    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
     #[schema(example = 900)]
@@ -648,7 +644,7 @@ pub struct PaymentsIntentResponse {
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
     /// Enable split payments, i.e., split the amount between multiple payment methods
-    #[schema(value_type = Option<SplitTxnsEnabled>)]
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
@@ -5809,10 +5805,6 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RequestIncrementalAuthorization>)]
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
 
-    /// Enable split payments, i.e., split the amount between multiple payment methods
-    #[schema(value_type = Option<SplitTxnsEnabled>)]
-    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds, if not sent it will be taken from profile config
     ///(900) for 15 mins
     #[schema(example = 900)]
@@ -5894,7 +5886,6 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             frm_metadata: request.frm_metadata.clone(),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication,
-            split_txns_enabled: request.split_txns_enabled,
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
         }

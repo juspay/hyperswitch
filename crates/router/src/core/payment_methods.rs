@@ -3362,7 +3362,6 @@ fn construct_zero_auth_payments_request(
         payment_link_enabled: None,
         payment_link_config: None,
         request_incremental_authorization: None,
-        split_txns_enabled: None,
         session_expiry: None,
         frm_metadata: None,
         request_external_three_ds_authentication: None,

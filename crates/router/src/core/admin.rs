@@ -3645,6 +3645,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
         }))
     }
 }
@@ -4133,6 +4134,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
+                split_txns_enabled: self.split_txns_enabled,
             },
         )))
     }
