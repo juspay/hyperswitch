@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
         RecoveryRecordBack,
     },
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_request_types::subscriptions::SubscriptionsRecordBackRequest,
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
@@ -291,6 +292,7 @@ pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
     InvoiceDeleted,
+    InvoiceGenerated,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -301,6 +303,11 @@ pub struct ChargebeeInvoiceData {
     pub currency_code: enums::Currency,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+    // New fields for invoice_generated webhook
+    pub status: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub subscription_id: Option<String>,
+    pub first_invoice: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -415,6 +422,36 @@ impl ChargebeeInvoiceBody {
     }
 }
 
+// Structure to extract MIT payment data from invoice_generated webhook
+#[derive(Debug, Clone)]
+pub struct ChargebeeMitPaymentData {
+    pub invoice_id: String,
+    pub amount_due: MinorUnit,
+    pub currency_code: enums::Currency,
+    pub status: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub subscription_id: Option<String>,
+    pub first_invoice: bool,
+}
+
+impl TryFrom<ChargebeeInvoiceBody> for ChargebeeMitPaymentData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    
+    fn try_from(webhook_body: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let invoice = webhook_body.content.invoice;
+        
+        Ok(Self {
+            invoice_id: invoice.id,
+            amount_due: invoice.total,
+            currency_code: invoice.currency_code,
+            status: invoice.status.unwrap_or_else(|| "payment_due".to_string()),
+            customer_id: invoice.customer_id,
+            subscription_id: invoice.subscription_id,
+            first_invoice: invoice.first_invoice.unwrap_or(false),
+        })
+    }
+}
+
 pub struct ChargebeeMandateDetails {
     pub customer_id: String,
     pub mandate_id: String,
@@ -515,10 +552,26 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             retry_count,
             invoice_next_billing_time,
             invoice_billing_started_at_time,
-            card_network: Some(payment_method_details.card.brand),
-            card_isin: Some(payment_method_details.card.iin),
             // This field is none because it is specific to stripebilling.
             charge_id: None,
+            // Need to populate these card info field
+            card_info: api_models::payments::AdditionalCardInfo {
+                card_network: Some(payment_method_details.card.brand),
+                card_isin: Some(payment_method_details.card.iin),
+                card_issuer: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                last4: None,
+                card_extended_bin: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+                payment_checks: None,
+                authentication_data: None,
+                is_regulated: None,
+                signature_network: None,
+            },
         })
     }
 }
@@ -559,6 +612,18 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            ChargebeeEventType::InvoiceGenerated => todo!(),
+        }
+    }
+}
+#[cfg(feature = "v1")]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::PaymentIntentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::PaymentIntentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::EventNotSupported,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
         }
     }
 }
@@ -718,6 +783,67 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
         }
     }
 }
+#[cfg(feature = "v1")]
+impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionRecordBackRouterData>>
+    for ChargebeeRecordPaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionRecordBackRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        Ok(Self {
+            amount: req.amount,
+            payment_method: ChargebeeRecordPaymentMethod::Other,
+            connector_payment_id: req
+                .connector_transaction_id
+                .as_ref()
+                .map(|connector_payment_id| connector_payment_id.get_id().to_string()),
+            status: ChargebeeRecordStatus::try_from(req.attempt_status)?,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(status: enums::AttemptStatus) -> Result<Self, Self::Error> {
+        match status {
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => Ok(Self::Success),
+            enums::AttemptStatus::Failure
+            | enums::AttemptStatus::CaptureFailed
+            | enums::AttemptStatus::RouterDeclined => Ok(Self::Failure),
+            enums::AttemptStatus::AuthenticationFailed
+            | enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::PartiallyAuthorized
+            | enums::AttemptStatus::AuthorizationFailed
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::VoidedPostCharge
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::VoidFailed
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::Pending
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | enums::AttemptStatus::IntegrityFailure
+            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
+                message: "Record back flow is only supported for terminal status".to_string(),
+                connector: "chargebee",
+            }
+            .into()),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeRecordbackResponse {
@@ -745,6 +871,35 @@ impl
             RecoveryRecordBack,
             ChargebeeRecordbackResponse,
             RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_reference_id = item.response.invoice.id;
+        Ok(Self {
+            response: Ok(RevenueRecoveryRecordBackResponse {
+                merchant_reference_id,
+            }),
+            ..item.data
+        })
+    }
+}
+#[cfg(feature = "v1")]
+impl
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            ChargebeeRecordbackResponse,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
+        >,
+    > for hyperswitch_domain_models::types::SubscriptionRecordBackRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+            ChargebeeRecordbackResponse,
+            SubscriptionsRecordBackRequest,
             RevenueRecoveryRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {

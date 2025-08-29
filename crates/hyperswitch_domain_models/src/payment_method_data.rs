@@ -672,6 +672,7 @@ pub struct JCSVoucherData {}
 pub enum GiftCardData {
     Givex(GiftCardDetails),
     PaySafeCard {},
+    BhnCardNetwork(BHNGiftCardDetails),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -681,6 +682,19 @@ pub struct GiftCardDetails {
     pub number: Secret<String>,
     /// The card verification code.
     pub cvc: Secret<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct BHNGiftCardDetails {
+    /// The gift card or account number
+    pub account_number: Secret<String>,
+    /// The security PIN for gift cards requiring it
+    pub pin: Option<Secret<String>>,
+    /// The CVV2 code for Open Loop/VPLN products
+    pub cvv2: Option<Secret<String>>,
+    /// The expiration date in MMYYYY format for Open Loop/VPLN products
+    pub expiration_date: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
@@ -1545,6 +1559,14 @@ impl From<api_models::payments::GiftCardData> for GiftCardData {
                 cvc: details.cvc,
             }),
             api_models::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+            api_models::payments::GiftCardData::BhnCardNetwork(details) => {
+                Self::BhnCardNetwork(BHNGiftCardDetails {
+                    account_number: details.account_number,
+                    pin: details.pin,
+                    cvv2: details.cvv2,
+                    expiration_date: details.expiration_date,
+                })
+            }
         }
     }
 }
@@ -1568,6 +1590,7 @@ impl From<GiftCardData> for payment_additional_types::GiftCardAdditionalData {
                 },
             )),
             GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+            GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork {},
         }
     }
 }
@@ -2138,6 +2161,7 @@ impl GetPaymentMethodType for GiftCardData {
         match self {
             Self::Givex(_) => api_enums::PaymentMethodType::Givex,
             Self::PaySafeCard {} => api_enums::PaymentMethodType::PaySafeCard,
+            Self::BhnCardNetwork(_) => api_enums::PaymentMethodType::BhnCardNetwork,
         }
     }
 }

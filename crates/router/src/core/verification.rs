@@ -117,11 +117,16 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .unwrap_or_default();
 
     #[cfg(feature = "v2")]
-    let verified_domains = {
-        let _ = merchant_connector_id;
-        let _ = key_store;
-        todo!()
-    };
+    let verified_domains = db
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?
+        .applepay_verified_domains
+        .unwrap_or_default();
 
     Ok(services::api::ApplicationResponse::Json(
         verifications::ApplepayVerifiedDomainsResponse { verified_domains },

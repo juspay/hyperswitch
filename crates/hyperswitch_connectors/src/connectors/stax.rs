@@ -1002,7 +1002,8 @@ static STAX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Stax",
     description:
         "Stax is a payment processing platform that helps businesses accept payments and manage their payment ecosystem ",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static STAX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

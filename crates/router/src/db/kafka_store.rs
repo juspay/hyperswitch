@@ -1827,12 +1827,12 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<api_models::enums::Connector>,
-        payment_method_type: Option<common_enums::PaymentMethod>,
-        payment_method_subtype: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-        card_network: Option<common_enums::CardNetwork>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -2338,6 +2338,16 @@ impl PaymentMethodInterface for KafkaStore {
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_ids_by_billing_connector_subscription_id(
+        &self,
+        subscription_id: &str,
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_ids_by_billing_connector_subscription_id(subscription_id)
             .await
     }
 }

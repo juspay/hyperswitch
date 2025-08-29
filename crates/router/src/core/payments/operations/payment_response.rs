@@ -277,6 +277,43 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             } else {
                 None
             };
+
+            if let Some(ref pm_id) = payment_method_id {
+                let billing_processor_detail = payment_data
+                    .payment_intent
+                    .billing_processor_details
+                    .clone();
+
+                if let Some((details, cust_id)) = billing_processor_detail.zip(customer_id) {
+                    let merchant_id = &payment_data.payment_intent.merchant_id;
+                    // Update subscription record with the payment method id
+
+                    let subscription_record = state
+                        .store
+                        .find_by_merchant_id_customer_id_subscription_id(
+                            merchant_id,
+                            &cust_id,
+                            details.subscription_id.clone(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: format!(
+                                "subscription not found for id: {}",
+                                &details.subscription_id
+                            ),
+                        })?;
+
+                    let udpate = storage::SubscriptionUpdate::new(None, Some(pm_id.clone()));
+
+                    state
+                        .store
+                        .update_subscription_entry(subscription_record.id.clone(), udpate)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to update subscription with payment method")?;
+                }
+            }
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
                 .clone()
@@ -1726,6 +1763,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 types::ResponseId::ConnectorTransactionId(ref id)
                                 | types::ResponseId::EncodedData(ref id) => Some(id),
                             };
+                            let resp_network_transaction_id = router_data.response.as_ref()
+                                .map_err(|err| {
+                                    logger::error!(error = ?err, "Failed to obtain the network_transaction_id from payment response");
+                                })
+                                .ok()
+                                .and_then(|resp| resp.get_network_transaction_id());
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
@@ -1932,6 +1975,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .payment_attempt
                                             .setup_future_usage_applied,
                                         debit_routing_savings,
+                                        network_transaction_id: resp_network_transaction_id,
                                     }),
                                 ),
                             };

@@ -38,7 +38,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::events::connector_api_logs::ConnectorEvent;
@@ -402,6 +404,7 @@ impl IncomingWebhook for Adyenplatform {
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
+                webhook_body.data.category.as_ref(),
             ))
         }
         #[cfg(not(feature = "payouts"))]
@@ -430,4 +433,23 @@ impl IncomingWebhook for Adyenplatform {
     }
 }
 
-impl ConnectorSpecifications for Adyenplatform {}
+static ADYENPLATFORM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Adyen Platform",
+    description: "Adyen Platform for marketplace payouts and disbursements",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Adyenplatform {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&ADYENPLATFORM_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

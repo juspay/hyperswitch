@@ -489,7 +489,8 @@ static CASHTOCODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "CashToCode",
         description:
             "CashToCode is a payment solution that enables users to convert cash into digital vouchers for online transactions",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static CASHTOCODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

@@ -297,6 +297,7 @@ pub async fn generate_sample_data(
             tax_status: None,
             shipping_amount_tax: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -391,6 +392,7 @@ pub async fn generate_sample_data(
             setup_future_usage_applied: None,
             routing_approach: None,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

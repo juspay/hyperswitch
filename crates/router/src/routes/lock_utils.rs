@@ -331,6 +331,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
             | Flow::CreateRole
+            | Flow::CreateRoleV2
             | Flow::UpdateRole
             | Flow::UserFromEmail
             | Flow::ListUsersInLineage => Self::UserRole,

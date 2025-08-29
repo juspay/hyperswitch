@@ -749,7 +749,8 @@ static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 static FLEXITI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Flexiti",
     description: "Flexiti connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static FLEXITI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

@@ -10,6 +10,7 @@ import type {
 // Import from TypeScript version
 import silverflowApp from "./Connectors/Silverflow.ts";
 import celeroApp from "./Connectors/Celero.ts";
+import affirmApp from "./Connectors/Affirm.ts";
 
 // TODO: Update to import from TypeScript version once fully tested
 // import silverflowApp from "./Silverflow";
@@ -21,6 +22,7 @@ interface MockRouters {
 const mockRouters: MockRouters = {
   silverflow: silverflowApp,
   celero: celeroApp,
+  affirm: affirmApp,
 };
 
 // Create a router

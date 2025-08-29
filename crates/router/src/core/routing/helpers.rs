@@ -2307,19 +2307,6 @@ pub async fn create_specific_dynamic_routing_setup(
         }
     };
 
-    if state.conf.open_router.dynamic_routing_enabled {
-        enable_decision_engine_dynamic_routing_setup(
-            state,
-            business_profile.get_id(),
-            dynamic_routing_type,
-            &mut dynamic_routing_algo_ref,
-            Some(payload),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
-    }
-
     let record = db
         .insert_routing_algorithm(algo)
         .await
@@ -2599,7 +2586,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
     );
     let request = open_router::GetDecisionEngineConfigRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
-        config: dynamic_routing_type,
+        algorithm: dynamic_routing_type,
     };
     let response: Option<open_router::DecisionEngineConfigSetupRequest> =
         routing_utils::ConfigApiClient::send_decision_engine_request(

@@ -66,6 +66,8 @@ pub enum IncomingWebhookEvent {
     RecoveryPaymentPending,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
+    #[cfg(feature = "v1")]
+    InvoiceGenerated,
 }
 
 pub enum WebhookFlow {
@@ -236,6 +238,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
+            #[cfg(feature = "v1")]
+            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
         }
     }
 }

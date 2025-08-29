@@ -888,7 +888,8 @@ static JPMORGAN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Jpmorgan",
         description:
             "J.P. Morgan is a global financial services firm and investment bank, offering banking, asset management, and payment processing solutions",
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+        connector_type: enums::HyperswitchConnectorCategory::BankAcquirer,
+        integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 
 static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

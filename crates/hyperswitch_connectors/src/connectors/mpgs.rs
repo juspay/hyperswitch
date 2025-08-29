@@ -603,7 +603,8 @@ static MPGS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static MPGS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Mpgs",
     description: "Mpgs connector",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static MPGS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

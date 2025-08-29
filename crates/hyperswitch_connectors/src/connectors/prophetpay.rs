@@ -746,7 +746,8 @@ static PROPHETPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static PROPHETPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Prophetpay",
         description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static PROPHETPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

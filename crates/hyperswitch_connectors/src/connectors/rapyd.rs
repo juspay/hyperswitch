@@ -1037,7 +1037,8 @@ lazy_static! {
         display_name: "Rapyd",
         description:
             "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref RAPYD_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Disputes];

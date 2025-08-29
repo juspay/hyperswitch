@@ -123,6 +123,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub billing_processor_details: Option<api_models::payments::BillingConnectorDetails>,
 }
 
 impl PaymentIntent {
@@ -518,6 +519,26 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    /// Extract customer_id from payment intent feature metadata
+    pub fn extract_connector_customer_id_from_payment_intent(
+        &self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery| {
+                recovery
+                    .billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+            .ok_or(
+                common_utils::errors::ValidationError::MissingRequiredField {
+                    field_name: "connector_customer_id".to_string(),
+                },
+            )
+    }
+
     fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.feature_metadata
             .as_ref()
@@ -752,10 +773,25 @@ impl PaymentIntent {
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: None,
-            card_isin: None,
-            card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
+            card_info: api_models::payments::AdditionalCardInfo {
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                last4: None,
+                card_isin: None,
+                card_extended_bin: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+                payment_checks: None,
+                authentication_data: None,
+                is_regulated: None,
+                signature_network: None,
+            },
         })
     }
 

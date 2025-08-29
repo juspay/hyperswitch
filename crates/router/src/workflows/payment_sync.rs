@@ -1,11 +1,18 @@
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers::{
+    perform_billing_processor_record_back,
+};
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
+
+
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
+
 
 use crate::{
     consts,
@@ -112,7 +119,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     .store
                     .as_scheduler()
                     .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
-                    .await?
+                    .await?;
+
+                // call to subsription connector
+                perform_billing_processor_record_back(state, &mut payment_data, &key_store).await?;
             }
             _ => {
                 let connector = payment_data

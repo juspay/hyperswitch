@@ -1,5 +1,5 @@
 use actix_web::{web, Responder};
-use api_models::payments as payments_api;
+use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{

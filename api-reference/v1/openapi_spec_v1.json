@@ -8593,6 +8593,33 @@
           "unresolved"
         ]
       },
+      "BHNGiftCardDetails": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "pin",
+          "cvv2",
+          "expiration_date"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "The gift card or account number"
+          },
+          "pin": {
+            "type": "string",
+            "description": "The security PIN for gift cards requiring it"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "The CVV2 code for Open Loop/VPLN products"
+          },
+          "expiration_date": {
+            "type": "string",
+            "description": "The expiration date in MMYYYY format for Open Loop/VPLN products"
+          }
+        }
+      },
       "BacsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -11804,6 +11831,7 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
           "archipel",
           "authorizedotnet",
@@ -11814,6 +11842,7 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "blackhawknetwork",
           "bluecode",
           "boku",
           "braintree",
@@ -11957,7 +11986,10 @@
         "type": "object",
         "required": [
           "name",
-          "supported_payment_methods"
+          "display_name",
+          "description",
+          "category",
+          "integration_status"
         ],
         "properties": {
           "name": {
@@ -11966,28 +11998,25 @@
           },
           "display_name": {
             "type": "string",
-            "description": "The display name of the connector",
-            "nullable": true
+            "description": "The display name of the connector"
           },
           "description": {
             "type": "string",
-            "description": "The description of the connector",
-            "nullable": true
+            "description": "The description of the connector"
           },
           "category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/HyperswitchConnectorCategory"
+          },
+          "integration_status": {
+            "$ref": "#/components/schemas/ConnectorIntegrationStatus"
           },
           "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
             },
-            "description": "The list of payment methods supported by the connector"
+            "description": "The list of payment methods supported by the connector",
+            "nullable": true
           },
           "supported_webhook_flows": {
             "type": "array",
@@ -11998,6 +12027,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -14631,7 +14670,9 @@
           "processor_downtime",
           "processor_decline_unauthorized",
           "issue_with_payment_method",
-          "processor_decline_incorrect_data"
+          "processor_decline_incorrect_data",
+          "hard_decline",
+          "soft_decline"
         ]
       },
       "EventClass": {
@@ -15726,6 +15767,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -15750,6 +15802,17 @@
             "properties": {
               "pay_safe_card": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "$ref": "#/components/schemas/BHNGiftCardDetails"
               }
             }
           }
@@ -16599,6 +16662,19 @@
             "nullable": true
           }
         }
+      },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider"
+        ]
       },
       "IfStatement": {
         "type": "object",
@@ -20362,15 +20438,6 @@
           }
         ]
       },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
-        ]
-      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -21990,6 +22057,7 @@
           "bni_va",
           "breadpay",
           "bri_va",
+          "bhn_card_network",
           "card_redirect",
           "cimb_va",
           "classic",
@@ -29772,6 +29840,7 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
           "archipel",
           "authorizedotnet",
@@ -29780,6 +29849,7 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
           "bluecode",

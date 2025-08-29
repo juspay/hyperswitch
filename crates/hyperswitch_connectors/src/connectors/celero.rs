@@ -780,7 +780,8 @@ static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static CELERO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Celero",
     description: "Celero is your trusted provider for payment processing technology and solutions, with a commitment to helping small to mid-sized businesses thrive",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
 };
 
 impl ConnectorSpecifications for Celero {

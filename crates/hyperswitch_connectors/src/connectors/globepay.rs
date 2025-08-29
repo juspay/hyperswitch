@@ -602,7 +602,8 @@ static GLOBEPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static GLOBEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globepay",
         description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
