@@ -1379,7 +1379,7 @@ where
     })
 }
 
-fn get_external_psp_ntid<F, Req>(
+fn get_ntid_card_info<F, Req>(
     router_data: &RouterData<F, Req, PaymentsResponseData>,
     data: CardDetailsForNetworkTransactionId,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
@@ -1438,7 +1438,7 @@ where
             PaymentMethodData::Card(card) => get_card_info(item, &card),
             PaymentMethodData::MandatePayment => Self::try_from(item),
             PaymentMethodData::CardDetailsForNetworkTransactionId(data) => {
-                get_external_psp_ntid(item, data)
+                get_ntid_card_info(item, data)
             }
             PaymentMethodData::Wallet(wallet) => match wallet {
                 WalletData::GooglePay(gpay_data) => get_googlepay_info(item, &gpay_data),
