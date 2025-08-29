@@ -82,7 +82,7 @@ pub mod models {
         /// HTTP headers to include in the request
         pub headers: HashMap<String, Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
-        pub proxy_url: Option<Url>,
+        pub proxy_url: Option<Secret<String>>,
         /// Optional client certificate for mutual TLS authentication
         pub client_cert: Option<Secret<String>>,
         /// Optional client private key for mutual TLS authentication
@@ -159,7 +159,7 @@ pub mod models {
         /// HTTP headers to include in the request (values are masked for security)
         pub headers: HashMap<String, Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
-        pub proxy_url: Option<Url>,
+        pub proxy_url: Option<Secret<String>>,
         /// Optional client certificate for mutual TLS authentication (masked)
         pub client_cert: Option<Secret<String>>,
         /// Optional client private key for mutual TLS authentication (masked)

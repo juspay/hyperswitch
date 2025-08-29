@@ -484,22 +484,13 @@ pub mod core {
             let request = request_builder.build();
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
-                logger::debug!("Using proxy: {}", proxy_url);
-                // Determine if it's HTTP or HTTPS proxy based on URL scheme
-                if proxy_url.scheme() == "https" {
-                    Proxy {
-                        http_url: None,
-                        https_url: Some(proxy_url.to_string()),
-                        idle_pool_connection_timeout: Some(90),
-                        bypass_proxy_hosts: None,
-                    }
-                } else {
-                    Proxy {
-                        http_url: Some(proxy_url.to_string()),
-                        https_url: None,
-                        idle_pool_connection_timeout: Some(90),
-                        bypass_proxy_hosts: None,
-                    }
+                let proxy_url_exposed = proxy_url.clone().expose();
+                logger::debug!("Using proxy: {}", proxy_url_exposed);
+                Proxy {
+                    http_url: Some(proxy_url_exposed.to_string()),
+                    https_url: Some(proxy_url_exposed.to_string()),
+                    idle_pool_connection_timeout: Some(90),
+                    bypass_proxy_hosts: None,
                 }
             } else {
                 logger::debug!("No proxy configured, using direct connection");
