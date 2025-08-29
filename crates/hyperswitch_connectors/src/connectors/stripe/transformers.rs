@@ -50,8 +50,8 @@ use url::Url;
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
-        convert_uppercase, deserialize_zero_minor_amount_as_none,
-        ApplePay, RouterData as OtherRouterData,
+        convert_uppercase, deserialize_zero_minor_amount_as_none, ApplePay,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -2786,14 +2786,14 @@ fn extract_payment_method_connector_response_from_latest_charge(
         .as_ref()
         .map(ExtendedAuthorizationResponseData::from);
 
-        if additional_payment_method_data.is_some() || extended_authorization_data.is_some() {
-            Some(ConnectorResponseData::new(
-                additional_payment_method_data,
-                extended_authorization_data,
-            ))
-        } else {
-            None
-        }
+    if additional_payment_method_data.is_some() || extended_authorization_data.is_some() {
+        Some(ConnectorResponseData::new(
+            additional_payment_method_data,
+            extended_authorization_data,
+        ))
+    } else {
+        None
+    }
 }
 
 fn extract_payment_method_connector_response_from_latest_attempt(
