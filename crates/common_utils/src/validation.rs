@@ -82,6 +82,29 @@ pub fn validate_domain_against_allowed_domains(
     })
 }
 
+/// checks whether the input string contains potential XSS attack vectors
+pub fn contains_potential_xss(input: &str) -> bool {
+    use ammonia::Builder as AmmoniaBuilder;
+    use std::sync::OnceLock;
+    let decoded_input = urlencoding::decode(input).unwrap_or_else(|_| input.into());
+    let cleaned = AmmoniaBuilder::default()
+        .tags(HashSet::new()) // allow no tags
+        .clean(&decoded_input)
+        .to_string();
+    if cleaned != decoded_input {
+        return true;
+    }
+    static SUSPICIOUS: OnceLock<Regex> = OnceLock::new();
+    let re = SUSPICIOUS.get_or_init(|| {
+        Regex::new(
+            r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|<\s*(script|iframe|svg|math|object|embed)\b|</\s*script\s*>"
+        )
+        .expect("valid regex")
+    });
+
+    re.is_match(&decoded_input)
+}
+
 #[cfg(test)]
 mod tests {
     use fake::{faker::internet::en::SafeEmail, Fake};
