@@ -486,6 +486,7 @@ impl
             ),
             WalletData::WeChatPayRedirect(_)
             | WalletData::PaypalRedirect(_)
+            | WalletData::AmazonPay(_)
             | WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
             | WalletData::BluecodeRedirect {}
