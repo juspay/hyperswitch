@@ -233,14 +233,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .build(),
         ))
     }
-    
+
     fn handle_response(
         &self,
         data: &SetupMandateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
-        
         let response: responses::PayloadPaymentsResponse = res
             .response
             .parse_struct("PayloadPaymentsResponse")
@@ -255,7 +254,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             http_code: res.status_code,
         })
     }
-    
+
     fn get_error_response(
         &self,
         res: Response,
