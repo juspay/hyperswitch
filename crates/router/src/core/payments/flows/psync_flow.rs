@@ -236,7 +236,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .unified_connector_service
             .as_ref()
             .is_some_and(|config| {
-                config.ucs_psync_disabled_connectors
+                config
+                    .ucs_psync_disabled_connectors
                     .contains(&connector_enum)
             });
 
