@@ -1292,6 +1292,7 @@ enabled = "true"
 base_url = "http://localhost:8000"
 connection_timeout = 10
 ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
