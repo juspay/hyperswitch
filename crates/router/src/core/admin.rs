@@ -1220,25 +1220,6 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
-    // Call to DE here
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.dynamic_routing_enabled && is_deleted {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    logger::error!("Failed to delete merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
