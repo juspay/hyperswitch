@@ -10,26 +10,11 @@ use crate::{
     services,
     types::{self, api, domain},
 };
-
+#[cfg(feature = "v1")]
 #[async_trait]
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
-    #[cfg(feature = "v2")]
-    async fn construct_router_data<'a>(
-        &self,
-        _state: &SessionState,
-        _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
-        _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsCancelRouterData> {
-        todo!()
-    }
-
-    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -44,6 +29,35 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             api::Void,
             types::PaymentsCancelData,
         >(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_context,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+}
+#[cfg(feature = "v2")]
+#[async_trait]
+impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::payments::PaymentCancelData<api::Void>
+{
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_context: &domain::MerchantContext,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        Box::pin(transformers::construct_router_data_for_cancel(
             state,
             self.clone(),
             connector_id,

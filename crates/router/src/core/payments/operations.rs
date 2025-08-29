@@ -58,6 +58,9 @@ pub mod payment_get;
 #[cfg(feature = "v2")]
 pub mod payment_capture_v2;
 
+#[cfg(feature = "v2")]
+pub mod payment_cancel_v2;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;

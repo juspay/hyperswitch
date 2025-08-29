@@ -1795,3 +1795,64 @@ impl
         }
     }
 }
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        payments::PaymentCancelData<router_flow_types::Void>,
+    >
+    for RouterData<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        PaymentIntentUpdate::VoidUpdate {
+            status: common_enums::IntentStatus::Cancelled,
+            updated_by: storage_scheme.to_string(),
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        PaymentAttemptUpdate::VoidUpdate {
+            status: common_enums::AttemptStatus::Voided,
+            cancellation_reason: None,
+            updated_by: storage_scheme.to_string(),
+        }
+    }
+
+    fn get_amount_capturable(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is capturable
+        Some(MinorUnit::zero())
+    }
+
+    fn get_captured_amount(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is captured
+        Some(MinorUnit::zero())
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> common_enums::AttemptStatus {
+        // For void operations, return Voided status
+        common_enums::AttemptStatus::Voided
+    }
+}

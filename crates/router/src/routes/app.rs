@@ -733,7 +733,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
