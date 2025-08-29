@@ -1271,7 +1271,7 @@ fn create_stripe_payment_method(
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
     request_incremental_authorization: bool,
-    request_extented_authorization: Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
+    request_extended_authorization: Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1291,7 +1291,7 @@ fn create_stripe_payment_method(
                     card_details,
                     payment_method_auth_type,
                     request_incremental_authorization,
-                    request_extented_authorization,
+                    request_extended_authorization,
                 ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
