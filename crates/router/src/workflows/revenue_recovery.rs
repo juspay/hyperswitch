@@ -550,7 +550,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(|t| add_random_delay_to_schedule_time(state, t));
+    let delayed_schedule_time = scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
     Ok(delayed_schedule_time)
 }
