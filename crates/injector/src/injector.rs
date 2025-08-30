@@ -64,6 +64,11 @@ pub mod core {
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
         println!("INJECTOR DEBUG: Making HTTP request using standalone injector HTTP client");
+        println!("INJECTOR DEBUG: Proxy config - http_url: {:?}, https_url: {:?}", 
+            client_proxy.http_url, client_proxy.https_url);
+        println!("INJECTOR DEBUG: Request has certificate: {}", request.certificate.is_some());
+        println!("INJECTOR DEBUG: Request has certificate_key: {}", request.certificate_key.is_some());
+        println!("INJECTOR DEBUG: Request has ca_certificate: {}", request.ca_certificate.is_some());
 
         // Create reqwest client with basic configuration
         let mut client_builder = reqwest::Client::builder();
@@ -96,6 +101,8 @@ pub mod core {
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
 
+        println!("INJECTOR DEBUG: HTTP client built successfully");
+
         // Build the request
         let method = match request.method {
             Method::Get => reqwest::Method::GET,
@@ -107,12 +114,17 @@ pub mod core {
 
         let mut req_builder = client.request(method, &request.url);
 
+        println!("INJECTOR DEBUG: Request method: {:?}", method);
+        println!("INJECTOR DEBUG: Request URL: {}", request.url);
+        println!("INJECTOR DEBUG: Request headers count: {}", request.headers.len());
+
         // Add headers
         for (key, value) in &request.headers {
             let header_value = match value {
                 masking::Maskable::Masked(secret) => secret.clone().expose(),
                 masking::Maskable::Normal(normal) => normal.clone(),
             };
+            println!("INJECTOR DEBUG: Adding header: {} = [REDACTED]", key);
             req_builder = req_builder.header(key, header_value);
         }
 
@@ -120,18 +132,24 @@ pub mod core {
         if let Some(body) = request.body {
             match body {
                 RequestContent::Json(payload) => {
+                    println!("INJECTOR DEBUG: Adding JSON body, size: {} bytes", 
+                        serde_json::to_string(&payload).map(|s| s.len()).unwrap_or(0));
                     req_builder = req_builder.json(&payload);
                 }
                 RequestContent::FormUrlEncoded(payload) => {
+                    println!("INJECTOR DEBUG: Adding form-encoded body, fields: {}", payload.len());
                     req_builder = req_builder.form(&payload);
                 }
                 RequestContent::RawBytes(payload) => {
+                    println!("INJECTOR DEBUG: Adding raw bytes body, size: {} bytes", payload.len());
                     req_builder = req_builder.body(payload);
                 }
                 _ => {
                     println!("INJECTOR DEBUG: Unsupported request content type, using raw bytes");
                 }
             }
+        } else {
+            println!("INJECTOR DEBUG: No body content");
         }
 
         // Send the request with detailed error handling
@@ -401,13 +419,13 @@ pub mod core {
             content_type: &ContentType,
         ) -> error_stack::Result<Value, InjectorError> {
             println!(
-                "INJECTOR DEBUG: Making HTTP request to connector - method: {:?}, base_url: {}, endpoint: {}, content_type: {:?}, payload_length: {:?}, headers_count: {:?}",
+                "INJECTOR DEBUG: Making HTTP request to connector - method: {:?}, base_url: {}, endpoint: {}, content_type: {:?}, payload_length: {}, headers_count: {}",
                 config.http_method,
                 config.base_url,
                 config.endpoint_path,
                 content_type,
-                payload,
-                config.headers
+                payload.len(),
+                config.headers.len()
             );
             // Validate inputs first
             if config.endpoint_path.is_empty() {
@@ -501,6 +519,16 @@ pub mod core {
             );
 
             let request = request_builder.build();
+
+            println!("INJECTOR DEBUG: Built common_utils request successfully");
+            println!("INJECTOR DEBUG: Final request URL: {}", request.url);
+            println!("INJECTOR DEBUG: Final request method: {:?}", request.method);
+            println!("INJECTOR DEBUG: Final request headers count: {}", request.headers.len());
+            println!("INJECTOR DEBUG: Final request has body: {}", request.body.is_some());
+            println!("INJECTOR DEBUG: Final request certificate fields - cert: {}, key: {}, ca: {}", 
+                request.certificate.is_some(), 
+                request.certificate_key.is_some(), 
+                request.ca_certificate.is_some());
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_exposed = proxy_url.clone().expose();
