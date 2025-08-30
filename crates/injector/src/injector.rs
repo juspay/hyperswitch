@@ -112,11 +112,11 @@ pub mod core {
             Method::Delete => reqwest::Method::DELETE,
         };
 
-        let mut req_builder = client.request(method, &request.url);
-
         println!("INJECTOR DEBUG: Request method: {:?}", method);
         println!("INJECTOR DEBUG: Request URL: {}", request.url);
         println!("INJECTOR DEBUG: Request headers count: {}", request.headers.len());
+
+        let mut req_builder = client.request(method.clone(), &request.url);
 
         // Add headers
         for (key, value) in &request.headers {
@@ -153,7 +153,7 @@ pub mod core {
         }
 
         // Send the request with detailed error handling
-        println!("INJECTOR DEBUG: Sending HTTP request to: {:?}", req_builder);
+        println!("INJECTOR DEBUG: About to send HTTP request");
 
         let response = req_builder.send().await.map_err(|e| {
             println!("INJECTOR DEBUG: HTTP request failed with detailed error: {}", e);
