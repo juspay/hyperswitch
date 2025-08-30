@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData,
@@ -280,8 +280,8 @@ where
 
                 let router_data: &dyn std::any::Any = &item.data;
                 let is_mandate_payment = router_data
-                    .downcast_ref::<PaymentsAuthorizeData>()
-                    .is_some_and(|req_data| req_data.is_mandate_payment())
+                    .downcast_ref::<PaymentsAuthorizeRouterData>()
+                    .is_some_and(|router_data| router_data.request.is_mandate_payment())
                     || router_data
                         .downcast_ref::<SetupMandateRouterData>()
                         .is_some();
