@@ -1,5 +1,6 @@
 pub mod core {
     use std::collections::HashMap;
+    use std::error::Error;
 
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
@@ -71,7 +72,8 @@ pub mod core {
         println!("INJECTOR DEBUG: Request has ca_certificate: {}", request.ca_certificate.is_some());
 
         // Create reqwest client with basic configuration
-        let mut client_builder = reqwest::Client::builder();
+        let mut client_builder = reqwest::Client::builder()
+                                                    .redirect(reqwest::redirect::Policy::none());
 
         // Only configure proxy if one is provided and it's not a direct connection
         if let Some(proxy_url) = &client_proxy.https_url {
@@ -158,23 +160,75 @@ pub mod core {
         let response = req_builder.send().await.map_err(|e| {
             println!("INJECTOR DEBUG: HTTP request failed with detailed error: {}", e);
             
+            // Extract detailed error information
+            println!("INJECTOR DEBUG: Error source chain:");
+            let mut source = e.source();
+            let mut level = 1;
+            while let Some(err) = source {
+                println!("INJECTOR DEBUG:   Level {}: {}", level, err);
+                source = err.source();
+                level += 1;
+            }
+            
+            // Check if this is a status error (4xx/5xx responses)
+            if let Some(status) = e.status() {
+                println!("INJECTOR DEBUG: HTTP status code: {}", status);
+                println!("INJECTOR DEBUG: Status code category: {}", 
+                    if status.is_client_error() { "Client Error (4xx)" }
+                    else if status.is_server_error() { "Server Error (5xx)" }
+                    else { "Other" }
+                );
+            }
+            
             // Provide more specific error information
             if e.is_connect() {
                 println!("INJECTOR DEBUG: Connection failed - check network connectivity, proxy settings, or certificate configuration");
+                println!("INJECTOR DEBUG: This could be due to:");
+                println!("INJECTOR DEBUG:   - VGS proxy authentication issues");
+                println!("INJECTOR DEBUG:   - Network connectivity problems");
+                println!("INJECTOR DEBUG:   - SSL/TLS handshake failures");
+                println!("INJECTOR DEBUG:   - Proxy server unreachable");
             } else if e.is_timeout() {
                 println!("INJECTOR DEBUG: Request timed out - server may be unresponsive");
             } else if e.is_request() {
                 println!("INJECTOR DEBUG: Request building failed - check URL format and headers");
             } else if e.is_decode() {
                 println!("INJECTOR DEBUG: Response decoding failed");
+            } else if e.is_redirect() {
+                println!("INJECTOR DEBUG: Redirect error occurred");
+            } else if e.is_body() {
+                println!("INJECTOR DEBUG: Request body error");
             } else {
                 println!("INJECTOR DEBUG: An unknown error occurred during the HTTP request");
             }
+            
+            // Try to extract the underlying error type
+            println!("INJECTOR DEBUG: Error type: {:?}", std::any::type_name_of_val(&e));
+            
             error_stack::Report::new(InjectorError::HttpRequestFailed)
                 .attach_printable(format!("Detailed HTTP error: {}", e))
         })?;
 
-        println!("INJECTOR DEBUG: HTTP request completed successfully, status: {}", response.status());
+        let status = response.status();
+        println!("INJECTOR DEBUG: HTTP request completed, status: {}", status);
+        
+        // Log additional details about the response
+        if status.is_success() {
+            println!("INJECTOR DEBUG: Response successful (2xx)");
+        } else if status.is_client_error() {
+            println!("INJECTOR DEBUG: Client error response (4xx) - {}", status);
+            if status == 401 {
+                println!("INJECTOR DEBUG: 401 Unauthorized - likely authentication/API key issue");
+            } else if status == 403 {
+                println!("INJECTOR DEBUG: 403 Forbidden - insufficient permissions");
+            } else if status == 407 {
+                println!("INJECTOR DEBUG: 407 Proxy Authentication Required - proxy auth failed");
+            }
+        } else if status.is_server_error() {
+            println!("INJECTOR DEBUG: Server error response (5xx) - {}", status);
+        } else {
+            println!("INJECTOR DEBUG: Other status code: {}", status);
+        }
 
         Ok(response)
     }
