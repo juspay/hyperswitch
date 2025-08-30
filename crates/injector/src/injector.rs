@@ -137,7 +137,7 @@ pub mod core {
                     req_builder = req_builder.json(&payload);
                 }
                 RequestContent::FormUrlEncoded(payload) => {
-                    println!("INJECTOR DEBUG: Adding form-encoded body, fields: {}", payload.len());
+                    println!("INJECTOR DEBUG: Adding form-encoded body, fields");
                     req_builder = req_builder.form(&payload);
                 }
                 RequestContent::RawBytes(payload) => {
