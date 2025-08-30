@@ -349,7 +349,7 @@ mod storage {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 })
                 .await
         }
@@ -413,7 +413,7 @@ mod storage {
                     ),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -436,7 +436,7 @@ mod storage {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 })
                 .await
         }
@@ -481,7 +481,7 @@ mod storage {
                                     key_store.merchant_id.clone().into(),
                                 )
                                 .await
-                                .change_context(errors::StorageError::DecryptionError)
+                                .map_err(|error| report!(errors::StorageError::from(error)))
                         })
                         .await
                 }
@@ -522,7 +522,7 @@ mod storage {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 }
             }
         }
@@ -563,7 +563,7 @@ mod storage {
                                     key_store.merchant_id.clone().into(),
                                 )
                                 .await
-                                .change_context(errors::StorageError::DecryptionError)
+                                .map_err(|error| report!(errors::StorageError::from(error)))
                         })
                         .await
                 }
@@ -627,7 +627,7 @@ mod storage {
                                 key_store.merchant_id.clone().into(),
                             )
                             .await
-                            .change_context(errors::StorageError::DecryptionError)?),
+                            .map_err(|error| report!(errors::StorageError::from(error)))?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -657,7 +657,7 @@ mod storage {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 })
                 .await
         }
@@ -691,7 +691,7 @@ mod storage {
                                 key_store.merchant_id.clone().into(),
                             )
                             .await
-                            .change_context(errors::StorageError::DecryptionError)?,
+                            .map_err(|error| report!(errors::StorageError::from(error)))?,
                     )
                 }
                 Ok(output)
@@ -724,7 +724,7 @@ impl AddressInterface for MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError),
+                .map_err(|error| error_stack::report!(errors::StorageError::from(error))),
             None => {
                 return Err(
                     errors::StorageError::ValueNotFound("address not found".to_string()).into(),
@@ -757,7 +757,7 @@ impl AddressInterface for MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError),
+                .map_err(|error| error_stack::report!(errors::StorageError::from(error))),
             None => {
                 return Err(
                     errors::StorageError::ValueNotFound("address not found".to_string()).into(),
@@ -793,7 +793,7 @@ impl AddressInterface for MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError),
+                .map_err(|error| error_stack::report!(errors::StorageError::from(error))),
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find address to update".to_string(),
             )
@@ -830,7 +830,7 @@ impl AddressInterface for MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError),
+                .map_err(|error| error_stack::report!(errors::StorageError::from(error))),
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find address to update".to_string(),
             )
@@ -861,7 +861,7 @@ impl AddressInterface for MockDb {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     async fn insert_address_for_customers(
@@ -885,7 +885,7 @@ impl AddressInterface for MockDb {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     async fn update_address_by_merchant_id_customer_id(
@@ -920,7 +920,7 @@ impl AddressInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?;
+                    .map_err(|error| error_stack::report!(errors::StorageError::from(error)))?;
                 Ok(vec![address])
             }
             None => {
