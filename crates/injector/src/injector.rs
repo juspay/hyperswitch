@@ -63,30 +63,36 @@ pub mod core {
         request: common_utils::request::Request,
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
-        logger::info!("Making HTTP request using standalone injector HTTP client");
+        println!("INJECTOR DEBUG: Making HTTP request using standalone injector HTTP client");
 
-        // Create reqwest client with proxy configuration
+        // Create reqwest client with basic configuration
         let mut client_builder = reqwest::Client::builder();
 
-        // Configure proxy if provided
+        // Only configure proxy if one is provided and it's not a direct connection
         if let Some(proxy_url) = &client_proxy.https_url {
-            let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
-                logger::error!("Failed to configure HTTPS proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
-            client_builder = client_builder.proxy(proxy);
+            if !proxy_url.is_empty() {
+                println!("INJECTOR DEBUG: Configuring HTTPS proxy: {}", proxy_url);
+                let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
+                    println!("INJECTOR DEBUG: Failed to configure HTTPS proxy: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                })?;
+                client_builder = client_builder.proxy(proxy);
+            }
         }
 
         if let Some(proxy_url) = &client_proxy.http_url {
-            let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
-                logger::error!("Failed to configure HTTP proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
-            client_builder = client_builder.proxy(proxy);
+            if !proxy_url.is_empty() && client_proxy.https_url.is_none() {
+                println!("INJECTOR DEBUG: Configuring HTTP proxy: {}", proxy_url);
+                let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
+                    println!("INJECTOR DEBUG: Failed to configure HTTP proxy: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                })?;
+                client_builder = client_builder.proxy(proxy);
+            }
         }
 
         let client = client_builder.build().map_err(|e| {
-            logger::error!("Failed to build HTTP client: {}", e);
+            println!("INJECTOR DEBUG: Failed to build HTTP client: {}", e);
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
 
@@ -123,16 +129,34 @@ pub mod core {
                     req_builder = req_builder.body(payload);
                 }
                 _ => {
-                    logger::warn!("Unsupported request content type, using raw bytes");
+                    println!("INJECTOR DEBUG: Unsupported request content type, using raw bytes");
                 }
             }
         }
 
-        // Send the request
+        // Send the request with detailed error handling
+        println!("INJECTOR DEBUG: Sending HTTP request to: {}", request.url);
+        
         let response = req_builder.send().await.map_err(|e| {
-            logger::error!("HTTP request failed: {}", e);
+            println!("INJECTOR DEBUG: HTTP request failed with detailed error: {}", e);
+            
+            // Provide more specific error information
+            if e.is_connect() {
+                println!("INJECTOR DEBUG: Connection failed - check network connectivity, proxy settings, or certificate configuration");
+            } else if e.is_timeout() {
+                println!("INJECTOR DEBUG: Request timed out - server may be unresponsive");
+            } else if e.is_request() {
+                println!("INJECTOR DEBUG: Request building failed - check URL format and headers");
+            } else if e.is_decode() {
+                println!("INJECTOR DEBUG: Response decoding failed");
+            } else {
+                println!("INJECTOR DEBUG: An unknown error occurred during the HTTP request");
+            }
             error_stack::Report::new(InjectorError::HttpRequestFailed)
+                .attach_printable(format!("Detailed HTTP error: {}", e))
         })?;
+
+        println!("INJECTOR DEBUG: HTTP request completed successfully, status: {}", response.status());
 
         Ok(response)
     }
@@ -153,7 +177,7 @@ pub mod core {
     pub async fn injector_core(
         request: InjectorRequest,
     ) -> error_stack::Result<InjectorResponse, InjectorError> {
-        logger::info!("Starting injector_core processing");
+        println!("INJECTOR DEBUG: Starting injector_core processing");
         let injector = Injector::new();
         injector.injector_core(request).await
     }
@@ -541,7 +565,7 @@ pub mod core {
             &self,
             request: InjectorRequest,
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
-            logger::info!("Starting token injection process");
+            println!("INJECTOR DEBUG: Starting token injection process");
 
             let start_time = std::time::Instant::now();
 
@@ -591,6 +615,7 @@ pub mod core {
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
             // Make HTTP request to connector and return raw response
+            println!("INJECTOR DEBUG: About to make HTTP request to connector");
             let response_data = self
                 .make_http_request(
                     &domain_request.connection_config,
@@ -598,8 +623,10 @@ pub mod core {
                     &content_type,
                 )
                 .await?;
+            println!("INJECTOR DEBUG: HTTP request completed, got response");
 
             let elapsed = start_time.elapsed();
+            println!("INJECTOR DEBUG: Processing completed successfully in {}ms", elapsed.as_millis());
             logger::info!(
                 duration_ms = elapsed.as_millis(),
                 response_size = serde_json::to_string(&response_data)
