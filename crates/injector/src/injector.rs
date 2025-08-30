@@ -135,8 +135,8 @@ pub mod core {
         }
 
         // Send the request with detailed error handling
-        println!("INJECTOR DEBUG: Sending HTTP request to: {}", request.url);
-        
+        println!("INJECTOR DEBUG: Sending HTTP request to: {:?}", req_builder);
+
         let response = req_builder.send().await.map_err(|e| {
             println!("INJECTOR DEBUG: HTTP request failed with detailed error: {}", e);
             
