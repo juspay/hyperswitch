@@ -128,6 +128,10 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_only_connectors: HashSet<Connector>,
+
+    /// Set of connectors for which psync is disabled in unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_psync_disabled_connectors: HashSet<Connector>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.

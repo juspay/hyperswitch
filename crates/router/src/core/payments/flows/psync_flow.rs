@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
@@ -226,6 +226,29 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
+        let connector_name = self.connector.clone();
+        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
+            .change_context(ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
+        let is_ucs_psync_disabled = state
+            .conf
+            .grpc_client
+            .unified_connector_service
+            .as_ref()
+            .is_some_and(|config| {
+                config
+                    .ucs_psync_disabled_connectors
+                    .contains(&connector_enum)
+            });
+
+        if is_ucs_psync_disabled {
+            logger::info!(
+                "UCS PSync call disabled for connector: {}, skipping UCS call",
+                connector_name
+            );
+            return Ok(());
+        }
+
         let client = state
             .grpc_client
             .unified_connector_service_client
