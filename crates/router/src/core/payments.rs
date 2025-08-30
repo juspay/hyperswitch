@@ -1576,8 +1576,8 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type_details, updated_customer, router_data) =
-                call_connector_service_prerequisites(
+            let (mca_type_details, external_vault_mca_type_details, updated_customer, router_data) =
+                call_connector_service_prerequisites_for_external_vault_proxy(
                     state,
                     req_state.clone(),
                     &merchant_context,
@@ -1614,6 +1614,7 @@ where
                 false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
                 req.should_return_raw_response(),
                 mca_type_details,
+                external_vault_mca_type_details,
                 router_data,
                 updated_customer,
             )
@@ -4596,6 +4597,118 @@ where
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+#[instrument(skip_all)]
+pub async fn call_connector_service_prerequisites_for_external_vault_proxy<
+    F,
+    RouterDReq,
+    ApiRequest,
+    D,
+>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: &domain::MerchantContext,
+    connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    customer: &Option<domain::Customer>,
+    call_connector_action: CallConnectorAction,
+    schedule_time: Option<time::PrimitiveDateTime>,
+    header_payload: HeaderPayload,
+    frm_suggestion: Option<storage_enums::FrmSuggestion>,
+    business_profile: &domain::Profile,
+    is_retry_payment: bool,
+    should_retry_with_pan: bool,
+    all_keys_required: Option<bool>,
+) -> RouterResult<(
+    domain::MerchantConnectorAccountTypeDetails,
+    domain::MerchantConnectorAccountTypeDetails,
+    Option<storage::CustomerUpdate>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+)>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    // get merchant connector account related to external vault
+    let external_vault_source: id_type::MerchantConnectorAccountId = business_profile
+        .external_vault_connector_details
+        .clone()
+        .map(|connector_details| connector_details.vault_connector_id.clone())
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("mca_id not present for external vault")?;
+
+    let external_vault_merchant_connector_account_type_details =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                merchant_context.get_merchant_key_store(),
+                Some(&external_vault_source),
+            )
+            .await?,
+        ));
+
+    // get merchant connector account related to payment
+    let merchant_connector_account_type_details =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                merchant_context.get_merchant_key_store(),
+                connector.merchant_connector_id.as_ref(),
+            )
+            .await?,
+        ));
+
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_context,
+        &merchant_connector_account_type_details,
+        payment_data,
+    )
+    .await?;
+
+    let router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_context,
+            customer,
+            &merchant_connector_account_type_details,
+            None,
+            None,
+        )
+        .await?;
+
+    Ok((
+        merchant_connector_account_type_details,
+        external_vault_merchant_connector_account_type_details,
+        updated_customer,
+        router_data,
+    ))
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn internal_call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
@@ -4930,6 +5043,7 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     _should_retry_with_pan: bool,
     _return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
+    external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     _updated_customer: Option<storage::CustomerUpdate>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
@@ -4962,9 +5076,10 @@ where
             .await?;
 
         router_data
-            .call_unified_connector_service(
+            .call_unified_connector_service_with_external_vault_proxy(
                 state,
                 merchant_connector_account_type_details.clone(),
+                external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
             )
             .await?;
