@@ -11,7 +11,7 @@ pub mod core {
         sequence::{delimited, preceded, terminated},
         IResult,
     };
-    use router_env::{instrument, logger, tracing};
+    use router_env::{instrument, tracing};
     use serde_json::Value;
     use thiserror::Error;
 
@@ -349,8 +349,8 @@ pub mod core {
             field_name: &str,
             vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
-            logger::debug!(
-                "Extracting field '{}' from vault data using vault type {:?}",
+            println!(
+                "INJECTOR DEBUG: Extracting field '{}' from vault data using vault type {:?}",
                 field_name,
                 vault_connector
             );
@@ -384,8 +384,8 @@ pub mod core {
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_connector {
                 injector_types::VaultConnectors::VGS => {
-                    logger::debug!(
-                        "VGS vault: Using direct token replacement for field '{}'",
+                    println!(
+                        "INJECTOR DEBUG: VGS vault: Using direct token replacement for field '{}'",
                         field_name
                     );
                     Ok(extracted_field_value)
@@ -400,18 +400,18 @@ pub mod core {
             payload: &str,
             content_type: &ContentType,
         ) -> error_stack::Result<Value, InjectorError> {
-            logger::info!(
-                method = ?config.http_method,
-                base_url = %config.base_url,
-                endpoint = %config.endpoint_path,
-                content_type = ?content_type,
-                payload_length = payload.len(),
-                headers_count = config.headers.len(),
-                "Making HTTP request to connector"
+            println!(
+                "INJECTOR DEBUG: Making HTTP request to connector - method: {:?}, base_url: {}, endpoint: {}, content_type: {:?}, payload_length: {:?}, headers_count: {:?}",
+                config.http_method,
+                config.base_url,
+                config.endpoint_path,
+                content_type,
+                payload,
+                config.headers
             );
             // Validate inputs first
             if config.endpoint_path.is_empty() {
-                logger::error!("Endpoint path is empty");
+                println!("INJECTOR DEBUG: Endpoint path is empty");
                 Err(error_stack::Report::new(InjectorError::InvalidTemplate(
                     "Endpoint path cannot be empty".to_string(),
                 )))?;
@@ -420,7 +420,7 @@ pub mod core {
             // Construct URL by concatenating base URL with endpoint path
             let url = format!("{}{}", config.base_url, config.endpoint_path);
 
-            logger::debug!("Constructed URL: {}", url);
+            println!("INJECTOR DEBUG: Constructed URL: {}", url);
 
             // Convert headers to common_utils Headers format safely
             let headers: Vec<(String, masking::Maskable<String>)> = config
@@ -440,8 +440,8 @@ pub mod core {
                     match serde_json::from_str::<Value>(payload) {
                         Ok(json) => Some(RequestContent::Json(Box::new(json))),
                         Err(e) => {
-                            logger::debug!(
-                                "Failed to parse payload as JSON: {}, falling back to raw bytes",
+                            println!(
+                                "INJECTOR DEBUG: Failed to parse payload as JSON: {}, falling back to raw bytes",
                                 e
                             );
                             Some(RequestContent::RawBytes(payload.as_bytes().to_vec()))
@@ -476,35 +476,35 @@ pub mod core {
 
             // Add certificate configuration if provided
             if let Some(cert_content) = &config.client_cert {
-                logger::debug!("Adding client certificate content");
+                println!("INJECTOR DEBUG: Adding client certificate content");
                 request_builder = request_builder.add_certificate(Some(cert_content.clone()));
             }
 
             if let Some(key_content) = &config.client_key {
-                logger::debug!("Adding client private key content");
+                println!("INJECTOR DEBUG: Adding client private key content");
                 request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
             }
 
             if let Some(ca_content) = &config.ca_cert {
-                logger::debug!("Adding CA certificate content");
+                println!("INJECTOR DEBUG: Adding CA certificate content");
                 request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
             }
 
             // Log certificate configuration (but not the actual content)
-            logger::info!(
-                has_client_cert = config.client_cert.is_some(),
-                has_client_key = config.client_key.is_some(),
-                has_ca_cert = config.ca_cert.is_some(),
-                insecure = config.insecure.unwrap_or(false),
-                cert_format = ?config.cert_format,
-                "Certificate configuration applied"
+            println!(
+                "INJECTOR DEBUG: Certificate configuration applied - has_client_cert: {}, has_client_key: {}, has_ca_cert: {}, insecure: {}, cert_format: {:?}",
+                config.client_cert.is_some(),
+                config.client_key.is_some(),
+                config.ca_cert.is_some(),
+                config.insecure.unwrap_or(false),
+                config.cert_format
             );
 
             let request = request_builder.build();
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_exposed = proxy_url.clone().expose();
-                logger::debug!("Using proxy: {}", proxy_url_exposed);
+                println!("INJECTOR DEBUG: Using proxy: {}", proxy_url_exposed);
                 Proxy {
                     http_url: Some(proxy_url_exposed.to_string()),
                     https_url: Some(proxy_url_exposed.to_string()),
@@ -512,17 +512,17 @@ pub mod core {
                     bypass_proxy_hosts: None,
                 }
             } else {
-                logger::debug!("No proxy configured, using direct connection");
+                println!("INJECTOR DEBUG: No proxy configured, using direct connection");
                 Proxy::default()
             };
 
             // Send request using local standalone http client
-            logger::debug!("Sending HTTP request to connector");
+            println!("INJECTOR DEBUG: Sending HTTP request to connector");
             let response = send_request(&proxy, request, None).await?;
 
-            logger::info!(
-                status_code = response.status().as_u16(),
-                "Received response from connector"
+            println!(
+                "INJECTOR DEBUG: Received response from connector - status_code: {}",
+                response.status().as_u16()
             );
 
             let response_text = response
@@ -530,20 +530,20 @@ pub mod core {
                 .await
                 .change_context(InjectorError::HttpRequestFailed)?;
 
-            logger::debug!(
-                response_length = response_text.len(),
-                "Processing connector response"
+            println!(
+                "INJECTOR DEBUG: Processing connector response - response_length: {}",
+                response_text.len()
             );
 
             // Try to parse as JSON, fallback to string value with error logging
             match serde_json::from_str::<Value>(&response_text) {
                 Ok(json) => {
-                    logger::debug!("Successfully parsed response as JSON");
+                    println!("INJECTOR DEBUG: Successfully parsed response as JSON");
                     Ok(json)
                 }
                 Err(e) => {
-                    logger::debug!(
-                        "Failed to parse response as JSON: {}, returning as string",
+                    println!(
+                        "INJECTOR DEBUG: Failed to parse response as JSON: {}, returning as string",
                         e
                     );
                     Ok(Value::String(response_text))
@@ -579,10 +579,10 @@ pub mod core {
                 .expose()
                 .clone();
 
-            logger::debug!(
-                template_length = domain_request.connector_payload.template.len(),
-                vault_connector = ?domain_request.token_data.vault_connector,
-                "Processing token injection request"
+            println!(
+                "INJECTOR DEBUG: Processing token injection request - template_length: {}, vault_connector: {:?}",
+                domain_request.connector_payload.template.len(),
+                domain_request.token_data.vault_connector
             );
 
             // Process template string directly with vault-specific logic
@@ -592,9 +592,9 @@ pub mod core {
                 &domain_request.token_data.vault_connector,
             )?;
 
-            logger::debug!(
-                processed_payload_length = processed_payload.len(),
-                "Token replacement completed"
+            println!(
+                "INJECTOR DEBUG: Token replacement completed - processed_payload_length: {}",
+                processed_payload.len()
             );
 
             // Determine content type from headers or default to form-urlencoded
@@ -627,12 +627,12 @@ pub mod core {
 
             let elapsed = start_time.elapsed();
             println!("INJECTOR DEBUG: Processing completed successfully in {}ms", elapsed.as_millis());
-            logger::info!(
-                duration_ms = elapsed.as_millis(),
-                response_size = serde_json::to_string(&response_data)
+            println!(
+                "INJECTOR DEBUG: Token injection completed successfully - duration_ms: {}, response_size: {}",
+                elapsed.as_millis(),
+                serde_json::to_string(&response_data)
                     .map(|s| s.len())
-                    .unwrap_or(0),
-                "Token injection completed successfully"
+                    .unwrap_or(0)
             );
 
             // Return the raw connector response for connector-agnostic handling
@@ -789,7 +789,7 @@ mod tests {
 
         // The request should succeed (httpbin.org should be accessible)
         if let Err(ref e) = result {
-            logger::info!("Error: {e:?}");
+            println!("INJECTOR DEBUG: Error: {e:?}");
         }
         assert!(
             result.is_ok(),
@@ -799,12 +799,12 @@ mod tests {
         let response = result.unwrap();
 
         // Print the actual response for demonstration
-        logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
-        logger::info!(
-            "{}",
+        println!("INJECTOR DEBUG: === HTTP RESPONSE FROM HTTPBIN.ORG ===");
+        println!(
+            "INJECTOR DEBUG: {}",
             serde_json::to_string_pretty(&response).unwrap_or_default()
         );
-        logger::info!("=======================================");
+        println!("INJECTOR DEBUG: =======================================");
 
         // Response should be a JSON value from httpbin.org
         assert!(
@@ -872,12 +872,12 @@ mod tests {
         let response = result.unwrap();
 
         // Print the actual response for demonstration
-        logger::info!("=== CERTIFICATE TEST RESPONSE ===");
-        logger::info!(
-            "{}",
+        println!("INJECTOR DEBUG: === CERTIFICATE TEST RESPONSE ===");
+        println!(
+            "INJECTOR DEBUG: {}",
             serde_json::to_string_pretty(&response).unwrap_or_default()
         );
-        logger::info!("================================");
+        println!("INJECTOR DEBUG: ================================");
 
         // Verify the token was replaced in the JSON
         // httpbin.org returns the request data in the 'data' or 'json' field
