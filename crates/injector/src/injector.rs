@@ -74,7 +74,10 @@ pub mod core {
         let certificate = encoded_certificate.expose();
         let certificate_key = encoded_certificate_key.expose();
 
-        reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
+        // Combine certificate and key into a single PEM block
+        let combined_pem = format!("{}\n{}", certificate_key, certificate);
+        
+        reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(HttpClientError::CertificateDecodeFailed)
     }
 
