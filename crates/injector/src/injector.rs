@@ -78,15 +78,13 @@ pub mod core {
         // Configure SSL/TLS with proper CA certificate if provided
         if let Some(ca_cert) = &request.ca_certificate {
             println!("INJECTOR DEBUG: Configuring HTTP client with CA certificate for secure TLS");
-            let ca_pem = ca_cert.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
+            let ca_pem = ca_cert.clone().expose().replace("\\r\\n", "\n"); // Fix escaped newlines
             
             match reqwest::Certificate::from_pem(ca_pem.as_bytes()) {
                 Ok(cert) => {
                     println!("INJECTOR DEBUG: Successfully parsed CA certificate, adding to client");
                     client_builder = client_builder.add_root_certificate(cert);
-                    // Use rustls for better TLS handling
-                    client_builder = client_builder.use_rustls_tls();
-                    println!("INJECTOR DEBUG: Configured client with CA certificate and rustls TLS");
+                    println!("INJECTOR DEBUG: Configured client with CA certificate");
                 }
                 Err(e) => {
                     println!("INJECTOR DEBUG: Failed to parse CA certificate: {}", e);
