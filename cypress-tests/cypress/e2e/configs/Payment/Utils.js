@@ -409,6 +409,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    MOTO_PAYMENTS: ["worldpayvantiv"],
     // Add more inclusion lists
   },
 };

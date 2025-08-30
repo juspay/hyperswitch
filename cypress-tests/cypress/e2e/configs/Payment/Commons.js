@@ -637,6 +637,18 @@ export const connectorDetails = {
         },
       },
     }),
+    MotoPaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        payment_channel: "moto_order",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     PaymentIntentOffSession: getCustomExchange({
       Request: {
         currency: "USD",
