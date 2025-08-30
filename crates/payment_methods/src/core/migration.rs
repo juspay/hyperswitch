@@ -13,6 +13,8 @@ use crate::core::errors;
 use crate::{controller as pm, state};
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
+#[cfg(feature = "v1")]
+pub use payment_methods::update_payment_method_record;
 
 #[cfg(feature = "v1")]
 type PmMigrationResult<T> =
@@ -64,6 +66,36 @@ pub async fn migrate_payment_methods(
     Ok(api::ApplicationResponse::Json(result))
 }
 
+#[cfg(feature = "v1")]
+pub async fn update_payment_methods(
+    state: &state::PaymentMethodsState,
+    payment_methods: Vec<pm_api::UpdatePaymentMethodRecord>,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_context: &merchant_context::MerchantContext,
+    controller: &dyn pm::PaymentMethodsController,
+) -> PmMigrationResult<Vec<pm_api::PaymentMethodUpdateResponse>> {
+    let mut result = Vec::with_capacity(payment_methods.len());
+
+    for record in payment_methods {
+        let update_res = update_payment_method_record(
+            state,
+            record.clone(),
+            merchant_id,
+            merchant_context,
+            controller,
+        )
+        .await;
+        let res = match update_res {
+            Ok(api::ApplicationResponse::Json(response)) => Ok(response),
+            Err(e) => Err(e.to_string()),
+            _ => Err("Failed to migrate payment method".to_string()),
+        };
+
+        result.push(pm_api::PaymentMethodUpdateResponse::from((res, record)));
+    }
+    Ok(api::ApplicationResponse::Json(result))
+}
+
 #[derive(Debug, form::MultipartForm)]
 pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
@@ -75,6 +107,14 @@ pub struct PaymentMethodsMigrateForm {
         Option<text::Text<common_utils::id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
+}
+
+#[derive(Debug, form::MultipartForm)]
+pub struct PaymentMethodsUpdateForm {
+    #[multipart(limit = "1MB")]
+    pub file: bytes::Bytes,
+
+    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
 }
 
 struct MerchantConnectorValidator;
@@ -216,6 +256,19 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
     Ok(records)
 }
 
+fn parse_update_csv(data: &[u8]) -> csv::Result<Vec<pm_api::UpdatePaymentMethodRecord>> {
+    let mut csv_reader = Reader::from_reader(data);
+    let mut records = Vec::new();
+    let mut id_counter = 0;
+    for result in csv_reader.deserialize() {
+        let mut record: pm_api::UpdatePaymentMethodRecord = result?;
+        id_counter += 1;
+        record.line_number = Some(id_counter);
+        records.push(record);
+    }
+    Ok(records)
+}
+
 #[instrument(skip_all)]
 pub fn validate_card_expiry(
     card_exp_month: &masking::Secret<String>,
@@ -319,5 +372,24 @@ impl RecordMigrationStatusBuilder {
 impl Default for RecordMigrationStatusBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+type UpdateValidationResult = Result<
+    (
+        common_utils::id_type::MerchantId,
+        Vec<pm_api::UpdatePaymentMethodRecord>,
+    ),
+    errors::ApiErrorResponse,
+>;
+
+impl PaymentMethodsUpdateForm {
+    pub fn validate_and_get_payment_method_records(self) -> UpdateValidationResult {
+        let records = parse_update_csv(self.file.data.to_bytes()).map_err(|e| {
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: e.to_string(),
+            }
+        })?;
+        Ok((self.merchant_id.clone(), records))
     }
 }
