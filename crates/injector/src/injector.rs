@@ -1,6 +1,5 @@
 pub mod core {
     use std::collections::HashMap;
-    use std::error::Error;
 
     use async_trait::async_trait;
     use common_utils::errors::CustomResult;
@@ -13,7 +12,7 @@ pub mod core {
         sequence::{delimited, preceded, terminated},
         IResult,
     };
-    use router_env::{instrument, tracing};
+    use router_env::{instrument, logger, tracing};
     use serde_json::Value;
     use thiserror::Error;
 
@@ -75,7 +74,7 @@ pub mod core {
         let certificate_key = encoded_certificate_key.expose();
 
         // Combine certificate and key into a single PEM block
-        let combined_pem = format!("{}\n{}", certificate_key, certificate);
+        let combined_pem = format!("{certificate_key}\n{certificate}");
         
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(HttpClientError::CertificateDecodeFailed)
@@ -129,10 +128,8 @@ pub mod core {
             (client_certificate.clone(), client_certificate_key.clone())
         {
             if ca_certificate.is_some() {
-                println!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
+                // CA certificate will be ignored in mutual TLS setup
             }
-
-            println!("Creating HTTP client with mutual TLS (client cert + key)");
             let client_builder = get_client_builder(proxy_config)?;
 
             let identity = create_identity_from_certificate_and_key(
@@ -155,7 +152,6 @@ pub mod core {
 
         // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
         if let Some(ca_pem) = ca_certificate {
-            println!("Creating HTTP client with one-way TLS (CA certificate)");
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
             let cert = reqwest::Certificate::from_pem(pem.as_bytes())
                 .change_context(HttpClientError::ClientConstructionFailed)
@@ -169,7 +165,6 @@ pub mod core {
         }
 
         // Case 3: Default client (no certs)
-        println!("Creating default HTTP client (no client or CA certificates)");
         get_client_builder(proxy_config)?
             .build()
             .change_context(HttpClientError::ClientConstructionFailed)
@@ -183,12 +178,6 @@ pub mod core {
         request: common_utils::request::Request,
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
-        println!("INJECTOR DEBUG: Making HTTP request using standalone injector HTTP client");
-        println!("INJECTOR DEBUG: Proxy config - http_url: {:?}, https_url: {:?}", 
-            client_proxy.http_url, client_proxy.https_url);
-        println!("INJECTOR DEBUG: Request has certificate: {}", request.certificate.is_some());
-        println!("INJECTOR DEBUG: Request has certificate_key: {}", request.certificate_key.is_some());
-        println!("INJECTOR DEBUG: Request has ca_certificate: {}", request.ca_certificate.is_some());
 
         // Use the proper create_client function
         let client = create_client(
@@ -196,12 +185,9 @@ pub mod core {
             request.certificate.clone(),
             request.certificate_key.clone(),
             request.ca_certificate.clone(),
-        ).map_err(|e| {
-            println!("INJECTOR DEBUG: Failed to create HTTP client: {}", e);
+        ).map_err(|_e| {
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
-
-        println!("INJECTOR DEBUG: HTTP client created successfully");
 
         // Build the request
         let method = match request.method {
@@ -212,10 +198,6 @@ pub mod core {
             Method::Delete => reqwest::Method::DELETE,
         };
 
-        println!("INJECTOR DEBUG: Request method: {:?}", method);
-        println!("INJECTOR DEBUG: Request URL: {}", request.url);
-        println!("INJECTOR DEBUG: Request headers count: {}", request.headers.len());
-
         let mut req_builder = client.request(method.clone(), &request.url);
 
         // Add headers
@@ -224,7 +206,6 @@ pub mod core {
                 masking::Maskable::Masked(secret) => secret.clone().expose(),
                 masking::Maskable::Normal(normal) => normal.clone(),
             };
-            println!("INJECTOR DEBUG: Adding header: {} = [REDACTED]", key);
             req_builder = req_builder.header(key, header_value);
         }
 
@@ -232,101 +213,26 @@ pub mod core {
         if let Some(body) = request.body {
             match body {
                 RequestContent::Json(payload) => {
-                    println!("INJECTOR DEBUG: Adding JSON body, size: {} bytes", 
-                        serde_json::to_string(&payload).map(|s| s.len()).unwrap_or(0));
                     req_builder = req_builder.json(&payload);
                 }
                 RequestContent::FormUrlEncoded(payload) => {
-                    println!("INJECTOR DEBUG: Adding form-encoded body, fields");
                     req_builder = req_builder.form(&payload);
                 }
                 RequestContent::RawBytes(payload) => {
-                    println!("INJECTOR DEBUG: Adding raw bytes body, size: {} bytes", payload.len());
                     req_builder = req_builder.body(payload);
                 }
                 _ => {
-                    println!("INJECTOR DEBUG: Unsupported request content type, using raw bytes");
+                    // Unsupported request content type
                 }
             }
-        } else {
-            println!("INJECTOR DEBUG: No body content");
         }
 
-        // Send the request with detailed error handling
-        println!("INJECTOR DEBUG: About to send HTTP request");
-
+        // Send the request
         let response = req_builder.send().await.map_err(|e| {
-            println!("INJECTOR DEBUG: HTTP request failed with detailed error: {}", e);
-            
-            // Extract detailed error information
-            println!("INJECTOR DEBUG: Error source chain:");
-            let mut source = e.source();
-            let mut level = 1;
-            while let Some(err) = source {
-                println!("INJECTOR DEBUG:   Level {}: {}", level, err);
-                source = err.source();
-                level += 1;
-            }
-            
-            // Check if this is a status error (4xx/5xx responses)
-            if let Some(status) = e.status() {
-                println!("INJECTOR DEBUG: HTTP status code: {}", status);
-                println!("INJECTOR DEBUG: Status code category: {}", 
-                    if status.is_client_error() { "Client Error (4xx)" }
-                    else if status.is_server_error() { "Server Error (5xx)" }
-                    else { "Other" }
-                );
-            }
-            
-            // Provide more specific error information
-            if e.is_connect() {
-                println!("INJECTOR DEBUG: Connection failed - check network connectivity, proxy settings, or certificate configuration");
-                println!("INJECTOR DEBUG: This could be due to:");
-                println!("INJECTOR DEBUG:   - VGS proxy authentication issues");
-                println!("INJECTOR DEBUG:   - Network connectivity problems");
-                println!("INJECTOR DEBUG:   - SSL/TLS handshake failures");
-                println!("INJECTOR DEBUG:   - Proxy server unreachable");
-            } else if e.is_timeout() {
-                println!("INJECTOR DEBUG: Request timed out - server may be unresponsive");
-            } else if e.is_request() {
-                println!("INJECTOR DEBUG: Request building failed - check URL format and headers");
-            } else if e.is_decode() {
-                println!("INJECTOR DEBUG: Response decoding failed");
-            } else if e.is_redirect() {
-                println!("INJECTOR DEBUG: Redirect error occurred");
-            } else if e.is_body() {
-                println!("INJECTOR DEBUG: Request body error");
-            } else {
-                println!("INJECTOR DEBUG: An unknown error occurred during the HTTP request");
-            }
-            
-            // Try to extract the underlying error type
-            println!("INJECTOR DEBUG: Error type: {:?}", std::any::type_name_of_val(&e));
-            
             error_stack::Report::new(InjectorError::HttpRequestFailed)
-                .attach_printable(format!("Detailed HTTP error: {}", e))
+                .attach_printable(format!("HTTP request failed: {e}"))
         })?;
 
-        let status = response.status();
-        println!("INJECTOR DEBUG: HTTP request completed, status: {}", status);
-        
-        // Log additional details about the response
-        if status.is_success() {
-            println!("INJECTOR DEBUG: Response successful (2xx)");
-        } else if status.is_client_error() {
-            println!("INJECTOR DEBUG: Client error response (4xx) - {}", status);
-            if status == 401 {
-                println!("INJECTOR DEBUG: 401 Unauthorized - likely authentication/API key issue");
-            } else if status == 403 {
-                println!("INJECTOR DEBUG: 403 Forbidden - insufficient permissions");
-            } else if status == 407 {
-                println!("INJECTOR DEBUG: 407 Proxy Authentication Required - proxy auth failed");
-            }
-        } else if status.is_server_error() {
-            println!("INJECTOR DEBUG: Server error response (5xx) - {}", status);
-        } else {
-            println!("INJECTOR DEBUG: Other status code: {}", status);
-        }
 
         Ok(response)
     }
@@ -347,7 +253,6 @@ pub mod core {
     pub async fn injector_core(
         request: InjectorRequest,
     ) -> error_stack::Result<InjectorResponse, InjectorError> {
-        println!("INJECTOR DEBUG: Starting injector_core processing");
         let injector = Injector::new();
         injector.injector_core(request).await
     }
@@ -519,11 +424,6 @@ pub mod core {
             field_name: &str,
             vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
-            println!(
-                "INJECTOR DEBUG: Extracting field '{}' from vault data using vault type {:?}",
-                field_name,
-                vault_connector
-            );
 
             match vault_data {
                 Value::Object(obj) => {
@@ -550,14 +450,10 @@ pub mod core {
             &self,
             extracted_field_value: Value,
             vault_connector: &injector_types::VaultConnectors,
-            field_name: &str,
+            _field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_connector {
                 injector_types::VaultConnectors::VGS => {
-                    println!(
-                        "INJECTOR DEBUG: VGS vault: Using direct token replacement for field '{}'",
-                        field_name
-                    );
                     Ok(extracted_field_value)
                 }
             }
@@ -570,18 +466,18 @@ pub mod core {
             payload: &str,
             content_type: &ContentType,
         ) -> error_stack::Result<Value, InjectorError> {
-            println!(
-                "INJECTOR DEBUG: Making HTTP request to connector - method: {:?}, base_url: {}, endpoint: {}, content_type: {:?}, payload_length: {}, headers_count: {}",
-                config.http_method,
-                config.base_url,
-                config.endpoint_path,
-                content_type,
-                payload.len(),
-                config.headers.len()
+            logger::debug!(
+                method = ?config.http_method,
+                base_url = %config.base_url,
+                endpoint = %config.endpoint_path,
+                content_type = ?content_type,
+                payload_length = payload.len(),
+                headers_count = config.headers.len(),
+                "Making HTTP request to connector"
             );
             // Validate inputs first
             if config.endpoint_path.is_empty() {
-                println!("INJECTOR DEBUG: Endpoint path is empty");
+                logger::error!("Endpoint path is empty");
                 Err(error_stack::Report::new(InjectorError::InvalidTemplate(
                     "Endpoint path cannot be empty".to_string(),
                 )))?;
@@ -590,7 +486,7 @@ pub mod core {
             // Construct URL by concatenating base URL with endpoint path
             let url = format!("{}{}", config.base_url, config.endpoint_path);
 
-            println!("INJECTOR DEBUG: Constructed URL: {}", url);
+            logger::debug!("Constructed URL: {}", url);
 
             // Convert headers to common_utils Headers format safely
             let headers: Vec<(String, masking::Maskable<String>)> = config
@@ -610,9 +506,9 @@ pub mod core {
                     match serde_json::from_str::<Value>(payload) {
                         Ok(json) => Some(RequestContent::Json(Box::new(json))),
                         Err(e) => {
-                            println!(
-                                "INJECTOR DEBUG: Failed to parse payload as JSON: {}, falling back to raw bytes",
-                                e
+                            logger::debug!(
+                                error = %e,
+                                "Failed to parse payload as JSON, falling back to raw bytes"
                             );
                             Some(RequestContent::RawBytes(payload.as_bytes().to_vec()))
                         }
@@ -646,45 +542,45 @@ pub mod core {
 
             // Add certificate configuration if provided
             if let Some(cert_content) = &config.client_cert {
-                println!("INJECTOR DEBUG: Adding client certificate content");
+                logger::debug!("Adding client certificate content");
                 request_builder = request_builder.add_certificate(Some(cert_content.clone()));
             }
 
             if let Some(key_content) = &config.client_key {
-                println!("INJECTOR DEBUG: Adding client private key content");
+                logger::debug!("Adding client private key content");
                 request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
             }
 
             if let Some(ca_content) = &config.ca_cert {
-                println!("INJECTOR DEBUG: Adding CA certificate content");
+                logger::debug!("Adding CA certificate content");
                 request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
             }
 
-            // Log certificate configuration (but not the actual content)
-            println!(
-                "INJECTOR DEBUG: Certificate configuration applied - has_client_cert: {}, has_client_key: {}, has_ca_cert: {}, insecure: {}, cert_format: {:?}",
-                config.client_cert.is_some(),
-                config.client_key.is_some(),
-                config.ca_cert.is_some(),
-                config.insecure.unwrap_or(false),
-                config.cert_format
+            logger::debug!(
+                has_client_cert = config.client_cert.is_some(),
+                has_client_key = config.client_key.is_some(),
+                has_ca_cert = config.ca_cert.is_some(),
+                insecure = config.insecure.unwrap_or(false),
+                cert_format = ?config.cert_format,
+                "Certificate configuration applied"
             );
 
             let request = request_builder.build();
 
-            println!("INJECTOR DEBUG: Built common_utils request successfully");
-            println!("INJECTOR DEBUG: Final request URL: {}", request.url);
-            println!("INJECTOR DEBUG: Final request method: {:?}", request.method);
-            println!("INJECTOR DEBUG: Final request headers count: {}", request.headers.len());
-            println!("INJECTOR DEBUG: Final request has body: {}", request.body.is_some());
-            println!("INJECTOR DEBUG: Final request certificate fields - cert: {}, key: {}, ca: {}", 
-                request.certificate.is_some(), 
-                request.certificate_key.is_some(), 
-                request.ca_certificate.is_some());
+            logger::debug!(
+                url = %request.url,
+                method = ?request.method,
+                headers_count = request.headers.len(),
+                has_body = request.body.is_some(),
+                has_cert = request.certificate.is_some(),
+                has_key = request.certificate_key.is_some(),
+                has_ca = request.ca_certificate.is_some(),
+                "Built common_utils request successfully"
+            );
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_exposed = proxy_url.clone().expose();
-                println!("INJECTOR DEBUG: Using proxy: {}", proxy_url_exposed);
+                logger::debug!(proxy_url = %proxy_url_exposed, "Using proxy");
                 Proxy {
                     http_url: Some(proxy_url_exposed.to_string()),
                     https_url: Some(proxy_url_exposed.to_string()),
@@ -692,17 +588,17 @@ pub mod core {
                     bypass_proxy_hosts: None,
                 }
             } else {
-                println!("INJECTOR DEBUG: No proxy configured, using direct connection");
+                logger::debug!("No proxy configured, using direct connection");
                 Proxy::default()
             };
 
             // Send request using local standalone http client
-            println!("INJECTOR DEBUG: Sending HTTP request to connector");
+            logger::debug!("Sending HTTP request to connector");
             let response = send_request(&proxy, request, None).await?;
 
-            println!(
-                "INJECTOR DEBUG: Received response from connector - status_code: {}",
-                response.status().as_u16()
+            logger::debug!(
+                status_code = response.status().as_u16(),
+                "Received response from connector"
             );
 
             let response_text = response
@@ -710,21 +606,21 @@ pub mod core {
                 .await
                 .change_context(InjectorError::HttpRequestFailed)?;
 
-            println!(
-                "INJECTOR DEBUG: Processing connector response - response_length: {}",
-                response_text.len()
+            logger::debug!(
+                response_length = response_text.len(),
+                "Processing connector response"
             );
 
             // Try to parse as JSON, fallback to string value with error logging
             match serde_json::from_str::<Value>(&response_text) {
                 Ok(json) => {
-                    println!("INJECTOR DEBUG: Successfully parsed response as JSON");
+                    logger::debug!("Successfully parsed response as JSON");
                     Ok(json)
                 }
                 Err(e) => {
-                    println!(
-                        "INJECTOR DEBUG: Failed to parse response as JSON: {}, returning as string",
-                        e
+                    logger::debug!(
+                        error = %e,
+                        "Failed to parse response as JSON, returning as string"
                     );
                     Ok(Value::String(response_text))
                 }
@@ -745,8 +641,6 @@ pub mod core {
             &self,
             request: InjectorRequest,
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
-            println!("INJECTOR DEBUG: Starting token injection process");
-
             let start_time = std::time::Instant::now();
 
             // Convert API model to domain model
@@ -759,11 +653,6 @@ pub mod core {
                 .expose()
                 .clone();
 
-            println!(
-                "INJECTOR DEBUG: Processing token injection request - template_length: {}, vault_connector: {:?}",
-                domain_request.connector_payload.template.len(),
-                domain_request.token_data.vault_connector
-            );
 
             // Process template string directly with vault-specific logic
             let processed_payload = self.interpolate_string_template_with_vault_data(
@@ -771,11 +660,6 @@ pub mod core {
                 &vault_data,
                 &domain_request.token_data.vault_connector,
             )?;
-
-            println!(
-                "INJECTOR DEBUG: Token replacement completed - processed_payload_length: {}",
-                processed_payload.len()
-            );
 
             // Determine content type from headers or default to form-urlencoded
             let content_type = domain_request
@@ -795,7 +679,6 @@ pub mod core {
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
             // Make HTTP request to connector and return raw response
-            println!("INJECTOR DEBUG: About to make HTTP request to connector");
             let response_data = self
                 .make_http_request(
                     &domain_request.connection_config,
@@ -803,17 +686,8 @@ pub mod core {
                     &content_type,
                 )
                 .await?;
-            println!("INJECTOR DEBUG: HTTP request completed, got response");
 
-            let elapsed = start_time.elapsed();
-            println!("INJECTOR DEBUG: Processing completed successfully in {}ms", elapsed.as_millis());
-            println!(
-                "INJECTOR DEBUG: Token injection completed successfully - duration_ms: {}, response_size: {}",
-                elapsed.as_millis(),
-                serde_json::to_string(&response_data)
-                    .map(|s| s.len())
-                    .unwrap_or(0)
-            );
+            let _elapsed = start_time.elapsed();
 
             // Return the raw connector response for connector-agnostic handling
             Ok(response_data)
@@ -969,7 +843,7 @@ mod tests {
 
         // The request should succeed (httpbin.org should be accessible)
         if let Err(ref e) = result {
-            println!("INJECTOR DEBUG: Error: {e:?}");
+            logger::error!(error = ?e, "Injector core failed");
         }
         assert!(
             result.is_ok(),
@@ -978,13 +852,11 @@ mod tests {
 
         let response = result.unwrap();
 
-        // Print the actual response for demonstration
-        println!("INJECTOR DEBUG: === HTTP RESPONSE FROM HTTPBIN.ORG ===");
-        println!(
-            "INJECTOR DEBUG: {}",
-            serde_json::to_string_pretty(&response).unwrap_or_default()
+        // Log the response for demonstration
+        logger::info!(
+            response = %serde_json::to_string_pretty(&response).unwrap_or_default(),
+            "HTTP response from test endpoint"
         );
-        println!("INJECTOR DEBUG: =======================================");
 
         // Response should be a JSON value from httpbin.org
         assert!(
@@ -1051,13 +923,11 @@ mod tests {
 
         let response = result.unwrap();
 
-        // Print the actual response for demonstration
-        println!("INJECTOR DEBUG: === CERTIFICATE TEST RESPONSE ===");
-        println!(
-            "INJECTOR DEBUG: {}",
-            serde_json::to_string_pretty(&response).unwrap_or_default()
+        // Log the response for demonstration
+        logger::info!(
+            response = %serde_json::to_string_pretty(&response).unwrap_or_default(),
+            "Certificate test response"
         );
-        println!("INJECTOR DEBUG: ================================");
 
         // Verify the token was replaced in the JSON
         // httpbin.org returns the request data in the 'data' or 'json' field
