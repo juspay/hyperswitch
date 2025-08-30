@@ -12978,7 +12978,8 @@
           "payout_processor",
           "authentication_provider",
           "fraud_and_risk_management_provider",
-          "tax_calculation_provider"
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
         ]
       },
       "HyperswitchVaultSessionDetails": {

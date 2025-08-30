@@ -8490,6 +8490,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    RevenueGrowthManagementPlatform,
 }
 
 /// Connector Integration Status

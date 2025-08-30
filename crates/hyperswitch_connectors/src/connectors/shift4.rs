@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
@@ -45,7 +46,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use lazy_static::lazy_static;
 use masking::Mask;
 use transformers::{self as shift4, Shift4PaymentsRequest, Shift4RefundRequest};
 
@@ -847,224 +847,118 @@ impl IncomingWebhook for Shift4 {
     }
 }
 
-lazy_static! {
-    static ref SHIFT4_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+static SHIFT4_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
 
-        let supported_capture_methods2 = vec![
-            enums::CaptureMethod::Automatic,
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+    ];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Mastercard,
-        ];
+    let mut shift4_supported_payment_methods = SupportedPaymentMethods::new();
 
-        let mut shift4_supported_payment_methods = SupportedPaymentMethods::new();
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Eps,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Eps,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None
-            }
-        );
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Giropay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Giropay,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None
-            }
-        );
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Ideal,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Ideal,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None
-            }
-        );
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Sofort,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Trustly,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::Supported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Sofort,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None
-            }
-        );
+    shift4_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Blik,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None
-            }
-        );
+    shift4_supported_payment_methods
+});
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Voucher,
-            enums::PaymentMethodType::Boleto,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None
-            }
-        );
+static SHIFT4_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Shift4",
+    description: "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
+};
 
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::AliPay,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::WeChatPay,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::Paysera,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::Skrill,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::PayLater,
-            enums::PaymentMethodType::Klarna,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods.add(
-            enums::PaymentMethod::Crypto,
-            enums::PaymentMethodType::CryptoCurrency,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
-            },
-        );
-
-        shift4_supported_payment_methods
-    };
-
-    static ref SHIFT4_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Shift4",
-        description:
-            "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
-        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Live,
-    };
-
-    static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
-
-}
+static SHIFT4_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Shift4 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*SHIFT4_CONNECTOR_INFO)
+        Some(&SHIFT4_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1072,6 +966,6 @@ impl ConnectorSpecifications for Shift4 {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
