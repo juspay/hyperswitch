@@ -421,7 +421,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                         Some(
                             storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
-                                    incremental_authorization_details.total_amount,
+                                    // Internally, `NetAmount` is computed as (order_amount + additional_amount), so we subtract here to avoid double-counting.
+                                    incremental_authorization_details.total_amount - payment_data.payment_attempt.net_amount.get_additional_amount(),
                                     None,
                                     None,
                                     None,
@@ -432,7 +433,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                         ),
                         Some(
                             storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: incremental_authorization_details.total_amount,
+                                amount: incremental_authorization_details.total_amount - payment_data.payment_attempt.net_amount.get_additional_amount(),
                             },
                         ),
                     )
