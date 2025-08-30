@@ -3216,3 +3216,40 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
         }
     }
 }
+
+#[cfg(feature = "v2")]
+impl<F: Send + Clone + Sync> Operation<F, types::PaymentsCancelData> for PaymentResponse {
+    type Data = hyperswitch_domain_models::payments::PaymentCancelData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsCancelData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone + Send + Sync>
+    PostUpdateTracker<
+        F,
+        hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        types::PaymentsCancelData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        _db: &'b SessionState,
+        mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        _response: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCancelData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data.payment_attempt.status = enums::AttemptStatus::Voided;
+        Ok(payment_data)
+    }
+}
