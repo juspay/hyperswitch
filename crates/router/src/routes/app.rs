@@ -151,7 +151,10 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
-            request_id: self.incoming_request_id.clone().or_else(|| self.request_id.map(|req_id| (*req_id).to_string())),
+            request_id: self
+                .incoming_request_id
+                .clone()
+                .or_else(|| self.request_id.map(|req_id| (*req_id).to_string())),
         }
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]

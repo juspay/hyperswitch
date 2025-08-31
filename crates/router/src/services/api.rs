@@ -615,14 +615,14 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id);
-    
+
     // Set incoming x-request-id if present in headers
     if let Some(existing_request_id) = incoming_request_header.get(X_REQUEST_ID) {
         if let Ok(request_id_str) = existing_request_id.to_str() {
             session_state.incoming_request_id = Some(request_id_str.to_string());
         }
     }
-    
+
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id);
