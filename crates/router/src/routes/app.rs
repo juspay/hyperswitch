@@ -135,6 +135,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub incoming_request_id: Option<String>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -150,7 +151,7 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.incoming_request_id.clone().or_else(|| self.request_id.map(|req_id| (*req_id).to_string())),
         }
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -539,6 +540,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            incoming_request_id: None, // Will be set later by the server_wrap_util function
         })
     }
 
