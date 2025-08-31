@@ -62,7 +62,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
-    profiles, relay, user, user_role,
+    profiles, relay, subscription, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -1152,6 +1152,21 @@ impl Routing {
                     .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Subscription;
+
+impl Subscription {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/subscription")
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/create").route(
+                web::post().to(|state, req, payload| {
+                    subscription::create_subscription(state, req, payload)
+                }),
+            ))
     }
 }
 

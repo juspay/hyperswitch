@@ -49,6 +49,7 @@ pub mod refunds_v2;
 #[cfg(feature = "v1")]
 pub mod debit_routing;
 pub mod routing;
+pub mod subscription;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "olap")]

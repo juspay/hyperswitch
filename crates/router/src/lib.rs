@@ -196,6 +196,7 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::Subscription::server(state.clone()))
             .service(routes::Chat::server(state.clone()));
 
         #[cfg(feature = "v1")]

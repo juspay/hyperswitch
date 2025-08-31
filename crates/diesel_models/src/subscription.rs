@@ -1,3 +1,4 @@
+use common_utils::generate_id_with_default_len;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
@@ -63,6 +64,10 @@ impl SubscriptionNew {
             created_at: now,
             modified_at: now,
         }
+    }
+
+    pub fn generate_client_secret(&self) -> String {
+        generate_id_with_default_len(&format!("{}_secret", self.id))
     }
 }
 
