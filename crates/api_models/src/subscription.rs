@@ -15,6 +15,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 pub struct CreateSubscriptionRequest {
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
+    pub mca_id: Option<String>,
     pub confirm: bool,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub customer: Option<CustomerDetails>,
