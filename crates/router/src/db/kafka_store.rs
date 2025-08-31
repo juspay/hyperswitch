@@ -1418,18 +1418,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .delete_merchant_connector_account_by_id(id)
             .await
     }
-
-    #[cfg(feature = "v1")]
-    async fn find_merchant_connector_account_by_id(
-        &self,
-        state: &KeyManagerState,
-        id: &id_type::MerchantConnectorAccountId,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        self.diesel_store
-            .find_merchant_connector_account_by_id(state, id, key_store)
-            .await
-    }
 }
 
 #[async_trait::async_trait]
@@ -3338,6 +3326,142 @@ impl GlobalStorageInterface for KafkaStore {
     }
 }
 impl AccountsStorageInterface for KafkaStore {}
+
+#[async_trait::async_trait]
+impl hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface
+    for KafkaStore
+{
+    type Error = errors::StorageError;
+
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_merchant_connector_account_by_merchant_id_connector_label(&self.diesel_store, state, merchant_id, connector_label, key_store).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        connector_name: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_merchant_connector_account_by_profile_id_connector_name(&self.diesel_store, state, profile_id, connector_name, key_store).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_merchant_connector_account_by_merchant_id_connector_name(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        connector_name: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_merchant_connector_account_by_merchant_id_connector_name(&self.diesel_store, state, merchant_id, connector_name, key_store).await
+    }
+
+    async fn insert_merchant_connector_account(
+        &self,
+        state: &KeyManagerState,
+        t: domain::MerchantConnectorAccount,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::insert_merchant_connector_account(&self.diesel_store, state, t, key_store).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_by_merchant_connector_account_merchant_id_merchant_connector_id(&self.diesel_store, state, merchant_id, merchant_connector_id, key_store).await
+    }
+
+    async fn find_merchant_connector_account_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: &id_type::MerchantConnectorAccountId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_merchant_connector_account_by_id(&self.diesel_store, state, id, key_store).await
+    }
+
+    async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        get_disabled: bool,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccounts, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::find_merchant_connector_account_by_merchant_id_and_disabled_list(&self.diesel_store, state, merchant_id, get_disabled, key_store).await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    async fn list_connector_account_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::list_connector_account_by_profile_id(&self.diesel_store, state, profile_id, key_store).await
+    }
+
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::list_enabled_connector_accounts_by_profile_id(&self.diesel_store, state, profile_id, key_store, connector_type).await
+    }
+
+    async fn update_merchant_connector_account(
+        &self,
+        state: &KeyManagerState,
+        this: domain::MerchantConnectorAccount,
+        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::update_merchant_connector_account(&self.diesel_store, state, this, merchant_connector_account, key_store).await
+    }
+
+    async fn update_multiple_merchant_connector_accounts(
+        &self,
+        this: Vec<(
+            domain::MerchantConnectorAccount,
+            storage::MerchantConnectorAccountUpdateInternal,
+        )>,
+    ) -> CustomResult<(), Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::update_multiple_merchant_connector_accounts(&self.diesel_store, this).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    ) -> CustomResult<bool, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::delete_merchant_connector_account_by_merchant_id_merchant_connector_id(&self.diesel_store, merchant_id, merchant_connector_id).await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn delete_merchant_connector_account_by_id(
+        &self,
+        id: &id_type::MerchantConnectorAccountId,
+    ) -> CustomResult<bool, Self::Error> {
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface::delete_merchant_connector_account_by_id(&self.diesel_store, id).await
+    }
+}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
 

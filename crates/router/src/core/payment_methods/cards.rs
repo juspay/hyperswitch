@@ -899,8 +899,9 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResult<ConnectorType> {
         let db = &*self.state.store;
         let mca = db
-            .find_merchant_connector_account_by_id(
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &self.state.into(),
+                merchant_context.get_merchant_account().get_id(),
                 merchant_connector_id,
                 merchant_context.get_merchant_key_store(),
             )
