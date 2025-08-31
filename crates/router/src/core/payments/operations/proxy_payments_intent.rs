@@ -427,6 +427,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             authentication_type,
             connector_request_reference_id,
             connector_response_reference_id,
+            payment_token: None,
         };
 
         let updated_payment_intent = db
