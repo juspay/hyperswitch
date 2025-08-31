@@ -3,6 +3,8 @@ CREATE TABLE subscription (
   subscription_id VARCHAR(128),
   billing_processor VARCHAR(128),
   payment_method_id VARCHAR(128),
+  mca_id VARCHAR(128),
+  client_secret VARCHAR(128),
   merchant_id VARCHAR(64) NOT NULL,
   customer_id VARCHAR(64) NOT NULL,
   metadata JSONB,
