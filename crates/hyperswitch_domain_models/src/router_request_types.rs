@@ -1206,6 +1206,9 @@ pub struct PaymentsSessionData {
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
     pub customer_name: Option<Secret<String>>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Default)]
