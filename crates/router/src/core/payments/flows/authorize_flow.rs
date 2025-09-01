@@ -864,7 +864,7 @@ async fn call_unified_connector_service_authorize(
                     payment_authorize_request,
                     connector_auth_metadata,
                     None,
-            state.get_grpc_headers(),
+                    state.get_grpc_headers(),
                 )
                 .await
                 .change_context(ApiErrorResponse::InternalServerError)
