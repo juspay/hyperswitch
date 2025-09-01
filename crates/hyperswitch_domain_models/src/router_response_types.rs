@@ -90,12 +90,6 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(Debug, Clone)]
-pub struct GiftCardBalanceCheckResponseData {
-    pub balance: String,
-    pub currency: String,
-}
-
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,

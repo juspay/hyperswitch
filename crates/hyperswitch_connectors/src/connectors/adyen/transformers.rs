@@ -27,14 +27,18 @@ use hyperswitch_domain_models::{
     router_data::{
         ConnectorAuthType, ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_request_types::{PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData},
+    router_flow_types::GiftCardBalanceCheck,
+    router_request_types::{
+        GiftCardBalanceCheckRequestData, PaymentsPreProcessingData, ResponseId,
+        SubmitEvidenceRequestData,
+    },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateReference, PaymentsResponseData,
         RedirectForm, RefundsResponseData, SubmitEvidenceResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -1792,6 +1796,23 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
                 connector: "adyen".to_string(),
             }),
         }?;
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            payment_method,
+            merchant_account: auth_type.merchant_account,
+        })
+    }
+}
+
+impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for AdyenBalanceRequest<'_> {
+    type Error = Error;
+    fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
+        let balance_pm = BalancePmData {
+            number: item.request.gift_card_number.clone(),
+            cvc: item.request.gift_card_cvc.clone(),
+        };
+        let payment_method = AdyenPaymentMethod::PaymentMethodBalance(Box::new(balance_pm));
+
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             payment_method,
@@ -3894,6 +3915,45 @@ impl<F>
             F,
             AdyenBalanceResponse,
             PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            payment_method_balance: Some(PaymentMethodBalance {
+                currency: item.response.balance.currency,
+                amount: item.response.balance.value,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            GiftCardBalanceCheck,
+            AdyenBalanceResponse,
+            GiftCardBalanceCheckRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            GiftCardBalanceCheck,
+            AdyenBalanceResponse,
+            GiftCardBalanceCheckRequestData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {

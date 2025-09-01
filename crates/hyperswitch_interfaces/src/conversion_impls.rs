@@ -11,9 +11,9 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
-            ExternalVaultProxyFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
-            RefundFlowData, RevenueRecoveryRecordBackData, UasFlowData, VaultConnectorFlowData,
-            WebhookSourceVerifyData,
+            ExternalVaultProxyFlowData, FilesFlowData, GiftCardBalanceCheckFlowData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
+            UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -163,6 +163,48 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for AccessTo
             request,
             response,
         );
+        Ok(router_data)
+    }
+}
+
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
+    for GiftCardBalanceCheckFlowData
+{
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {
+            merchant_id: old_router_data.merchant_id.clone(),
+        };
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let Self { merchant_id } = new_router_data.resource_common_data;
+        let request = new_router_data.request.clone();
+        let response = new_router_data.response.clone();
+        let mut router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "gift card balance check",
+            request,
+            response,
+        );
+        router_data.connector_auth_type = new_router_data.connector_auth_type;
         Ok(router_data)
     }
 }

@@ -659,8 +659,8 @@ pub struct PaymentsIntentResponse {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GiftCardBalanceCheckResponse {
-    pub balance: String,
-    pub currency: Option<String>,
+    pub balance: Option<MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
 }
 
 #[cfg(feature = "v2")]
@@ -5643,8 +5643,8 @@ pub struct PaymentsConfirmIntentRequest {
 #[serde(deny_unknown_fields)]
 pub struct PaymentsGiftCardBalanceCheckRequest {
     brand: Option<Secret<String>>,
-    number: Secret<String>,
-    cvc: Secret<String>,
+    pub number: Secret<String>,
+    pub cvc: Secret<String>,
 }
 
 #[cfg(feature = "v2")]

@@ -2615,30 +2615,135 @@ pub async fn payments_check_gift_card_balance_core(
     req: payments_api::PaymentsGiftCardBalanceCheckRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::GiftCardBalanceCheckResponse> {
-    let connector_name = Connector::Adyen; // always get the connector name from the merchant_connector_account
+    use hyperswitch_domain_models::{
+        router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
+        router_flow_types::GiftCardBalanceCheck,
+        router_request_types::GiftCardBalanceCheckRequestData,
+        router_response_types::PaymentsResponseData,
+    };
+    use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+
+    use crate::db::errors::ConnectorErrorExt;
+
+    let gift_card_connector_id =
+        id_type::MerchantConnectorAccountId::from_str("mca_Hp2TDxuhkzoWpynPU8T2").unwrap();
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                &state,
+                merchant_context.get_merchant_key_store(),
+                Some(&gift_card_connector_id),
+            )
+            .await
+            .attach_printable(
+                "failed to fetch merchant connector account for external vault insert",
+            )?,
+        ));
+
+    println!("debug: got mca details");
+    let connector_name = merchant_connector_account
+        .get_connector_name()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name.to_string(),
+        api::GetToken::Connector,
+        merchant_connector_account.get_mca_id(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector data")?;
+
+    println!("debug: getting connector auth type");
+
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resource_common_data = VaultConnectorFlowData {
-        merchant_id: merchant_account.get_id().to_owned(),
+    dbg!(&connector_auth_type);
+
+    let resource_common_data = GiftCardBalanceCheckFlowData {
+        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
     };
 
-    let router_data = types::RouterDataV2 {
+    let router_data: RouterDataV2<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckFlowData,
+        GiftCardBalanceCheckRequestData,
+        PaymentsResponseData,
+    > = RouterDataV2 {
         flow: PhantomData,
         resource_common_data,
         tenant_id: state.tenant.tenant_id.clone(),
         connector_auth_type,
-        request: types::VaultRequestData {
-            payment_method_vaulting_data,
-            connector_vault_id,
-            connector_customer_id,
+        request: GiftCardBalanceCheckRequestData {
+            payment_method_data: None,
+            payment_method_type: None,
+            gift_card_number: req.number,
+            gift_card_cvc: req.cvc,
+            currency: Some(common_enums::Currency::USD),
+            minor_amount: Some(MinorUnit::new(0)),
         },
-        response: Ok(types::VaultResponseData::default()),
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
     };
 
+    let mut old_router_data = GiftCardBalanceCheckFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault create api call",
+        )?;
+    // let mut
+    let connector_integration: services::BoxedGiftCardBalanceCheckIntegrationInterface<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        PaymentsResponseData,
+    > = connector_data.connector.get_connector_integration();
+    println!("debug: executing connector steps");
+
+    let connector_response = services::execute_connector_processing_step(
+        &state,
+        connector_integration,
+        &old_router_data,
+        CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_payment_failed_response()?;
+
+    let resp = payments_api::GiftCardBalanceCheckResponse {
+        balance: connector_response
+            .payment_method_balance
+            .clone()
+            .map(|val| val.amount),
+        currency: connector_response
+            .payment_method_balance
+            .clone()
+            .map(|val| val.currency),
+    };
+
+    Ok(services::ApplicationResponse::Json(resp))
+
+    // let resource_common_data = VaultConnectorFlowData {
+    //     merchant_id: merchant_account.get_id().to_owned(),
+    // };
+
+    // let router_data = types::RouterDataV2 {
+    //     flow: PhantomData,
+    //     resource_common_data,
+    //     tenant_id: state.tenant.tenant_id.clone(),
+    //     connector_auth_type,
+    //     request: types::VaultRequestData {
+    //         payment_method_vaulting_data,
+    //         connector_vault_id,
+    //         connector_customer_id,
+    //     },
+    //     response: Ok(types::VaultResponseData::default()),
+    // };
+
     // Ok(router_data)
-    todo!()
 }
 
 #[cfg(feature = "v2")]

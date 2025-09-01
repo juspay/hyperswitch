@@ -168,6 +168,11 @@ pub struct VaultConnectorFlowData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckFlowData {
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
+
+#[derive(Debug, Clone)]
 pub struct ExternalVaultProxyFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
