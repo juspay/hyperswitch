@@ -1,7 +1,11 @@
 use std::{str::FromStr, time::Instant};
 
 use api_models::admin;
+#[cfg(feature = "v2")]
+use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
+#[cfg(feature = "v2")]
+use common_utils::consts::BASE64_ENGINE;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -10,7 +14,9 @@ use external_services::grpc_client::unified_connector_service::{
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
+use hyperswitch_domain_models::merchant_connector_account::{
+    ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
+};
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -24,6 +30,8 @@ use unified_connector_service_client::payments::{
     PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
 };
 
+#[cfg(feature = "v2")]
+use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
@@ -505,6 +513,58 @@ pub fn build_unified_connector_service_auth_metadata(
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn build_unified_connector_service_external_vault_proxy_metadata(
+    external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> CustomResult<String, UnifiedConnectorServiceError> {
+    let external_vault_metadata = external_vault_merchant_connector_account
+        .get_metadata()
+        .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to obtain ConnectorMetadata")?;
+
+    let connector_name = external_vault_merchant_connector_account
+        .get_connector_name()
+        .map(|connector| connector.to_string())
+        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
+        .attach_printable("Missing connector name")?; // always get the connector name from this call
+
+    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
+        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable("Failed to parse Vault connector")?;
+
+    let unified_service_vault_metdata = match external_vault_connector {
+        api_enums::VaultConnectors::Vgs => {
+            let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
+                .expose()
+                .parse_value("ExternalVaultConnectorMetadata")
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse Vgs connector metadata")?;
+
+            Some(external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                external_services::grpc_client::unified_connector_service::VgsMetadata {
+                    proxy_url: vgs_metadata.proxy_url,
+                    certificate: vgs_metadata.certificate,
+                }
+            ))
+        }
+        api_enums::VaultConnectors::HyperswitchVault => None,
+    };
+
+    match unified_service_vault_metdata {
+        Some(metdata) => {
+            let external_vault_metadata_bytes = serde_json::to_vec(&metdata)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to convert External vault metadata to bytes")?;
+
+            Ok(BASE64_ENGINE.encode(&external_vault_metadata_bytes))
+        }
+        None => Err(UnifiedConnectorServiceError::NotImplemented(
+            "External vault proxy metadata is not supported for {connector_name}".to_string(),
+        )
+        .into()),
     }
 }
 

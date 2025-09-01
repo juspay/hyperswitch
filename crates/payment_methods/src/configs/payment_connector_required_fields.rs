@@ -1665,7 +1665,11 @@ fn get_bank_redirect_required_fields(
                         non_mandate: HashMap::from([
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                            RequiredField::BillingAddressCountries(vec![
+                                "DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT",
+                                "SE", "SK",
+                            ])
+                            .to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },
@@ -1899,6 +1903,7 @@ fn get_bank_redirect_required_fields(
                 (Connector::Globalpay, fields(vec![], vec![], vec![])),
                 (Connector::Mollie, fields(vec![], vec![], vec![])),
                 (Connector::Nexinets, fields(vec![], vec![], vec![])),
+                (Connector::Airwallex, fields(vec![], vec![], vec![])),
                 (
                     Connector::Nuvei,
                     RequiredFieldFinal {
@@ -2538,7 +2543,25 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         ),
         (
             enums::PaymentMethodType::AmazonPay,
-            connectors(vec![(Connector::Stripe, fields(vec![], vec![], vec![]))]),
+            connectors(vec![
+                (Connector::Stripe, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Amazonpay,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::ShippingFirstName.to_tuple(),
+                            RequiredField::ShippingLastName.to_tuple(),
+                            RequiredField::ShippingAddressLine1.to_tuple(),
+                            RequiredField::ShippingAddressCity.to_tuple(),
+                            RequiredField::ShippingAddressState.to_tuple(),
+                            RequiredField::ShippingAddressZip.to_tuple(),
+                            RequiredField::ShippingPhone.to_tuple(),
+                        ]),
+                    },
+                ),
+            ]),
         ),
         (
             enums::PaymentMethodType::Cashapp,
@@ -2845,7 +2868,8 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([RequiredField::BillingAddressCountries(vec![
-                            "ALL",
+                            "AT", "BE", "FI", "FR", "DE", "GR", "IE", "IT", "NL", "PT", "ES", "DK",
+                            "NO", "PL", "SE", "CH", "GB", "CZ", "US",
                         ])
                         .to_tuple()]),
                         common: HashMap::new(),
