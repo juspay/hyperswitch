@@ -970,6 +970,7 @@ pub struct EliminationRoutingConfig {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EliminationDetail {
+    pub name: String,
     pub description: String,
 }
 
@@ -1064,6 +1065,7 @@ pub struct SuccessBasedRoutingConfig {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SuccessDetail {
+    pub name: String,
     pub description: String,
 }
 

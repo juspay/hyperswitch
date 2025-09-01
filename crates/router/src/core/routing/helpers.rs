@@ -2144,7 +2144,9 @@ pub async fn default_specific_dynamic_routing_setup(
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
                 merchant_id,
-                name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                name: routing_algorithm::RoutingAlgorithm::create_success_prefixed_name(
+                    SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM,
+                ),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
                 algorithm_data: serde_json::json!(default_success_based_routing_config),
@@ -2166,7 +2168,9 @@ pub async fn default_specific_dynamic_routing_setup(
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
                 merchant_id,
-                name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                name: routing_algorithm::RoutingAlgorithm::create_elimination_prefixed_name(
+                    ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM,
+                ),
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
                 algorithm_data: serde_json::json!(default_elimination_routing_config),
@@ -2249,10 +2253,12 @@ pub async fn create_specific_dynamic_routing_setup(
 
     let algo = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let (description, success_config) = match &payload {
-                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => {
-                    (Some(config.detail.description.clone()), &config.config)
-                }
+            let (name, description, success_config) = match &payload {
+                routing_types::DynamicRoutingPayload::SuccessBasedRoutingPayload(config) => (
+                    config.detail.name.clone(),
+                    Some(config.detail.description.clone()),
+                    &config.config,
+                ),
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Success Rate Based Routing".to_string(),
@@ -2265,7 +2271,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
                 merchant_id,
-                name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                name: routing_algorithm::RoutingAlgorithm::create_success_prefixed_name(&name),
                 description,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
                 algorithm_data: serde_json::json!(success_config),
@@ -2276,10 +2282,12 @@ pub async fn create_specific_dynamic_routing_setup(
             }
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let (description, elimination_config) = match &payload {
-                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => {
-                    (Some(config.detail.description.clone()), &config.config)
-                }
+            let (name, description, elimination_config) = match &payload {
+                routing_types::DynamicRoutingPayload::EliminationRoutingPayload(config) => (
+                    config.detail.name.clone(),
+                    Some(config.detail.description.clone()),
+                    &config.config,
+                ),
                 _ => {
                     return Err((errors::ApiErrorResponse::InvalidRequestData {
                         message: "Invalid payload type for Elimination Routing".to_string(),
@@ -2292,7 +2300,7 @@ pub async fn create_specific_dynamic_routing_setup(
                 algorithm_id: algorithm_id.clone(),
                 profile_id: profile_id.clone(),
                 merchant_id,
-                name: ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                name: routing_algorithm::RoutingAlgorithm::create_elimination_prefixed_name(&name),
                 description,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
                 algorithm_data: serde_json::json!(elimination_config),

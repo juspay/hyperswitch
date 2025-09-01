@@ -23,11 +23,12 @@ use crate::{
 
 impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingProfileMetadata) -> Self {
+        let display_name = value.get_display_name();
         Self {
             id: value.algorithm_id,
 
             profile_id: value.profile_id,
-            name: value.name,
+            name: display_name,
             kind: value.kind.foreign_into(),
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
@@ -40,11 +41,12 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
 
 impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingAlgorithm) -> Self {
+        let display_name = value.get_display_name();
         Self {
             id: value.algorithm_id,
 
             profile_id: value.profile_id,
-            name: value.name,
+            name: display_name,
             kind: value.kind.foreign_into(),
             description: value.description.unwrap_or_default(),
             created_at: value.created_at.assume_utc().unix_timestamp(),
@@ -59,6 +61,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(value: RoutingAlgorithm) -> Result<Self, Self::Error> {
+        let display_name = value.get_display_name();
         let algorithm: RoutingAlgorithmWrapper = match value.kind {
             diesel_models::enums::RoutingAlgorithmKind::Dynamic => value
                 .algorithm_data
@@ -72,7 +75,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
 
         Ok(Self {
             id: value.algorithm_id,
-            name: value.name,
+            name: display_name,
             profile_id: value.profile_id,
             description: value.description.unwrap_or_default(),
             algorithm,
