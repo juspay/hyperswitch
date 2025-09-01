@@ -196,7 +196,6 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
-            .service(routes::Subscription::server(state.clone()))
             .service(routes::Chat::server(state.clone()));
 
         #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
@@ -210,6 +209,7 @@ pub fn mk_app(
                 .service(routes::Files::server(state.clone()))
                 .service(routes::Disputes::server(state.clone()))
                 .service(routes::Blocklist::server(state.clone()))
+                .service(routes::Subscription::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
