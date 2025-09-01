@@ -1,6 +1,8 @@
 pub mod utils;
+use api_models::payments::CustomerDetailsResponse;
 use common_utils::generate_id_with_default_len;
 use diesel_models::subscription::SubscriptionNew;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_context::MerchantContext;
 use payment_methods::helpers::StorageErrorExt;
 use utils::{
@@ -9,7 +11,7 @@ use utils::{
 };
 
 use super::errors::{self, RouterResponse};
-use crate::{routes::SessionState, services::api as service_api};
+use crate::{routes::SessionState, services::api as service_api, types::transformers::ForeignInto};
 
 pub async fn create_subscription(
     state: SessionState,
@@ -35,15 +37,19 @@ pub async fn create_subscription(
         || customer.phone.is_some()
         || customer.phone_country_code.is_some()
     {
-        response.customer = get_or_create_customer(&state, &customer, &merchant_context).await?;
+        let customer = get_or_create_customer(&state, &customer, &merchant_context).await?;
+        let customer_table_response: Option<CustomerDetailsResponse> =
+            customer.as_ref().map(ForeignInto::foreign_into);
+        response.customer = customer_table_response;
         response
             .customer
             .as_ref()
-            .map(|customer| customer.customer_id.clone())
+            .and_then(|customer| customer.id.clone())
     } else {
         request.customer_id.clone()
     }
-    .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+    .ok_or(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("subscriptions: unable to create a customer")?;
 
     // If provided we can strore plan_id, coupon_code etc as metadata
     let subscription = SubscriptionNew::new(
@@ -60,7 +66,8 @@ pub async fn create_subscription(
     response.client_secret = subscription.generate_client_secret();
     db.insert_subscription_entry(subscription)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("subscriptions: unable to insert subscription entry to database")?;
 
     Ok(service_api::ApplicationResponse::Json(response))
 }

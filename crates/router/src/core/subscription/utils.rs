@@ -1,3 +1,4 @@
+use api_models::payments::CustomerDetailsResponse;
 use common_utils::{
     crypto::Encryptable,
     events::ApiEventMetric,
@@ -34,7 +35,7 @@ pub async fn get_or_create_customer(
     let customer_id = customer_details
         .customer_id
         .clone()
-        .unwrap_or_else(|| common_utils::id_type::CustomerId::generate());
+        .unwrap_or_else(common_utils::id_type::CustomerId::generate);
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let key = merchant_context
@@ -53,7 +54,8 @@ pub async fn get_or_create_customer(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("subscription: unable to perform db read query")?
     {
         // Customer found
         Some(customer) => Ok(Some(customer)),
@@ -215,7 +217,7 @@ pub struct CreateSubscriptionResponse {
     pub mca_id: Option<String>,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
-    pub customer: Option<Customer>,
+    pub customer: Option<CustomerDetailsResponse>,
     pub invoice: Option<Invoice>,
 }
 
