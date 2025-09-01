@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
@@ -14,8 +14,14 @@ use common_utils::{
 };
 use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+    PayoutsMandateReference, PayoutsMandateReferenceRecord,
+};
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
+    payment_methods::PaymentMethodUpdate,
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
@@ -156,6 +162,162 @@ pub async fn migrate_payment_method(
             network_token_migrated: migrate_status.network_token_migrated,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_record(
+    state: &state::PaymentMethodsState,
+    req: pm_api::UpdatePaymentMethodRecord,
+    merchant_id: &id_type::MerchantId,
+    merchant_context: &merchant_context::MerchantContext,
+    controller: &dyn PaymentMethodsController,
+) -> CustomResult<
+    ApplicationResponse<pm_api::PaymentMethodRecordUpdateResponse>,
+    errors::ApiErrorResponse,
+> {
+    let db = &*state.store;
+    let payment_method_id = req.payment_method_id.clone();
+    let network_transaction_id = req.network_transaction_id.clone();
+    let status = req.status;
+
+    let payment_method = db
+        .find_payment_method(
+            &state.into(),
+            merchant_context.get_merchant_key_store(),
+            &payment_method_id,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    if payment_method.merchant_id != *merchant_id {
+        return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+    "Merchant ID in the request does not match the Merchant ID in the payment method record.".to_string()
+);
+    }
+
+    let mandate_details = payment_method
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+
+    let updated_connector_mandate_details =
+        match (&req.payment_instrument_id, &req.merchant_connector_id) {
+            (Some(payment_instrument_id), Some(merchant_connector_id)) => {
+                let is_mca_connector_type_payout = matches!(
+                    controller
+                        .get_mca_connector_type(merchant_connector_id, merchant_context)
+                        .await?,
+                    enums::ConnectorType::PayoutProcessor
+                );
+                if is_mca_connector_type_payout {
+                    // Handle PayoutsMandateReference
+                    let mut existing_payouts_mandate = mandate_details
+                        .payouts
+                        .unwrap_or_else(|| PayoutsMandateReference(HashMap::new()));
+
+                    // Create new payout mandate record
+                    let new_payout_record = PayoutsMandateReferenceRecord {
+                        transfer_method_id: Some(payment_instrument_id.peek().to_string()),
+                    };
+
+                    // Check if record exists for this merchant_connector_id
+                    if let Some(existing_record) =
+                        existing_payouts_mandate.0.get_mut(merchant_connector_id)
+                    {
+                        // Update only fields that have values in new record
+                        if let Some(transfer_method_id) = &new_payout_record.transfer_method_id {
+                            existing_record.transfer_method_id = Some(transfer_method_id.clone());
+                        }
+                    } else {
+                        // Insert new record in connector_mandate_details
+                        existing_payouts_mandate
+                            .0
+                            .insert(merchant_connector_id.clone(), new_payout_record);
+                    }
+
+                    // Create updated CommonMandateReference preserving payments section
+                    CommonMandateReference {
+                        payments: mandate_details.payments,
+                        payouts: Some(existing_payouts_mandate),
+                    }
+                } else {
+                    // Handle PaymentsMandateReference
+                    let mut existing_payments_mandate = mandate_details
+                        .payments
+                        .unwrap_or_else(|| PaymentsMandateReference(HashMap::new()));
+
+                    // Check if record exists for this merchant_connector_id
+                    if let Some(existing_record) =
+                        existing_payments_mandate.0.get_mut(merchant_connector_id)
+                    {
+                        existing_record.connector_mandate_id =
+                            payment_instrument_id.peek().to_string();
+                    } else {
+                        // Insert new record in connector_mandate_details
+                        existing_payments_mandate.0.insert(
+                            merchant_connector_id.clone(),
+                            PaymentsMandateReferenceRecord {
+                                connector_mandate_id: payment_instrument_id.peek().to_string(),
+                                payment_method_type: None,
+                                original_payment_authorized_amount: None,
+                                original_payment_authorized_currency: None,
+                                mandate_metadata: None,
+                                connector_mandate_status: None,
+                                connector_mandate_request_reference_id: None,
+                            },
+                        );
+                    }
+
+                    // Create updated CommonMandateReference preserving payouts section
+                    CommonMandateReference {
+                        payments: Some(existing_payments_mandate), // Updated payments
+                        payouts: mandate_details.payouts,          // Preserve existing payouts
+                    }
+                }
+            }
+            _ => {
+                // If payment_instrument_id or merchant_connector_id is missing, keep existing details
+                mandate_details
+            }
+        };
+    let connector_mandate_details_value = updated_connector_mandate_details
+        .get_mandate_details_value()
+        .map_err(|err| {
+            logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+            errors::ApiErrorResponse::MandateUpdateFailed
+        })?;
+    let pm_update =
+        PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+            connector_mandate_details: Some(connector_mandate_details_value),
+            network_transaction_id,
+            status,
+        };
+
+    let response = db
+        .update_payment_method(
+            &state.into(),
+            merchant_context.get_merchant_key_store(),
+            payment_method,
+            pm_update,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to update payment method for existing pm_id: {payment_method_id:?} in db",
+        ))?;
+
+    logger::debug!("Payment method updated in db");
+
+    Ok(ApplicationResponse::Json(
+        pm_api::PaymentMethodRecordUpdateResponse {
+            payment_method_id: response.payment_method_id,
+            status: response.status,
+            network_transaction_id: response.network_transaction_id,
+            connector_mandate_details: response.connector_mandate_details,
         },
     ))
 }

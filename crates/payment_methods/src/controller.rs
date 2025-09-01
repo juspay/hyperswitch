@@ -9,7 +9,9 @@ use common_enums::enums as common_enums;
 use common_utils::encryption;
 use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
+use hyperswitch_domain_models::{
+    merchant_context, merchant_key_store, payment_methods, type_encryption,
+};
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
@@ -235,6 +237,13 @@ pub trait PaymentMethodsController {
         &self,
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<api::CardDetailFromLocker>;
+
+    #[cfg(feature = "v1")]
+    async fn get_mca_connector_type(
+        &self,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        merchant_context: &merchant_context::MerchantContext,
+    ) -> errors::PmResult<common_enums::ConnectorType>;
 }
 
 pub async fn create_encrypted_data<T>(

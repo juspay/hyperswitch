@@ -413,6 +413,52 @@ pub async fn migrate_payment_methods(
     .await
 }
 
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchUpdate))]
+pub async fn update_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<migration::PaymentMethodsUpdateForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchUpdate;
+    let (merchant_id, records) = match form.validate_and_get_payment_method_records() {
+        Ok((merchant_id, records)) => (merchant_id, records),
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                // Create customers if they are not already present
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
+                let controller = cards::PmCards {
+                    state: &state,
+                    merchant_context: &merchant_context,
+                };
+                Box::pin(migration::update_payment_methods(
+                    &(&state).into(),
+                    req,
+                    &merchant_id,
+                    &merchant_context,
+                    &controller,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(

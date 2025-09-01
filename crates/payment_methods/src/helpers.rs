@@ -280,6 +280,18 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     }
 }
 
+#[cfg(feature = "v1")]
+impl ForeignFrom<domain::PaymentMethod> for api::PaymentMethodRecordUpdateResponse {
+    fn foreign_from(item: domain::PaymentMethod) -> Self {
+        Self {
+            payment_method_id: item.payment_method_id.to_owned(),
+            status: item.status,
+            network_transaction_id: item.network_transaction_id,
+            connector_mandate_details: item.connector_mandate_details,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     for api::PaymentMethodResponse

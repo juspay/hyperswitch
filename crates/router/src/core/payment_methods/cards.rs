@@ -892,6 +892,27 @@ impl PaymentMethodsController for PmCards<'_> {
     }
 
     #[cfg(feature = "v1")]
+    async fn get_mca_connector_type(
+        &self,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        merchant_context: &domain::MerchantContext,
+    ) -> errors::RouterResult<ConnectorType> {
+        let db = &*self.state.store;
+        let mca = db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &self.state.into(),
+                merchant_context.get_merchant_account().get_id(),
+                merchant_connector_id,
+                merchant_context.get_merchant_key_store(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch merchant connector account")?;
+
+        Ok(mca.connector_type)
+    }
+
+    #[cfg(feature = "v1")]
     async fn get_card_details_from_locker(
         &self,
         pm: &domain::PaymentMethod,
