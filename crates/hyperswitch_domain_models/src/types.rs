@@ -4,11 +4,13 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack,
-        subscriptions::GetSubscriptionPlans, AccessTokenAuth, AccessTokenAuthentication,
-        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
-        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
+        mandate_revoke::MandateRevoke,
+        revenue_recovery::RecoveryRecordBack,
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
+        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
         PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
         SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
@@ -18,7 +20,7 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -39,7 +41,7 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        subscriptions::GetSubscriptionPlansResponse,
+        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
@@ -125,6 +127,12 @@ pub type RevenueRecoveryRecordBackRouterData = RouterData<
 
 pub type GetSubscriptionPlansRouterData =
     RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>;
+
+pub type GetSubscriptionPlanPricesRouterData = RouterData<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
+>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;

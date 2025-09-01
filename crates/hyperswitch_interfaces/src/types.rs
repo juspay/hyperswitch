@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
-        subscriptions::GetSubscriptionPlans,
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -55,7 +55,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        subscriptions::GetSubscriptionPlansResponse,
+        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
@@ -317,6 +317,13 @@ pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
     GetSubscriptionPlans,
     GetSubscriptionPlansRequest,
     GetSubscriptionPlansResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>`
+pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
