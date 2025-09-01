@@ -182,8 +182,7 @@ pub async fn populate_bin_details_for_masked_card(
     db: &dyn state::PaymentMethodsStorageInterface,
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
-    match payment_method_type {
-        Some(
+    if let Some(
             // Cards
             enums::PaymentMethodType::Credit
             | enums::PaymentMethodType::Debit
@@ -191,13 +190,11 @@ pub async fn populate_bin_details_for_masked_card(
             // Wallets
             | enums::PaymentMethodType::ApplePay
             | enums::PaymentMethodType::GooglePay,
-        ) => {
-            migration::validate_card_expiry(
-                &card_details.card_exp_month,
-                &card_details.card_exp_year,
-            )?;
-        }
-        _ => {}
+        ) = payment_method_type {
+        migration::validate_card_expiry(
+            &card_details.card_exp_month,
+            &card_details.card_exp_year,
+        )?;
     }
 
     let card_number = card_details.card_number.clone();
