@@ -1167,6 +1167,13 @@ impl Subscription {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(
+                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::confirm_subscription(state, req, id, payload)
+                    },
+                )),
+            )
     }
 }
 

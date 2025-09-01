@@ -1,14 +1,14 @@
+use super::errors::{self, RouterResponse};
+use crate::{core::payouts::helpers, routes::SessionState, services::api as service_api};
 use api_models::subscription::{self as subscription_types, SUBSCRIPTION_ID_PREFIX};
-use common_utils::{events::ApiEventMetric, generate_id_with_default_len};
-use diesel_models::subscription::SubscriptionNew;
+use common_utils::{events::ApiEventMetric, generate_id_with_default_len, id_type};
+use diesel_models::subscription::{SubscriptionNew, SubscriptionUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext, router_request_types::CustomerDetails,
 };
 use payment_methods::helpers::StorageErrorExt;
-
-use super::errors::{self, RouterResponse};
-use crate::{core::payouts::helpers, routes::SessionState, services::api as service_api};
+use std::str::FromStr;
 
 pub async fn create_subscription(
     state: SessionState,
@@ -120,6 +120,78 @@ pub fn get_customer_details_from_request(
     }
 }
 
+pub async fn confirm_subscription(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    _request: subscription_types::ConfirmSubscriptionRequest,
+    subscription_id: String,
+) -> RouterResponse<()> {
+    let db = state.store.as_ref();
+    // Fetch subscription from DB
+    let subscription = db
+        .find_subscription_by_id(subscription_id)
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Subscription not found".to_string(),
+        })?;
+
+    let mercahnt_account = merchant_context.get_merchant_account();
+    let key_store = merchant_context.get_merchant_key_store();
+    let mca_id = subscription
+        .mca_id
+        .as_ref()
+        .map(|id| id_type::MerchantConnectorAccountId::wrap(id.clone()))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: "No mca_id associated with this subscription".to_string(),
+        })?;
+
+    let billing_processor_mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &(&state).into(),
+            &mercahnt_account.get_id(),
+            &mca_id,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: mca_id.get_string_repr().to_string(),
+        })?;
+
+    let connector_name = billing_processor_mca.connector_name.clone();
+
+    let connector_enum =
+        common_enums::connector_enums::Connector::from_str(connector_name.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Cannot find connector from the connector_name")?;
+
+    let _connector_params =
+        hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+            &state.conf.connectors,
+            connector_enum,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "cannot find connector params for this connector {connector_name} in this flow",
+        ))?;
+
+    // Create Subscription at billing processor
+    // Update subscription with billing processor subscription_id
+    let udpate = SubscriptionUpdate::new(Some("Some_id".to_string()), None);
+
+    db.update_subscription_entry(subscription.id.clone(), udpate)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update subscription with billing processor subscription_id")?;
+    // Form Payments Request with billing processor details
+    // Call Payments Core
+    // Semd back response
+
+    Ok(service_api::ApplicationResponse::Json(()))
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CreateSubscriptionResponse {
     pub subscription: Subscription,
@@ -186,3 +258,12 @@ impl CreateSubscriptionResponse {
 }
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConfirmSubscriptionResponse {
+    pub subscription: Subscription,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub invoice: Option<Invoice>,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionResponse {}

@@ -56,4 +56,12 @@ impl Subscription {
                 .attach_printable("Error while updating subscription entry")
         })
     }
+
+    pub async fn find_subscription_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
+        )
+        .await
+    }
 }
