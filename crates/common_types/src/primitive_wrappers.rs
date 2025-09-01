@@ -251,7 +251,7 @@ mod safe_string {
     use serde::{de::Error, Deserialize, Serialize};
 
     /// String wrapper that prevents XSS and SQLi attacks
-    #[derive(Clone, Debug, Eq, PartialEq)]
+    #[derive(Clone, Debug, Eq, PartialEq, Default)]
     pub struct SafeString(String);
 
     impl SafeString {
@@ -301,12 +301,6 @@ mod safe_string {
 
         fn deref(&self) -> &Self::Target {
             &self.0
-        }
-    }
-
-    impl Default for SafeString {
-        fn default() -> Self {
-            Self(String::new())
         }
     }
 
