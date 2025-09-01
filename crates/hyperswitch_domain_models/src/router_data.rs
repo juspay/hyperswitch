@@ -474,6 +474,16 @@ impl ConnectorResponseData {
             extended_authorization_response_data: None,
         }
     }
+    pub fn new(
+        additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+        extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
+    ) -> Self {
+        Self {
+            additional_payment_method_data,
+            extended_authorization_response_data,
+        }
+    }
+
     pub fn get_extended_authorization_response_data(
         &self,
     ) -> Option<&ExtendedAuthorizationResponseData> {
@@ -521,6 +531,7 @@ pub struct ErrorResponse {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub connector_metadata: Option<Secret<serde_json::Value>>,
 }
 
 impl Default for ErrorResponse {
@@ -535,6 +546,7 @@ impl Default for ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }
@@ -551,6 +563,7 @@ impl ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }
@@ -742,6 +755,7 @@ impl
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
+                    connector_metadata,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -956,6 +970,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    connector_metadata: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1186,6 +1201,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    connector_metadata: _,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1455,6 +1471,7 @@ impl
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
+                    connector_metadata,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1681,6 +1698,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    connector_metadata: _,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 

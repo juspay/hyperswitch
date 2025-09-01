@@ -155,6 +155,7 @@ impl ConnectorCommon for Bluecode {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -748,7 +749,8 @@ static BLUECODE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static BLUECODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Bluecode",
     description: "Bluecode is building a global payment network that combines Alipay+, Discover and EMPSA and enables seamless payments in 75 countries. With over 160 million acceptance points, payments are processed according to the highest European security and data protection standards to make Europe less dependent on international players.",
-    connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

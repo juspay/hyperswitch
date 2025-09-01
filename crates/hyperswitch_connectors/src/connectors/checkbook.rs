@@ -156,6 +156,7 @@ impl ConnectorCommon for Checkbook {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -639,7 +640,8 @@ static CHECKBOOK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Checkbook",
     description:
         "Checkbook is a payment platform that allows users to send and receive digital checks.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Beta,
 };
 
 static CHECKBOOK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

@@ -156,6 +156,7 @@ impl ConnectorCommon for Globalpay {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -371,6 +372,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1224,7 +1226,8 @@ static GLOBALPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static GLOBALPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globalpay",
         description: "Global Payments is an American multinational financial technology company that provides payment technology and services to merchants, issuers and consumers.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
