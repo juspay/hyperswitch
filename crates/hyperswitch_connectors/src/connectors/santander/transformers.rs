@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use api_models::payments::{QrCodeInformation, VoucherNextStepData};
 use common_enums::{enums, AttemptStatus};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode},
     id_type,
+    request::Method,
     types::{AmountConvertor, FloatMajorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};
@@ -12,8 +15,11 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -158,6 +164,12 @@ pub struct SantanderCard {
     complete: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPSyncBoletoRequest {
+    payer_document_number: Secret<i64>,
+}
+
 pub struct SantanderAuthType {
     pub(super) _api_key: Secret<String>,
     pub(super) _key1: Secret<String>,
@@ -214,6 +226,21 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPa
                 crate::utils::get_unimplemented_payment_method_error_message("Santander"),
             ))?,
         }
+    }
+}
+
+impl TryFrom<&SantanderRouterData<&PaymentsSyncRouterData>> for SantanderPSyncBoletoRequest {
+    type Error = Error;
+    fn try_from(value: &SantanderRouterData<&PaymentsSyncRouterData>) -> Result<Self, Self::Error> {
+        let payer_document_number: i64 = value
+            .router_data
+            .connector_request_reference_id
+            .parse()
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+        Ok(Self {
+            payer_document_number: Secret::new(payer_document_number),
+        })
     }
 }
 
@@ -756,7 +783,12 @@ pub struct SantanderCalendar {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixPSyncResponse>),
-    Boleto(Box<SantanderBoletoPaymentsResponse>),
+    Boleto(Box<SantanderBoletoPSyncResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoPSyncResponse {
+    pub link: Option<Url>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -836,37 +868,21 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 }
             }
             SantanderPaymentsSyncResponse::Boleto(boleto_data) => {
-                let voucher_data = VoucherNextStepData {
-                    expires_at: None,
-                    digitable_line: boleto_data.digitable_line,
-                    reference: boleto_data.barcode.ok_or(
-                        errors::ConnectorError::MissingConnectorRedirectionPayload {
-                            field_name: "barcode",
-                        },
-                    )?,
-                    entry_date: boleto_data.entry_date,
-                    download_url: None,
-                    instructions_url: None,
-                };
-
-                let connector_metadata = Some(voucher_data.encode_to_value())
-                    .transpose()
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-                let resource_id = match boleto_data.tx_id {
-                    Some(tx_id) => ResponseId::ConnectorTransactionId(tx_id),
-                    None => ResponseId::NoResponseId,
-                };
+                let redirection_data = boleto_data.link.clone().map(|url| RedirectForm::Form {
+                    endpoint: url.to_string(),
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                });
 
                 Ok(Self {
                     status: AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id,
-                        redirection_data: Box::new(None),
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(redirection_data),
                         mandate_reference: Box::new(None),
-                        connector_metadata,
+                        connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(boleto_data.bank_number),
+                        connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charges: None,
                     }),
@@ -941,7 +957,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let voucher_data = VoucherNextStepData {
                     expires_at: None,
-                    digitable_line: boleto_data.digitable_line,
+                    digitable_line: boleto_data.digitable_line.clone(),
                     reference: boleto_data.barcode.ok_or(
                         errors::ConnectorError::MissingConnectorRedirectionPayload {
                             field_name: "barcode",
@@ -961,6 +977,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     None => ResponseId::NoResponseId,
                 };
 
+                let connector_response_reference_id = Some(
+                    boleto_data
+                        .digitable_line
+                        .clone()
+                        .or_else(|| {
+                            boleto_data.beneficiary.as_ref().map(|beneficiary| {
+                                format!(
+                                    "{}.{:?}",
+                                    boleto_data.bank_number,
+                                    beneficiary.document_number.clone()
+                                )
+                            })
+                        })
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "beneficiary.document_number",
+                        })?,
+                );
+
                 Ok(Self {
                     status: AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
@@ -969,7 +1003,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         mandate_reference: Box::new(None),
                         connector_metadata,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(boleto_data.bank_number),
+                        connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         charges: None,
                     }),
