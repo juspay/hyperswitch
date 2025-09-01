@@ -835,6 +835,16 @@ pub struct ChargebeePlanPrice {
     pub trial_period: Option<i64>,
     pub trial_period_unit: ChargebeeTrialPeriodUnit,
     pub price: MinorUnit,
+    pub pricing_model: ChargebeePricingModel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChargebeePricingModel {
+    FlatFee,
+    PerUnit,
+    Tiered,
+    Volume,
+    Stairstep,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
