@@ -1479,6 +1479,10 @@ diesel::table! {
         billing_processor -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        mca_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
