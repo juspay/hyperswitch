@@ -569,12 +569,18 @@ impl BizEmailProd {
             settings: state.conf.clone(),
             user_name: data.poc_name.unwrap_or_default(),
             poc_email: data.poc_email.unwrap_or_default(),
-            legal_business_name: data.legal_business_name.unwrap_or_default(),
+            legal_business_name: data
+                .legal_business_name
+                .map(|s| s.into_inner())
+                .unwrap_or_default(),
             business_location: data
                 .business_location
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),
-            business_website: data.business_website.unwrap_or_default(),
+            business_website: data
+                .business_website
+                .map(|s| s.into_inner())
+                .unwrap_or_default(),
             theme_id,
             theme_config,
             product_type: data.product_type,

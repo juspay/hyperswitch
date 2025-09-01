@@ -304,6 +304,12 @@ mod safe_string {
         }
     }
 
+    impl Default for SafeString {
+        fn default() -> Self {
+            Self(String::new())
+        }
+    }
+
     // Custom serialization and deserialization
     impl Serialize for SafeString {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
