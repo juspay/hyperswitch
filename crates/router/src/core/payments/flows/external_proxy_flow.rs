@@ -430,7 +430,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 Ok((router_data, payment_authorize_response))
             }
         )).await?;
-        
+
         // Copy back the updated data
         *self = updated_router_data;
         Ok(())
