@@ -80,8 +80,16 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Affirm => {
+                affirm::transformers::AffirmAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Airwallex => {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Amazonpay => {
+                amazonpay::transformers::AmazonpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Archipel => {
@@ -129,6 +137,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 bluesnap::transformers::BluesnapAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Blackhawknetwork => {
+                blackhawknetwork::transformers::BlackhawknetworkAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Bluecode => {
                 bluecode::transformers::BluecodeAuthType::try_from(self.auth_type)?;
                 bluecode::transformers::BluecodeMetadataObject::try_from(self.connector_meta_data)?;
@@ -155,10 +167,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 celero::transformers::CeleroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Checkbook => {
-            //     checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Checkbook => {
+                checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -205,10 +217,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Dwolla => {
-            //     dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Dwolla => {
+                dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Ebanx => {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -349,10 +361,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Nordea => {
-            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Nordea => {
+                nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+                nordea::transformers::NordeaConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Novalnet => {
                 novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
                 Ok(())

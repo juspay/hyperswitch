@@ -31,6 +31,7 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         email -> Nullable<Bytea>,
+        origin_zip -> Nullable<Bytea>,
     }
 }
 
@@ -137,6 +138,10 @@ diesel::table! {
         email -> Nullable<Bytea>,
         #[max_length = 128]
         profile_acquirer_id -> Nullable<Varchar>,
+        challenge_code -> Nullable<Varchar>,
+        challenge_cancel -> Nullable<Varchar>,
+        challenge_code_reason -> Nullable<Varchar>,
+        message_extension -> Nullable<Jsonb>,
     }
 }
 
@@ -242,6 +247,7 @@ diesel::table! {
         merchant_category_code -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
+        dispute_polling_interval -> Nullable<Int4>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -371,6 +377,7 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        tax_registration_id -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
@@ -916,6 +923,8 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1003,6 +1012,12 @@ diesel::table! {
         is_payment_id_from_merchant -> Nullable<Bool>,
         #[max_length = 64]
         payment_channel -> Nullable<Varchar>,
+        tax_status -> Nullable<Varchar>,
+        discount_amount -> Nullable<Int8>,
+        shipping_amount_tax -> Nullable<Int8>,
+        duty_amount -> Nullable<Int8>,
+        order_date -> Nullable<Timestamp>,
+        enable_partial_authorization -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1099,6 +1114,7 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 64]
         external_vault_source -> Nullable<Varchar>,
+        external_vault_token_data -> Nullable<Bytea>,
     }
 }
 

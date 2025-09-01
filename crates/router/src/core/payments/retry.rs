@@ -517,6 +517,10 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                network_transaction_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -715,6 +719,7 @@ pub fn make_new_payment_attempt(
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
+        network_transaction_id: old_payment_attempt.network_transaction_id,
     }
 }
 
@@ -782,6 +787,7 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::Authorizing
                 | storage_enums::AttemptStatus::CodInitiated
                 | storage_enums::AttemptStatus::Voided
+                | storage_enums::AttemptStatus::VoidedPostCharge
                 | storage_enums::AttemptStatus::VoidInitiated
                 | storage_enums::AttemptStatus::CaptureInitiated
                 | storage_enums::AttemptStatus::RouterDeclined
@@ -796,7 +802,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::Unresolved
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
-                | storage_enums::AttemptStatus::Expired => false,
+                | storage_enums::AttemptStatus::Expired
+                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

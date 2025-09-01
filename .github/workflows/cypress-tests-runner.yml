@@ -14,7 +14,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "cybersource stripe"
-  ALPHA_PAYMENTS_CONNECTORS: "silverflow"
+  ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -50,7 +50,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Cypress and dependencies
         run: |
@@ -192,7 +192,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "6859bf7e-735b-4589-979a-ac057ed50425.json.gpg"
+          S3_SOURCE_FILE_NAME: "9f00461f-5a48-4f9c-aa8c-3510e4cb7d9c.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -233,7 +233,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -349,28 +349,11 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
-      - name: Download Encrypted JSON from S3 and Decrypt
-        if: ${{ env.RUN_TESTS == 'true' }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
-          AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
-          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
-          CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
-          DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "6859bf7e-735b-4589-979a-ac057ed50425.json.gpg"
-        shell: bash
-        run: |
-          mkdir -p ".github/secrets" ".github/test"
-
-          aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/${S3_SOURCE_FILE_NAME}" ".github/secrets/${DESTINATION_FILE_NAME}"
-          gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
-
       - name: Set paths in env
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
+          echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/cypress-tests/cypress/e2e/configs/mock-server/Creds.json" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -399,7 +382,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -421,33 +404,27 @@ jobs:
       - name: Start mock servers for alpha connectors
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          # Start mock servers for each alpha connector
-          for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
-            pascal_case_connector="$(echo "$connector" | sed -E 's/(^|_)([a-z])/\U\2/g')"
-            if [ -f "cypress-tests/cypress/e2e/configs/mock-server/${pascal_case_connector}.js" ]; then
-              echo "Starting mock server for ${connector}"
-              cd cypress-tests
+          echo "Starting mock server for ${connector}"
+          cd cypress-tests
 
-              node "cypress/e2e/configs/mock-server/${pascal_case_connector}.js" &
+          npm run mockserver &
 
-              MOCK_PID=$!
-              echo "MOCK_${connector^^}_PID=${MOCK_PID}" >> $GITHUB_ENV
-              cd ..
+          MOCK_PID=$!
+          echo "MOCK_PID=${MOCK_PID}" >> $GITHUB_ENV
+          cd ..
 
-              # Wait for mock server to be ready
-              COUNT=0
-              while ! nc -z localhost 3010; do
-                if [ $COUNT -gt 6 ]; then # Wait for up to 1 minute (6 * 10 seconds)
-                  echo "Mock server for ${connector} did not start within a reasonable time."
-                  exit 1
-                else
-                  COUNT=$((COUNT+1))
-                  sleep 10
-                fi
-              done
-              echo "Mock server for ${connector} is ready"
+          # Wait for mock server to be ready
+          COUNT=0
+          while ! nc -z localhost 3010; do
+            if [ $COUNT -gt 6 ]; then # Wait for up to 1 minute (6 * 10 seconds)
+              echo "Mock server for ${connector} did not start within a reasonable time."
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
             fi
           done
+          echo "Mock server for ${connector} is ready"
 
       - name: Setup Local Server with Alpha Connector Configs
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -460,8 +437,8 @@ jobs:
           # Set base URLs for alpha connectors to point to mock servers
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
             CONNECTOR_ENV_VAR="ROUTER__CONNECTORS__$(echo ${connector} | tr '[:lower:]' '[:upper:]')__BASE_URL"
-            export ${CONNECTOR_ENV_VAR}="http://localhost:3010"
-            echo "${CONNECTOR_ENV_VAR}=http://localhost:3010" >> $GITHUB_ENV
+            export ${CONNECTOR_ENV_VAR}="http://localhost:3010/${connector}"
+            echo "${CONNECTOR_ENV_VAR}=http://localhost:3010/${connector}" >> $GITHUB_ENV
           done
 
           # Start the server in the background
@@ -496,14 +473,7 @@ jobs:
 
           # Cleanup
           kill "${{ env.PID }}"
-
-          # Kill mock servers
-          for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
-            VAR_NAME="MOCK_${connector^^}_PID"
-            if [ -n "${!VAR_NAME:-}" ]; then
-              kill "${!VAR_NAME}" || true
-            fi
-          done
+          kill "${{ env.MOCK_PID }}"
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
@@ -631,7 +601,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install Cypress and dependencies
         if: ${{ env.RUN_TESTS == 'true' }}

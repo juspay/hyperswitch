@@ -5,6 +5,7 @@ use common_utils::{
     request::Method,
     types::{FloatMajorUnit, MinorUnit},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -524,6 +525,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -594,6 +596,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Gateway::MbWay,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -748,7 +751,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
                             payment_token: Some(Secret::new(
-                                google_pay.tokenization_data.token.clone(),
+                                google_pay
+                                    .tokenization_data
+                                    .get_encrypted_google_pay_token()
+                                    .change_context(errors::ConnectorError::MissingRequiredField {
+                                        field_name: "google_pay_token",
+                                    })?
+                                    .clone(),
                             )),
                         }
                     })))
@@ -765,6 +774,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -1104,6 +1114,7 @@ pub fn populate_error_reason(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 // REFUND :
@@ -1212,6 +1223,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, MultisafepayRefundResponse>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })

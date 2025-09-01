@@ -33,10 +33,12 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
         match intent_status {
             common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
@@ -393,6 +395,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
             api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
+            api_models::enums::PaymentMethodType::AmazonPay => Self::AmazonPayMetadata,
             _ => Self::Connector,
         }
     }

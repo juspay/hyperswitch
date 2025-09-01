@@ -8,7 +8,8 @@ pub use flow_common_types::FrmFlowData;
 #[cfg(feature = "payouts")]
 pub use flow_common_types::PayoutFlowData;
 pub use flow_common_types::{
-    AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
+    AccessTokenFlowData, AuthenticationTokenFlowData, DisputesFlowData,
+    ExternalAuthenticationFlowData, ExternalVaultProxyFlowData, FilesFlowData,
     MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData, VaultConnectorFlowData,
     WebhookSourceVerifyData,
 };

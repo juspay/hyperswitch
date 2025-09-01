@@ -115,6 +115,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&hyperswitch_domain_models::address::Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -141,11 +142,14 @@ pub trait PaymentResponseRouterData {
     fn get_attempt_status_for_db_update<F>(
         &self,
         payment_data: &PaymentData<F>,
-    ) -> enums::AttemptStatus
+        amount_captured: Option<i64>,
+        amount_capturable: Option<i64>,
+    ) -> CustomResult<enums::AttemptStatus, ApiErrorResponse>
     where
         F: Clone;
 }
 
+#[cfg(feature = "v1")]
 impl<Flow, Request, Response> PaymentResponseRouterData
     for types::RouterData<Flow, Request, Response>
 where
@@ -154,31 +158,133 @@ where
     fn get_attempt_status_for_db_update<F>(
         &self,
         payment_data: &PaymentData<F>,
-    ) -> enums::AttemptStatus
+        amount_captured: Option<i64>,
+        amount_capturable: Option<i64>,
+    ) -> CustomResult<enums::AttemptStatus, ApiErrorResponse>
     where
         F: Clone,
     {
         match self.status {
             enums::AttemptStatus::Voided => {
                 if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
-                    enums::AttemptStatus::PartialCharged
+                    Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    self.status
+                    Ok(self.status)
                 }
             }
             enums::AttemptStatus::Charged => {
-                let captured_amount =
-                    types::Capturable::get_captured_amount(&self.request, payment_data);
+                let captured_amount = types::Capturable::get_captured_amount(
+                    &self.request,
+                    amount_captured,
+                    payment_data,
+                );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
-                    enums::AttemptStatus::Charged
+                    Ok(enums::AttemptStatus::Charged)
                 } else if captured_amount.is_some() {
-                    enums::AttemptStatus::PartialCharged
+                    Ok(enums::AttemptStatus::PartialCharged)
                 } else {
-                    self.status
+                    Ok(self.status)
                 }
             }
-            _ => self.status,
+            enums::AttemptStatus::Authorized => {
+                let capturable_amount = types::Capturable::get_amount_capturable(
+                    &self.request,
+                    payment_data,
+                    amount_capturable,
+                    payment_data.payment_attempt.status,
+                );
+                if Some(payment_data.payment_attempt.get_total_amount())
+                    == capturable_amount.map(MinorUnit::new)
+                {
+                    Ok(enums::AttemptStatus::Authorized)
+                } else if capturable_amount.is_some()
+                    && payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .is_some_and(|val| val)
+                {
+                    Ok(enums::AttemptStatus::PartiallyAuthorized)
+                } else if capturable_amount.is_some()
+                    && !payment_data
+                        .payment_intent
+                        .enable_partial_authorization
+                        .is_some_and(|val| val)
+                {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "capturable_amount is less than the total attempt amount"
+                            .to_string(),
+                        field_names: "amount_capturable".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
+                } else {
+                    Ok(self.status)
+                }
+            }
+            _ => Ok(self.status),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<Flow, Request, Response> PaymentResponseRouterData
+    for types::RouterData<Flow, Request, Response>
+where
+    Request: types::Capturable,
+{
+    fn get_attempt_status_for_db_update<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        amount_captured: Option<i64>,
+        amount_capturable: Option<i64>,
+    ) -> CustomResult<enums::AttemptStatus, ApiErrorResponse>
+    where
+        F: Clone,
+    {
+        match self.status {
+            enums::AttemptStatus::Voided => {
+                if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
+                    Ok(enums::AttemptStatus::PartialCharged)
+                } else {
+                    Ok(self.status)
+                }
+            }
+            enums::AttemptStatus::Charged => {
+                let captured_amount = types::Capturable::get_captured_amount(
+                    &self.request,
+                    amount_captured,
+                    payment_data,
+                );
+                let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
+                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
+                    Ok(enums::AttemptStatus::Charged)
+                } else if captured_amount.is_some() {
+                    Ok(enums::AttemptStatus::PartialCharged)
+                } else {
+                    Ok(self.status)
+                }
+            }
+            enums::AttemptStatus::Authorized => {
+                let capturable_amount = types::Capturable::get_amount_capturable(
+                    &self.request,
+                    payment_data,
+                    amount_capturable,
+                    payment_data.payment_attempt.status,
+                );
+                if Some(payment_data.payment_attempt.get_total_amount())
+                    == capturable_amount.map(MinorUnit::new)
+                {
+                    Ok(enums::AttemptStatus::Authorized)
+                } else if capturable_amount.is_some() {
+                    Ok(enums::AttemptStatus::PartiallyAuthorized)
+                } else {
+                    Ok(self.status)
+                }
+            }
+            _ => Ok(self.status),
         }
     }
 }
@@ -256,6 +362,15 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -1305,47 +1420,6 @@ impl PayoutsData for types::PayoutsData {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayWalletData {
-    #[serde(rename = "type")]
-    pub pm_type: String,
-    pub description: String,
-    pub info: GooglePayPaymentMethodInfo,
-    pub tokenization_data: GpayTokenizationData,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayPaymentMethodInfo {
-    pub card_network: String,
-    pub card_details: String,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct GpayTokenizationData {
-    #[serde(rename = "type")]
-    pub token_type: String,
-    pub token: Secret<String>,
-}
-
-impl From<domain::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: domain::GooglePayWalletData) -> Self {
-        Self {
-            pm_type: data.pm_type,
-            description: data.description,
-            info: GooglePayPaymentMethodInfo {
-                card_network: data.info.card_network,
-                card_details: data.info.card_details,
-            },
-            tokenization_data: GpayTokenizationData {
-                token_type: data.tokenization_data.token_type,
-                token: Secret::new(data.tokenization_data.token),
-            },
-        }
-    }
-}
-
 static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
     || {
         let mut map = HashMap::new();
@@ -1646,7 +1720,7 @@ pub trait WalletData {
 impl WalletData for domain::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
@@ -1705,6 +1779,22 @@ impl ApplePay for domain::ApplePayWalletData {
             })?,
         );
         Ok(token)
+    }
+}
+pub trait GooglePay {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl GooglePay for domain::GooglePayWalletData {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error> {
+        let encrypted_data = self
+            .tokenization_data
+            .get_encrypted_google_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Google Pay".to_string(),
+            })?;
+
+        Ok(Secret::new(encrypted_data.token.clone()))
     }
 }
 
@@ -2174,6 +2264,7 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::AuthorizationFailed
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure
             | storage_enums::AttemptStatus::AutoRefunded
@@ -2182,7 +2273,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
             | storage_enums::AttemptStatus::Authorized
-            | storage_enums::AttemptStatus::Charged => Some(true),
+            | storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartiallyAuthorized => Some(true),
 
             storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationPending
@@ -2219,6 +2311,7 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::Authorizing
         | common_enums::AttemptStatus::CodInitiated
         | common_enums::AttemptStatus::Voided
+        | common_enums::AttemptStatus::VoidedPostCharge
         | common_enums::AttemptStatus::VoidInitiated
         | common_enums::AttemptStatus::CaptureInitiated
         | common_enums::AttemptStatus::AutoRefunded
@@ -2229,7 +2322,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::IntegrityFailure => false,
+        | common_enums::AttemptStatus::IntegrityFailure
+        | common_enums::AttemptStatus::PartiallyAuthorized => false,
     }
 }
 
@@ -2276,6 +2370,7 @@ impl
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }
@@ -2407,6 +2502,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Paysera,
     Skrill,
@@ -2501,6 +2597,7 @@ pub enum PaymentMethodDataType {
     Seicomart,
     PayEasy,
     Givex,
+    BhnCardNetwork,
     PaySafeCar,
     CardToken,
     LocalBankTransfer,
@@ -2536,6 +2633,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::AmazonPay(_) => Self::AmazonPay,
                 domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 domain::payments::WalletData::Paysera(_) => Self::Paysera,
                 domain::payments::WalletData::Skrill(_) => Self::Skrill,
@@ -2715,6 +2813,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {
                     domain::payments::GiftCardData::Givex(_) => Self::Givex,
+                    domain::payments::GiftCardData::BhnCardNetwork(_)=>Self::BhnCardNetwork,
                     domain::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
                 }
             }

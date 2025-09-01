@@ -240,6 +240,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 AttemptStatus::Failure,
             ),
@@ -423,6 +424,7 @@ fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> Erro
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -614,7 +616,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 None => Ok(Self::try_from(card)?),
             },
             PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                WalletData::GooglePay(ref googlepay_data) => Ok(Self::from(googlepay_data)),
+                WalletData::GooglePay(ref googlepay_data) => Ok(Self::try_from(googlepay_data)?),
                 WalletData::ApplePay(ref applepay_data) => Ok(Self::try_from(applepay_data)?),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
@@ -638,6 +640,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -718,12 +721,21 @@ impl TryFrom<&Card> for PaymentMethod {
     }
 }
 
-impl From<&GooglePayWalletData> for PaymentMethod {
-    fn from(wallet_data: &GooglePayWalletData) -> Self {
+impl TryFrom<&GooglePayWalletData> for PaymentMethod {
+    type Error = Report<ConnectorError>;
+    fn try_from(wallet_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
         let gpay_data = GooglePayData {
-            googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
+            googlepay_payment_data: Secret::new(
+                wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(ConnectorError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                    })?
+                    .clone(),
+            ),
         };
-        Self::GPay(Box::new(gpay_data))
+        Ok(Self::GPay(Box::new(gpay_data)))
     }
 }
 
@@ -984,6 +996,7 @@ fn get_standard_error_response(response: StandardResponse, http_code: u16) -> Er
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
