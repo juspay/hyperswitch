@@ -981,6 +981,8 @@ diesel::table! {
         routing_approach -> Nullable<RoutingApproach>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
     }
 }
 
@@ -1084,6 +1086,7 @@ diesel::table! {
         duty_amount -> Nullable<Int8>,
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
+        billing_processor_details -> Nullable<Jsonb>,
     }
 }
 

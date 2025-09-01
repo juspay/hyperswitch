@@ -98,10 +98,11 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
+use crate::{core::admin as core_admin, headers};
 #[cfg(feature = "v1")]
 use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
+    core::payment_methods::cards::create_encrypted_data,
+    types::{storage::CustomerUpdate::Update},
 };
 
 #[instrument(skip_all)]
@@ -3899,6 +3900,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3983,6 +3985,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4065,6 +4068,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            billing_processor_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4635,6 +4639,7 @@ impl AttemptType {
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
+            network_transaction_id: None,
         }
     }
 
