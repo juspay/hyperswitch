@@ -876,7 +876,8 @@ static BILLWERK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static BILLWERK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Billwerk",
     description: "Billwerk+ Pay is an acquirer independent payment gateway that's easy to setup with more than 50 recurring and non-recurring payment methods.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static BILLWERK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

@@ -662,6 +662,9 @@ pub struct MerchantDetails {
 
     /// The merchant's address details
     pub address: Option<AddressDetails>,
+
+    #[schema(value_type = Option<String>, example = "123456789")]
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -1716,6 +1719,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Amazon Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub amazon_pay: Option<pii::SecretSerdeValue>,
     /// This field contains the Samsung Pay certificates and credentials
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]

@@ -1,6 +1,10 @@
-use std::{cmp, collections::HashSet};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
-use common_enums::{EntityType, PermissionGroup};
+use api_models::user_role::role as role_api;
+use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
@@ -10,6 +14,7 @@ use diesel_models::{
 use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use storage_impl::errors::StorageError;
+use strum::IntoEnumIterator;
 
 use crate::{
     consts,
@@ -19,7 +24,11 @@ use crate::{
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
     routes::SessionState,
-    services::authorization::{self as authz, roles},
+    services::authorization::{
+        self as authz,
+        permission_groups::{ParentGroupExt, PermissionGroupExt},
+        roles,
+    },
     types::domain,
 };
 
@@ -507,4 +516,69 @@ pub fn get_min_entity(
     }
 
     Ok(cmp::min(user_entity, filter_entity))
+}
+
+pub fn parent_group_info_request_to_permission_groups(
+    parent_groups: &[role_api::ParentGroupInfoRequest],
+) -> Result<Vec<PermissionGroup>, UserErrors> {
+    parent_groups
+        .iter()
+        .try_fold(Vec::new(), |mut permission_groups, parent_group| {
+            let scopes = &parent_group.scopes;
+
+            if scopes.is_empty() {
+                return Err(UserErrors::InvalidRoleOperation);
+            }
+
+            let available_scopes = parent_group.name.get_available_scopes();
+
+            if !scopes.iter().all(|scope| available_scopes.contains(scope)) {
+                return Err(UserErrors::InvalidRoleOperation);
+            }
+
+            let groups = PermissionGroup::iter()
+                .filter(|group| {
+                    group.parent() == parent_group.name && scopes.contains(&group.scope())
+                })
+                .collect::<Vec<_>>();
+            permission_groups.extend(groups);
+
+            Ok(permission_groups)
+        })
+}
+
+pub fn permission_groups_to_parent_group_info(
+    permission_groups: &[PermissionGroup],
+    entity_type: EntityType,
+) -> Vec<role_api::ParentGroupInfo> {
+    let parent_groups_map: HashMap<ParentGroup, Vec<common_enums::PermissionScope>> =
+        permission_groups
+            .iter()
+            .fold(HashMap::new(), |mut acc, group| {
+                let parent = group.parent();
+                let scope = group.scope();
+                acc.entry(parent).or_default().push(scope);
+                acc
+            });
+
+    parent_groups_map
+        .into_iter()
+        .filter_map(|(name, scopes)| {
+            let unique_scopes = scopes
+                .into_iter()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            let description =
+                ParentGroup::get_descriptions_for_groups(entity_type, permission_groups.to_vec())
+                    .and_then(|descriptions| descriptions.get(&name).cloned())?;
+
+            Some(role_api::ParentGroupInfo {
+                name,
+                description,
+                scopes: unique_scopes,
+            })
+        })
+        .collect()
 }
