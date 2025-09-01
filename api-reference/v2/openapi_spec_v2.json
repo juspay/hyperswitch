@@ -13033,7 +13033,8 @@
           "payout_processor",
           "authentication_provider",
           "fraud_and_risk_management_provider",
-          "tax_calculation_provider"
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
         ]
       },
       "HyperswitchVaultSessionDetails": {
@@ -14709,6 +14710,11 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
             "nullable": true
           }
         },
