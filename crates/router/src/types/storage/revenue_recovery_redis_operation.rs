@@ -704,4 +704,304 @@ impl RedisTokenManager {
 
         Ok(token)
     }
+
+    // #[instrument(skip_all)]
+    // pub async fn update_redis_token_with_params(
+    //     state: &SessionState,
+    //     customer_id: &str,
+    //     token: &str,
+    //     update_params: RedisTokenUpdateParams,
+    // ) -> CustomResult<(), errors::StorageError> {
+    //     let redis_conn =
+    //         state
+    //             .store
+    //             .get_redis_conn()
+    //             .change_context(errors::StorageError::RedisError(
+    //                 errors::RedisError::RedisConnectionError.into(),
+    //             ))?;
+
+    //     let redis_key: redis_interface::types::RedisKey =
+    //         format!("customer:{}:tokens", customer_id).into();
+
+    //     // Get existing token data
+    //     let existing_data: Option<String> = redis_conn
+    //         .get_hash_field(&redis_key, token)
+    //         .await
+    //         .change_context(errors::StorageError::RedisError(
+    //             errors::RedisError::GetHashFieldFailed.into(),
+    //         ))?;
+
+    //     if let Some(data) = existing_data {
+    //         // Parse existing JSON
+    //         let mut token_data: serde_json::Value = serde_json::from_str(&data)
+    //             .change_context(errors::StorageError::SerializationFailed)
+    //             .attach_printable("Failed to parse token data")?;
+
+    //         // Update only the fields that are Some() in payment_processor_token_details
+    //         if let Some(processor_details) = token_data
+    //             .get_mut("payment_processor_token_details")
+    //             .and_then(|v| v.as_object_mut())
+    //         {
+    //             // Define field mappings to eliminate repetitive if-else blocks
+    //             let field_updates = vec![
+    //                 ("card_type", update_params.card_type.as_ref()),
+    //                 ("expiry_month", update_params.expiry_month.as_ref()),
+    //                 ("expiry_year", update_params.expiry_year.as_ref()),
+    //                 ("card_issuer", update_params.card_issuer.as_ref()),
+    //                 ("card_network", update_params.card_network.as_ref()),
+    //                 ("last_four_digits", update_params.last_four_digits.as_ref()),
+    //             ];
+
+    //             // Process all fields in a single iterator chain
+    //             let updated_fields: Vec<String> = field_updates
+    //                 .into_iter()
+    //                 .filter_map(|(field_name, value_opt)| {
+    //                     value_opt.map(|value| {
+    //                         processor_details.insert(
+    //                             field_name.to_string(),
+    //                             serde_json::Value::String(value.clone()),
+    //                         );
+    //                         format!("{}: {}", field_name, value)
+    //                     })
+    //                 })
+    //                 .collect();
+
+    //             // Only save if we actually updated something
+    //             if !updated_fields.is_empty() {
+    //                 // Save updated data back to Redis
+    //                 let updated_data = serde_json::to_string(&token_data)
+    //                     .change_context(errors::StorageError::SerializationFailed)
+    //                     .attach_printable("Failed to serialize token data")?;
+
+    //                 let hash_map = HashMap::from([(token.to_string(), updated_data)]);
+    //                 redis_conn
+    //                     .set_hash_fields(&redis_key, hash_map, None)
+    //                     .await
+    //                     .change_context(errors::StorageError::RedisError(
+    //                         errors::RedisError::SetHashFieldFailed.into(),
+    //                     ))?;
+
+    //                 tracing::info!(
+    //                     customer_id = customer_id,
+    //                     token = token,
+    //                     updated_fields = updated_fields.join(", "),
+    //                     "Updated Redis token data with optional parameters"
+    //                 );
+    //             } else {
+    //                 tracing::info!(
+    //                     customer_id = customer_id,
+    //                     token = token,
+    //                     "No fields to update for Redis token"
+    //                 );
+    //             }
+    //         } else {
+    //             tracing::warn!(
+    //                 customer_id = customer_id,
+    //                 token = token,
+    //                 "Token data structure invalid"
+    //             );
+    //         }
+    //     } else {
+    //         tracing::error!(
+    //             customer_id = customer_id,
+    //             token = token,
+    //             "Token not found in Redis"
+    //         );
+    //     }
+
+    //     Ok(())
+    // }
+
+    /// Update Redis token
+    pub async fn update_redis_token_with_params(
+        state: &SessionState,
+        customer_id: &str,
+        token: &str,
+        update_params: RedisTokenUpdateParams,
+    ) -> CustomResult<(), errors::StorageError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+    
+        let redis_key: redis_interface::types::RedisKey =
+            format!("customer:{}:tokens", customer_id).into();
+    
+        // Get existing token data
+        let existing_data: Option<String> = redis_conn
+            .get_hash_field(&redis_key, token)
+            .await
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::GetHashFieldFailed.into(),
+            ))?;
+    
+        let data = match existing_data {
+            Some(data) => data,
+            None => {
+                tracing::error!(
+                    customer_id = customer_id,
+                    token = token,
+                    "Token not found in Redis"
+                );
+                return Ok(());
+            }
+        };
+    
+        // Parse existing JSON
+        let mut token_data: serde_json::Value = serde_json::from_str(&data)
+            .change_context(errors::StorageError::SerializationFailed)
+            .attach_printable("Failed to parse token data")?;
+    
+        // Extract mutable reference to processor details, or return early if invalid
+        let processor_details = match token_data
+            .get_mut("payment_processor_token_details")
+            .and_then(|v| v.as_object_mut())
+        {
+            Some(details) => details,
+            None => {
+                tracing::warn!(
+                    customer_id = customer_id,
+                    token = token,
+                    "Token data structure invalid"
+                );
+                return Ok(());
+            }
+        };
+    
+        let field_updates = vec![
+            ("card_type", update_params.card_type.as_ref()),
+            ("expiry_month", update_params.expiry_month.as_ref()),
+            ("expiry_year", update_params.expiry_year.as_ref()),
+            ("card_issuer", update_params.card_issuer.as_ref()),
+            ("card_network", update_params.card_network.as_ref()),
+            ("last_four_digits", update_params.last_four_digits.as_ref()),
+        ];
+    
+        // Process all fields
+        let updated_fields: Vec<String> = field_updates
+            .into_iter()
+            .filter_map(|(field_name, value_opt)| {
+                value_opt.map(|value| {
+                    processor_details.insert(
+                        field_name.to_string(),
+                        serde_json::Value::String(value.clone()),
+                    );
+                    format!("{}: {}", field_name, value)
+                })
+            })
+            .collect();
+    
+        if updated_fields.is_empty() {
+            tracing::info!(
+                customer_id = customer_id,
+                token = token,
+                "No fields to update for Redis token"
+            );
+            return Ok(());
+        }
+    
+        // Save updated data back to Redis
+        let updated_data = serde_json::to_string(&token_data)
+            .change_context(errors::StorageError::SerializationFailed)
+            .attach_printable("Failed to serialize token data")?;
+    
+        let hash_map = HashMap::from([(token.to_string(), updated_data)]);
+        let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
+        redis_conn
+            .set_hash_fields(&redis_key, hash_map,Some(*seconds))
+            .await
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::SetHashFieldFailed.into(),
+            ))?;
+    
+        tracing::info!(
+            customer_id = customer_id,
+            token = token,
+            updated_fields = updated_fields.join(", "),
+            "Updated Redis token data with optional parameters"
+        );
+    
+        Ok(())
+    }
+    
+
+    /// Update Redis token with comprehensive card data
+    #[instrument(skip_all)]
+    pub async fn update_redis_token_comprehensive_data(
+        state: &SessionState,
+        customer_id: &str,
+        token: &str,
+        card_data: &serde_json::Value,
+    ) -> CustomResult<(), errors::StorageError> {
+        let update_params = RedisTokenUpdateParams::from_card_data(card_data);
+        Self::update_redis_token_with_params(state, customer_id, token, update_params).await
+    }
+}
+
+/// Struct for optional Redis token update parameters
+#[derive(Debug, Default)]
+pub struct RedisTokenUpdateParams {
+    pub card_type: Option<String>,
+    pub expiry_month: Option<String>,
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<String>,
+    pub last_four_digits: Option<String>,
+}
+
+impl RedisTokenUpdateParams {
+    // pub fn from_card_data(card_data: &serde_json::Value) -> Self {
+        // let card_obj = card_data.as_object();
+
+        // Self {
+        //     card_type: card_obj
+        //         .and_then(|obj| obj.get("card_type"))
+        //         .and_then(|v| v.as_str())
+        //         .map(|s| s.to_string()),
+        //     expiry_month: card_obj
+        //         .and_then(|obj| obj.get("card_exp_month"))
+        //         .and_then(|v| v.as_str())
+        //         .map(|s| s.to_string()),
+        //     expiry_year: card_obj
+        //         .and_then(|obj| obj.get("card_exp_year"))
+        //         .and_then(|v| v.as_str())
+        //         .map(|s| s.to_string()),
+        //     card_issuer: card_obj
+        //         .and_then(|obj| obj.get("card_issuer"))
+        //         .and_then(|v| if v.is_null() { None } else { v.as_str() })
+        //         .map(|s| s.to_string()),
+        //     card_network: card_obj
+        //         .and_then(|obj| obj.get("card_network"))
+        //         .and_then(|v| if v.is_null() { None } else { v.as_str() })
+        //         .map(|s| s.to_string()),
+        //     last_four_digits: card_obj
+        //         .and_then(|obj| obj.get("last4"))
+        //         .and_then(|v| if v.is_null() { None } else { v.as_str() })
+        //         .map(|s| s.to_string()),
+        // }
+
+        /// Create update params from card data JSON
+            pub fn from_card_data(card_data: &serde_json::Value) -> Self {
+                fn get_str_field(obj: &serde_json::Map<String, serde_json::Value>, key: &str) -> Option<String> {
+                    obj.get(key)
+                        .filter(|v| !v.is_null())
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                }
+        
+                match card_data.as_object() {
+                    Some(obj) => Self {
+                        card_type: get_str_field(obj, "card_type"),
+                        expiry_month: get_str_field(obj, "card_exp_month"),
+                        expiry_year: get_str_field(obj, "card_exp_year"),
+                        card_issuer: get_str_field(obj, "card_issuer"),
+                        card_network: get_str_field(obj, "card_network"),
+                        last_four_digits: get_str_field(obj, "last4"),
+                    },
+                    None => Self::default(),
+                }
+        }
+    // }
 }

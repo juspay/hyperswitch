@@ -49,6 +49,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
+    RecoveryDataBackfill,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -378,6 +379,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
                 Self::GenericTokenization
             }
+
+            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
         }
     }
 }
