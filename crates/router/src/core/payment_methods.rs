@@ -517,18 +517,43 @@ pub async fn add_payment_method_status_update_task(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    _state: &SessionState,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _token_data: &storage::PaymentTokenData,
-    _payment_intent: &PaymentIntent,
-    _card_token_data: Option<&domain::CardToken>,
-    _customer: &Option<domain::Customer>,
-    _storage_scheme: common_enums::enums::MerchantStorageScheme,
-    _mandate_id: Option<api_models::payments::MandateIds>,
-    _payment_method_info: Option<domain::PaymentMethod>,
-    _business_profile: &domain::Profile,
+    state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    token_data: &storage::PaymentTokenData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    card_token_data: Option<&domain::CardToken>,
+    // customer: &Option<domain::Customer>,
+    // storage_scheme: common_enums::enums::MerchantStorageScheme,
+    // mandate_id: Option<api_models::payments::MandateIds>,
+    // payment_method_info: Option<domain::PaymentMethod>,
+    // business_profile: &domain::Profile,
+    // should_retry_with_pan: bool,
+    // vault_data: Option<&VaultData>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
-    todo!()
+    let token = match token_data {
+        storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+            payment_helpers::retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                payment_attempt,
+                merchant_key_store,
+                card_token_data,
+            )
+            .await?
+            .map(
+                |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                    payment_method_data: Some(payment_method_data),
+                    payment_method: Some(payment_method),
+                    payment_method_id: None,
+                },
+            )
+            .unwrap_or_default()
+        }
+        _ => todo!(),
+    };
+    Ok(token)
 }
 
 #[cfg(feature = "v1")]
@@ -1190,6 +1215,41 @@ pub async fn create_payment_method_proxy_card_core(
         pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
     Ok((payment_method_response, payment_method))
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn store_card_data_in_redis(
+    state: &SessionState,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method_type: enums::PaymentMethod,
+    merchant_context: &domain::MerchantContext,
+    // customer_id: &id_type::GlobalCustomerId,
+    profile: &domain::Profile,
+) -> RouterResult<String> {
+    payment_helpers::store_in_vault_and_generate_ppmt(
+        state,
+        payment_method_data,
+        payment_intent,
+        payment_attempt,
+        payment_method_type,
+        merchant_context.get_merchant_key_store(),
+        Some(profile),
+    )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn get_card_data_from_redis(
+    state: &SessionState,
+    token: String,
+    payment_method_type: enums::PaymentMethod,
+) -> RouterResult<storage::PaymentTokenData> {
+    // TODO: replace this with utils version of the function
+    payment_helpers::retrieve_payment_token_data(state, token, Some(payment_method_type)).await
 }
 
 #[cfg(feature = "v2")]
@@ -3339,12 +3399,12 @@ fn construct_zero_auth_payments_request(
     use api_models::payments;
 
     Ok(payments::PaymentsRequest {
-        amount_details: payments::AmountDetails::new_for_zero_auth_payment(
+        amount_details: Some(payments::AmountDetails::new_for_zero_auth_payment(
             common_enums::Currency::USD,
-        ),
-        payment_method_data: confirm_request.payment_method_data.clone(),
-        payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype: confirm_request.payment_method_subtype,
+        )),
+        payment_method_data: Some(confirm_request.payment_method_data.clone()),
+        payment_method_type: Some(confirm_request.payment_method_type),
+        payment_method_subtype: Some(confirm_request.payment_method_subtype),
         customer_id: Some(payment_method_session.customer_id.clone()),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),

@@ -618,6 +618,177 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsPreAuthenticateData {
+    pub payment_method_data: PaymentMethodData,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<SurchargeDetails>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+            split_payments: data.split_payments,
+            metadata: data.metadata.map(Secret::new),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<SurchargeDetails>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+            split_payments: data.split_payments,
+            metadata: data.metadata.map(Secret::new),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<SurchargeDetails>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub related_transaction_id: Option<String>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+    pub metadata: Option<Secret<serde_json::Value>>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPostAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: data.related_transaction_id,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+            split_payments: data.split_payments,
+            metadata: data.metadata.map(Secret::new),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsPostProcessingData {
     pub payment_method_data: PaymentMethodData,
     pub customer_id: Option<id_type::CustomerId>,

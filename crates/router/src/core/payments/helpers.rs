@@ -1254,6 +1254,7 @@ pub fn create_webhook_url(
     )
 }
 
+#[cfg(feature = "v1")]
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1270,6 +1271,24 @@ pub fn create_complete_authorize_url(
         payment_attempt.merchant_id.get_string_repr(),
         connector_name,
         creds_identifier
+    )
+}
+
+#[cfg(feature = "v2")]
+pub fn create_complete_authorize_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+    publishable_key: &String,
+) -> String {
+    // let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+    //     format!("/{creds_identifier}")
+    // });
+    format!(
+        "{}/v2/payments/{}/continue-redirection?publishable_key={}&profile_id={}",
+        router_base_url,
+        payment_attempt.payment_id.get_string_repr(),
+        publishable_key,
+        payment_attempt.profile_id.get_string_repr(),
     )
 }
 
@@ -1950,6 +1969,131 @@ pub async fn retrieve_payment_method_with_temporary_token(
                     .payment_method_data
                     .clone()
                     .and_then(|data| match data {
+                        serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
+                        _ => Some(data.parse_value("AdditionalPaymentData")),
+                    })
+                    .transpose()
+                    .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+                    .ok()
+                    .flatten();
+                if let Some(api_models::payments::AdditionalPaymentData::Card(card)) =
+                    additional_payment_method_data
+                {
+                    is_card_updated = true;
+                    updated_card.card_issuer = updated_card.card_issuer.or(card.card_issuer);
+                    updated_card.card_network = updated_card.card_network.or(card.card_network);
+                    updated_card.card_type = updated_card.card_type.or(card.card_type);
+                    updated_card.card_issuing_country = updated_card
+                        .card_issuing_country
+                        .or(card.card_issuing_country);
+                };
+            };
+
+            if is_card_updated {
+                let updated_pm = domain::PaymentMethodData::Card(updated_card);
+                vault::Vault::store_payment_method_data_in_locker(
+                    state,
+                    Some(token.to_owned()),
+                    &updated_pm,
+                    payment_intent.customer_id.to_owned(),
+                    enums::PaymentMethod::Card,
+                    merchant_key_store,
+                )
+                .await?;
+
+                Some((updated_pm, enums::PaymentMethod::Card))
+            } else {
+                Some((
+                    domain::PaymentMethodData::Card(card),
+                    enums::PaymentMethod::Card,
+                ))
+            }
+        }
+
+        Some(the_pm @ domain::PaymentMethodData::Wallet(_)) => {
+            Some((the_pm, enums::PaymentMethod::Wallet))
+        }
+
+        Some(the_pm @ domain::PaymentMethodData::BankTransfer(_)) => {
+            Some((the_pm, enums::PaymentMethod::BankTransfer))
+        }
+
+        Some(the_pm @ domain::PaymentMethodData::BankRedirect(_)) => {
+            Some((the_pm, enums::PaymentMethod::BankRedirect))
+        }
+
+        Some(the_pm @ domain::PaymentMethodData::BankDebit(_)) => {
+            Some((the_pm, enums::PaymentMethod::BankDebit))
+        }
+
+        Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Payment method received from locker is unsupported by locker")?,
+
+        None => None,
+    })
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_with_temporary_token(
+    state: &SessionState,
+    token: &str,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    merchant_key_store: &domain::MerchantKeyStore,
+    card_token_data: Option<&domain::CardToken>,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
+    let (pm, supplementary_data) =
+        vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
+            .await
+            .attach_printable(
+                "Payment method for given token not found or there was a problem fetching it",
+            )?;
+
+    // utils::when(
+    //     supplementary_data
+    //         .customer_id
+    //         .ne(&payment_intent.customer_id),
+    //     || {
+    //         Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
+    //     },
+    // )?;
+
+    Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm {
+        Some(domain::PaymentMethodData::Card(card)) => {
+            let mut updated_card = card.clone();
+            let mut is_card_updated = false;
+
+            // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+            // from payment_method_data.card_token object
+            let name_on_card =
+                card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
+
+            if let Some(name) = name_on_card.clone() {
+                if !name.peek().is_empty() {
+                    is_card_updated = true;
+                    updated_card.nick_name = name_on_card;
+                }
+            }
+
+            if let Some(token_data) = card_token_data {
+                if let Some(cvc) = token_data.card_cvc.clone() {
+                    is_card_updated = true;
+                    updated_card.card_cvc = cvc;
+                }
+            }
+
+            // populate additional card details from payment_attempt.payment_method_data (additional_payment_data) if not present in the locker
+            if updated_card.card_issuer.is_none()
+                || updated_card.card_network.is_none()
+                || updated_card.card_type.is_none()
+                || updated_card.card_issuing_country.is_none()
+            {
+                let additional_payment_method_data: Option<
+                    api_models::payments::AdditionalPaymentData,
+                > = payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .and_then(|data| match data.peek() {
                         serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
                         _ => Some(data.parse_value("AdditionalPaymentData")),
                     })
@@ -2786,6 +2930,100 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     }?;
 
     Ok((operation, payment_method, pm_id))
+}
+
+#[cfg(feature = "v2")]
+pub async fn store_in_vault_and_generate_ppmt(
+    state: &SessionState,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&domain::Profile>,
+) -> RouterResult<String> {
+    let router_token = vault::Vault::store_payment_method_data_in_locker(
+        state,
+        None,
+        payment_method_data,
+        payment_intent.customer_id.to_owned(),
+        payment_method,
+        merchant_key_store,
+    )
+    .await?;
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
+        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            payment_method,
+        ))
+    });
+
+    let intent_fulfillment_time = business_profile
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
+    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+        key_for_hyperswitch_token
+            .insert(
+                intent_fulfillment_time,
+                storage::PaymentTokenData::temporary_generic(router_token),
+                state,
+            )
+            .await?;
+    };
+    Ok(parent_payment_method_token)
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_token_data(
+    state: &SessionState,
+    token: String,
+    payment_method: Option<storage_enums::PaymentMethod>,
+) -> RouterResult<storage::PaymentTokenData> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch",
+        token,
+        payment_method.get_required_value("payment_method")?
+    );
+
+    let token_data_string = redis_conn
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    let token_data_result = token_data_string
+        .clone()
+        .parse_struct("PaymentTokenData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize hyperswitch token data");
+
+    let token_data = match token_data_result {
+        Ok(data) => data,
+        Err(e) => {
+            // The purpose of this logic is backwards compatibility to support tokens
+            // in redis that might be following the old format.
+            if token_data_string.starts_with('{') {
+                return Err(e);
+            } else {
+                storage::PaymentTokenData::temporary_generic(token_data_string)
+            }
+        }
+    };
+
+    Ok(token_data)
 }
 
 #[cfg(feature = "v1")]

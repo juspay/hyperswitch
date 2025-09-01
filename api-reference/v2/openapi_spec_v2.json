@@ -19699,15 +19699,18 @@
       "PaymentsRequest": {
         "type": "object",
         "required": [
-          "amount_details",
           "customer_id",
-          "payment_method_data",
           "payment_method_type",
           "payment_method_subtype"
         ],
         "properties": {
           "amount_details": {
-            "$ref": "#/components/schemas/AmountDetails"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmountDetails"
+              }
+            ],
+            "nullable": true
           },
           "merchant_reference_id": {
             "type": "string",
@@ -19889,7 +19892,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"

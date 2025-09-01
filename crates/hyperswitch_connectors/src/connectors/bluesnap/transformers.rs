@@ -253,6 +253,45 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
+impl TryFrom<&BluesnapRouterData<&types::PaymentsPreAuthenticateRouterData>>
+    for BluesnapPaymentsTokenRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &BluesnapRouterData<&types::PaymentsPreAuthenticateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref ccard) => Ok(Self {
+                cc_number: ccard.card_number.clone(),
+                exp_date: ccard.get_expiry_date_as_mmyyyy("/"),
+            }),
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected payment method via Token flow through bluesnap".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
 impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for BluesnapPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

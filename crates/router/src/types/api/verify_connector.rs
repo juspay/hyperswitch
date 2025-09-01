@@ -146,7 +146,11 @@ pub trait VerifyConnector {
     ) -> errors::RouterResponse<()> {
         let authorize_data = connector_data.get_payment_authorize_data();
         let access_token = Self::get_access_token(state, connector_data.clone()).await?;
-        let router_data = connector_data.get_router_data(state, authorize_data, access_token);
+        let router_data: hyperswitch_domain_models::router_data::RouterData<
+            hyperswitch_domain_models::router_flow_types::Authorize,
+            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+            _,
+        > = connector_data.get_router_data(state, authorize_data, access_token);
 
         let request = connector_data
             .connector

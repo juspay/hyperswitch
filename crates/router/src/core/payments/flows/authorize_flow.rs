@@ -317,6 +317,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         authorize_preprocessing_steps(state, &self, true, connector).await
     }
 
+    async fn preauthenticate_steps<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        authorize_preauthenticate_steps(state, &self, true, connector).await
+    }
+
     async fn postprocessing_steps<'a>(
         self,
         state: &SessionState,
@@ -691,6 +699,98 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
     } else {
         Ok(router_data.clone())
     }
+}
+
+pub async fn authorize_preauthenticate_steps<F: Clone>(
+    state: &SessionState,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+    // if confirm {
+    //     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+    //         hyperswitch_domain_models::router_flow_types::PreAuthenticate,
+    //         types::PaymentsAuthorizeData,
+    //         types::PaymentsResponseData,
+    //     > = connector.connector.get_connector_integration();
+
+    //     // let preprocessing_request_data =
+    //     //     types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+
+    //     let preprocessing_request_data = router_data.request.to_owned();
+
+    //     let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+    //         Err(types::ErrorResponse::default());
+
+    //     let preprocessing_router_data = helpers::router_data_type_conversion::<
+    //         _,
+    //         hyperswitch_domain_models::router_flow_types::PreAuthenticate,
+    //         _,
+    //         _,
+    //         _,
+    //         _,
+    //     >(
+    //         router_data.clone(),
+    //         preprocessing_request_data,
+    //         preprocessing_response_data,
+    //     );
+
+    //     let resp = services::execute_connector_processing_step(
+    //         state,
+    //         connector_integration,
+    //         &preprocessing_router_data,
+    //         payments::CallConnectorAction::Trigger,
+    //         None,
+    //         None,
+    //     )
+    //     .await
+    //     .to_payment_failed_response()?;
+
+    //     metrics::PREPROCESSING_STEPS_COUNT.add(
+    //         1,
+    //         router_env::metric_attributes!(
+    //             ("connector", connector.connector_name.to_string()),
+    //             ("payment_method", router_data.payment_method.to_string()),
+    //             (
+    //                 "payment_method_type",
+    //                 router_data
+    //                     .request
+    //                     .payment_method_type
+    //                     .map(|inner| inner.to_string())
+    //                     .unwrap_or("null".to_string()),
+    //             ),
+    //         ),
+    //     );
+    //     let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+    //         resp.clone(),
+    //         router_data.request.to_owned(),
+    //         resp.response.clone(),
+    //     );
+    //     if connector.connector_name == api_models::enums::Connector::Airwallex {
+    //         authorize_router_data.reference_id = resp.reference_id;
+    //     } else if connector.connector_name == api_models::enums::Connector::Nuvei {
+    //         let (enrolled_for_3ds, related_transaction_id) = match &authorize_router_data.response {
+    //             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+    //                 enrolled_v2,
+    //                 related_transaction_id,
+    //             }) => (*enrolled_v2, related_transaction_id.clone()),
+    //             _ => (false, None),
+    //         };
+    //         authorize_router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+    //         authorize_router_data.request.related_transaction_id = related_transaction_id;
+    //     } else if connector.connector_name == api_models::enums::Connector::Shift4 {
+    //         if resp.request.enrolled_for_3ds {
+    //             authorize_router_data.response = resp.response;
+    //             authorize_router_data.status = resp.status;
+    //         } else {
+    //             authorize_router_data.request.enrolled_for_3ds = false;
+    //         }
+    //     }
+    //     Ok(authorize_router_data)
+    // } else {
+    //     Ok(router_data.clone())
+    // }
+    todo!()
 }
 
 pub async fn authorize_postprocessing_steps<F: Clone>(

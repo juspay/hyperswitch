@@ -857,7 +857,7 @@ pub struct PaymentAttemptUpdateInternal {
     // cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,
-    // payment_token: Option<String>,
+    pub payment_token: Option<String>,
     pub error_code: Option<String>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     // payment_method_data: Option<serde_json::Value>,
@@ -923,6 +923,7 @@ impl PaymentAttemptUpdateInternal {
             payment_method_id,
             connector_request_reference_id,
             connector_response_reference_id,
+            payment_token,
         } = self;
 
         PaymentAttempt {
@@ -945,7 +946,7 @@ impl PaymentAttemptUpdateInternal {
                 })
                 .or(source.browser_info),
             error_code: error_code.or(source.error_code),
-            payment_token: source.payment_token,
+            payment_token: payment_token.or(source.payment_token),
             connector_metadata: connector_metadata.or(source.connector_metadata),
             payment_experience: source.payment_experience,
             payment_method_data: source.payment_method_data,

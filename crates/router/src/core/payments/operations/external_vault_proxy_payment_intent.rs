@@ -297,6 +297,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
             mandate_data: Some(mandate_data_input),
             payment_method: None,
             merchant_connector_details: None,
+            redirect_response: None,
             external_vault_pmd: payment_method_data,
         };
 
@@ -541,6 +542,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
             authentication_type,
             connector_request_reference_id,
             connector_response_reference_id,
+            payment_token: None,
         };
 
         let updated_payment_intent = db

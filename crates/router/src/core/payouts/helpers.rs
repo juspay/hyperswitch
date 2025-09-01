@@ -115,6 +115,7 @@ pub async fn make_payout_method_data(
         payout_data,
     ) {
         // Get operation
+        #[cfg(feature = "v1")]
         (None, Some(payout_token), _) => {
             if payout_token.starts_with("temporary_token_")
                 || payout_type == Some(api_enums::PayoutType::Bank)
@@ -128,14 +129,14 @@ pub async fn make_payout_method_data(
                 .attach_printable(
                     "Payout method for given token not found or there was a problem fetching it",
                 )?;
-                utils::when(
-                    supplementary_data
-                        .customer_id
-                        .ne(&Some(customer_id.to_owned())),
-                    || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
-                    },
-                )?;
+                // utils::when(
+                //     supplementary_data
+                //         .customer_id
+                //         .ne(&Some(customer_id.to_owned())),
+                //     || {
+                //         Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                //     },
+                // )?;
                 Ok(pm)
             } else {
                 let resp = cards::get_card_from_locker(
@@ -158,6 +159,7 @@ pub async fn make_payout_method_data(
         }
 
         // Create / Update operation
+        #[cfg(feature = "v1")]
         (Some(payout_method), payout_token, Some(payout_data)) => {
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,

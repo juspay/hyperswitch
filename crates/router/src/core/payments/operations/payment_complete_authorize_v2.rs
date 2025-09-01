@@ -1,0 +1,511 @@
+use std::marker::PhantomData;
+
+use api_models::enums::FrmSuggestion;
+use async_trait::async_trait;
+use common_utils::{ext_traits::Encode, fp_utils::when, types::keymanager::ToEncryptable as _};
+use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payments::PaymentConfirmData;
+use masking::PeekInterface as _;
+use router_derive::PaymentOperation;
+use router_env::{instrument, tracing};
+
+use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use crate::{
+    core::{
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        mandate::helpers as m_helpers,
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+    },
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, SessionState},
+    services,
+    types::{
+        api::{self, CustomerAcceptance, PaymentIdTypeExt},
+        domain::{self, types as domain_types},
+        storage::{self, enums as storage_enums},
+    },
+    utils::{self, OptionExt},
+};
+
+#[derive(Debug, Clone, Copy)]
+pub struct CompleteAuthorize;
+
+type CompleteAuthorizeOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsRequest, PaymentConfirmData<F>>;
+
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for &CompleteAuthorize {
+    type Data = PaymentConfirmData<F>;
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<F, api::PaymentsRequest, Self::Data> + Send + Sync)>
+    {
+        Ok(*self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, api::PaymentsRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, api::PaymentsRequest, Self::Data>)> {
+        Ok(*self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, api::PaymentsRequest> + Send + Sync)> {
+        Ok(*self)
+    }
+}
+#[automatically_derived]
+impl<F: Send + Clone + Sync> Operation<F, api::PaymentsRequest> for CompleteAuthorize {
+    type Data = PaymentConfirmData<F>;
+    fn to_validate_request(
+        &self,
+    ) -> RouterResult<&(dyn ValidateRequest<F, api::PaymentsRequest, Self::Data> + Send + Sync)>
+    {
+        Ok(self)
+    }
+    fn to_get_tracker(
+        &self,
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, api::PaymentsRequest> + Send + Sync)> {
+        Ok(self)
+    }
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Self::Data>> {
+        Ok(self)
+    }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, api::PaymentsRequest> + Send + Sync)> {
+        Ok(self)
+    }
+}
+
+#[async_trait]
+impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, api::PaymentsRequest>
+    for CompleteAuthorize
+{
+    #[instrument(skip_all)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        request: &api::PaymentsRequest,
+        merchant_context: &domain::MerchantContext,
+        _profile: &domain::Profile,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+
+        let payment_intent = db
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
+        // self.validate_status_for_operation(payment_intent.status)?;
+
+        let cell_id = state.conf.cell_information.id.clone();
+
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
+                    hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
+                        payment_method_billing_address: request.payment_method_data.clone().map(|val| val.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address").ok()?.map(masking::Secret::new)).flatten(),
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment intent details".to_string())?;
+
+        let encrypted_data =
+             hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::from_encryptable(batch_encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting payment intent details")?;
+
+        // let payment_attempt_domain_model =
+        //     hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
+        //         &payment_intent,
+        //         cell_id,
+        //         storage_scheme,
+        //         &request.into(),
+        //         encrypted_data
+        //     )
+        //     .await?;
+
+        // let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+        //     db.insert_payment_attempt(
+        //         key_manager_state,
+        //         merchant_context.get_merchant_key_store(),
+        //         payment_attempt_domain_model,
+        //         storage_scheme,
+        //     )
+        //     .await
+        //     .change_context(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Could not insert payment attempt")?;
+
+        let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: ("active_attempt_id"),
+            }
+        })?;
+
+        let mut payment_attempt = db
+            .find_payment_attempt_by_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                active_attempt_id,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not find payment attempt given the attempt id")?;
+
+        let payment_method_data = request
+            .payment_method_data
+            .clone()
+            .map(|val| {
+                val.payment_method_data
+                    .clone()
+                    .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from)
+            })
+            .flatten();
+
+        // if request.payment_token.is_some() {
+        //     when(
+        //         !matches!(
+        //             payment_method_data,
+        //             Some(domain::payment_method_data::PaymentMethodData::CardToken(_))
+        //         ),
+        //         || {
+        //             Err(errors::ApiErrorResponse::InvalidDataValue {
+        //                 field_name: "payment_method_data",
+        //             })
+        //             .attach_printable(
+        //                 "payment_method_data should be card_token when a token is passed",
+        //             )
+        //         },
+        //     )?;
+        // };
+
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
+        let redirect_response = request
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.redirect_response.clone());
+
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
+        let payment_data = PaymentConfirmData {
+            flow: std::marker::PhantomData,
+            payment_intent,
+            payment_attempt,
+            payment_method_data,
+            payment_address,
+            mandate_data: None,
+            payment_method: None,
+            merchant_connector_details,
+            redirect_response,
+            external_vault_pmd: None,
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
+
+        Ok(get_trackers_response)
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentConfirmData<F>>
+    for CompleteAuthorize
+{
+    async fn get_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
+        errors::StorageError,
+    > {
+        match payment_data.payment_intent.customer_id.clone() {
+            Some(id) => {
+                let customer = state
+                    .store
+                    .find_customer_by_global_id(
+                        &state.into(),
+                        &id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await?;
+
+                Ok((Box::new(self), Some(customer)))
+            }
+            None => Ok((Box::new(self), None)),
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
+    ) -> RouterResult<(
+        CompleteAuthorizeOperation<'a, F>,
+        Option<domain::PaymentMethodData>,
+        Option<String>,
+    )> {
+        Ok((Box::new(self), None, None))
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
+        _schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn perform_routing<'a>(
+        &'a self,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        payments::connector_selection(
+            state,
+            merchant_context,
+            business_profile,
+            payment_data,
+            None,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let (payment_method, payment_method_data) = match (
+            &payment_data.payment_attempt.payment_token,
+            &payment_data.payment_method_data,
+            &payment_data.payment_attempt.customer_acceptance,
+        ) {
+            (Some(ppmt), _, _) => {
+                // let customer_id = match &payment_data.payment_intent.customer_id {
+                //     Some(customer_id) => customer_id.clone(),
+                //     None => {
+                //         return Err(errors::ApiErrorResponse::InvalidDataValue {
+                //             field_name: "customer_id",
+                //         })
+                //         .attach_printable("customer_id not provided");
+                //     }
+                // };
+
+                // let pm_create_data =
+                //     api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
+
+                // let req = api::PaymentMethodCreate {
+                //     payment_method_type: payment_data.payment_attempt.payment_method_type,
+                //     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                //     metadata: None,
+                //     customer_id,
+                //     payment_method_data: pm_create_data,
+                //     billing: None,
+                //     psp_tokenization: None,
+                //     network_tokenization: None,
+                // };
+
+                // let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                //     state,
+                //     &state.get_req_state(),
+                //     req,
+                //     merchant_context,
+                //     business_profile,
+                // )
+                // .await?;
+                // let ppmt = payment_methods::store_card_data_in_redis(
+                //     state,
+                //     pmm_data,
+                //     &payment_data.payment_intent,
+                //     &payment_data.payment_attempt,
+                //     payment_data.payment_attempt.payment_method_type,
+                //     merchant_context,
+                //     business_profile,
+                // )
+                // .await?;
+
+                use crate::core::payment_methods;
+
+                let payment_token_data = payment_methods::get_card_data_from_redis(
+                    state,
+                    ppmt.to_owned(),
+                    payment_data.payment_attempt.payment_method_type,
+                )
+                .await?;
+
+                let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
+                    state,
+                    merchant_context.get_merchant_key_store(),
+                    &payment_token_data,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    None,
+                    // domain::CardToken::default(),
+                    // customer,
+                    // storage_scheme,
+                    // mandate_id,
+                    // payment_data.payment_method_info.clone(),
+                    // business_profile,
+                    // should_retry_with_pan,
+                    // vault_data,
+                ))
+                .await;
+
+                let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
+
+                println!("BSDK 2");
+
+                dbg!(&payment_method_details);
+
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                (
+                    None::<domain::PaymentMethod>,
+                    payment_method_details.payment_method_data,
+                )
+            }
+            _ => (None, None), // Pass payment_data unmodified for any other case
+        };
+
+        if let Some(pm_data) = payment_method_data {
+            payment_data.update_payment_method_data(pm_data);
+        }
+        if let Some(pm) = payment_method {
+            payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
+        }
+
+        Ok(())
+    }
+    // #[instrument(skip_all)]
+    // async fn guard_payment_against_blocklist<'a>(
+    //     &'a self,
+    //     _state: &SessionState,
+    //     _merchant_context: &domain::MerchantContext,
+    //     _payment_data: &mut PaymentData<F>,
+    // ) -> CustomResult<bool, errors::ApiErrorResponse> {
+    //     Ok(false)
+    // }
+}
+
+#[async_trait]
+impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, api::PaymentsRequest>
+    for CompleteAuthorize
+{
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        state: &'b SessionState,
+        req_state: ReqState,
+        mut payment_data: PaymentConfirmData<F>,
+        _customer: Option<domain::Customer>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<(CompleteAuthorizeOperation<'b, F>, PaymentConfirmData<F>)>
+    where
+        F: 'b + Send,
+    {
+        // let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {
+        //     shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
+        // };
+
+        // let db = &*state.store;
+        // let payment_intent = payment_data.payment_intent.clone();
+
+        // let updated_payment_intent = db
+        //     .update_payment_intent(
+        //         &state.into(),
+        //         payment_intent,
+        //         payment_intent_update,
+        //         key_store,
+        //         storage_scheme,
+        //     )
+        //     .await
+        //     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // req_state
+        //     .event_context
+        //     .event(AuditEvent::new(AuditEventType::PaymentCompleteAuthorize))
+        //     .with(payment_data.to_event())
+        //     .emit();
+
+        // payment_data.payment_intent = updated_payment_intent;
+        Ok((Box::new(self), payment_data))
+    }
+}
+
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentConfirmData<F>>
+    for CompleteAuthorize
+{
+    #[instrument(skip_all)]
+    fn validate_request<'a, 'b>(
+        &'b self,
+        request: &api::PaymentsRequest,
+        merchant_context: &'a domain::MerchantContext,
+    ) -> RouterResult<operations::ValidateResult> {
+        let validate_result = operations::ValidateResult {
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            requeue: false,
+        };
+
+        Ok(validate_result)
+    }
+}

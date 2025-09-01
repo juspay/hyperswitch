@@ -1219,6 +1219,9 @@ impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
 #[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsRequest {}
+
+#[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ExternalVaultProxyPaymentsRequest {}
 
 #[cfg(feature = "v1")]
@@ -1518,7 +1521,7 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
+                        f.action=window.location.pathname.replace(/start-redirection/, 'complete-redirection?paymentToken={payment_fields_token}');
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1580,7 +1583,15 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                                        var currentUrl = window.location.href;
+                    var updatedUrl = currentUrl.replace(/start-redirection/, 'continue-redirection');
+                    if (updatedUrl.indexOf('?') !== -1) {{
+                        updatedUrl += '&referenceId={reference_id}';
+                }} else {{
+                        updatedUrl += '?referenceId={reference_id}';
+                }}
+                    window.location.href = updatedUrl;
+
                     }}
                   }}, false);
                 </script>

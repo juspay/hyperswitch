@@ -275,6 +275,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            redirect_response: None,
             external_vault_pmd: None,
         };
 
@@ -509,6 +510,55 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
             }
+            (None, Some(pmm_data @ domain::PaymentMethodData::Card(card)), _) => {
+                // let customer_id = match &payment_data.payment_intent.customer_id {
+                //     Some(customer_id) => customer_id.clone(),
+                //     None => {
+                //         return Err(errors::ApiErrorResponse::InvalidDataValue {
+                //             field_name: "customer_id",
+                //         })
+                //         .attach_printable("customer_id not provided");
+                //     }
+                // };
+
+                // let pm_create_data =
+                //     api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
+
+                // let req = api::PaymentMethodCreate {
+                //     payment_method_type: payment_data.payment_attempt.payment_method_type,
+                //     payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                //     metadata: None,
+                //     customer_id,
+                //     payment_method_data: pm_create_data,
+                //     billing: None,
+                //     psp_tokenization: None,
+                //     network_tokenization: None,
+                // };
+
+                // let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                //     state,
+                //     &state.get_req_state(),
+                //     req,
+                //     merchant_context,
+                //     business_profile,
+                // )
+                // .await?;
+                let ppmt = payment_methods::store_card_data_in_redis(
+                    state,
+                    pmm_data,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    payment_data.payment_attempt.payment_method_type,
+                    merchant_context,
+                    business_profile,
+                )
+                .await?;
+
+                payment_data.payment_attempt.payment_token = Some(ppmt);
+
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                (None, None)
+            }
             _ => (None, None), // Pass payment_data unmodified for any other case
         };
 
@@ -620,7 +670,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                             .attach_printable("Merchant connector id is none when constructing response")
                     })?,
                     authentication_type,
-                    payment_method_id : payment_method.get_id().clone()
+                    payment_method_id : payment_method.get_id().clone(),
+                    payment_token: payment_data.payment_attempt.payment_token.clone(),
                 }
             }
             None => {
@@ -632,6 +683,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     authentication_type,
                     connector_request_reference_id,
                     connector_response_reference_id,
+                    payment_token: payment_data.payment_attempt.payment_token.clone(),
                 }
             }
         };
