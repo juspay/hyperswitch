@@ -2,9 +2,7 @@ use api_models::revenue_recovery_data_backfill::{
     BackfillError, PaymentMethodDataBackfillResponse, RevenueRecoveryBackfillRequest,
 };
 use common_enums::CardNetwork;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse,
-};
+use hyperswitch_domain_models::api::ApplicationResponse;
 use router_env::{instrument, logger};
 
 use crate::{
@@ -75,7 +73,8 @@ async fn process_payment_method_record(
         Err(e) => {
             logger::warn!(
                 "Failed to build card data for cnp_txn_id: {}, error: {}. Using minimal data.",
-                record.cnp_txn_id, e
+                record.cnp_txn_id,
+                e
             );
             serde_json::json!({})
         }
@@ -105,9 +104,13 @@ async fn process_payment_method_record(
                 token,
                 &card_data,
             )
-            .await {
+            .await
+            {
                 logger::error!("Redis update failed for token {}: {}", token, e);
-                return Err(BackfillError::RedisError(format!("Token not found in Redis: {}", e)));
+                return Err(BackfillError::RedisError(format!(
+                    "Token not found in Redis: {}",
+                    e
+                )));
             }
         }
     }

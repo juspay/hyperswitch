@@ -1,12 +1,13 @@
-use std::io::Read;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+};
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_utils::events::ApiEventMetric;
-use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::BufReader;
 use csv::Reader;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
@@ -91,18 +92,21 @@ impl RevenueRecoveryDataBackfillForm {
         let file = File::open(self.file.file.path())
             .map_err(|e| BackfillError::FileProcessingError(e.to_string()))?;
 
-            let mut csv_reader = Reader::from_reader(BufReader::new(file));
+        let mut csv_reader = Reader::from_reader(BufReader::new(file));
 
-            // Step 2: Parse CSV into typed records
-            let mut records = Vec::new();
-            for record in csv_reader.deserialize::<RevenueRecoveryBackfillRequest>().flatten() {
-                // Step 3: Only push if required fields exist
-                if !record.type_field.trim().is_empty() {
-                    records.push(record);
-                }
+        // Step 2: Parse CSV into typed records
+        let mut records = Vec::new();
+        for record in csv_reader
+            .deserialize::<RevenueRecoveryBackfillRequest>()
+            .flatten()
+        {
+            // Step 3: Only push if required fields exist
+            if !record.type_field.trim().is_empty() {
+                records.push(record);
             }
-    
-            // Step 4: Return whatever valid records were collected
-            Ok(records)
+        }
+
+        // Step 4: Return whatever valid records were collected
+        Ok(records)
     }
 }
