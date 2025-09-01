@@ -183,18 +183,21 @@ pub async fn populate_bin_details_for_masked_card(
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
     match payment_method_type {
-        Some(enums::PaymentMethodType::Paypal | enums::PaymentMethodType::SamsungPay) => {
-            logger::info!(
-                "Validation for given payment_method_type was skipped: {:?}",
-                payment_method_type
-            );
-        }
-        _ => {
+        Some(
+            // Cards
+            enums::PaymentMethodType::Credit
+            | enums::PaymentMethodType::Debit
+
+            // Wallets
+            | enums::PaymentMethodType::ApplePay
+            | enums::PaymentMethodType::GooglePay,
+        ) => {
             migration::validate_card_expiry(
                 &card_details.card_exp_month,
                 &card_details.card_exp_year,
             )?;
         }
+        _ => {}
     }
 
     let card_number = card_details.card_number.clone();
