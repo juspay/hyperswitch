@@ -2832,6 +2832,49 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 #[cfg(feature = "v2")]
+pub async fn store_in_vault_and_generate_ppmt(
+    state: &SessionState,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&domain::Profile>,
+) -> RouterResult<String> {
+    let router_token = vault::Vault::store_payment_method_data_in_locker(
+        state,
+        None,
+        payment_method_data,
+        payment_intent.customer_id.to_owned(),
+        payment_method,
+        merchant_key_store,
+    )
+    .await?;
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
+        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            payment_method,
+        ))
+    });
+
+    let intent_fulfillment_time = business_profile
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
+    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+        key_for_hyperswitch_token
+            .insert(
+                intent_fulfillment_time,
+                storage::PaymentTokenData::temporary_generic(router_token),
+                state,
+            )
+            .await?;
+    };
+    Ok(parent_payment_method_token)
+}
+
+#[cfg(feature = "v2")]
 pub async fn store_payment_method_data_in_vault(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
