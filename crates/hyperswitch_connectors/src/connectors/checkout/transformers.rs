@@ -212,6 +212,26 @@ pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
+    GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayPredecrypt {
+    source: GPaySource,
+    amount: MinorUnit,
+    currency: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GPaySource {
+    #[serde(rename = "type")]
+    _type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: Option<String>,
+    cryptogram: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -317,21 +337,59 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 Ok(a)
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(_) => Ok(PaymentSource::Wallets(WalletSource {
-                    source_type: CheckoutSourceTypes::Token,
-                    token: match item.router_data.get_payment_method_token()? {
-                        PaymentMethodToken::Token(token) => token,
-                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
-                        )?,
+                WalletData::GooglePay(_) => {
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
+                    match payment_method_token {
+                        PaymentMethodToken::Token(token) => {
+                            Ok(PaymentSource::Wallets(WalletSource {
+                                source_type: CheckoutSourceTypes::Token,
+                                token,
+                            }))
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(google_pay_decrypted_data) => {
+                            let token = google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone();
+                            let expiry_month = google_pay_decrypted_data
+                                .get_expiry_month()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_month",
+                                })?;
+                            let expiry_year = google_pay_decrypted_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_year",
+                                })?;
+                            let cryptogram = google_pay_decrypted_data
+                                .cryptogram
+                                .clone()
+                                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                                    field_name: "cryptogram",
+                                })?;
+                            Ok(PaymentSource::GooglePayPredecrypt(Box::new(
+                                GooglePayPredecrypt {
+                                    source: GPaySource {
+                                        _type: "network_token".to_string(),
+                                        token,
+                                        token_type: "googlepay".to_string(),
+                                        expiry_month,
+                                        expiry_year,
+                                        eci: Some("06".to_string()),
+                                        cryptogram,
+                                    },
+                                    amount: item.amount.to_owned(),
+                                    currency: item.router_data.request.currency.to_string(),
+                                },
+                            )))
+                        }
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Checkout"))?
                         }
-                        PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                        PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Apple Pay", "Checkout"))?
                         }
-                    },
-                })),
+                    }
+                }
                 WalletData::ApplePay(_) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
                     match payment_method_token {
