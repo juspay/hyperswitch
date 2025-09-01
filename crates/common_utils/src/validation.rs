@@ -1,13 +1,15 @@
 //! Custom validations for some shared types.
 
-use crate::errors::{CustomResult, ValidationError};
+use std::{collections::HashSet, sync::LazyLock};
+
 use ammonia::Builder as AmmoniaBuilder;
 use error_stack::report;
 use globset::Glob;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
-use std::{collections::HashSet, sync::LazyLock};
+
+use crate::errors::{CustomResult, ValidationError};
 
 /// Validates a given phone number using the [phonenumber] crate
 ///
