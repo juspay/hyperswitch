@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.01.0
+
+### Features
+
+- **celero:** CIT-MIT for celero (ALPHA CONNECTOR) ([#9026](https://github.com/juspay/hyperswitch/pull/9026)) ([`55d4d7b`](https://github.com/juspay/hyperswitch/commit/55d4d7b894dc0e88c5bbe2f701dc7536db139502))
+- **connector:** [AMAZONPAY] add Payment flows for Amazon Pay Wallet ([#7062](https://github.com/juspay/hyperswitch/pull/7062)) ([`23cf437`](https://github.com/juspay/hyperswitch/commit/23cf4376f5691e9c56cb0346bfd06c1e88ff38a8))
+- **connectors:** [Stripe] add extended authorization for cards ([#9084](https://github.com/juspay/hyperswitch/pull/9084)) ([`8cfa966`](https://github.com/juspay/hyperswitch/commit/8cfa966d34e914c8df06f000b59fdad53d3f9902))
+- **nuvei:** NTID Support + googlepay & applepay mandate support ([#9081](https://github.com/juspay/hyperswitch/pull/9081)) ([`a589e22`](https://github.com/juspay/hyperswitch/commit/a589e2246447b7096fd335d444a24b2450c3e7c2))
+
+### Bug Fixes
+
+- **connector:** [AUTHORIZEDOTNET] customer id population fixed in authorize flow ([#9079](https://github.com/juspay/hyperswitch/pull/9079)) ([`60ef06e`](https://github.com/juspay/hyperswitch/commit/60ef06e8ffdb83e6ae2d3b12a263d7b27bb606f3))
+- Resolved issue of webhooks response from ucs ([#9021](https://github.com/juspay/hyperswitch/pull/9021)) ([`4a60b07`](https://github.com/juspay/hyperswitch/commit/4a60b079544815fcddcf0694e2aeb44a03002b25))
+
+### Refactors
+
+- **revenue_recovery:** Add configs for calculate job ([#9106](https://github.com/juspay/hyperswitch/pull/9106)) ([`8ce36a2`](https://github.com/juspay/hyperswitch/commit/8ce36a2fd513034755a1bf1aacbd3210083e07c9))
+
+**Full Changelog:** [`2025.08.29.0...2025.09.01.0`](https://github.com/juspay/hyperswitch/compare/2025.08.29.0...2025.09.01.0)
+
+- - -
+
 ## 2025.08.29.0
 
 ### Features
