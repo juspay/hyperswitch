@@ -1430,11 +1430,13 @@ impl ConnectorSpecifications for Braintree {
         Some(&BRAINTREE_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_sdk_session_token_generation_enabled(&self) -> bool {
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
         true
     }
 
-    fn supported_payment_methods_for_sdk_session_token(&self) -> Vec<enums::PaymentMethodType> {
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<enums::PaymentMethodType> {
         vec![
             enums::PaymentMethodType::ApplePay,
             enums::PaymentMethodType::GooglePay,

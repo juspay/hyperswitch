@@ -528,20 +528,24 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// If connector supports session token generation
-    fn is_sdk_session_token_generation_enabled(&self) -> bool {
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
         match self {
-            Self::Old(connector) => connector.is_sdk_session_token_generation_enabled(),
-            Self::New(connector) => connector.is_sdk_session_token_generation_enabled(),
+            Self::Old(connector) => connector.is_sdk_client_token_generation_enabled(),
+            Self::New(connector) => connector.is_sdk_client_token_generation_enabled(),
         }
     }
 
     /// Supported payment methods for session token generation
-    fn supported_payment_methods_for_sdk_session_token(
+    fn supported_payment_method_types_for_sdk_client_token_generation(
         &self,
     ) -> Vec<common_enums::PaymentMethodType> {
         match self {
-            Self::Old(connector) => connector.supported_payment_methods_for_sdk_session_token(),
-            Self::New(connector) => connector.supported_payment_methods_for_sdk_session_token(),
+            Self::Old(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
+            Self::New(connector) => {
+                connector.supported_payment_method_types_for_sdk_client_token_generation()
+            }
         }
     }
 

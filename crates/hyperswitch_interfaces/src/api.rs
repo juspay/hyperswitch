@@ -398,12 +398,14 @@ pub trait ConnectorSpecifications {
     }
 
     /// Whether SDK session token generation is enabled for this connector
-    fn is_sdk_session_token_generation_enabled(&self) -> bool {
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
         false
     }
 
     /// Payment method types that support SDK session token generation
-    fn supported_payment_methods_for_sdk_session_token(&self) -> Vec<PaymentMethodType> {
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<PaymentMethodType> {
         vec![]
     }
 
@@ -412,8 +414,8 @@ pub trait ConnectorSpecifications {
         &self,
         current_core_payment_method_type: &PaymentMethodType,
     ) -> bool {
-        if self.is_sdk_session_token_generation_enabled() {
-            self.supported_payment_methods_for_sdk_session_token()
+        if self.is_sdk_client_token_generation_enabled() {
+            self.supported_payment_method_types_for_sdk_client_token_generation()
                 .contains(current_core_payment_method_type)
         } else {
             false

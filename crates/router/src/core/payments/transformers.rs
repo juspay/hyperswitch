@@ -127,7 +127,7 @@ where
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: payment_data.address.clone(),
@@ -390,7 +390,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         session_token: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
-        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
+        payment_method_type: None,
         router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
@@ -791,7 +791,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -923,7 +923,7 @@ pub async fn construct_router_data_for_psync<'a>(
         attempt_id: attempt.get_id().get_string_repr().to_owned(),
         status: attempt.status,
         payment_method: attempt.payment_method_type,
-        payment_method_type: None,
+        payment_method_type: Some(attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_intent
             .description
@@ -1334,7 +1334,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -1426,13 +1426,9 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let payment_method = match payment_method {
-        Some(pm) => pm,
-        None => payment_data
-            .payment_attempt
-            .payment_method
-            .get_required_value("payment_method")?,
-    };
+    let payment_method = payment_method
+        .or(payment_data.payment_attempt.payment_method)
+        .get_required_value("payment_method")?;
 
     let payment_method_type =
         payment_method_type.or(payment_data.payment_attempt.payment_method_type);
@@ -1796,7 +1792,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,
@@ -4818,7 +4814,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             apple_pay_recurring_details,
             customer_name: None,
             payment_method: None,
-            payment_method_type: None,
+            payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         })
     }
 }
