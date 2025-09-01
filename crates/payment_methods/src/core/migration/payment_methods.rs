@@ -51,8 +51,12 @@ pub async fn migrate_payment_method(
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
-    let card_bin_details =
-        populate_bin_details_for_masked_card(card_details, &*state.store, req.payment_method_type.as_ref()).await?;
+    let card_bin_details = populate_bin_details_for_masked_card(
+        card_details,
+        &*state.store,
+        req.payment_method_type.as_ref(),
+    )
+    .await?;
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
@@ -180,10 +184,16 @@ pub async fn populate_bin_details_for_masked_card(
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
     match payment_method_type {
         Some(enums::PaymentMethodType::Paypal | enums::PaymentMethodType::SamsungPay) => {
-            logger::info!("Validation for given payment_method_type was skipped: {:?}", payment_method_type);
+            logger::info!(
+                "Validation for given payment_method_type was skipped: {:?}",
+                payment_method_type
+            );
         }
         _ => {
-            migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
+            migration::validate_card_expiry(
+                &card_details.card_exp_month,
+                &card_details.card_exp_year,
+            )?;
         }
     }
 
