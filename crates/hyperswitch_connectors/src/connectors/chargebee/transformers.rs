@@ -1,6 +1,5 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
-
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
@@ -21,7 +20,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{Secret, ExposeInterface};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -29,6 +28,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData},
 };
+
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
@@ -169,6 +169,108 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsR
     }
 }
 
+// SubscriptionCreate structures
+#[derive(Debug, Serialize)]
+pub struct ChargebeeSubscriptionCreateRequest {
+    #[serde(rename = "subscription_items[item_price_id][0]")]
+    pub item_price_id: String,
+    #[serde(rename = "subscription_items[quantity][0]")]
+    pub quantity: Option<u32>,
+    #[serde(rename = "billing_address[line1]")]
+    pub billing_address_line1: Option<String>,
+    #[serde(rename = "billing_address[city]")]
+    pub billing_address_city: Option<String>,
+    #[serde(rename = "billing_address[state]")]
+    pub billing_address_state: Option<String>,
+    #[serde(rename = "billing_address[zip]")]
+    pub billing_address_zip: Option<String>,
+    #[serde(rename = "billing_address[country]")]
+    pub billing_address_country: Option<String>,
+    #[serde(rename = "auto_collection")]
+    pub auto_collection: String,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>>
+    for ChargebeeSubscriptionCreateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        
+        // Get the first subscription item (assuming at least one exists)
+        let first_item = req.subscription_items.first()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "subscription_items",
+            })?;
+
+        Ok(Self {
+            item_price_id: first_item.item_price_id.clone(),
+            quantity: first_item.quantity,
+            billing_address_line1: req.billing_address.address.as_ref().and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+            billing_address_city: req.billing_address.address.as_ref().and_then(|addr| addr.city.clone()),
+            billing_address_state: req.billing_address.address.as_ref().and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+            billing_address_zip: req.billing_address.address.as_ref().and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+            billing_address_country: req.billing_address.address.as_ref().and_then(|addr| addr.country.map(|country| country.to_string())),
+            auto_collection: req.auto_collection.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeSubscriptionCreateResponse {
+    pub subscription: ChargebeeSubscriptionDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeSubscriptionDetails {
+    pub id: String,
+    pub status: String,
+    pub customer_id: String,
+    pub currency_code: enums::Currency,
+    pub total_dues: Option<MinorUnit>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<
+    ResponseRouterData<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+        ChargebeeSubscriptionCreateResponse,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    >,
+> for hyperswitch_domain_models::types::SubscriptionCreateRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+            ChargebeeSubscriptionCreateResponse,
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let subscription = &item.response.subscription;
+        Ok(Self {
+            response: Ok(hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse {
+                subscription_id: subscription.id.clone(),
+                status: subscription.status.clone(),
+                customer_id: subscription.customer_id.clone(),
+                currency_code: subscription.currency_code,
+                total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),
+                next_billing_at: subscription.next_billing_at,
+                created_at: subscription.created_at,
+            }),
+            ..item.data
+        })
+    }
+}
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest

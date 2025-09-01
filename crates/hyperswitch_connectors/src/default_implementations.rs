@@ -10,6 +10,13 @@ use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
+
+use hyperswitch_domain_models::router_flow_types::{
+    SubscriptionRecordBack as SubscriptionRecordBackFlow,
+    SubscriptionCreate as SubscriptionCreateFlow,
+};
+use hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest;
+use hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse;
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
@@ -124,6 +131,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
+        subscriptions::{Subscriptions,SubscriptionRecordBack,SubscriptionCreate},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6850,15 +6858,24 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Zsl
 );
 
-macro_rules! default_imp_for_external_vault {
+#[cfg(feature = "v1")]
+macro_rules! default_imp_for_subscription_record_back {
     ($($path:ident::$connector:ident),*) => {
-        $(
-            impl ExternalVault for $path::$connector {}
-    )*
+        $( impl SubscriptionRecordBack for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionRecordBackFlow,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
+            > for $path::$connector
+            {}
+        )*
     };
 }
 
-default_imp_for_external_vault!(
+#[cfg(feature = "v1")]
+default_imp_for_subscription_record_back!(
+    connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6868,10 +6885,10 @@ default_imp_for_external_vault!(
     connectors::Archipel,
     connectors::Authipay,
     connectors::Authorizedotnet,
-    connectors::Barclaycard,
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
+    connectors::Barclaycard,
     connectors::Billwerk,
     connectors::Bluesnap,
     connectors::Bitpay,
@@ -6882,7 +6899,6 @@ default_imp_for_external_vault!(
     connectors::Breadpay,
     connectors::Cashtocode,
     connectors::Celero,
-    connectors::Chargebee,
     connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
@@ -6916,15 +6932,15 @@ default_imp_for_external_vault!(
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
+    connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
-    connectors::Jpmorgan,
     connectors::Klarna,
     connectors::Netcetera,
-    connectors::Nordea,
-    connectors::Nomupay,
     connectors::Nmi,
+    connectors::Nomupay,
     connectors::Noon,
+    connectors::Nordea,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -6938,7 +6954,6 @@ default_imp_for_external_vault!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
-    connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -6950,19 +6965,20 @@ default_imp_for_external_vault!(
     connectors::Payme,
     connectors::Payone,
     connectors::Placetopay,
+    connectors::Plaid,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
     connectors::Santander,
-    connectors::Signifyd,
     connectors::Shift4,
     connectors::Sift,
     connectors::Silverflow,
-    connectors::Stax,
+    connectors::Signifyd,
     connectors::Stripe,
     connectors::Stripebilling,
+    connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
     connectors::Threedsecureio,
@@ -6979,7 +6995,6 @@ default_imp_for_external_vault!(
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
-    connectors::Vgs,
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
@@ -7800,7 +7815,8 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Paytm,
     connectors::Payu,
     connectors::Phonepe,
-    connectors::Placetopay,
+    connectors::Paypal,
+    connectors::Paysafe,
     connectors::Plaid,
     connectors::Powertranz,
     connectors::Prophetpay,
@@ -7840,7 +7856,293 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Zsl,
     connectors::CtpMastercard
 );
+#[cfg(feature = "v1")]
+macro_rules! default_imp_for_subscription_create {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl SubscriptionCreate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCreateFlow,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
+            > for $path::$connector
+            {}
+        )*
+    };
+}
 
+#[cfg(feature = "v1")]
+default_imp_for_subscription_create!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+#[cfg(feature = "v1")]
+macro_rules! default_imp_for_subscription_create {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl SubscriptionCreate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCreateFlow,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+#[cfg(feature = "v1")]
+default_imp_for_subscription_create!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -8284,6 +8586,36 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionRecordBack for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionRecordBackFlow,
+        SubscriptionsRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionCreate for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionCreateFlow,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
