@@ -246,7 +246,7 @@ pub enum PaymentMethodUpdate {
         network_transaction_id: Option<Secret<String>>,
     },
     ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
-        connector_mandate_details: Option<serde_json::Value>,
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
         network_transaction_id: Option<String>,
         status: Option<storage_enums::PaymentMethodStatus>,
     },
@@ -690,7 +690,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id: None,
                 network_token_requestor_reference_id: None,
                 payment_method: None,
-                connector_mandate_details,
+                connector_mandate_details: connector_mandate_details
+                    .map(|mandate_details| mandate_details.expose()),
                 network_transaction_id,
                 updated_by: None,
                 payment_method_issuer: None,

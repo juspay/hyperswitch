@@ -287,7 +287,9 @@ impl ForeignFrom<domain::PaymentMethod> for api::PaymentMethodRecordUpdateRespon
             payment_method_id: item.payment_method_id.to_owned(),
             status: item.status,
             network_transaction_id: item.network_transaction_id,
-            connector_mandate_details: item.connector_mandate_details,
+            connector_mandate_details: item
+                .connector_mandate_details
+                .map(common_utils::pii::SecretSerdeValue::new),
         }
     }
 }

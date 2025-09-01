@@ -290,7 +290,7 @@ pub struct PaymentMethodRecordUpdateResponse {
     pub payment_method_id: String,
     pub status: common_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -2663,7 +2663,7 @@ pub struct PaymentMethodUpdateResponse {
     pub payment_method_id: String,
     pub status: Option<common_enums::PaymentMethodStatus>,
     pub network_transaction_id: Option<String>,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub update_status: UpdateStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_error: Option<String>,

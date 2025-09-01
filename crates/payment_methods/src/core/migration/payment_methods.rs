@@ -12,7 +12,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt},
     generate_id,
 };
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::{errors::CustomResult, id_type, pii};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::mandates::{
@@ -291,7 +291,9 @@ pub async fn update_payment_method_record(
         })?;
     let pm_update =
         PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
-            connector_mandate_details: Some(connector_mandate_details_value),
+            connector_mandate_details: Some(pii::SecretSerdeValue::new(
+                connector_mandate_details_value,
+            )),
             network_transaction_id,
             status,
         };
@@ -317,7 +319,9 @@ pub async fn update_payment_method_record(
             payment_method_id: response.payment_method_id,
             status: response.status,
             network_transaction_id: response.network_transaction_id,
-            connector_mandate_details: response.connector_mandate_details,
+            connector_mandate_details: response
+                .connector_mandate_details
+                .map(pii::SecretSerdeValue::new),
         },
     ))
 }
