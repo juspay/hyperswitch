@@ -4,11 +4,11 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use subscription::utils as subscription_types;
 use router_env::{
     tracing::{self, instrument},
     Flow,
 };
+use subscription::utils as subscription_types;
 
 use crate::{
     core::{api_locking, subscription},
@@ -34,11 +34,7 @@ pub async fn create_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_subscription(
-                state,
-                merchant_context,
-                payload.clone(),
-            )
+            subscription::create_subscription(state, merchant_context, payload.clone())
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

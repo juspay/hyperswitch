@@ -1,9 +1,27 @@
-use common_utils::{crypto::Encryptable, events::ApiEventMetric, id_type::GenerateId, pii, type_name, types::keymanager::{Identifier, ToEncryptable}};
+use common_utils::{
+    crypto::Encryptable,
+    events::ApiEventMetric,
+    id_type::GenerateId,
+    pii, type_name,
+    types::keymanager::{Identifier, ToEncryptable},
+};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{customer::Customer, merchant_context::MerchantContext, router_request_types::CustomerDetails, type_encryption::{crypto_operation, CryptoOperation}};
+use hyperswitch_domain_models::{
+    customer::Customer,
+    merchant_context::MerchantContext,
+    router_request_types::CustomerDetails,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 
-use crate::{db::{errors::{self, RouterResult}, StorageInterface}, routes::SessionState, types::domain as domain};
+use crate::{
+    db::{
+        errors::{self, RouterResult},
+        StorageInterface,
+    },
+    routes::SessionState,
+    types::domain,
+};
 
 pub async fn get_or_create_customer(
     state: &SessionState,
@@ -131,10 +149,7 @@ pub async fn get_or_create_customer(
     }
 }
 
-
-pub fn get_customer_details_from_request(
-    request: CreateSubscriptionRequest,
-) -> CustomerDetails {
+pub fn get_customer_details_from_request(request: CreateSubscriptionRequest) -> CustomerDetails {
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
@@ -215,7 +230,7 @@ pub struct Subscription {
 pub enum SubscriptionStatus {
     Created,
     Active,
-    InActive
+    InActive,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
