@@ -1283,11 +1283,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
         customer_name,
-        metadata: payment_data.payment_intent.metadata,
-        order_tax_amount,
-        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        payment_method: None,
-        payment_method_type: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -5205,8 +5200,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata: payment_data.payment_intent.metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-            payment_method: payment_data.payment_attempt.payment_method,
-            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            payment_method: None,
+            payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         })
     }
 }

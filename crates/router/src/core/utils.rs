@@ -332,7 +332,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
         payment_method: payment_method_type,
-        payment_method_type: None,
+        payment_method_type: Some(payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
@@ -545,7 +545,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
@@ -995,7 +995,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
-        .get_required_value("payment_method_type")?;
+        .get_required_value("payment_method")?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -1006,7 +1006,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -1116,7 +1116,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -1224,7 +1224,7 @@ pub async fn construct_upload_file_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -1411,7 +1411,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -1542,7 +1542,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         tenant_id: state.tenant.tenant_id.clone(),
         status: payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type,
         description: None,
         address: payment_data.address.clone(),
@@ -1650,7 +1650,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
