@@ -418,5 +418,12 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
+    if let Some(request_id) = grpc_headers.request_id {
+        metadata.append(
+            consts::UCS_HEADER_X_SESSION_ID,
+            parse("session_id", request_id.as_str())?,
+        );
+    };
+
     Ok(metadata)
 }

@@ -91,6 +91,9 @@ pub mod consts {
 
     /// Header key for sending the AUTH KEY MAP in currency-based authentication.
     pub(crate) const UCS_HEADER_AUTH_KEY_MAP: &str = "x-auth-key-map";
+
+    /// Header key for sending the Session Id.
+    pub(crate) const UCS_HEADER_X_SESSION_ID: &str = "x-session-id";
 }
 
 /// Metrics for interactions with external systems.
