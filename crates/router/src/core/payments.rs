@@ -2626,7 +2626,7 @@ pub async fn payments_check_gift_card_balance_core(
     use crate::db::errors::ConnectorErrorExt;
 
     let gift_card_connector_id =
-        id_type::MerchantConnectorAccountId::from_str("mca_Hp2TDxuhkzoWpynPU8T2").unwrap();
+        id_type::MerchantConnectorAccountId::from_str("mca_fvjf542PZk72x16S8AtM").unwrap();
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
