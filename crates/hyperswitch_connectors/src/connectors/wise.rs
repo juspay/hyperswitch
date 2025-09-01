@@ -20,7 +20,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -823,4 +825,23 @@ impl IncomingWebhook for Wise {
     }
 }
 
-impl ConnectorSpecifications for Wise {}
+static WISE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Wise",
+    description: "The Wise connector enables cross-border money transfers by integrating with Wise's API to initiate, track, and manage international payouts efficiently.",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Wise {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&WISE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

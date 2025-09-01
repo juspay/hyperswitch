@@ -141,7 +141,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .request
                 .email
                 .clone()
-                .map(|e| e.expose().expose()),
+                .map(|e| e.expose().expose().into()),
             browser_info,
             access_token: None,
             session_token: None,
@@ -193,6 +193,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            test_mode: None,
         })
     }
 }
@@ -264,7 +265,7 @@ impl
                 .request
                 .email
                 .clone()
-                .map(|e| e.expose().expose()),
+                .map(|e| e.expose().expose().into()),
             browser_info,
             access_token: None,
             session_token: None,
@@ -316,6 +317,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
+            test_mode: None,
         })
     }
 }
@@ -372,7 +374,7 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
                 .request
                 .email
                 .clone()
-                .map(|e| e.expose().expose()),
+                .map(|e| e.expose().expose().into()),
             customer_name: router_data
                 .request
                 .customer_name
@@ -495,8 +497,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .request
                 .email
                 .clone()
-                .map(|e| e.expose().expose()),
+                .map(|e| e.expose().expose().into()),
             browser_info,
+            test_mode: None,
+            payment_method_type: None,
         })
     }
 }
@@ -861,11 +865,6 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
         let shipping = payment_address.get_shipping().map(|address| {
             let details = address.address.as_ref();
 
-            let get_str =
-                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
-
-            let get_plain = |opt: &Option<String>| opt.clone();
-
             let country = details.and_then(|details| {
                 details
                     .country
@@ -875,20 +874,23 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
-                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
-                line1: get_str(&details.and_then(|d| d.line1.clone())),
-                line2: get_str(&details.and_then(|d| d.line2.clone())),
-                line3: get_str(&details.and_then(|d| d.line3.clone())),
-                city: get_plain(&details.and_then(|d| d.city.clone())),
-                state: get_str(&details.and_then(|d| d.state.clone())),
-                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose())),
+                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose())),
+                line1: details.and_then(|d| d.line1.as_ref().map(|s| s.clone().expose().into())),
+                line2: details.and_then(|d| d.line2.as_ref().map(|s| s.clone().expose().into())),
+                line3: details.and_then(|d| d.line3.as_ref().map(|s| s.clone().expose().into())),
+                city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
+                state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
+                zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
-                email: address.email.as_ref().map(|e| e.peek().to_string()),
+                email: address
+                    .email
+                    .as_ref()
+                    .map(|e| e.clone().expose().expose().into()),
                 phone_number: address
                     .phone
                     .as_ref()
-                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                    .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
             }
         });
@@ -896,11 +898,6 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
         let billing = payment_address.get_payment_billing().map(|address| {
             let details = address.address.as_ref();
 
-            let get_str =
-                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
-
-            let get_plain = |opt: &Option<String>| opt.clone();
-
             let country = details.and_then(|details| {
                 details
                     .country
@@ -910,20 +907,21 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
-                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
-                line1: get_str(&details.and_then(|d| d.line1.clone())),
-                line2: get_str(&details.and_then(|d| d.line2.clone())),
-                line3: get_str(&details.and_then(|d| d.line3.clone())),
-                city: get_plain(&details.and_then(|d| d.city.clone())),
-                state: get_str(&details.and_then(|d| d.state.clone())),
-                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
+                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
+                line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
+                line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
+                city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
+                state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
+                zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
                 country_alpha2_code: country,
-                email: address.email.as_ref().map(|e| e.peek().to_string()),
+                email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
                     .phone
                     .as_ref()
-                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
             }
         });
@@ -931,12 +929,6 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
         let unified_payment_method_billing =
             payment_address.get_payment_method_billing().map(|address| {
                 let details = address.address.as_ref();
-
-                let get_str = |opt: &Option<masking::Secret<String>>| {
-                    opt.as_ref().map(|s| s.peek().to_owned())
-                };
-
-                let get_plain = |opt: &Option<String>| opt.clone();
 
                 let country = details.and_then(|details| {
                     details
@@ -947,20 +939,30 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 });
 
                 payments_grpc::Address {
-                    first_name: get_str(&details.and_then(|d| d.first_name.clone())),
-                    last_name: get_str(&details.and_then(|d| d.last_name.clone())),
-                    line1: get_str(&details.and_then(|d| d.line1.clone())),
-                    line2: get_str(&details.and_then(|d| d.line2.clone())),
-                    line3: get_str(&details.and_then(|d| d.line3.clone())),
-                    city: get_plain(&details.and_then(|d| d.city.clone())),
-                    state: get_str(&details.and_then(|d| d.state.clone())),
-                    zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                    first_name: details
+                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
+                    last_name: details
+                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                    line1: details
+                        .and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
+                    line2: details
+                        .and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
+                    line3: details
+                        .and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
+                    city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
+                    state: details
+                        .and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
+                    zip_code: details
+                        .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
-                    email: address.email.as_ref().map(|e| e.peek().to_string()),
+                    email: address
+                        .email
+                        .as_ref()
+                        .map(|e| e.clone().expose().expose().into()),
                     phone_number: address
                         .phone
                         .as_ref()
-                        .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                        .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
                 }
             });
@@ -1218,6 +1220,7 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
 }
 
 /// Webhook transform data structure containing UCS response information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,
@@ -1229,16 +1232,8 @@ pub struct WebhookTransformData {
 pub fn transform_ucs_webhook_response(
     response: PaymentServiceTransformResponse,
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type = match response.event_type {
-        0 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
-        1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
-        2 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
-        3 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
-        4 => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
-        5 => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
-        6 => api_models::webhooks::IncomingWebhookEvent::MandateRevoked,
-        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
-    };
+    let event_type =
+        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
     Ok(WebhookTransformData {
         event_type,

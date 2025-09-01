@@ -1482,7 +1482,8 @@ static BLUESNAP_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "BlueSnap",
     description:
         "BlueSnap is a payment platform that helps businesses accept payments from customers in over 200 regions ",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static BLUESNAP_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

@@ -1,7 +1,11 @@
 use std::str::FromStr;
 
 use api_models::admin;
+#[cfg(feature = "v2")]
+use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
+#[cfg(feature = "v2")]
+use common_utils::consts::BASE64_ENGINE;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -10,7 +14,9 @@ use external_services::grpc_client::unified_connector_service::{
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
+use hyperswitch_domain_models::merchant_connector_account::{
+    ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
+};
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -18,11 +24,14 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
+use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
 };
 
+#[cfg(feature = "v2")]
+use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
@@ -277,11 +286,17 @@ pub fn build_unified_connector_service_payment_method(
                 .transpose()?;
 
             let card_details = CardDetails {
-                card_number: card.card_number.get_card_no(),
-                card_exp_month,
-                card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
-                card_cvc: card.card_cvc.peek().to_string(),
-                card_holder_name: card.card_holder_name.map(|name| name.expose()),
+                card_number: Some(
+                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                ),
+                card_exp_month: Some(card_exp_month.into()),
+                card_exp_year: Some(card.get_expiry_year_4_digit().expose().into()),
+                card_cvc: Some(card.card_cvc.expose().into()),
+                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: card.card_issuer.clone(),
                 card_network: card_network.map(|card_network| card_network.into()),
                 card_type: card.card_type.clone(),
@@ -316,12 +331,13 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
                     upi_collect_data,
                 ) => {
-                    let vpa_id = upi_collect_data.vpa_id.map(|vpa| vpa.expose());
-                    let upi_details = payments_grpc::UpiCollect { vpa_id };
+                    let upi_details = payments_grpc::UpiCollect {
+                        vpa_id: upi_collect_data.vpa_id.map(|vpa| vpa.expose().into()),
+                    };
                     PaymentMethod::UpiCollect(upi_details)
                 }
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => {
-                    let upi_details = payments_grpc::UpiIntent {};
+                    let upi_details = payments_grpc::UpiIntent { app_name: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
             };
@@ -369,13 +385,13 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .map(payments_grpc::CardNetwork::foreign_try_from)
                 .transpose()?;
             let card_details = CardDetails {
-                card_number: external_vault_card.card_number.peek().to_string(),
-                card_exp_month: external_vault_card.card_exp_month.peek().to_string(),
-                card_exp_year: external_vault_card.card_exp_year.peek().to_string(),
-                card_cvc: external_vault_card.card_cvc.peek().to_string(),
-                card_holder_name: external_vault_card
-                    .card_holder_name
-                    .map(|name| name.expose()),
+                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
+                )?),
+                card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+                card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
+                card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: external_vault_card.card_issuer.clone(),
                 card_network: card_network.map(|card_network| card_network.into()),
                 card_type: external_vault_card.card_type.clone(),
@@ -496,6 +512,58 @@ pub fn build_unified_connector_service_auth_metadata(
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn build_unified_connector_service_external_vault_proxy_metadata(
+    external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> CustomResult<String, UnifiedConnectorServiceError> {
+    let external_vault_metadata = external_vault_merchant_connector_account
+        .get_metadata()
+        .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to obtain ConnectorMetadata")?;
+
+    let connector_name = external_vault_merchant_connector_account
+        .get_connector_name()
+        .map(|connector| connector.to_string())
+        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
+        .attach_printable("Missing connector name")?; // always get the connector name from this call
+
+    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
+        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable("Failed to parse Vault connector")?;
+
+    let unified_service_vault_metdata = match external_vault_connector {
+        api_enums::VaultConnectors::Vgs => {
+            let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
+                .expose()
+                .parse_value("ExternalVaultConnectorMetadata")
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse Vgs connector metadata")?;
+
+            Some(external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                external_services::grpc_client::unified_connector_service::VgsMetadata {
+                    proxy_url: vgs_metadata.proxy_url,
+                    certificate: vgs_metadata.certificate,
+                }
+            ))
+        }
+        api_enums::VaultConnectors::HyperswitchVault => None,
+    };
+
+    match unified_service_vault_metdata {
+        Some(metdata) => {
+            let external_vault_metadata_bytes = serde_json::to_vec(&metdata)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to convert External vault metadata to bytes")?;
+
+            Ok(BASE64_ENGINE.encode(&external_vault_metadata_bytes))
+        }
+        None => Err(UnifiedConnectorServiceError::NotImplemented(
+            "External vault proxy metadata is not supported for {connector_name}".to_string(),
+        )
+        .into()),
     }
 }
 

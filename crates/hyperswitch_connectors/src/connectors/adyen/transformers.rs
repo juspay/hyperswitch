@@ -1415,7 +1415,7 @@ impl FromStr for AdyenRefundRequestReason {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "FRAUD" => Ok(Self::FRAUD),
-            "CUSTOMER REQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "CUSTOMER REQUEST" | "CUSTOMERREQUEST" => Ok(Self::CUSTOMERREQUEST),
             "RETURN" => Ok(Self::RETURN),
             "DUPLICATE" => Ok(Self::DUPLICATE),
             "OTHER" => Ok(Self::OTHER),
@@ -1780,10 +1780,12 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
                         balance_pm,
                     )))
                 }
-                GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Balance".to_string(),
-                    connector: "adyen".to_string(),
-                }),
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
             },
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Balance".to_string(),
@@ -2130,6 +2132,10 @@ impl TryFrom<&GiftCardData> for AdyenPaymentMethod<'_> {
                 };
                 Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
             }
+            GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -2352,6 +2358,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPay(_)
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)

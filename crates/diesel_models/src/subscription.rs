@@ -47,6 +47,7 @@ pub struct SubscriptionUpdate {
 }
 
 impl SubscriptionNew {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: String,
         subscription_id: Option<String>,

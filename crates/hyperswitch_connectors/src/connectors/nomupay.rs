@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -765,4 +767,23 @@ impl webhooks::IncomingWebhook for Nomupay {
     }
 }
 
-impl ConnectorSpecifications for Nomupay {}
+static NOMUPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Nomupay",
+    description: "Nomupay payouts connector for disbursements to recipients' bank accounts and alternative payment methods in Southeast Asia and the Pacific Islands",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Nomupay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NOMUPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}
