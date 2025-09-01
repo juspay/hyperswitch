@@ -2,8 +2,10 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -11,24 +13,27 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -42,17 +47,14 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{Mask, PeekInterface};
 use transformers as paysafe;
 
-use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData as OtherRefundsRequestData,}};
-
-// Helper function to extract account_id from auth
-fn get_account_id(auth: &paysafe::PaysafeAuthType) -> CustomResult<String, errors::ConnectorError> {
-    // For now, we'll need to extract account_id from connector metadata or configuration
-    // This is a placeholder - in real implementation, account_id should come from merchant configuration
-    Ok("1001070180".to_string()) // Default test account ID
-}
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RefundsRequestData as OtherRefundsRequestData},
+};
 
 #[derive(Clone)]
 pub struct Paysafe {
@@ -83,7 +85,6 @@ impl api::PaymentToken for Paysafe {}
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Paysafe
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Paysafe
@@ -128,9 +129,11 @@ impl ConnectorCommon for Paysafe {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = paysafe::PaysafeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
+        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.username.expose().into_masked(),
+            auth_header.into_masked(),
         )])
     }
 
@@ -139,6 +142,7 @@ impl ConnectorCommon for Paysafe {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("$$ PaysafeErrorResponse response: {:?}", res.response);
         let response: paysafe::PaysafeErrorResponse = res
             .response
             .parse_struct("PaysafeErrorResponse")
@@ -147,11 +151,24 @@ impl ConnectorCommon for Paysafe {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let mut reasons: Vec<String> = response.error.details.clone();
+
+        if let Some(field_errors) = &response.error.field_errors {
+            for fe in field_errors {
+                reasons.push(format!("{}: {}", fe.field, fe.error));
+            }
+        }
+        let reason = if reasons.is_empty() {
+            None
+        } else {
+            Some(reasons.join(", "))
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code,
+            message: response.error.message,
+            reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -163,20 +180,6 @@ impl ConnectorCommon for Paysafe {
 }
 
 impl ConnectorValidation for Paysafe {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -196,6 +199,113 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Paysafe {}
 
+impl api::PaymentsPreProcessing for Paysafe {}
+
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Paysafe
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/paymenthandles", self.base_url(connectors),))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+
+        let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
+        let connector_req = paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
+
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ pre processing request{:?}", printrequest);
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        println!("$$ preprocessing response: {:?}", res.response);
+        let response: paysafe::PaysafePaymentHandleResponse = res
+            .response
+            .parse_struct("PaysafePaymentHandleResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Paysafe {
     fn get_headers(
         &self,
@@ -211,16 +321,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
-        let account_id = get_account_id(&auth)?;
-        Ok(format!(
-            "{}cardpayments/v1/accounts/{}/auths",
-            self.base_url(connectors),
-            account_id
-        ))
+        Ok(format!("{}v1/payments", self.base_url(connectors),))
     }
 
     fn get_request_body(
@@ -236,6 +340,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
+
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$  auth request{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -267,6 +376,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("$$ auth response: {:?}", res.response);
+        println!("$$ complete auth response: {:?}", res.response);
         let response: paysafe::PaysafePaymentsResponse = res
             .response
             .parse_struct("Paysafe PaymentsAuthorizeResponse")
@@ -307,14 +418,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
-        let account_id = get_account_id(&auth)?;
-        let connector_payment_id = req.request.connector_transaction_id.get_connector_transaction_id()
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}cardpayments/v1/accounts/{}/auths/{}",
+            "{}v1/paymenthandles?merchantRefNum={}",
             self.base_url(connectors),
-            account_id,
             connector_payment_id
         ))
     }
@@ -340,9 +451,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paysafe::PaysafePaymentsResponse = res
+        let response: paysafe::PaysafePaymentsSyncResponse = res
             .response
-            .parse_struct("paysafe PaymentsSyncResponse")
+            .parse_struct("paysafe PaysafePaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -380,13 +491,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
-        let account_id = get_account_id(&auth)?;
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}cardpayments/v1/accounts/{}/auths/{}/settlements",
+            "{}cardpayments/v1/accounts/auths/{}/settlements",
             self.base_url(connectors),
-            account_id,
             connector_payment_id
         ))
     }
@@ -397,10 +505,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
-                self.amount_converter,
-                req.request.minor_amount_to_capture,
-                req.request.currency,
-            )?;
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafeCaptureRequest::try_from(&connector_router_data)?;
@@ -427,24 +535,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         ))
     }
 
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paysafe::PaysafePaymentsResponse = res
-            .response
-            .parse_struct("Paysafe PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+    // fn handle_response(
+    //     &self,
+    //     data: &PaymentsCaptureRouterData,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    //     res: Response,
+    // ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+    //     let response: paysafe::PaysafePaymentsResponse = res
+    //         .response
+    //         .parse_struct("Paysafe PaymentsCaptureResponse")
+    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    //     event_builder.map(|i| i.set_response_body(&response));
+    //     router_env::logger::info!(connector_response=?response);
+    //     RouterData::try_from(ResponseRouterData {
+    //         response,
+    //         data: data.clone(),
+    //         http_code: res.status_code,
+    //     })
+    // }
 
     fn get_error_response(
         &self,
@@ -475,13 +583,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paysafe
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
-        let account_id = get_account_id(&auth)?;
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}cardpayments/v1/accounts/{}/settlements/{}/refunds",
+            "{}cardpayments/v1/accounts/settlements/{}/refunds",
             self.base_url(connectors),
-            account_id,
             connector_payment_id
         ))
     }
@@ -567,13 +672,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paysafe {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = paysafe::PaysafeAuthType::try_from(&req.connector_auth_type)?;
-        let account_id = get_account_id(&auth)?;
         let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}cardpayments/v1/accounts/{}/refunds/{}",
+            "{}cardpayments/v1/accounts/refunds/{}",
             self.base_url(connectors),
-            account_id,
             connector_refund_id
         ))
     }
@@ -648,8 +750,66 @@ impl webhooks::IncomingWebhook for Paysafe {
     }
 }
 
-static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut paysafe_supported_payment_methods = SupportedPaymentMethods::new();
+
+    paysafe_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    paysafe_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    paysafe_supported_payment_methods
+});
 
 static PAYSAFE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Paysafe",

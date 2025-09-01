@@ -423,6 +423,9 @@ impl ConnectorData {
                 enums::Connector::Paypal => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
                 }
+                enums::Connector::Paysafe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paysafe::new())))
+                }
                 enums::Connector::Paystack => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
