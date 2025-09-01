@@ -2,8 +2,10 @@ pub mod core {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::errors::CustomResult;
-    use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use common_utils::{
+        errors::CustomResult,
+        request::{Method, RequestBuilder, RequestContent},
+    };
     use error_stack::ResultExt;
     use masking::{self, ExposeInterface};
     use nom::{
@@ -75,7 +77,7 @@ pub mod core {
 
         // Combine certificate and key into a single PEM block
         let combined_pem = format!("{certificate_key}\n{certificate}");
-        
+
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(HttpClientError::CertificateDecodeFailed)
     }
@@ -90,9 +92,11 @@ pub mod core {
     }
 
     /// Get client builder with proxy configuration
-    fn get_client_builder(proxy_config: &Proxy) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
-        let mut client_builder = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none());
+    fn get_client_builder(
+        proxy_config: &Proxy,
+    ) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
+        let mut client_builder =
+            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
 
         // Configure proxy if provided
         if let Some(url) = proxy_config.https_url.as_ref() {
@@ -113,7 +117,6 @@ pub mod core {
 
         Ok(client_builder)
     }
-
 
     /// Create HTTP client with proper certificate handling
     #[allow(missing_docs)]
@@ -144,7 +147,9 @@ pub mod core {
                 .use_rustls_tls()
                 .build()
                 .change_context(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct client with certificate and certificate key");
+                .attach_printable(
+                    "Failed to construct client with certificate and certificate key",
+                );
         }
 
         // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
@@ -175,16 +180,14 @@ pub mod core {
         request: common_utils::request::Request,
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
-
         // Use the proper create_client function
         let client = create_client(
             client_proxy,
             request.certificate.clone(),
             request.certificate_key.clone(),
             request.ca_certificate.clone(),
-        ).map_err(|_e| {
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
-        })?;
+        )
+        .map_err(|_e| error_stack::Report::new(InjectorError::HttpRequestFailed))?;
 
         // Build the request
         let method = match request.method {
@@ -229,7 +232,6 @@ pub mod core {
             error_stack::Report::new(InjectorError::HttpRequestFailed)
                 .attach_printable(format!("HTTP request failed: {e}"))
         })?;
-
 
         Ok(response)
     }
@@ -421,7 +423,6 @@ pub mod core {
             field_name: &str,
             vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
-
             match vault_data {
                 Value::Object(obj) => {
                     let raw_value = find_field_recursively_in_vault_data(obj, field_name)
@@ -450,9 +451,7 @@ pub mod core {
             _field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
             match vault_connector {
-                injector_types::VaultConnectors::VGS => {
-                    Ok(extracted_field_value)
-                }
+                injector_types::VaultConnectors::VGS => Ok(extracted_field_value),
             }
         }
 
@@ -649,7 +648,6 @@ pub mod core {
                 .specific_token_data
                 .expose()
                 .clone();
-
 
             // Process template string directly with vault-specific logic
             let processed_payload = self.interpolate_string_template_with_vault_data(
