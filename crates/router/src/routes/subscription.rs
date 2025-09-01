@@ -4,7 +4,7 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use api_models::subscription as subscription_types;
+use subscription::utils as subscription_types;
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -37,7 +37,6 @@ pub async fn create_subscription(
             subscription::create_subscription(
                 state,
                 merchant_context,
-                auth.profile_id,
                 payload.clone(),
             )
         },

@@ -1134,7 +1134,7 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Serialize,serde::Deserialize)]
 pub struct CustomerDetails {
     pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, masking::WithType>>,

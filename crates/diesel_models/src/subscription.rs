@@ -74,8 +74,8 @@ impl SubscriptionNew {
         }
     }
 
-    pub fn generate_client_secret(&self) -> String {
-        generate_id_with_default_len(&format!("{}_secret", self.id))
+    pub fn generate_client_secret(&self) -> Option<String> {
+        Some(generate_id_with_default_len(&format!("{}_secret", self.id)))
     }
 }
 

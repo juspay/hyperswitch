@@ -25,7 +25,7 @@ use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
+#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
 pub struct Customer {
     pub customer_id: id_type::CustomerId,
     pub merchant_id: id_type::MerchantId,
