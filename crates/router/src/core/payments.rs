@@ -4651,49 +4651,25 @@ where
             .await?,
         ));
 
-    // get merchant connector account related to payment
-    let merchant_connector_account_type_details =
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-            helpers::get_merchant_connector_account_v2(
-                state,
-                merchant_context.get_merchant_key_store(),
-                connector.merchant_connector_id.as_ref(),
-            )
-            .await?,
-        ));
-
-    operation
-        .to_domain()?
-        .populate_payment_data(
+    let (merchant_connector_account_type_details, updated_customer, router_data) =
+        call_connector_service_prerequisites(
             state,
+            req_state,
+            merchant_context,
+            connector,
+            operation,
             payment_data,
-            merchant_context,
-            business_profile,
-            &connector,
-        )
-        .await?;
-
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_context,
-        &merchant_connector_account_type_details,
-        payment_data,
-    )
-    .await?;
-
-    let router_data = payment_data
-        .construct_router_data(
-            state,
-            connector.connector.id(),
-            merchant_context,
             customer,
-            &merchant_connector_account_type_details,
-            None,
-            None,
+            call_connector_action,
+            schedule_time,
+            header_payload,
+            frm_suggestion,
+            business_profile,
+            is_retry_payment,
+            should_retry_with_pan,
+            all_keys_required,
         )
         .await?;
-
     Ok((
         merchant_connector_account_type_details,
         external_vault_merchant_connector_account_type_details,
