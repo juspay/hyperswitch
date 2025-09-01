@@ -187,7 +187,7 @@ adyen.dispute_base_url = "https://ca-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 affirm.base_url = "https://sandbox.affirm.com/api"
 airwallex.base_url = "https://api-demo.airwallex.com/"
-amazonpay.base_url = "https://pay-api.amazon.com/v2"
+amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
@@ -240,6 +240,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
 hyperswitch_vault.base_url = "http://localhost:8080"
+hyperwallet.base_url = "https://uat-api.paylution.com"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
@@ -275,6 +276,7 @@ payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
+paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
 paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -308,7 +310,7 @@ trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8000"
-vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"
+vgs.base_url = "https://api.sandbox.verygoodvault.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -477,6 +479,7 @@ braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
+dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [debit_routing_config]                                       # Debit Routing configs
 supported_currencies = "USD"                                 # Supported currencies for debit routing
@@ -489,6 +492,7 @@ adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks su
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
+barclaycard = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
@@ -600,6 +604,9 @@ family_mart = { country = "JP", currency = "JPY" }
 seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
+
+[pm_filters.affirm]
+affirm = { country = "CA,US", currency = "CAD,USD" }
 
 [pm_filters.airwallex]
 credit = { country = "AU,HK,SG,NZ,US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
@@ -835,6 +842,9 @@ eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
 przelewy24 = { country = "PL", currency = "PLN,EUR" }
 
+[pm_filters.amazonpay]
+amazon_pay = { country = "US", currency = "USD" }
+
 [pm_filters.rapyd]
 apple_pay = { country = "BR, CA, CL, CO, DO, SV, MX, PE, PT, US, AT, BE, BG, HR, CY, CZ, DO, DK, EE, FI, FR, GE, DE, GR, GL, HU, IS, IE, IL, IT, LV, LI, LT, LU, MT, MD, MC, ME, NL, NO, PL, RO, SM, SK, SI, ZA, ES, SE, CH, GB, VA, AU, HK, JP, MY, NZ, SG, KR, TW, VN", currency = "AMD, AUD, BGN, BRL, BYN, CAD, CHF, CLP, CNY, COP, CRC, CZK, DKK, DOP, EUR, GBP, GEL, GTQ, HUF, ISK, JPY, KRW, MDL, MXN, MYR, NOK, PAB, PEN, PLN, PYG, RON, RSD, SEK, SGD, TWD, UAH, USD, UYU, VND, ZAR" }
 google_pay = { country = "BR, CA, CL, CO, DO, MX, PE, PT, US, AT, BE, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IL, IT, LV, LT, LU, NZ, NO, GB, PL, RO, RU, SK, ZA, ES, SE, CH, TR, AU, HK, IN, ID, JP, MY, PH, SG, TW, TH, VN", currency = "AUD, BGN, BRL, BYN, CAD, CHF, CLP, COP, CZK, DKK, DOP, EUR, GBP, HUF, IDR, JPY, KES, MXN, MYR, NOK, PAB, PEN, PHP, PLN, RON, RUB, SEK, SGD, THB, TRY, TWD, UAH, USD, UYU, VND, ZAR" }
@@ -898,8 +908,11 @@ pix = { country = "BR", currency = "BRL" }
 [pm_filters.bluecode]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
 
+[pm_filters.dwolla]
+ach = { country = "US", currency = "USD" }
+
 [connector_customer]
-connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [bank_config.online_banking_fpx]
@@ -1159,6 +1172,7 @@ url = "http://localhost:8080"           # Open Router URL
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
 base_url = "http://127.0.0.1:8080" #Base URL
@@ -1169,9 +1183,30 @@ billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billin
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60  # 60 secs , threshold for monitoring the retry system
 retry_algorithm_type = "cascading"  # type of retry algorithm
+redis_ttl_in_seconds=3888000  # ttl for redis for storing payment processor token details
+
+# Card specific configuration for Revenue Recovery
+[revenue_recovery.card_config.amex]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.mastercard]
+max_retries_per_day = 10
+max_retry_count_for_thirty_day = 35
+
+[revenue_recovery.card_config.visa]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
+
+[revenue_recovery.card_config.discover]
+max_retries_per_day = 20
+max_retry_count_for_thirty_day = 20
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
-initial_timestamp_in_hours = 1          # number of hours added to start time for Decider service of Revenue Recovery
+initial_timestamp_in_seconds = 3600          # number of seconds added to start time for Decider service of Revenue Recovery
+job_schedule_buffer_time_in_seconds = 3600    # buffer time in seconds to schedule the job for Revenue Recovery
+reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
+max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to schedule the payment for Revenue Recovery
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs

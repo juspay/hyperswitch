@@ -228,6 +228,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -1316,6 +1317,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::PaypalSdk(_)
                         | WalletData::Paze(_)
                         | WalletData::SamsungPay(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::TouchNGoRedirect(_)
@@ -2436,6 +2438,7 @@ pub fn get_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 pub fn get_error_reason(
