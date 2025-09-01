@@ -1267,7 +1267,7 @@ pub struct SantanderWebhookBody {
     pub payer_document_type: enums::DocumentKind,
     pub payer_document_number: String,
     pub payer_name: String,
-    pub final_beneficiaryr_document_type: enums::DocumentKind,
+    pub final_beneficiary_document_type: enums::DocumentKind,
     pub final_beneficiary_document_number: String,
     pub final_beneficiary_name: String,
     pub due_date: String,
