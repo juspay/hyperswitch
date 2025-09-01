@@ -245,33 +245,32 @@ mod u32_wrappers {
 
 /// Safe string wrapper that validates input against XSS attacks
 mod safe_string {
+    use common_utils::validation::contains_potential_xss_or_sqli;
+    use serde::{de::Error, Deserialize, Serialize};
     use std::ops::Deref;
 
-    use common_utils::validation::contains_potential_xss;
-    use serde::{de::Error, Deserialize, Serialize};
-
-    /// String wrapper that prevents XSS attacks
+    /// String wrapper that prevents XSS and SQLi attacks
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct SafeString(String);
 
     impl SafeString {
-        /// Creates a new SafeString after XSS validation
+        /// Creates a new SafeString after XSS and SQL injection validation
         pub fn new(value: String) -> Result<Self, String> {
-            if contains_potential_xss(&value) {
+            if contains_potential_xss_or_sqli(&value) {
                 return Err("Input contains potentially malicious content".into());
             }
 
-            // Basic length validation (configurable)
+            // Basic length validation
             const MAX_LENGTH: usize = 1000;
             if value.len() > MAX_LENGTH {
-                return Err(format!("Input exceeds maximum length of {}", MAX_LENGTH));
+                return Err(format!("Input exceeds maximum length of {MAX_LENGTH}"));
             }
 
             Ok(Self(value))
         }
 
         /// Creates a SafeString from a string slice
-        pub fn from_str(value: &str) -> Result<Self, String> {
+        pub fn from_string_slice(value: &str) -> Result<Self, String> {
             Self::new(value.to_string())
         }
 
@@ -320,7 +319,7 @@ mod safe_string {
             D: serde::Deserializer<'de>,
         {
             let value = String::deserialize(deserializer)?;
-            SafeString::new(value).map_err(|e| D::Error::custom(e))
+            Self::new(value).map_err(D::Error::custom)
         }
     }
 
@@ -344,7 +343,7 @@ mod safe_string {
         String: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
     {
         fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-            String::from_sql(value).map(|s| Self(s))
+            String::from_sql(value).map(Self)
         }
     }
 }
