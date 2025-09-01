@@ -573,6 +573,7 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSHandleResponse(Vec<u8>),
 }
 
 #[derive(

@@ -539,6 +539,12 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                 .and_then(|detail| detail.response_reason_message.clone())
                 .unwrap_or(item.response.payment_status.to_string());
 
+            let connector_transaction_id = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
+
             Ok(Self {
                 status,
                 response: Err(ErrorResponse {
@@ -547,7 +553,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     reason: Some(error_message.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2144,6 +2150,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                 .as_ref()
                 .and_then(|detail| detail.response_reason_message.clone())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            let connector_transaction_id = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
 
             Ok(Self {
                 response: Err(ErrorResponse {
@@ -2152,7 +2163,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
                     reason: Some(error_message.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
