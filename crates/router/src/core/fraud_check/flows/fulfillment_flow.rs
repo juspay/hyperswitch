@@ -64,10 +64,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let payment_method = utils::OptionExt::get_required_value(
-        payment_attempt.payment_method,
-        "payment_method_type",
-    )?;
+    let payment_method =
+        utils::OptionExt::get_required_value(payment_attempt.payment_method, "payment_method")?;
 
     let router_data = RouterData {
         flow: std::marker::PhantomData,
@@ -78,7 +76,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
