@@ -1070,6 +1070,13 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
         });
 
+    let order_tax_amount = payment_data
+        .payment_intent
+        .amount_details
+        .tax_details
+        .clone()
+        .and_then(|tax| tax.get_default_tax_amount());
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -1095,6 +1102,9 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
         customer_name,
+        metadata: payment_data.payment_intent.metadata,
+        order_tax_amount,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1538,6 +1548,9 @@ where
     let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
+        let merchant_tax_registration_id = merchant_context
+            .get_merchant_account()
+            .get_merchant_tax_registration_id();
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
@@ -1580,6 +1593,7 @@ where
                 .as_ref()
                 .and_then(|addr| addr.address.as_ref())
                 .and_then(|details| details.city.clone()),
+            merchant_tax_registration_id,
         }
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
@@ -2222,6 +2236,7 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
+                split_txns_enabled: payment_intent.split_txns_enabled,
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
@@ -4814,6 +4829,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .amount_details
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -4831,6 +4853,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             apple_pay_recurring_details,
             customer_name: None,
+            metadata: payment_data.payment_intent.metadata,
+            order_tax_amount,
+            shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         })
     }
 }
@@ -4900,6 +4925,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignFrom::foreign_from((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+
+        let metadata = payment_data
+            .payment_intent
+            .metadata
+            .clone()
+            .map(Secret::new);
+
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -4917,6 +4956,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
             customer_name: None,
+            order_tax_amount,
+            shipping_cost,
+            metadata,
         })
     }
 }

@@ -324,9 +324,9 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
 
-    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
-        recovery_timestamp_config.initial_timestamp_in_hours,
-    ));
+    let modified_start_time_primitive = start_time_primitive.saturating_add(
+        time::Duration::seconds(recovery_timestamp_config.initial_timestamp_in_seconds),
+    );
 
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 
@@ -550,7 +550,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(add_random_delay_to_schedule_time);
+    let delayed_schedule_time =
+        scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
     Ok(delayed_schedule_time)
 }
@@ -776,10 +777,16 @@ pub async fn check_hard_decline(
 
 #[cfg(feature = "v2")]
 pub fn add_random_delay_to_schedule_time(
+    state: &SessionState,
     schedule_time: time::PrimitiveDateTime,
 ) -> time::PrimitiveDateTime {
     let mut rng = rand::thread_rng();
-    let random_secs = rng.gen_range(1..=3600);
+    let delay_limit = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .max_random_schedule_delay_in_seconds;
+    let random_secs = rng.gen_range(1..=delay_limit);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
     schedule_time + time::Duration::seconds(random_secs)
 }
