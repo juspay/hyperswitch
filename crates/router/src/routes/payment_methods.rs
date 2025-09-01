@@ -21,7 +21,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
-        payment_methods::{self as payment_methods_routes, cards},
+        payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
@@ -418,7 +418,7 @@ pub async fn migrate_payment_methods(
 pub async fn update_payment_methods(
     state: web::Data<AppState>,
     req: HttpRequest,
-    MultipartForm(form): MultipartForm<migration::PaymentMethodsUpdateForm>,
+    MultipartForm(form): MultipartForm<update_migration::PaymentMethodsUpdateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsBatchUpdate;
     let (merchant_id, records) = match form.validate_and_get_payment_method_records() {
@@ -435,20 +435,14 @@ pub async fn update_payment_methods(
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
-                // Create customers if they are not already present
                 let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                     domain::Context(merchant_account.clone(), key_store.clone()),
                 ));
-                let controller = cards::PmCards {
-                    state: &state,
-                    merchant_context: &merchant_context,
-                };
-                Box::pin(migration::update_payment_methods(
-                    &(&state).into(),
+                Box::pin(update_migration::update_payment_methods(
+                    &state,
                     req,
                     &merchant_id,
                     &merchant_context,
-                    &controller,
                 ))
                 .await
             }
