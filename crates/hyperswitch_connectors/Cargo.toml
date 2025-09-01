@@ -18,7 +18,6 @@ dummy_connector = [
 ]
 
 [dependencies]
-crc = "3"
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 base64 = "0.22.1"
