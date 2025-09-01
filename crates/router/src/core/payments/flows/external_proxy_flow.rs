@@ -394,12 +394,11 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
 
-        let (updated_router_data, _payment_authorize_response) = ucs_logging_wrapper(
-            external_vault_merchant_connector_account.clone(),
-            &*self,
-            Box::pin(async {
-                let mut router_data = self.clone();
-
+        let updated_router_data = Box::pin(ucs_logging_wrapper(
+            self.clone(),
+            state,
+            payment_authorize_request.clone(),
+            |mut router_data, payment_authorize_request| async move {
                 let response = client
                     .payment_authorize(
                         payment_authorize_request,
@@ -431,7 +430,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 Ok((router_data, payment_authorize_response))
             }
         )).await?;
-
+        
         // Copy back the updated data
         *self = updated_router_data;
         Ok(())
