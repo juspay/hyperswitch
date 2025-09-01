@@ -130,9 +130,6 @@ pub mod core {
         if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
             (client_certificate.clone(), client_certificate_key.clone())
         {
-            if ca_certificate.is_some() {
-                // CA certificate will be ignored in mutual TLS setup
-            }
             let client_builder = get_client_builder(proxy_config)?;
 
             let identity = create_identity_from_certificate_and_key(
