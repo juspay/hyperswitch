@@ -29,6 +29,7 @@ pub mod webhooks;
 pub mod authentication_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
+pub mod feature_matrix;
 pub mod files_v2;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
