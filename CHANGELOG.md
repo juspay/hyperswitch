@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.02.0
+
+### Features
+
+- **connector:**
+  - Introduce setup mandate flow for payload ([#9110](https://github.com/juspay/hyperswitch/pull/9110)) ([`4e33e97`](https://github.com/juspay/hyperswitch/commit/4e33e9741a183f3a142742deb7c8c87e6ec1a294))
+  - Add Connector Specifications ([#8797](https://github.com/juspay/hyperswitch/pull/8797)) ([`861e023`](https://github.com/juspay/hyperswitch/commit/861e023f607099c845b36099a4aa9a0622fbc7ee))
+- **core:**
+  - Add Merchant Tax ID in Merchant Profile ([#8992](https://github.com/juspay/hyperswitch/pull/8992)) ([`ff14b7c`](https://github.com/juspay/hyperswitch/commit/ff14b7cac84f23133f314a1ac337d04e5e845fce))
+  - [proxy payments] send external vault proxy metadata to UCS ([#9108](https://github.com/juspay/hyperswitch/pull/9108)) ([`c02d8b9`](https://github.com/juspay/hyperswitch/commit/c02d8b9ba9e204fa163b61c419811eaa65fdbcb4))
+- **injector:** Adding tracing to injector for dependency issues ([#9124](https://github.com/juspay/hyperswitch/pull/9124)) ([`aae1994`](https://github.com/juspay/hyperswitch/commit/aae1994ea147fa1ebdc9555f00b072bb9ed57abc))
+- **router:** Payment Intent and MCA changes for split payments ([#9049](https://github.com/juspay/hyperswitch/pull/9049)) ([`81b340d`](https://github.com/juspay/hyperswitch/commit/81b340d3a9e20bf278d97d76f9457d29a5bff8e2))
+
+### Bug Fixes
+
+- **authentication:** Fixed ctp confirmation bug ([#9050](https://github.com/juspay/hyperswitch/pull/9050)) ([`4413751`](https://github.com/juspay/hyperswitch/commit/44137517de318c6578602fd3213f571f3c9c50cd))
+- **core:** Fix net_amount on Incremental Authorization Update ([#9073](https://github.com/juspay/hyperswitch/pull/9073)) ([`24beaa2`](https://github.com/juspay/hyperswitch/commit/24beaa224a08301b40ee18c617cbf116049eb3d5))
+- **payment_method:** Add validation for proxy card details ([#9136](https://github.com/juspay/hyperswitch/pull/9136)) ([`ccdae87`](https://github.com/juspay/hyperswitch/commit/ccdae87789ff53ef60f8adc21dd874c7659f78dc))
+- **payments:** Automatic connector_payment_id hashing in v2 if length > 128 ([#9017](https://github.com/juspay/hyperswitch/pull/9017)) ([`97ae320`](https://github.com/juspay/hyperswitch/commit/97ae32035e7f607fa1fffe6c6e694fb39a9be9ae))
+
+### Refactors
+
+- **dynamic_routing:** Remove delete_merchant for DE ([#9076](https://github.com/juspay/hyperswitch/pull/9076)) ([`ec5a955`](https://github.com/juspay/hyperswitch/commit/ec5a955158d1028024787fcf1997f1cce7fdbcda))
+
+**Full Changelog:** [`2025.09.01.0...2025.09.02.0`](https://github.com/juspay/hyperswitch/compare/2025.09.01.0...2025.09.02.0)
+
+- - -
+
 ## 2025.09.01.0
 
 ### Features
