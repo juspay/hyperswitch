@@ -108,7 +108,9 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
-    configs::settings::{ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter},
+    configs::settings::{
+        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter,
+    },
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
