@@ -1337,8 +1337,284 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
-        todo!()
+    fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
+        match payment_attempt_update {
+            PaymentAttemptUpdate::ResponseUpdate {
+                status,
+                connector,
+                connector_payment_id,
+                authentication_type,
+                payment_method_id,
+                connector_metadata,
+                payment_token,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                amount_capturable,
+                updated_by,
+                unified_code,
+                unified_message,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    status: Some(status),
+                    connector,
+                    connector_payment_id,
+                    connector_payment_data,
+                    authentication_type,
+                    payment_method_id,
+                    connector_metadata,
+                    error_code: error_code.flatten(),
+                    error_message: error_message.flatten(),
+                    error_reason: error_reason.flatten(),
+                    connector_response_reference_id,
+                    amount_capturable,
+                    updated_by,
+                    unified_code: unified_code.flatten(),
+                    unified_message: unified_message.flatten(),
+                    modified_at: common_utils::date_time::now(),
+                    browser_info: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    redirection_data: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+            PaymentAttemptUpdate::ErrorUpdate {
+                connector,
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                amount_capturable,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_payment_id,
+                authentication_type,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    connector,
+                    status: Some(status),
+                    error_code: error_code.flatten(),
+                    error_message: error_message.flatten(),
+                    error_reason: error_reason.flatten(),
+                    amount_capturable,
+                    updated_by,
+                    unified_code: unified_code.flatten(),
+                    unified_message: unified_message.flatten(),
+                    connector_payment_id,
+                    connector_payment_data,
+                    authentication_type,
+                    modified_at: common_utils::date_time::now(),
+                    payment_method_id: None,
+                    browser_info: None,
+                    connector_metadata: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    redirection_data: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    connector_response_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+            PaymentAttemptUpdate::UnresolvedResponseUpdate {
+                status,
+                connector,
+                connector_payment_id,
+                payment_method_id,
+                error_code,
+                error_message,
+                error_reason,
+                connector_response_reference_id,
+                updated_by,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    status: Some(status),
+                    connector,
+                    connector_payment_id,
+                    connector_payment_data,
+                    payment_method_id,
+                    error_code: error_code.flatten(),
+                    error_message: error_message.flatten(),
+                    error_reason: error_reason.flatten(),
+                    connector_response_reference_id,
+                    updated_by,
+                    modified_at: common_utils::date_time::now(),
+                    authentication_type: None,
+                    browser_info: None,
+                    connector_metadata: None,
+                    amount_capturable: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    redirection_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+            PaymentAttemptUpdate::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+                connector_payment_id,
+                connector_response_reference_id,
+                updated_by,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    status: Some(status),
+                    payment_method_id,
+                    connector_metadata,
+                    connector_payment_id,
+                    connector_payment_data,
+                    connector_response_reference_id,
+                    updated_by,
+                    modified_at: common_utils::date_time::now(),
+                    authentication_type: None,
+                    error_message: None,
+                    browser_info: None,
+                    error_code: None,
+                    error_reason: None,
+                    amount_capturable: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    connector: None,
+                    redirection_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+            PaymentAttemptUpdate::ConnectorResponse {
+                connector_payment_id,
+                connector,
+                updated_by,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    connector_payment_id,
+                    connector_payment_data,
+                    connector,
+                    updated_by,
+                    modified_at: common_utils::date_time::now(),
+                    status: None,
+                    authentication_type: None,
+                    error_message: None,
+                    payment_method_id: None,
+                    browser_info: None,
+                    error_code: None,
+                    connector_metadata: None,
+                    error_reason: None,
+                    amount_capturable: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    redirection_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    connector_response_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+            PaymentAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                unified_code,
+                unified_message,
+                connector_payment_id,
+            } => {
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    status,
+                    error_code,
+                    error_message,
+                    error_reason,
+                    updated_by,
+                    unified_code,
+                    unified_message,
+                    connector_payment_id,
+                    connector_payment_data,
+                    modified_at: common_utils::date_time::now(),
+                    authentication_type: None,
+                    payment_method_id: None,
+                    browser_info: None,
+                    connector_metadata: None,
+                    amount_capturable: None,
+                    amount_to_capture: None,
+                    merchant_connector_id: None,
+                    connector: None,
+                    redirection_data: None,
+                    connector_token_details: None,
+                    feature_metadata: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_request_reference_id: None,
+                    connector_response_reference_id: None,
+                    cancellation_reason: None,
+                }
+            }
+        }
         // match payment_attempt_update {
         //     PaymentAttemptUpdate::Update {
         //         amount,
