@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.08.28.0-hotfix1
+
+### Features
+
+- **core:** Update payment methods api ([#9242](https://github.com/juspay/hyperswitch/pull/9242)) ([`5394395`](https://github.com/juspay/hyperswitch/commit/539439549b62a6aa109e83464e051df1ccafbb99))
+
+**Full Changelog:** [`2025.08.28.0...2025.08.28.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.08.28.0...2025.08.28.0-hotfix1)
+
+- - -
+
 ## 2025.08.28.0
 
 ### Features
