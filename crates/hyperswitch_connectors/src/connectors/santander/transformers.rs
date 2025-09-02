@@ -25,7 +25,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::OffsetDateTime;
@@ -431,7 +431,7 @@ pub struct SantanderBoletoPaymentRequest {
     pub nsu_code: String,
     pub nsu_date: String,
     pub covenant_code: String,
-    pub bank_number: String,
+    pub bank_number: Secret<String>,
     pub client_number: Option<id_type::CustomerId>,
     pub due_date: String,
     pub issue_date: String,
@@ -721,7 +721,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub tx_id: Option<String>,
     pub messages: Option<Vec<String>>,
     pub barcode: Option<String>,
-    pub digitable_line: Option<String>,
+    pub digitable_line: Option<Secret<String>>,
     pub entry_date: Option<String>,
     pub qr_code_pix: Option<String>,
     pub qr_code_url: Option<String>,
@@ -980,6 +980,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 let connector_response_reference_id = Some(
                     boleto_data
                         .digitable_line
+                        .as_ref()
+                        .map(|s| s.peek().to_owned())
                         .clone()
                         .or_else(|| {
                             boleto_data.beneficiary.as_ref().map(|beneficiary| {

@@ -4268,7 +4268,7 @@ pub struct BoletoVoucherData {
 
     /// The shopper's bank account number associated with the boleto
     #[schema(value_type = Option<String>)]
-    pub bank_number: Option<String>,
+    pub bank_number: Option<Secret<String>>,
 
     /// The type of identification document used (e.g., CPF or CNPJ)
     #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
@@ -5019,7 +5019,7 @@ pub struct VoucherNextStepData {
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
-    pub digitable_line: Option<String>,
+    pub digitable_line: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

@@ -663,7 +663,7 @@ pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
     /// The bank number associated with the boleto
-    pub bank_number: Option<String>,
+    pub bank_number: Option<Secret<String>>,
     /// The type of document (e.g., CPF, CNPJ)
     pub document_type: Option<common_enums::DocumentKind>,
     /// The percentage of fine applied for late payment
