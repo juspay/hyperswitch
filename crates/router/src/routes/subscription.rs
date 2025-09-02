@@ -8,7 +8,7 @@ use router_env::{
     tracing::{self, instrument},
     Flow,
 };
-use subscription::utils as subscription_types;
+use api_models::subscription as subscription_types;
 
 use crate::{
     core::{api_locking, subscription},

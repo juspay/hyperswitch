@@ -1,5 +1,5 @@
-use api_models::{customers::CustomerRequest, payments::CustomerDetailsResponse};
-use common_utils::{events::ApiEventMetric, id_type::GenerateId, pii};
+use api_models::{customers::CustomerRequest, subscription::CreateSubscriptionRequest};
+use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
@@ -38,9 +38,8 @@ pub async fn get_or_create_customer(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("subscription: unable to perform db read query")
-        .unwrap()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("subscription: unable to perform db read query")?
     {
         // Customer found
         Some(customer) => {
@@ -73,103 +72,3 @@ pub fn get_customer_details_from_request(request: CreateSubscriptionRequest) -> 
     }
 }
 
-pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CreateSubscriptionRequest {
-    pub plan_id: Option<String>,
-    pub coupon_code: Option<String>,
-    pub mca_id: Option<String>,
-    pub confirm: bool,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub customer: Option<CustomerRequest>,
-}
-
-impl CreateSubscriptionRequest {
-    pub fn get_customer_id(&self) -> Option<&common_utils::id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or_else(|| self.customer.as_ref()?.customer_id.as_ref())
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct CreateSubscriptionResponse {
-    pub subscription: Subscription,
-    pub client_secret: Option<String>,
-    pub merchant_id: String,
-    pub mca_id: Option<String>,
-    pub coupon_code: Option<String>,
-    pub customer: Option<CustomerDetailsResponse>,
-    pub invoice: Option<Invoice>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Subscription {
-    pub id: String,
-    pub status: SubscriptionStatus,
-    pub plan_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub enum SubscriptionStatus {
-    Created,
-    Active,
-    InActive,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Invoice {
-    pub id: String,
-    pub total: u64,
-}
-
-impl Subscription {
-    pub fn new(id: impl Into<String>, status: SubscriptionStatus, plan_id: Option<String>) -> Self {
-        Self {
-            id: id.into(),
-            status,
-            plan_id,
-        }
-    }
-}
-
-impl Invoice {
-    pub fn new(id: impl Into<String>, total: u64) -> Self {
-        Self {
-            id: id.into(),
-            total,
-        }
-    }
-}
-impl CreateSubscriptionResponse {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        subscription: Subscription,
-        merchant_id: impl Into<String>,
-        mca_id: Option<String>,
-    ) -> Self {
-        Self {
-            subscription,
-            client_secret: None,
-            merchant_id: merchant_id.into(),
-            mca_id,
-            coupon_code: None,
-            customer: None,
-            invoice: None,
-        }
-    }
-}
-
-pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResponse {
-    CustomerDetailsResponse {
-        id: Some(r.customer_id.clone()),
-        name: r.name.as_ref().map(|n| n.clone().into_inner()),
-        email: r.email.as_ref().map(|e| pii::Email::from(e.clone())),
-        phone: r.phone.as_ref().map(|p| p.clone().into_inner()),
-        phone_country_code: r.phone_country_code.clone(),
-    }
-}
-
-impl ApiEventMetric for CreateSubscriptionResponse {}
-impl ApiEventMetric for CreateSubscriptionRequest {}
