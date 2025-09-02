@@ -255,11 +255,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // Perform integrity check for authorize flow
+        let integrity_check = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.clone(),
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        let router_data = router_data.integrity_check(integrity_check)?;
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -319,11 +332,24 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // Perform integrity check for sync flow
+        let integrity_check = utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount.clone(),
+            response.currency.clone(),
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        let router_data = router_data.integrity_check(integrity_check)?;
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -482,11 +508,24 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paytm {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // Perform integrity check for refund execute flow
+        let integrity_check = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.refund_amount.clone(),
+            response.currency.clone(),
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        let router_data = router_data.integrity_check(integrity_check)?;
+
+        Ok(router_data)
     }
 
     fn get_error_response(
@@ -549,11 +588,24 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paytm {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // Perform integrity check for refund sync flow
+        let integrity_check = utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.refund_amount.clone(),
+            response.currency.clone(),
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        })
+        })?;
+
+        let router_data = router_data.integrity_check(integrity_check)?;
+
+        Ok(router_data)
     }
 
     fn get_error_response(
