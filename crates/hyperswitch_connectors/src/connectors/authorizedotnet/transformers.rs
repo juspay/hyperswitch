@@ -527,6 +527,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::MbWayRedirect(_)
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
@@ -902,13 +903,15 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
+            customer: item.router_data.customer_id.as_ref().and_then(|cid| {
+                if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                    Some(CustomerDetails {
+                        id: cid.get_string_repr().to_string(),
+                        email: item.router_data.request.get_optional_email(),
+                    })
                 } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
+                    None
+                }
             }),
             bill_to: item
                 .router_data
@@ -991,13 +994,15 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
+            customer: item.router_data.customer_id.as_ref().and_then(|cid| {
+                if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                    Some(CustomerDetails {
+                        id: cid.get_string_repr().to_string(),
+                        email: item.router_data.request.get_optional_email(),
+                    })
                 } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
+                    None
+                }
             }),
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
@@ -1033,21 +1038,19 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
-            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                create_profile: true,
-            })),
-            Some(CustomerDetails {
-                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+        let profile = Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+            create_profile: true,
+        }));
+        let customer = item.router_data.customer_id.as_ref().and_then(|cid| {
+            if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                Some(CustomerDetails {
+                    id: cid.get_string_repr().to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            } else {
+                None
+            }
+        });
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1117,19 +1120,19 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
-            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                create_profile: true,
-            })),
-            Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+        let profile = Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+            create_profile: true,
+        }));
+        let customer = item.router_data.customer_id.as_ref().and_then(|cid| {
+            if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                Some(CustomerDetails {
+                    id: cid.get_string_repr().to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            } else {
+                None
+            }
+        });
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -2169,6 +2172,7 @@ fn get_wallet_data(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPay(_)
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)

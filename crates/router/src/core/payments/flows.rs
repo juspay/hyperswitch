@@ -218,6 +218,22 @@ pub trait Feature<F, T> {
     {
         Ok(())
     }
+
+    #[cfg(feature = "v2")]
+    async fn call_unified_connector_service_with_external_vault_proxy<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
 }
 
 /// Determines whether a capture API call should be made for a payment attempt

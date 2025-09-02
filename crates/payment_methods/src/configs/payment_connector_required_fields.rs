@@ -2543,7 +2543,25 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         ),
         (
             enums::PaymentMethodType::AmazonPay,
-            connectors(vec![(Connector::Stripe, fields(vec![], vec![], vec![]))]),
+            connectors(vec![
+                (Connector::Stripe, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Amazonpay,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::ShippingFirstName.to_tuple(),
+                            RequiredField::ShippingLastName.to_tuple(),
+                            RequiredField::ShippingAddressLine1.to_tuple(),
+                            RequiredField::ShippingAddressCity.to_tuple(),
+                            RequiredField::ShippingAddressState.to_tuple(),
+                            RequiredField::ShippingAddressZip.to_tuple(),
+                            RequiredField::ShippingPhone.to_tuple(),
+                        ]),
+                    },
+                ),
+            ]),
         ),
         (
             enums::PaymentMethodType::Cashapp,

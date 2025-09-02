@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, CardNetwork, FutureUsage, PaymentChannel};
 use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
 use common_utils::{
     crypto::{self, GenerateDigest},
@@ -14,8 +14,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::Address,
     payment_method_data::{
-        self, ApplePayWalletData, BankRedirectData, GooglePayWalletData, PayLaterData,
-        PaymentMethodData, WalletData,
+        self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
+        GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -76,6 +76,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_related_transaction_id(&self) -> Option<String>;
     fn get_complete_authorize_url(&self) -> Option<String>;
     fn get_is_moto(&self) -> Option<bool>;
+    fn get_ntid(&self) -> Option<String>;
     fn get_connector_mandate_id(&self) -> Option<String>;
     fn get_return_url_required(
         &self,
@@ -182,13 +183,18 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
+    fn get_ntid(&self) -> Option<String> {
+        None
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_browser_info(&self) -> Option<BrowserInformation> {
         self.browser_info.clone()
     }
-
+    fn get_ntid(&self) -> Option<String> {
+        self.get_optional_network_transaction_id()
+    }
     fn get_related_transaction_id(&self) -> Option<String> {
         self.related_transaction_id.clone()
     }
@@ -328,6 +334,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         None
     }
+
+    fn get_ntid(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -396,6 +406,7 @@ pub struct NuveiPaymentsRequest {
     pub url_details: Option<UrlDetails>,
     pub amount_details: Option<NuvieAmountDetails>,
     pub is_partial_approval: Option<PartialApprovalFlag>,
+    pub external_scheme_details: Option<ExternalSchemeDetails>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -886,7 +897,12 @@ struct GooglePayInfoCamelCase {
     card_details: Secret<String>,
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
 }
-
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalSchemeDetails {
+    transaction_id: Secret<String>, // This is sensitive information
+    brand: Option<CardNetwork>,
+}
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct GooglePayAssuranceDetailsCamelCase {
@@ -919,176 +935,203 @@ struct ApplePayPaymentMethodCamelCase {
     #[serde(rename = "type")]
     pm_type: Secret<String>,
 }
-
-impl TryFrom<GooglePayWalletData> for NuveiPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(gpay_data: GooglePayWalletData) -> Result<Self, Self::Error> {
-        match gpay_data.tokenization_data {
-            GpayTokenizationData::Decrypted(ref gpay_predecrypt_data) => Ok(Self {
-                payment_option: PaymentOption {
-                    card: Some(Card {
-                        brand: Some(gpay_data.info.card_network.clone()),
-                        card_number: Some(
-                            gpay_predecrypt_data
-                                .application_primary_account_number
-                                .clone(),
-                        ),
-                        last4_digits: Some(Secret::new(
-                            gpay_predecrypt_data
-                                .application_primary_account_number
-                                .clone()
-                                .get_last4(),
-                        )),
-                        expiration_month: Some(gpay_predecrypt_data.card_exp_month.clone()),
-                        expiration_year: Some(gpay_predecrypt_data.card_exp_year.clone()),
-                        external_token: Some(ExternalToken {
-                            external_token_provider: ExternalTokenProvider::GooglePay,
-                            mobile_token: None,
-                            cryptogram: gpay_predecrypt_data.cryptogram.clone(),
-                            eci_provider: gpay_predecrypt_data.eci_indicator.clone(),
-                        }),
-                        ..Default::default()
+fn get_googlepay_info<F, Req>(
+    item: &RouterData<F, Req, PaymentsResponseData>,
+    gpay_data: &GooglePayWalletData,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+{
+    let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
+        Some("0".to_string())
+    } else {
+        None
+    };
+    match gpay_data.tokenization_data {
+        GpayTokenizationData::Decrypted(ref gpay_predecrypt_data) => Ok(NuveiPaymentsRequest {
+            is_rebilling,
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    brand: Some(gpay_data.info.card_network.clone()),
+                    card_number: Some(
+                        gpay_predecrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                    ),
+                    last4_digits: Some(Secret::new(
+                        gpay_predecrypt_data
+                            .application_primary_account_number
+                            .clone()
+                            .get_last4(),
+                    )),
+                    expiration_month: Some(gpay_predecrypt_data.card_exp_month.clone()),
+                    expiration_year: Some(gpay_predecrypt_data.card_exp_year.clone()),
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::GooglePay,
+                        mobile_token: None,
+                        cryptogram: gpay_predecrypt_data.cryptogram.clone(),
+                        eci_provider: gpay_predecrypt_data.eci_indicator.clone(),
                     }),
                     ..Default::default()
-                },
+                }),
                 ..Default::default()
-            }),
-            GpayTokenizationData::Encrypted(encrypted_data) => Ok(Self {
-                payment_option: PaymentOption {
-                    card: Some(Card {
-                        external_token: Some(ExternalToken {
-                            external_token_provider: ExternalTokenProvider::GooglePay,
+            },
+            ..Default::default()
+        }),
+        GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
+            is_rebilling,
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::GooglePay,
 
-                            mobile_token: {
-                                let (token_type, token) = (
-                                    encrypted_data.token_type.clone(),
-                                    encrypted_data.token.clone(),
-                                );
+                        mobile_token: {
+                            let (token_type, token) = (
+                                encrypted_data.token_type.clone(),
+                                encrypted_data.token.clone(),
+                            );
 
-                                let google_pay: GooglePayCamelCase = GooglePayCamelCase {
-                                    pm_type: Secret::new(gpay_data.pm_type.clone()),
-                                    description: Secret::new(gpay_data.description.clone()),
-                                    info: GooglePayInfoCamelCase {
-                                        card_network: Secret::new(
-                                            gpay_data.info.card_network.clone(),
-                                        ),
-                                        card_details: Secret::new(
-                                            gpay_data.info.card_details.clone(),
-                                        ),
-                                        assurance_details: gpay_data
-                                            .info
-                                            .assurance_details
-                                            .as_ref()
-                                            .map(|details| GooglePayAssuranceDetailsCamelCase {
-                                                card_holder_authenticated: details
-                                                    .card_holder_authenticated,
-                                                account_verified: details.account_verified,
-                                            }),
-                                    },
-                                    tokenization_data: GooglePayTokenizationDataCamelCase {
-                                        token_type: token_type.into(),
-                                        token: token.into(),
-                                    },
-                                };
-                                Some(Secret::new(
-                                    google_pay.encode_to_string_of_json().change_context(
-                                        errors::ConnectorError::RequestEncodingFailed,
-                                    )?,
-                                ))
-                            },
-                            cryptogram: None,
-                            eci_provider: None,
-                        }),
-                        ..Default::default()
+                            let google_pay: GooglePayCamelCase = GooglePayCamelCase {
+                                pm_type: Secret::new(gpay_data.pm_type.clone()),
+                                description: Secret::new(gpay_data.description.clone()),
+                                info: GooglePayInfoCamelCase {
+                                    card_network: Secret::new(gpay_data.info.card_network.clone()),
+                                    card_details: Secret::new(gpay_data.info.card_details.clone()),
+                                    assurance_details: gpay_data
+                                        .info
+                                        .assurance_details
+                                        .as_ref()
+                                        .map(|details| GooglePayAssuranceDetailsCamelCase {
+                                            card_holder_authenticated: details
+                                                .card_holder_authenticated,
+                                            account_verified: details.account_verified,
+                                        }),
+                                },
+                                tokenization_data: GooglePayTokenizationDataCamelCase {
+                                    token_type: token_type.into(),
+                                    token: token.into(),
+                                },
+                            };
+                            Some(Secret::new(
+                                google_pay.encode_to_string_of_json().change_context(
+                                    errors::ConnectorError::RequestEncodingFailed,
+                                )?,
+                            ))
+                        },
+                        cryptogram: None,
+                        eci_provider: None,
                     }),
                     ..Default::default()
-                },
+                }),
                 ..Default::default()
-            }),
-        }
+            },
+            ..Default::default()
+        }),
     }
 }
-impl TryFrom<ApplePayWalletData> for NuveiPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(apple_pay_data: ApplePayWalletData) -> Result<Self, Self::Error> {
-        match apple_pay_data.payment_data {
-            ApplePayPaymentData::Decrypted(apple_pay_predecrypt_data) => Ok(Self {
-                payment_option: PaymentOption {
-                    card: Some(Card {
-                        brand:Some(apple_pay_data.payment_method.network.clone()),
-                        card_number: Some(
-                            apple_pay_predecrypt_data
-                                .application_primary_account_number
-                                .clone(),
-                        ),
-                        last4_digits: Some(Secret::new(
-                            apple_pay_predecrypt_data
-                                .application_primary_account_number
-                                .get_last4(),
-                        )),
-                        expiration_month: Some(
-                            apple_pay_predecrypt_data
-                                .application_expiration_month
-                                .clone(),
-                        ),
-                        expiration_year: Some(
-                            apple_pay_predecrypt_data
-                                .application_expiration_year
-                                .clone(),
-                        ),
-                        external_token: Some(ExternalToken {
-                            external_token_provider: ExternalTokenProvider::ApplePay,
-                            mobile_token: None,
-                            cryptogram: Some(
-                                apple_pay_predecrypt_data
-                                    .payment_data
-                                    .online_payment_cryptogram,
-                            ),
-                            eci_provider: Some(
-                                apple_pay_predecrypt_data
-                                    .payment_data
-                                    .eci_indicator
-                                    .ok_or_else(missing_field_err("payment_method_data.wallet.apple_pay.payment_data.eci_indicator"))?,
-                            ),
-                        }),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            ApplePayPaymentData::Encrypted(encrypted_data) => Ok(Self {
-                payment_option: PaymentOption {
-                    card: Some(Card {
-                        external_token: Some(ExternalToken {
-                            external_token_provider: ExternalTokenProvider::ApplePay,
-                            mobile_token: {
-                                let apple_pay: ApplePayCamelCase = ApplePayCamelCase {
-                                     payment_data:encrypted_data.into(),
-                                     payment_method: ApplePayPaymentMethodCamelCase {
-                                         display_name: Secret::new(apple_pay_data.payment_method.display_name.clone()),
-                                         network: Secret::new(apple_pay_data.payment_method.network.clone()),
-                                         pm_type: Secret::new(apple_pay_data.payment_method.pm_type.clone()),
-                                     },
-                                     transaction_identifier: Secret::new(apple_pay_data.transaction_identifier.clone()),
-                                    };
 
-                                Some(Secret::new(
-                                    apple_pay.encode_to_string_of_json().change_context(
-                                        errors::ConnectorError::RequestEncodingFailed,
-                                    )?,
-                                ))
-                            },
-                            cryptogram: None,
-                            eci_provider: None,
-                        }),
-                        ..Default::default()
+fn get_applepay_info<F, Req>(
+    item: &RouterData<F, Req, PaymentsResponseData>,
+    apple_pay_data: &ApplePayWalletData,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+{
+    let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
+        Some("0".to_string())
+    } else {
+        None
+    };
+    match apple_pay_data.payment_data {
+        ApplePayPaymentData::Decrypted(ref apple_pay_predecrypt_data) => Ok(NuveiPaymentsRequest {
+           is_rebilling,
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    brand: Some(apple_pay_data.payment_method.network.clone()),
+                    card_number: Some(
+                        apple_pay_predecrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                    ),
+                    last4_digits: Some(Secret::new(
+                        apple_pay_predecrypt_data
+                            .application_primary_account_number
+                            .get_last4(),
+                    )),
+                    expiration_month: Some(
+                        apple_pay_predecrypt_data
+                            .application_expiration_month
+                            .clone(),
+                    ),
+                    expiration_year: Some(
+                        apple_pay_predecrypt_data
+                            .application_expiration_year
+                            .clone(),
+                    ),
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::ApplePay,
+                        mobile_token: None,
+                        cryptogram: Some(
+                            apple_pay_predecrypt_data
+                                .payment_data
+                                .online_payment_cryptogram
+                                .clone(),
+                        ),
+                        eci_provider: Some(
+                            apple_pay_predecrypt_data
+                                .payment_data
+                                .eci_indicator.clone()
+                                .ok_or_else(missing_field_err(
+                                "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
+                            ))?,
+                        ),
                     }),
                     ..Default::default()
-                },
+                }),
                 ..Default::default()
-            }),
-        }
+            },
+            ..Default::default()
+        }),
+        ApplePayPaymentData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
+           is_rebilling,
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::ApplePay,
+                        mobile_token: {
+                            let apple_pay: ApplePayCamelCase = ApplePayCamelCase {
+                                payment_data: encrypted_data.to_string().into(),
+                                payment_method: ApplePayPaymentMethodCamelCase {
+                                    display_name: Secret::new(
+                                        apple_pay_data.payment_method.display_name.clone(),
+                                    ),
+                                    network: Secret::new(
+                                        apple_pay_data.payment_method.network.clone(),
+                                    ),
+                                    pm_type: Secret::new(
+                                        apple_pay_data.payment_method.pm_type.clone(),
+                                    ),
+                                },
+                                transaction_identifier: Secret::new(
+                                    apple_pay_data.transaction_identifier.clone(),
+                                ),
+                            };
+
+                            Some(Secret::new(
+                                apple_pay.encode_to_string_of_json().change_context(
+                                    errors::ConnectorError::RequestEncodingFailed,
+                                )?,
+                            ))
+                        },
+                        cryptogram: None,
+                        eci_provider: None,
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
     }
 }
 
@@ -1336,6 +1379,52 @@ where
     })
 }
 
+fn get_ntid_card_info<F, Req>(
+    router_data: &RouterData<F, Req, PaymentsResponseData>,
+    data: CardDetailsForNetworkTransactionId,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+{
+    let external_scheme_details = Some(ExternalSchemeDetails {
+        transaction_id: router_data
+            .request
+            .get_ntid()
+            .ok_or_else(missing_field_err("network_transaction_id"))
+            .attach_printable("Nuvei unable to find NTID for MIT")?
+            .into(),
+        brand: Some(
+            data.card_network
+                .ok_or_else(missing_field_err("recurring_details.data.card_network"))?,
+        ),
+    });
+    let payment_option: PaymentOption = PaymentOption {
+        card: Some(Card {
+            card_number: Some(data.card_number),
+            card_holder_name: data.card_holder_name,
+            expiration_month: Some(data.card_exp_month),
+            expiration_year: Some(data.card_exp_year),
+            ..Default::default() // CVV should be disabled by nuvei fo
+        }),
+        redirect_url: None,
+        user_payment_option_id: None,
+        alternative_payment_method: None,
+        billing_address: None,
+        shipping_address: None,
+    };
+    let is_rebilling = if router_data.request.is_customer_initiated_mandate_payment() {
+        Some("0".to_string())
+    } else {
+        None
+    };
+    Ok(NuveiPaymentsRequest {
+        external_scheme_details,
+        payment_option,
+        is_rebilling,
+        ..Default::default()
+    })
+}
+
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
     Req: NuveiAuthorizePreprocessingCommon,
@@ -1348,9 +1437,12 @@ where
         let request_data = match item.request.get_payment_method_data_required()?.clone() {
             PaymentMethodData::Card(card) => get_card_info(item, &card),
             PaymentMethodData::MandatePayment => Self::try_from(item),
+            PaymentMethodData::CardDetailsForNetworkTransactionId(data) => {
+                get_ntid_card_info(item, data)
+            }
             PaymentMethodData::Wallet(wallet) => match wallet {
-                WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
-                WalletData::ApplePay(apple_pay_data) => Ok(Self::try_from(apple_pay_data)?),
+                WalletData::GooglePay(gpay_data) => get_googlepay_info(item, &gpay_data),
+                WalletData::ApplePay(apple_pay_data) => get_applepay_info(item, &apple_pay_data),
                 WalletData::PaypalRedirect(_) => Self::foreign_try_from((
                     AlternativePaymentMethodType::Expresscheckout,
                     None,
@@ -1359,6 +1451,7 @@ where
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
@@ -1463,13 +1556,10 @@ where
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("nuvei"),
-                )
-                .into())
-            }
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nuvei"),
+            )
+            .into()),
         }?;
         let currency = item.request.get_currency_required()?;
         let request = Self::try_from(NuveiPaymentRequestData {
