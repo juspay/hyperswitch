@@ -488,15 +488,6 @@ impl ConnectorResponseData {
             is_overcapture_enabled,
         }
     }
-    pub fn new(
-        additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
-        extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
-    ) -> Self {
-        Self {
-            additional_payment_method_data,
-            extended_authorization_response_data,
-        }
-    }
 
     pub fn get_extended_authorization_response_data(
         &self,

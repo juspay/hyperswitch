@@ -1132,9 +1132,9 @@ pub fn validate_overcapture_request(
     if let Some(overcapture) = enable_overcapture {
         utils::when(
             *overcapture.deref()
-                && matches!(
+                && !matches!(
                     *capture_method,
-                    Some(common_enums::CaptureMethod::Automatic) | None
+                    Some(common_enums::CaptureMethod::Manual)
                 ),
             || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {

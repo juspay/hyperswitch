@@ -224,6 +224,12 @@ mod bool_wrappers {
         }
     }
 
+    impl From<AlwaysEnableOvercaptureBool>  for EnableOvercaptureBool {
+        fn from(item: AlwaysEnableOvercaptureBool) -> Self {
+            Self(item.is_true())
+        }
+    }
+
     impl Deref for EnableOvercaptureBool {
         type Target = bool;
 
@@ -271,6 +277,13 @@ mod bool_wrappers {
         /// Creates a new instance of `OvercaptureEnabledBool`
         pub fn new(value: bool) -> Self {
             Self(value)
+        }
+    }
+
+    impl Default for OvercaptureEnabledBool {
+        /// Default for `OvercaptureEnabledBool` is `false`
+        fn default() -> Self {
+            Self(false)
         }
     }
 

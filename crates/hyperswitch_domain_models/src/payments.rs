@@ -216,9 +216,8 @@ impl PaymentIntent {
             && is_overcapture_supported_by_connector
         {
             self.enable_overcapture.or_else(|| {
-                always_enable_overcapture.map(|should_enable_overcapture| {
-                    EnableOvercaptureBool::from(should_enable_overcapture.is_true())
-                })
+                always_enable_overcapture.map(
+                    EnableOvercaptureBool::from)
             })
         } else {
             None
