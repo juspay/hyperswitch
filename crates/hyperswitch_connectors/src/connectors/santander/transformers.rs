@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -82,6 +82,48 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
             })?;
         Ok(metadata)
     }
+}
+
+impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
+        let update_metadata_fields = validate_metadata_fields(&item.request.metadata.clone())?;
+
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+
+        Ok(Self {
+            covenant_code: santander_mca_metadata.covenant_code,
+            bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+            due_date: update_metadata_fields.due_date,
+            discount: update_metadata_fields.discount,
+            min_value_or_percentage: update_metadata_fields.min_value_or_percentage,
+            max_value_or_percentage: update_metadata_fields.max_value_or_percentage,
+            interest: update_metadata_fields.interest,
+        })
+    }
+}
+
+fn validate_metadata_fields(
+    metadata: &common_utils::pii::SecretSerdeValue,
+) -> Result<SantanderBoletoUpdateRequest, errors::ConnectorError> {
+    let metadata_value = metadata.clone().expose();
+
+    let metadata_map = match metadata_value.as_object() {
+        Some(map) => map,
+        None => {
+            return Err(errors::ConnectorError::ParsingFailed); // Add new error type to check if the metadata sent is one of the fields inside SantanderBoletoPaymentRequest or not
+        }
+    };
+
+    if metadata_map.len() > 10 {
+        return Err(errors::ConnectorError::ParsingFailed); // Add new error type if the length increases
+    }
+
+    let parsed_metadata: SantanderBoletoUpdateRequest =
+        serde_json::from_value(metadata_value.clone())
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+    Ok(parsed_metadata)
 }
 
 pub fn format_emv_field(id: &str, value: &str) -> String {
@@ -487,7 +529,7 @@ pub struct Discount {
     pub discount_three: Option<DiscountObject>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentRequest {
     pub environment: Environment,
@@ -601,6 +643,26 @@ pub enum DiscountType {
     ValueDayConductor,
     #[serde(rename = "VALOR_DIA_UTIL")]
     ValueWorthDay,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoUpdateRequest {
+    #[serde(skip_deserializing)]
+    pub covenant_code: String,
+    #[serde(skip_deserializing)]
+    pub bank_number: String,
+    pub due_date: Option<String>,
+    pub discount: Option<Discount>,
+    pub min_value_or_percentage: Option<f64>,
+    pub max_value_or_percentage: Option<f64>,
+    pub interest: Option<InterestPercentage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterestPercentage {
+    pub interest_percentage: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -901,8 +963,41 @@ pub struct SantanderPix {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderPaymentsCancelRequest {
+pub struct SantanderPixCancelRequest {
     pub status: Option<SantanderVoidStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderPaymentsCancelRequest {
+    PixQR(SantanderPixCancelRequest),
+    Boleto(SantanderBoletoCancelRequest),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoCancelRequest {
+    pub covenant_code: String,
+    pub bank_number: String,
+    pub operation: SantanderBoletoCancelOperation,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderBoletoCancelOperation {
+    #[serde(rename = "PROTESTAR")]
+    Protest,
+    #[serde(rename = "CANCELAR_PROTESTO")]
+    CancelProtest,
+    #[serde(rename = "BAIXAR")]
+    #[default]
+    WriteOff,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderUpdateBoletoResponse {
+    pub covenant_code: Option<String>,
+    pub bank_number: Option<String>,
+    pub message: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, PaymentsResponseData>>
@@ -1053,6 +1148,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     entry_date: boleto_data.entry_date,
                     download_url: None,
                     instructions_url: None,
+                    bank_number: Some(boleto_data.bank_number.clone()),
                 };
 
                 let connector_metadata = Some(voucher_data.encode_to_value())
@@ -1128,11 +1224,57 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPixVoidResponse, T, PaymentsRe
 
 impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
     type Error = Error;
-    fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: Some(SantanderVoidStatus::RemovedByReceivingUser),
-        })
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+
+        match item.payment_method {
+            enums::PaymentMethod::BankTransfer => match item.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => Ok(Self::PixQR(SantanderPixCancelRequest {
+                    status: Some(SantanderVoidStatus::RemovedByReceivingUser),
+                })),
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method",
+                }
+                .into()),
+            },
+            enums::PaymentMethod::Voucher => match item.request.payment_method_type {
+                Some(enums::PaymentMethodType::Boleto) => {
+                    Ok(Self::Boleto(SantanderBoletoCancelRequest {
+                        operation: SantanderBoletoCancelOperation::WriteOff,
+                        covenant_code: santander_mca_metadata.covenant_code.clone(),
+                        bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+                    }))
+                }
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method",
+                }
+                .into()),
+            },
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method",
+            }
+            .into()),
+        }
     }
+}
+
+fn extract_bank_number(value: Option<Value>) -> Result<String, errors::ConnectorError> {
+    let value = value.ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let map = value
+        .as_object()
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let bank_number = map
+        .get("bank_number")
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let bank_number_str = bank_number
+        .as_str()
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?
+        .to_string();
+
+    Ok(bank_number_str)
 }
 
 fn get_qr_code_data<F, T>(

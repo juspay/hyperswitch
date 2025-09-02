@@ -4995,6 +4995,8 @@ pub struct VoucherNextStepData {
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
     pub digitable_line: Option<String>,
+    /// Bank Number where the boleto was registered
+    pub bank_number: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

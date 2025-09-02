@@ -4775,6 +4775,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
