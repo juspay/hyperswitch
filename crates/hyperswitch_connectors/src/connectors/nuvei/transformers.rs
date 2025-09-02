@@ -1404,7 +1404,7 @@ where
             card_holder_name: data.card_holder_name,
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
-            ..Default::default() // CVV should be disabled by nuvei for
+            ..Default::default() // CVV should be disabled for nuvei
         }),
         redirect_url: None,
         user_payment_option_id: None,
