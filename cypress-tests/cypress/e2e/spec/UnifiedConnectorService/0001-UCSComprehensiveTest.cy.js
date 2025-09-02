@@ -27,7 +27,7 @@ describe("UCS Comprehensive Test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("00031-UCS Setup", () => {
+  context("0001-UCS Setup", () => {
     it("merchant-create-call-test", () => {
       cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
     });
