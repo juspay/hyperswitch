@@ -264,6 +264,8 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
+        #[max_length = 16]
+        split_txns_enabled -> Nullable<Varchar>,
     }
 }
 
@@ -1042,6 +1044,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 16]
+        split_txns_enabled -> Nullable<Varchar>,
     }
 }
 

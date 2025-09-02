@@ -1089,6 +1089,7 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v2")]
@@ -1146,6 +1147,7 @@ pub struct ProfileSetter {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v2")]
@@ -1208,6 +1210,7 @@ impl From<ProfileSetter> for Profile {
             external_vault_connector_details: value.external_vault_connector_details,
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
+            split_txns_enabled: value.split_txns_enabled,
         }
     }
 }
@@ -1395,6 +1398,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -1476,6 +1480,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
+                    split_txns_enabled,
                 } = *update;
                 Self {
                     profile_name,
@@ -1529,6 +1534,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     external_vault_connector_details,
                     merchant_category_code,
                     merchant_country_code,
+                    split_txns_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1585,6 +1591,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1639,6 +1646,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1693,6 +1701,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1747,6 +1756,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1801,6 +1811,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1855,6 +1866,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1909,6 +1921,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1963,6 +1976,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2018,6 +2032,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
         }
     }
@@ -2097,6 +2112,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
+            split_txns_enabled: Some(self.split_txns_enabled),
             always_enable_overcapture: None,
         })
     }
@@ -2193,6 +2209,7 @@ impl super::behaviour::Conversion for Profile {
                 external_vault_connector_details: item.external_vault_connector_details,
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
+                split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
             })
         }
         .await
@@ -2263,6 +2280,7 @@ impl super::behaviour::Conversion for Profile {
             external_vault_connector_details: self.external_vault_connector_details,
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: Some(self.split_txns_enabled),
         })
     }
 }

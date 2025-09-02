@@ -4270,8 +4270,161 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayDeliveryOptions": {
+        "type": "object",
+        "required": [
+          "id",
+          "price",
+          "shipping_method",
+          "is_default"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Delivery Option identifier"
+          },
+          "price": {
+            "$ref": "#/components/schemas/AmazonPayDeliveryPrice"
+          },
+          "shipping_method": {
+            "$ref": "#/components/schemas/AmazonPayShippingMethod"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Specifies if this delivery option is the default"
+          }
+        }
+      },
+      "AmazonPayDeliveryPrice": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency_code"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "AmazonPayMerchantCredentials": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "store_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          }
+        }
+      },
+      "AmazonPayPaymentIntent": {
+        "type": "string",
+        "enum": [
+          "Confirm",
+          "Authorize",
+          "AuthorizeWithCapture"
+        ]
+      },
       "AmazonPayRedirectData": {
         "type": "object"
+      },
+      "AmazonPaySessionTokenData": {
+        "type": "object",
+        "required": [
+          "amazon_pay"
+        ],
+        "properties": {
+          "amazon_pay": {
+            "$ref": "#/components/schemas/AmazonPayMerchantCredentials"
+          }
+        }
+      },
+      "AmazonPaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "ledger_currency",
+          "store_id",
+          "payment_intent",
+          "total_shipping_amount",
+          "total_tax_amount",
+          "total_base_amount",
+          "delivery_options"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "ledger_currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          },
+          "payment_intent": {
+            "$ref": "#/components/schemas/AmazonPayPaymentIntent"
+          },
+          "total_shipping_amount": {
+            "type": "string",
+            "description": "The total shipping costs"
+          },
+          "total_tax_amount": {
+            "type": "string",
+            "description": "The total tax amount for the order"
+          },
+          "total_base_amount": {
+            "type": "string",
+            "description": "The total amount for items in the cart"
+          },
+          "delivery_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmazonPayDeliveryOptions"
+            },
+            "description": "The delivery options available for the provided address"
+          }
+        }
+      },
+      "AmazonPayShippingMethod": {
+        "type": "object",
+        "required": [
+          "shipping_method_name",
+          "shipping_method_code"
+        ],
+        "properties": {
+          "shipping_method_name": {
+            "type": "string",
+            "description": "Name of the shipping method"
+          },
+          "shipping_method_code": {
+            "type": "string",
+            "description": "Code of the shipping method"
+          }
+        }
+      },
+      "AmazonPayWalletData": {
+        "type": "object",
+        "required": [
+          "checkout_session_id"
+        ],
+        "properties": {
+          "checkout_session_id": {
+            "type": "string",
+            "description": "Checkout Session identifier"
+          }
+        }
       },
       "AmountDetails": {
         "type": "object",
@@ -8377,6 +8530,7 @@
           "adyen",
           "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bambora",
@@ -8750,6 +8904,11 @@
           "apple_pay": {
             "type": "object",
             "description": "This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
+            "nullable": true
+          },
+          "amazon_pay": {
+            "type": "object",
+            "description": "This field contains the Amazon Pay certificates and credentials",
             "nullable": true
           },
           "samsung_pay": {
@@ -12819,7 +12978,8 @@
           "payout_processor",
           "authentication_provider",
           "fraud_and_risk_management_provider",
-          "tax_calculation_provider"
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
         ]
       },
       "HyperswitchVaultSessionDetails": {
@@ -14495,6 +14655,11 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
             "nullable": true
           }
         },
@@ -19156,8 +19321,10 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "split_txns_enabled",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "payment_type"
         ],
         "properties": {
           "id": {
@@ -19306,6 +19473,14 @@
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
           },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
+          },
           "expires_on": {
             "type": "string",
             "format": "date-time",
@@ -19318,6 +19493,9 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "payment_type": {
+            "$ref": "#/components/schemas/PaymentType"
           }
         },
         "additionalProperties": false
@@ -21914,6 +22092,15 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21947,7 +22134,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "split_txns_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -22199,6 +22387,14 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
           }
         }
       },
@@ -23496,6 +23692,7 @@
           "adyen",
           "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bankofamerica",
@@ -24459,6 +24656,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmazonPaySessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "amazon_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -24627,6 +24845,13 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
+      "SplitTxnsEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
       },
       "StaticRoutingAlgorithm": {
         "oneOf": [
@@ -26152,6 +26377,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "amazon_pay"
+            ],
+            "properties": {
+              "amazon_pay": {
+                "$ref": "#/components/schemas/AmazonPayWalletData"
               }
             }
           },

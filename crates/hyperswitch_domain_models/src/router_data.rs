@@ -132,6 +132,7 @@ pub struct L2L3Data {
     pub shipping_country: Option<common_enums::CountryAlpha2>,
     pub shipping_destination_zip: Option<Secret<String>>,
     pub billing_address_city: Option<String>,
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 
 // Different patterns of authentication.
@@ -487,6 +488,16 @@ impl ConnectorResponseData {
             is_overcapture_enabled,
         }
     }
+    pub fn new(
+        additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+        extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
+    ) -> Self {
+        Self {
+            additional_payment_method_data,
+            extended_authorization_response_data,
+        }
+    }
+
     pub fn get_extended_authorization_response_data(
         &self,
     ) -> Option<&ExtendedAuthorizationResponseData> {

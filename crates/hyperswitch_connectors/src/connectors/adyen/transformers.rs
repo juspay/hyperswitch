@@ -1418,7 +1418,7 @@ impl FromStr for AdyenRefundRequestReason {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "FRAUD" => Ok(Self::FRAUD),
-            "CUSTOMER REQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "CUSTOMER REQUEST" | "CUSTOMERREQUEST" => Ok(Self::CUSTOMERREQUEST),
             "RETURN" => Ok(Self::RETURN),
             "DUPLICATE" => Ok(Self::DUPLICATE),
             "OTHER" => Ok(Self::OTHER),
@@ -2361,6 +2361,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPay(_)
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)

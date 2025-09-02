@@ -386,7 +386,11 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: refund.id.get_string_repr().to_string().clone(),
+        connector_request_reference_id: refund
+            .merchant_reference_id
+            .get_string_repr()
+            .to_string()
+            .clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]

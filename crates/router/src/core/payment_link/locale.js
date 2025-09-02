@@ -3,11 +3,11 @@ The languages supported by locale.js are:
  1) English (en)
  2) Hebrew (he)
  3) French (fr)
- 4) British English (en_gb)
+ 4) British English (en-gb)
  5) Arabic (ar)
  6) Japanese (ja)
  7) German (de)
- 8) Belgian French (fr_be)
+ 8) Belgian French (fr-be)
  9) Spanish (es)
  10) Catalan (ca)
  11) Portuguese (pt)
@@ -17,7 +17,7 @@ The languages supported by locale.js are:
  15) Swedish (sv)
  16) Russian (ru)
  17) Chinese (zh)
- 19) Traditional Chinese (zh_hant)
+ 19) Traditional Chinese (zh-hant)
 */
 const locales = {
     en: {
@@ -119,7 +119,7 @@ const locales = {
       errorCode: "Code d'erreur",
       errorMessage: "Message d'erreur"
     },
-    en_gb: {
+    "en-gb": {
       expiresOn: "Link expires on: ",
       refId: "Ref Id: ",
       requestedBy: "Requested by ",
@@ -151,7 +151,6 @@ const locales = {
       notAllowed: "You are not allowed to view this content.",
       errorCode: "Error code",
       errorMessage: "Error Message"
-      
     },
     ar: {
       expiresOn: "الرابط ينتهي في: ",
@@ -252,7 +251,7 @@ const locales = {
       errorCode: "Fehlercode",
       errorMessage: "Fehlermeldung"
     },
-    fr_be: {
+    "fr-be": {
       expiresOn: "Le lien expire le: ",
       refId: "ID de référence: ",
       requestedBy: "Demandé par ",
@@ -284,7 +283,6 @@ const locales = {
       notAllowed: "Vous n'êtes pas autorisé à voir ce contenu.",
       errorCode: "Code d'erreur",
       errorMessage: "Message d'erreur"
-      
     },
     es: {
       expiresOn: "El enlace expira el: ",
@@ -384,7 +382,6 @@ const locales = {
       notAllowed: "Você não tem permissão para ver este conteúdo.",
       errorCode: "Código de erro",
       errorMessage: "Mensagem de erro"
-
     },
     it: {
       expiresOn: "Link scade il: ",
@@ -584,7 +581,7 @@ const locales = {
       errorCode: "错误代码",
       errorMessage: "错误信息"
     },
-    zh_hant: {
+    "zh-hant": {
       expiresOn: "連結到期日期：",
       refId: "參考編號：",
       requestedBy: "請求者 ",
@@ -628,10 +625,11 @@ function getLanguage(localeStr) {
   var language = parts[0];
   var country = parts.length > 1 ? parts[1] : null;
 
-  var key = `${language}_${country}`;
+  var key = language + '-' + country;
   switch (key) {
-    case 'en_gb': return 'en_gb';
-    case 'fr_be': return 'fr_be';
+    case 'en-gb': return 'en-gb';
+    case 'fr-be': return 'fr-be';
+    case 'zh-hant': return 'zh-hant';
     default: return language;
   }
 }
