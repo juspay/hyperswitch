@@ -248,6 +248,7 @@ mod safe_string {
     use std::ops::Deref;
 
     use common_utils::validation::contains_potential_xss_or_sqli;
+    use masking::SerializableSecret;
     use serde::{de::Error, Deserialize, Serialize};
 
     /// String wrapper that prevents XSS and SQLi attacks
@@ -323,6 +324,9 @@ mod safe_string {
             Self::new(value).map_err(D::Error::custom)
         }
     }
+
+    // Implement SerializableSecret for SafeString to work with Secret<SafeString>
+    impl SerializableSecret for SafeString {}
 
     // Diesel implementations for database operations
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for SafeString

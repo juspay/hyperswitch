@@ -3,7 +3,7 @@ use common_enums::{EntityType, MerchantProductType};
 use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{configs, consts, routes::SessionState};
 #[cfg(feature = "olap")]
@@ -567,8 +567,14 @@ impl BizEmailProd {
                 state.conf.email.prod_intent_recipient_email.clone(),
             )?,
             settings: state.conf.clone(),
-            user_name: data.poc_name.unwrap_or_default(),
-            poc_email: data.poc_email.unwrap_or_default(),
+            user_name: data
+                .poc_name
+                .map(|s| Secret::new(s.peek().clone().into_inner()))
+                .unwrap_or_default(),
+            poc_email: data
+                .poc_email
+                .map(|s| Secret::new(s.peek().clone().into_inner()))
+                .unwrap_or_default(),
             legal_business_name: data
                 .legal_business_name
                 .map(|s| s.into_inner())

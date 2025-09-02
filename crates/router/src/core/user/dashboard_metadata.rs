@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
@@ -527,12 +527,18 @@ async fn insert_metadata(
                     business_label: data.business_label.map(|s| s.into_inner()),
                     business_location: data.business_location,
                     display_name: data.display_name.map(|s| s.into_inner()),
-                    poc_email: data.poc_email,
+                    poc_email: data
+                        .poc_email
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
                     business_type: data.business_type.map(|s| s.into_inner()),
                     business_identifier: data.business_identifier.map(|s| s.into_inner()),
                     business_website: data.business_website.map(|s| s.into_inner()),
-                    poc_name: data.poc_name,
-                    poc_contact: data.poc_contact,
+                    poc_name: data
+                        .poc_name
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    poc_contact: data
+                        .poc_contact
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
                     comments: data.comments.map(|s| s.into_inner()),
                     is_completed: data.is_completed,
                     business_country_name: data.business_country_name.map(|s| s.into_inner()),
