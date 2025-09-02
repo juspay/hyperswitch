@@ -247,7 +247,7 @@ pub struct ProfileGeneralUpdate {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub always_request_extended_authorization:
-    Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
