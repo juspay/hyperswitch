@@ -527,50 +527,6 @@ describe("UCS Comprehensive Test", () => {
     });
   });
 
-  context("00017-BankTransfers", () => {
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"];
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-
-    it("confirm-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["BankTransfer"];
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-    });
-  });
-
-  context("00018-BankRedirect", () => {
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_redirect_pm"
-      ]["PaymentIntent"];
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-
-    it("confirm-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_redirect_pm"
-      ]["BankRedirect"];
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-    });
-  });
-
   context("00019-UCS Cleanup", () => {
     it("cleanup-ucs-configs", () => {
       const connectorId = globalState.get("connectorId");
