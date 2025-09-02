@@ -5,6 +5,7 @@ use time::PrimitiveDateTime;
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: String,
+    pub invoice_id: String,
     pub status: String,
     pub customer_id: String,
     pub currency_code: enums::Currency,

@@ -1,5 +1,3 @@
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use std::str::FromStr;
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
@@ -12,8 +10,8 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         RecoveryRecordBack,
     },
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_request_types::subscriptions::SubscriptionsRecordBackRequest,
+    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
@@ -21,15 +19,16 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{Secret, ExposeInterface};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use std::str::FromStr;
 use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData},
 };
-
 
 //TODO: Fill the struct with respective fields
 pub struct ChargebeeRouterData<T> {
@@ -200,21 +199,43 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
         item: &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        
+
         // Get the first subscription item (assuming at least one exists)
-        let first_item = req.subscription_items.first()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "subscription_items",
-            })?;
+        let first_item =
+            req.subscription_items
+                .first()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "subscription_items",
+                })?;
 
         Ok(Self {
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: req.billing_address.address.as_ref().and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
-            billing_address_city: req.billing_address.address.as_ref().and_then(|addr| addr.city.clone()),
-            billing_address_state: req.billing_address.address.as_ref().and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
-            billing_address_zip: req.billing_address.address.as_ref().and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
-            billing_address_country: req.billing_address.address.as_ref().and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_line1: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+            billing_address_city: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.city.clone()),
+            billing_address_state: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+            billing_address_zip: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+            billing_address_country: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.country.map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
         })
     }
@@ -223,6 +244,14 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionCreateResponse {
     pub subscription: ChargebeeSubscriptionDetails,
+    pub invoice: ChargebeeInvoiceDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeInvoiceDetails {
+    pub id: String,
+    pub subscription_id: String,
+    pub status: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -258,9 +287,11 @@ impl TryFrom<
         >,
     ) -> Result<Self, Self::Error> {
         let subscription = &item.response.subscription;
+        let invoice = &item.response.invoice;
         Ok(Self {
             response: Ok(hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse {
                 subscription_id: subscription.id.clone(),
+                invoice_id: invoice.id.clone(),
                 status: subscription.status.clone(),
                 customer_id: subscription.customer_id.clone(),
                 currency_code: subscription.currency_code,
@@ -538,10 +569,10 @@ pub struct ChargebeeMitPaymentData {
 
 impl TryFrom<ChargebeeInvoiceBody> for ChargebeeMitPaymentData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    
+
     fn try_from(webhook_body: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
         let invoice = webhook_body.content.invoice;
-        
+
         Ok(Self {
             invoice_id: invoice.id,
             amount_due: invoice.total,
@@ -886,12 +917,16 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
     }
 }
 #[cfg(feature = "v1")]
-impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionRecordBackRouterData>>
-    for ChargebeeRecordPaymentRequest
+impl
+    TryFrom<
+        &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionRecordBackRouterData>,
+    > for ChargebeeRecordPaymentRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionRecordBackRouterData>,
+        item: &ChargebeeRouterData<
+            &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
         Ok(Self {

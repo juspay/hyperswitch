@@ -1,6 +1,16 @@
 use super::errors::{self, RouterResponse};
-use crate::{core::payouts::helpers, routes::SessionState, services::api as service_api};
-use api_models::subscription::{self as subscription_types, SUBSCRIPTION_ID_PREFIX};
+use crate::{
+    core::{payments as payments_core, payouts::helpers},
+    routes::SessionState,
+    services::{api as service_api, logger},
+    types::api as api_types,
+};
+use api_models::{
+    enums as api_enums,
+    subscription::{self as subscription_types, SUBSCRIPTION_ID_PREFIX},
+};
+use common_types::payments::CustomerAcceptance;
+use common_utils::ext_traits::ValueExt;
 use common_utils::{events::ApiEventMetric, generate_id_with_default_len, id_type};
 use diesel_models::subscription::{SubscriptionNew, SubscriptionUpdate};
 use error_stack::ResultExt;
@@ -8,7 +18,7 @@ use hyperswitch_domain_models::{
     merchant_context::MerchantContext, router_request_types::CustomerDetails,
 };
 use payment_methods::helpers::StorageErrorExt;
-use std::str::FromStr;
+use std::{num::NonZeroI64, str::FromStr};
 
 pub async fn create_subscription(
     state: SessionState,
@@ -123,10 +133,10 @@ pub fn get_customer_details_from_request(
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
-    _request: subscription_types::ConfirmSubscriptionRequest,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    request: ConfirmSubscriptionRequest,
     subscription_id: String,
-) -> RouterResponse<()> {
+) -> RouterResponse<ConfirmSubscriptionResponse> {
     let db = state.store.as_ref();
     // Fetch subscription from DB
     let subscription = db
@@ -135,6 +145,8 @@ pub async fn confirm_subscription(
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Subscription not found".to_string(),
         })?;
+
+    logger::debug!("fetched_subscription: {:?}", subscription);
 
     let mercahnt_account = merchant_context.get_merchant_account();
     let key_store = merchant_context.get_merchant_key_store();
@@ -162,12 +174,21 @@ pub async fn confirm_subscription(
 
     let connector_name = billing_processor_mca.connector_name.clone();
 
+    let connector_data = api_types::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api_types::GetToken::Connector,
+        Some(billing_processor_mca.get_id()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("invalid connector name received in billing merchant connector account")?;
+
     let connector_enum =
         common_enums::connector_enums::Connector::from_str(connector_name.as_str())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Cannot find connector from the connector_name")?;
 
-    let _connector_params =
+    let connector_params =
         hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
             &state.conf.connectors,
             connector_enum,
@@ -177,19 +198,161 @@ pub async fn confirm_subscription(
             "cannot find connector params for this connector {connector_name} in this flow",
         ))?;
 
+    let connector_integration: service_api::BoxedSubscriptionConnectorIntegrationInterface<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    > = connector_data.connector.get_connector_integration();
+
     // Create Subscription at billing processor
+    let subscription_item =
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionItem {
+            item_price_id: request.item_price_id.ok_or(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "item_price_id is required".to_string(),
+                },
+            )?,
+            quantity: Some(1),
+        };
+
+    let conn_request =
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
+            customer_id: subscription.customer_id.get_string_repr().to_string(),
+            subscription_items: vec![subscription_item],
+            billing_address: request.billing_address.clone().ok_or(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Billing address is required".to_string(),
+                },
+            )?,
+            auto_collection: "off".to_string(),
+            connector_params,
+        };
+
+    logger::debug!("conn_request_customer: {:?}", conn_request.customer_id);
+
+    let auth_type = payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+        billing_processor_mca.clone(),
+    ))
+    .get_connector_account_details()
+    .parse_value("ConnectorAuthType")
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let router_data = payments_core::helpers::create_subscription_router_data::<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    >(
+        &state,
+        subscription.merchant_id.to_owned(),
+        Some(subscription.customer_id.to_owned()),
+        connector_name,
+        auth_type,
+        conn_request,
+        None,
+    )?;
+
+    let response = service_api::execute_connector_processing_step::<
+        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+        _,
+        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    >(
+        &state,
+        connector_integration,
+        &router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while handling response of subscription_create")?;
+
+    let connector_resp = response.response.map_err(|err| {
+        crate::logger::error!(?err);
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+
+    crate::logger::debug!("connector_resp: {:?}", connector_resp);
+
     // Update subscription with billing processor subscription_id
-    let udpate = SubscriptionUpdate::new(Some("Some_id".to_string()), None);
+    let udpate = SubscriptionUpdate::new(Some(connector_resp.subscription_id.clone()), None);
 
     db.update_subscription_entry(subscription.id.clone(), udpate)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update subscription with billing processor subscription_id")?;
-    // Form Payments Request with billing processor details
-    // Call Payments Core
-    // Semd back response
 
-    Ok(service_api::ApplicationResponse::Json(()))
+    // Form Payments Request with billing processor details
+    let billing_connector_details = api_models::payments::BillingConnectorDetails {
+        processor_mca: mca_id.to_owned(),
+        subscription_id: connector_resp.subscription_id.clone(),
+        invoice_id: connector_resp.invoice_id.clone(),
+    };
+
+    let mut payment_request = api_types::PaymentsRequest {
+        amount: Some(api_types::Amount::Value(
+            NonZeroI64::new(request.amount).unwrap(), // fix this
+        )),
+        currency: Some(request.currency),
+        customer_id: Some(subscription.customer_id.to_owned()),
+        merchant_id: Some(subscription.merchant_id.to_owned()),
+        billing_processor_details: Some(billing_connector_details),
+        confirm: Some(true),
+        setup_future_usage: request.payment_data.setup_future_usage,
+        payment_method: Some(request.payment_data.payment_method),
+        payment_method_type: request.payment_data.payment_method_type,
+        payment_method_data: Some(request.payment_data.payment_method_data),
+        customer_acceptance: request.payment_data.customer_acceptance,
+        ..Default::default()
+    };
+
+    if let Err(err) = crate::routes::payments::get_or_generate_payment_id(&mut payment_request) {
+        return Err(err.into());
+    }
+
+    // Call Payments Core
+    let payment_response = payments_core::payments_core::<
+        api_types::Authorize,
+        api_types::PaymentsResponse,
+        _,
+        _,
+        _,
+        payments_core::PaymentData<api_types::Authorize>,
+    >(
+        state.clone(),
+        state.get_req_state(),
+        merchant_context,
+        authentication_profile_id,
+        payments_core::PaymentCreate,
+        payment_request,
+        service_api::AuthFlow::Merchant,
+        payments_core::CallConnectorAction::Trigger,
+        None,
+        hyperswitch_domain_models::payments::HeaderPayload::with_source(
+            common_enums::PaymentSource::Webhook,
+        ),
+    )
+    .await;
+
+    // fix this error handling
+    let payment_res = match payment_response {
+        Ok(service_api::ApplicationResponse::JsonWithHeaders((pi, _))) => Ok(pi),
+        Ok(_) => Err(errors::ApiErrorResponse::InternalServerError),
+        Err(error) => {
+            crate::logger::error!(?error);
+            Err(errors::ApiErrorResponse::InternalServerError)
+        }
+    }?;
+    // Semd back response
+    let response = ConfirmSubscriptionResponse {
+        subscription: Subscription::new(subscription.id.clone(), "active", None), // ?!?
+        customer_id: Some(subscription.customer_id.to_owned()),
+        invoice: None,
+        payment: payment_res,
+    };
+
+    Ok(service_api::ApplicationResponse::Json(response))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -259,9 +422,33 @@ impl CreateSubscriptionResponse {
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentData {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_data: api_models::payments::PaymentMethodDataRequest,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConfirmSubscriptionRequest {
+    // pub client_secret: Option<String>,
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
+    pub coupon_code: Option<String>,
+    pub customer: Option<api_models::payments::CustomerDetails>,
+    pub billing_address: Option<api_models::payments::Address>,
+    pub payment_data: PaymentData,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionRequest {}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ConfirmSubscriptionResponse {
     pub subscription: Subscription,
+    pub payment: api_models::payments::PaymentsResponse,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub invoice: Option<Invoice>,
 }

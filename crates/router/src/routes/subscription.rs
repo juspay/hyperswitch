@@ -62,7 +62,7 @@ pub async fn confirm_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,
     subscription_id: web::Path<String>,
-    json_payload: web::Json<subscription_types::ConfirmSubscriptionRequest>,
+    json_payload: web::Json<subscription::ConfirmSubscriptionRequest>,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     let subscription_id = subscription_id.into_inner();

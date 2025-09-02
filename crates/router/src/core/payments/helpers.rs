@@ -101,8 +101,7 @@ use crate::{
 use crate::{core::admin as core_admin, headers};
 #[cfg(feature = "v1")]
 use crate::{
-    core::payment_methods::cards::create_encrypted_data,
-    types::{storage::CustomerUpdate::Update},
+    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
 #[instrument(skip_all)]
@@ -7686,15 +7685,14 @@ pub async fn get_merchant_connector_account_v2(
     }
 }
 #[cfg(feature = "v1")]
-fn create_subscription_router_data<F, Req, Res>(
+pub fn create_subscription_router_data<F, Req, Res>(
     state: &SessionState,
-    _billing_processor_details: api_models::payments::BillingConnectorDetails,
     merchant_id: id_type::MerchantId,
     customer_id: Option<id_type::CustomerId>,
     connector_name: String,
     auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
     request: Req,
-    payment_id: id_type::PaymentId,
+    payment_id: Option<id_type::PaymentId>,
 ) -> CustomResult<RouterData<F, Req, Res>, errors::ApiErrorResponse>
 where
     F: Clone,
@@ -7707,7 +7705,9 @@ where
         customer_id,
         connector_customer: None,
         connector: connector_name,
-        payment_id: payment_id.get_string_repr().to_owned(),
+        payment_id: payment_id
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or("DefaultPaymentId".to_string()),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: "Subscriptions attempt".to_owned(),
         status: common_enums::AttemptStatus::default(),
@@ -7890,16 +7890,15 @@ where
         hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     >(
         state,
-        billing_processor_detail,
         merchant_id.clone(),
         Some(customer_id),
         connector.clone(),
         auth_type,
         request,
-        payment_data
+        Some(payment_data
             .get_payment_intent()
             .payment_id
-            .to_owned()
+            .to_owned())
     )?;
 
     services::execute_connector_processing_step(
