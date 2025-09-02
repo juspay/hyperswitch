@@ -1598,6 +1598,7 @@ pub async fn update_default_routing_config_for_profile(
 
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
@@ -1647,14 +1648,86 @@ pub async fn toggle_specific_dynamic_routing(
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
-            helpers::enable_dynamic_routing_algorithm(
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
                 &state,
                 merchant_context.get_merchant_key_store().clone(),
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                None,
+            ))
+            .await
+        }
+        routing::DynamicRoutingFeatures::None => {
+            // disable specific dynamic routing for the requested profile
+            helpers::disable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
             )
+            .await
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn create_specific_dynamic_routing(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    feature_to_enable: routing::DynamicRoutingFeatures,
+    profile_id: common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing::DynamicRoutingType,
+    payload: routing_types::DynamicRoutingPayload,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        1,
+        router_env::metric_attributes!(
+            ("profile_id", profile_id.clone()),
+            ("algorithm_type", dynamic_routing_type.to_string())
+        ),
+    );
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        Some(&profile_id),
+        merchant_context.get_merchant_account().get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    match feature_to_enable {
+        routing::DynamicRoutingFeatures::Metrics
+        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
+            Box::pin(helpers::enable_dynamic_routing_algorithm(
+                &state,
+                merchant_context.get_merchant_key_store().clone(),
+                business_profile,
+                feature_to_enable,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+                Some(payload),
+            ))
             .await
         }
         routing::DynamicRoutingFeatures::None => {

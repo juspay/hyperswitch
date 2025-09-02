@@ -205,10 +205,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Dwolla => {
-            //     dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Dwolla => {
+                dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Ebanx => {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -351,6 +351,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Nordea => {
                 nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+                nordea::transformers::NordeaConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Novalnet => {

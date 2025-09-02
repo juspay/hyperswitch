@@ -240,6 +240,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
 hyperswitch_vault.base_url = "http://localhost:8080"
+hyperwallet.base_url = "https://uat-api.paylution.com"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
@@ -477,6 +478,7 @@ braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
+dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [debit_routing_config]                                       # Debit Routing configs
 supported_currencies = "USD"                                 # Supported currencies for debit routing
@@ -489,6 +491,7 @@ adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks su
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
 shift4 = { payment_method = "card" }
+barclaycard = { payment_method = "card" }
 bluesnap = { payment_method = "card" }
 bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
@@ -898,8 +901,11 @@ pix = { country = "BR", currency = "BRL" }
 [pm_filters.bluecode]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
 
+[pm_filters.dwolla]
+ach = { country = "US", currency = "USD" }
+
 [connector_customer]
-connector_list = "adyen,authorizedotnet,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
+connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [bank_config.online_banking_fpx]
@@ -1159,6 +1165,7 @@ url = "http://localhost:8080"           # Open Router URL
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
 base_url = "http://127.0.0.1:8080" #Base URL

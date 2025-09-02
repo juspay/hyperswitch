@@ -15,7 +15,7 @@ use crate::schema::hyperswitch_ai_interaction;
     Serialize,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = hyperswitch_ai_interaction, primary_key(id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = hyperswitch_ai_interaction, primary_key(id, created_at), check_for_backend(diesel::pg::Pg))]
 pub struct HyperswitchAiInteraction {
     pub id: String,
     pub session_id: Option<String>,

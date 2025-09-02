@@ -79,6 +79,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerDeleteConfig
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
+            | Flow::CreateDynamicRoutingConfig
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
             | Flow::RoutingEvaluateRule

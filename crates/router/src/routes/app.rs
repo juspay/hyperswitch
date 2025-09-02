@@ -699,6 +699,10 @@ impl Payments {
                         .route(web::post().to(payments::proxy_confirm_intent)),
                 )
                 .service(
+                    web::resource("/confirm-intent/external-vault-proxy")
+                        .route(web::post().to(payments::confirm_intent_with_external_vault_proxy)),
+                )
+                .service(
                     web::resource("/get-intent")
                         .route(web::get().to(payments::payments_get_intent)),
                 )
@@ -2189,6 +2193,10 @@ impl Profile {
                                 web::resource("/toggle")
                                     .route(web::post().to(routing::toggle_success_based_routing)),
                             )
+                            .service(
+                                web::resource("/create")
+                                    .route(web::post().to(routing::create_success_based_routing)),
+                            )
                             .service(web::resource("/config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
                                     routing::success_based_routing_update_configs(
@@ -2210,6 +2218,10 @@ impl Profile {
                             .service(
                                 web::resource("/toggle")
                                     .route(web::post().to(routing::toggle_elimination_routing)),
+                            )
+                            .service(
+                                web::resource("/create")
+                                    .route(web::post().to(routing::create_elimination_routing)),
                             )
                             .service(web::resource("config/{algorithm_id}").route(
                                 web::patch().to(|state, req, path, payload| {
@@ -2280,7 +2292,7 @@ impl ProfileNew {
 
 pub struct Gsm;
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 impl Gsm {
     pub fn server(state: AppState) -> Scope {
         web::scope("/gsm")
@@ -2292,6 +2304,17 @@ impl Gsm {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+impl Gsm {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/gsm")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(gsm::create_gsm_rule)))
+            .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
+            .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
+            .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
 pub struct Chat;
 
 #[cfg(feature = "olap")]
