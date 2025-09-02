@@ -143,6 +143,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub authorization_count: Option<i32>,
     #[serde(with = "time::serde::timestamp")]
     pub session_expiry: OffsetDateTime,
@@ -209,6 +210,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -265,6 +267,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             updated_by,
             surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
+            split_txns_enabled: *split_txns_enabled,
             authorization_count: *authorization_count,
             session_expiry: session_expiry.assume_utc(),
             request_external_three_ds_authentication: *request_external_three_ds_authentication,

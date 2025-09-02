@@ -1242,6 +1242,60 @@ pub async fn toggle_success_based_routing(
 
 #[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
+pub async fn create_success_based_routing(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
+    success_based_config: web::Json<routing_types::SuccessBasedRoutingConfig>,
+) -> impl Responder {
+    let flow = Flow::CreateDynamicRoutingConfig;
+    let wrapper = routing_types::CreateDynamicRoutingWrapper {
+        feature_to_enable: query.into_inner().enable,
+        profile_id: path.into_inner().profile_id,
+        payload: api_models::routing::DynamicRoutingPayload::SuccessBasedRoutingPayload(
+            success_based_config.into_inner(),
+        ),
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        wrapper.clone(),
+        |state,
+         auth: auth::AuthenticationData,
+         wrapper: routing_types::CreateDynamicRoutingWrapper,
+         _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::create_specific_dynamic_routing(
+                state,
+                merchant_context,
+                wrapper.feature_to_enable,
+                wrapper.profile_id,
+                api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
+                wrapper.payload,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::ProfileRoutingWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
 pub async fn success_based_routing_update_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -1462,6 +1516,60 @@ pub async fn toggle_elimination_routing(
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::EliminationRouting,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::ProfileRoutingWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
+#[instrument(skip_all)]
+pub async fn create_elimination_routing(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_models::routing::CreateDynamicRoutingQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
+    elimination_config: web::Json<routing_types::EliminationRoutingConfig>,
+) -> impl Responder {
+    let flow = Flow::CreateDynamicRoutingConfig;
+    let wrapper = routing_types::CreateDynamicRoutingWrapper {
+        feature_to_enable: query.into_inner().enable,
+        profile_id: path.into_inner().profile_id,
+        payload: api_models::routing::DynamicRoutingPayload::EliminationRoutingPayload(
+            elimination_config.into_inner(),
+        ),
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        wrapper.clone(),
+        |state,
+         auth: auth::AuthenticationData,
+         wrapper: routing_types::CreateDynamicRoutingWrapper,
+         _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            routing::create_specific_dynamic_routing(
+                state,
+                merchant_context,
+                wrapper.feature_to_enable,
+                wrapper.profile_id,
+                api_models::routing::DynamicRoutingType::EliminationRouting,
+                wrapper.payload,
             )
         },
         auth::auth_type(

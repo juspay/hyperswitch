@@ -203,8 +203,6 @@ impl UnifiedAuthenticationService for ClickToPay {
 
     async fn confirmation(
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
         authentication_id: Option<&common_utils::id_type::AuthenticationId>,
         currency: Option<common_enums::Currency>,
         status: common_enums::AttemptStatus,
@@ -224,7 +222,9 @@ impl UnifiedAuthenticationService for ClickToPay {
             field_name: "currency",
         })?;
 
-        let current_time = common_utils::date_time::now();
+        let current_time = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get current time")?;
 
         let payment_attempt_status = status;
 
@@ -245,7 +245,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             confirmation_reason,
             confirmation_timestamp: Some(current_time),
             network_authorization_code: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
-            network_transaction_identifier: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
+            network_transaction_identifier: Some("mastercard".to_string()), // hardcoded to 'mastercard' since only mastercard has confirmation flow requirement
             correlation_id: click_to_pay_details
                 .clone()
                 .and_then(|details| details.correlation_id),

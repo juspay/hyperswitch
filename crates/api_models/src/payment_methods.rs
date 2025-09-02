@@ -190,7 +190,10 @@ impl PaymentMethodIntentConfirm {
     ) -> bool {
         match payment_method_type {
             api_enums::PaymentMethod::Card => {
-                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
+                )
             }
             _ => false,
         }
@@ -283,6 +286,14 @@ pub struct PaymentMethodMigrateResponse {
 
     //network transaction id migration status
     pub network_transaction_id_migrated: Option<bool>,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodRecordUpdateResponse {
+    pub payment_method_id: String,
+    pub status: common_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -437,7 +448,10 @@ impl PaymentMethodCreate {
     ) -> bool {
         match payment_method_type {
             api_enums::PaymentMethod::Card => {
-                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
+                )
             }
             _ => false,
         }
@@ -497,6 +511,7 @@ pub enum PaymentMethodUpdateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    ProxyCard(ProxyCardDetails),
 }
 
 #[cfg(feature = "v1")]
@@ -605,6 +620,57 @@ pub struct CardDetail {
 
     /// Card Type
     pub card_type: Option<CardType>,
+
+    /// The CVC number for the card
+    /// This is optional in case the card needs to be vaulted
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Option<masking::Secret<String>>,
+}
+
+// This struct is for collecting Proxy Card Data
+// All card related data present in this struct are tokenzied
+// No strict type is present to accept tokenized data
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ProxyCardDetails {
+    /// Tokenized Card Number
+    #[schema(value_type = String,example = "tok_sjfowhoejsldj")]
+    pub card_number: masking::Secret<String>,
+
+    /// Card Expiry Month
+    #[schema(value_type = String,example = "10")]
+    pub card_exp_month: masking::Secret<String>,
+
+    /// Card Expiry Year
+    #[schema(value_type = String,example = "25")]
+    pub card_exp_year: masking::Secret<String>,
+
+    /// First Six Digit of Card Number
+    pub bin_number: Option<String>,
+
+    ///Last Four Digit of Card Number
+    pub last_four: Option<String>,
+
+    /// Issuer Bank for Card
+    pub card_issuer: Option<String>,
+
+    /// Card's Network
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    /// Card Type
+    pub card_type: Option<String>,
+
+    /// Issuing Country of the Card
+    pub card_issuing_country: Option<String>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
 
     /// The CVC number for the card
     /// This is optional in case the card needs to be vaulted
@@ -941,6 +1007,12 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct ExternalVaultTokenData {
+    /// Tokenized reference for Card Number
+    pub tokenized_card_number: masking::Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2582,6 +2654,28 @@ pub struct PaymentMethodRecord {
     pub network_token_requestor_ref_id: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdatePaymentMethodRecord {
+    pub payment_method_id: String,
+    pub status: Option<common_enums::PaymentMethodStatus>,
+    pub network_transaction_id: Option<String>,
+    pub line_number: Option<i64>,
+    pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentMethodUpdateResponse {
+    pub payment_method_id: String,
+    pub status: Option<common_enums::PaymentMethodStatus>,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub update_status: UpdateStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_error: Option<String>,
+    pub line_number: Option<i64>,
+}
+
 #[derive(Debug, Default, serde::Serialize)]
 pub struct PaymentMethodMigrationResponse {
     pub line_number: Option<i64>,
@@ -2604,6 +2698,13 @@ pub struct PaymentMethodMigrationResponse {
 
 #[derive(Debug, Default, serde::Serialize)]
 pub enum MigrationStatus {
+    Success,
+    #[default]
+    Failed,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub enum UpdateStatus {
     Success,
     #[default]
     Failed,
@@ -2668,6 +2769,12 @@ type PaymentMethodMigrationResponseType = (
 );
 
 #[cfg(feature = "v1")]
+type PaymentMethodUpdateResponseType = (
+    Result<PaymentMethodRecordUpdateResponse, String>,
+    UpdatePaymentMethodRecord,
+);
+
+#[cfg(feature = "v1")]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
@@ -2692,6 +2799,32 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 card_number_masked: Some(record.card_number_masked),
                 line_number: record.line_number,
                 ..Self::default()
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
+    fn from((response, record): PaymentMethodUpdateResponseType) -> Self {
+        match response {
+            Ok(res) => Self {
+                payment_method_id: res.payment_method_id,
+                status: Some(res.status),
+                network_transaction_id: res.network_transaction_id,
+                connector_mandate_details: res.connector_mandate_details,
+                update_status: UpdateStatus::Success,
+                update_error: None,
+                line_number: record.line_number,
+            },
+            Err(e) => Self {
+                payment_method_id: record.payment_method_id,
+                status: record.status,
+                network_transaction_id: record.network_transaction_id,
+                connector_mandate_details: None,
+                update_status: UpdateStatus::Failed,
+                update_error: Some(e),
+                line_number: record.line_number,
             },
         }
     }

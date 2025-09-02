@@ -21,7 +21,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, utils::StorageErrorExt},
-        payment_methods::{self as payment_methods_routes, cards},
+        payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
@@ -403,6 +403,46 @@ pub async fn migrate_payment_methods(
                     &merchant_context,
                     merchant_connector_ids,
                     &controller,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsBatchUpdate))]
+pub async fn update_payment_methods(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<update_migration::PaymentMethodsUpdateForm>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsBatchUpdate;
+    let (merchant_id, records) = match form.validate_and_get_payment_method_records() {
+        Ok((merchant_id, records)) => (merchant_id, records),
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        records,
+        |state, _, req, _| {
+            let merchant_id = merchant_id.clone();
+            async move {
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store.clone()),
+                ));
+                Box::pin(update_migration::update_payment_methods(
+                    &state,
+                    req,
+                    &merchant_id,
+                    &merchant_context,
                 ))
                 .await
             }
@@ -907,6 +947,47 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::ListCountriesCurrencies))]
+pub async fn list_countries_currencies_for_connector_payment_method(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::ListCountriesCurrenciesRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListCountriesCurrencies;
+    let payload = query_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            cards::list_countries_currencies_for_connector_payment_method(
+                state,
+                req,
+                Some(auth.profile.get_id().clone()),
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileConnectorRead,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth {
+            permission: Permission::ProfileConnectorRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

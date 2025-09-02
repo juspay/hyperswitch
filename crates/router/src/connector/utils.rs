@@ -115,6 +115,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&hyperswitch_domain_models::address::Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -361,6 +362,15 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -2360,6 +2370,7 @@ impl
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }
@@ -2491,6 +2502,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Paysera,
     Skrill,
@@ -2585,6 +2597,7 @@ pub enum PaymentMethodDataType {
     Seicomart,
     PayEasy,
     Givex,
+    BhnCardNetwork,
     PaySafeCar,
     CardToken,
     LocalBankTransfer,
@@ -2620,6 +2633,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::AmazonPay(_) => Self::AmazonPay,
                 domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 domain::payments::WalletData::Paysera(_) => Self::Paysera,
                 domain::payments::WalletData::Skrill(_) => Self::Skrill,
@@ -2799,6 +2813,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {
                     domain::payments::GiftCardData::Givex(_) => Self::Givex,
+                    domain::payments::GiftCardData::BhnCardNetwork(_)=>Self::BhnCardNetwork,
                     domain::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
                 }
             }

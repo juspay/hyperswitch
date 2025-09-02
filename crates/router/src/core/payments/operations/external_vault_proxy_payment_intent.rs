@@ -1,8 +1,12 @@
 use api_models::payments::ExternalVaultProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
-use common_utils::types::keymanager::ToEncryptable;
-use error_stack::ResultExt;
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ValueExt},
+    types::keymanager::ToEncryptable,
+};
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
@@ -14,6 +18,7 @@ use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, Val
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::{self, PaymentMethodExt},
         payments::{
             self,
             operations::{self, ValidateStatusForOperation},
@@ -334,6 +339,95 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
     )> {
         // TODO: Implement external vault specific payment method data creation
         Ok((Box::new(self), None, None))
+    }
+
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        match (
+            payment_data.payment_intent.customer_id.clone(),
+            payment_data.external_vault_pmd.clone(),
+            payment_data.payment_attempt.customer_acceptance.clone(),
+            payment_data.payment_attempt.payment_token.clone(),
+        ) {
+            (Some(customer_id), Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(card_details)), Some(_), None) => {
+
+                let payment_method_data =
+                    api::PaymentMethodCreateData::ProxyCard(api::ProxyCardDetails::from(*card_details));
+                let billing = payment_data
+                    .payment_address
+                    .get_payment_method_billing()
+                    .cloned()
+                    .map(From::from);
+
+                let req = api::PaymentMethodCreate {
+                    payment_method_type: payment_data.payment_attempt.payment_method_type,
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    metadata: None,
+                    customer_id,
+                    payment_method_data,
+                    billing,
+                    psp_tokenization: None,
+                    network_tokenization: None,
+                };
+
+                let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    merchant_context,
+                    business_profile,
+                ))
+                .await?;
+
+                payment_data.payment_method = Some(payment_method);
+            }
+            (_, Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(vault_token)), None, Some(payment_token)) => {
+                payment_data.external_vault_pmd = Some(payment_methods::get_external_vault_token(
+                    state,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                    payment_token.clone(),
+                    vault_token.clone(),
+                    &payment_data.payment_attempt.payment_method_type
+                )
+                .await?);
+            }
+            _ => {
+                router_env::logger::debug!(
+                    "No payment method to create or fetch for external vault proxy payment intent"
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) {
+        if let (true, Some(payment_method_id)) = (
+            payment_data.payment_attempt.customer_acceptance.is_some(),
+            payment_data.payment_attempt.payment_method_id.clone(),
+        ) {
+            payment_methods::update_payment_method_status_internal(
+                state,
+                merchant_context.get_merchant_key_store(),
+                merchant_context.get_merchant_account().storage_scheme,
+                common_enums::PaymentMethodStatus::Active,
+                &payment_method_id,
+            )
+            .await
+            .map_err(|err| router_env::logger::error!(err=?err));
+        };
     }
 
     #[instrument(skip_all)]

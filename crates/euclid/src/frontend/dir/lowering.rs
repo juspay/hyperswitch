@@ -142,6 +142,7 @@ impl From<enums::GiftCardType> for global_enums::PaymentMethodType {
         match value {
             enums::GiftCardType::PaySafeCard => Self::PaySafeCard,
             enums::GiftCardType::Givex => Self::Givex,
+            enums::GiftCardType::BhnCardNetwork => Self::BhnCardNetwork,
         }
     }
 }

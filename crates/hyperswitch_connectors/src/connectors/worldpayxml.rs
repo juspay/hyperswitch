@@ -172,6 +172,7 @@ impl ConnectorCommon for Worldpayxml {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -821,7 +822,8 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
 static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay XML",
     description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];

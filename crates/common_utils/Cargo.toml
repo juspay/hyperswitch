@@ -40,6 +40,7 @@ nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
 once_cell = "1.21.3"
 openssl = {version = "0.10.72", optional = true}
+pem = "2.0.0"
 phonenumber = "0.3.7"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"

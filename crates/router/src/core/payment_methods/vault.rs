@@ -1544,7 +1544,7 @@ pub async fn insert_cvc_using_payment_token(
     fulfillment_time: i64,
     encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<()> {
-    let card_cvc = domain::PaymentMethodVaultingData::from(payment_method_data)
+    let card_cvc = domain::PaymentMethodVaultingData::try_from(payment_method_data)?
         .get_card()
         .and_then(|card| card.card_cvc.clone());
 

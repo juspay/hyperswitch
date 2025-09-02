@@ -145,6 +145,7 @@ impl ConnectorCommon for Paytm {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -622,7 +623,8 @@ lazy_static! {
         display_name: "PAYTM",
         description:
             "Paytm is an Indian multinational fintech company specializing in digital payments and financial services. Initially known for its mobile wallet, it has expanded to include a payment bank, e-commerce, ticketing, and wealth management services.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+            connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref PAYTM_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
