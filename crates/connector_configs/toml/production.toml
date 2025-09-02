@@ -5052,7 +5052,7 @@ type = "Text"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.account_value]
+[nordea.metadata.destination_account_number]
   name="destination_account_number"
   label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
