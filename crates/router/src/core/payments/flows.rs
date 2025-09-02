@@ -1,4 +1,5 @@
 pub mod approve_flow;
+pub mod authenticate_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
@@ -8,6 +9,8 @@ pub mod complete_authorize_flow;
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
+// pub mod postauthenticate_flow;
+pub mod preauthenticate_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;

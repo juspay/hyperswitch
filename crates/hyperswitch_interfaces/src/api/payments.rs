@@ -32,6 +32,8 @@ pub trait Payment:
     + api::ConnectorValidation
     + PaymentAuthorize
     + PaymentAuthorizeSessionToken
+    + PaymentsPreAuthenticate
+    + PaymentsAuthenticate
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture

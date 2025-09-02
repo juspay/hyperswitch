@@ -29,22 +29,6 @@ pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUni
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
-use hyperswitch_domain_models::router_flow_types::{
-    self,
-    access_token_auth::AccessTokenAuth,
-    dispute::{Accept, Defend, Dsync, Evidence, Fetch},
-    files::{Retrieve, Upload},
-    mandate_revoke::MandateRevoke,
-    payments::{
-        Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
-        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
-        PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
-        UpdateMetadata, Void,
-    },
-    refunds::{Execute, RSync},
-    webhooks::VerifyWebhookSource,
-};
 pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     router_data::{
@@ -74,11 +58,11 @@ pub use hyperswitch_domain_models::{
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
@@ -100,6 +84,26 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_domain_models::{
     router_data_v2::PayoutFlowData, router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
+};
+use hyperswitch_domain_models::{
+    router_flow_types::{
+        self,
+        access_token_auth::AccessTokenAuth,
+        dispute::{Accept, Defend, Dsync, Evidence, Fetch},
+        files::{Retrieve, Upload},
+        mandate_revoke::MandateRevoke,
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
+            CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExternalVaultProxy,
+            IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate,
+            UpdateMetadata, Void,
+        },
+        refunds::{Execute, RSync},
+        webhooks::VerifyWebhookSource,
+        Authenticate, PreAuthenticate,
+    },
+    router_request_types::{PaymentsAuthenticateData, PaymentsPreAuthenticateData},
 };
 #[cfg(feature = "payouts")]
 pub use hyperswitch_interfaces::types::{
@@ -138,6 +142,10 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsAuthenticateRouterData =
+    RouterData<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>;
+pub type PaymentsPreAuthenticateRouterData =
+    RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

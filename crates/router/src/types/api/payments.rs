@@ -51,6 +51,10 @@ pub use hyperswitch_interfaces::api::payments::{
     TaxCalculation,
 };
 
+pub use hyperswitch_domain_models::router_flow_types::unified_authentication_service::{
+    Authenticate, PostAuthenticate, PreAuthenticate,
+};
+
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
     PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
