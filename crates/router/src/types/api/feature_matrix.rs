@@ -22,33 +22,36 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
+                enums::Connector::Affirm => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Affirm::new())))
+                }
                 enums::Connector::Adyenplatform => Ok(ConnectorEnum::Old(Box::new(
                     connector::Adyenplatform::new(),
                 ))),
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
-                // enums::Connector::Amazonpay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
-                // }
+                enums::Connector::Amazonpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay::new())))
+                }
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
                 enums::Connector::Authipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Authipay::new())))
                 }
-                enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
-                }
+                enums::Connector::Authorizedotnet => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Authorizedotnet::new(),
+                ))),
                 enums::Connector::Bambora => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new())))
                 }
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
-                enums::Connector::Bankofamerica => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
-                }
+                enums::Connector::Bankofamerica => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Bankofamerica::new(),
+                ))),
                 enums::Connector::Barclaycard => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard::new())))
                 }
@@ -58,6 +61,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Bitpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new())))
                 }
+                enums::Connector::Blackhawknetwork => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Blackhawknetwork::new(),
+                ))),
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
@@ -239,7 +245,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
                 }
-                enums::Connector::Nuvei => Ok(ConnectorEnum::Old(Box::new(&connector::Nuvei))),
+                enums::Connector::Nuvei => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Nuvei::new())))
+                }
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Opennode::new())))
                 }
@@ -349,7 +357,7 @@ impl FeatureMatrixConnectorData {
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
                 // ))),
-                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(connector::Vgs::new()))),
+                enums::Connector::Vgs => Ok(ConnectorEnum::Old(Box::new(&connector::Vgs))),
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))

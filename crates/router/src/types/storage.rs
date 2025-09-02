@@ -37,6 +37,8 @@ pub mod payouts;
 pub mod refund;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_redis_operation;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
