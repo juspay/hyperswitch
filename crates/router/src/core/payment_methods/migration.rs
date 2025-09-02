@@ -74,32 +74,35 @@ pub async fn update_payment_method_record(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     if payment_method.merchant_id != *merchant_id {
-        return Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-    "Merchant ID in the request does not match the Merchant ID in the payment method record.".to_string()
-);
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant ID in the request does not match the Merchant ID in the payment method record.".to_string(),
+                }.into());
     }
 
-    let mandate_details = payment_method
-        .get_common_mandate_reference()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
+    // Process mandate details when both payment_instrument_id and merchant_connector_id are present
+    let pm_update = match (&req.payment_instrument_id, &req.merchant_connector_id) {
+        (Some(payment_instrument_id), Some(merchant_connector_id)) => {
+            let mandate_details = payment_method
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
 
-    let updated_connector_mandate_details =
-        match (&req.payment_instrument_id, &req.merchant_connector_id) {
-            (Some(payment_instrument_id), Some(merchant_connector_id)) => {
-                let mca = db
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        &state.into(),
-                        merchant_context.get_merchant_account().get_id(),
-                        merchant_connector_id,
-                        merchant_context.get_merchant_key_store(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch merchant connector account")?;
-                let is_mca_connector_type_payout =
-                    matches!(mca.connector_type, enums::ConnectorType::PayoutProcessor);
-                if is_mca_connector_type_payout {
+            let mca = db
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    &state.into(),
+                    merchant_context.get_merchant_account().get_id(),
+                    merchant_connector_id,
+                    merchant_context.get_merchant_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            let updated_connector_mandate_details = match mca.connector_type {
+                enums::ConnectorType::PayoutProcessor => {
                     // Handle PayoutsMandateReference
                     let mut existing_payouts_mandate = mandate_details
                         .payouts
@@ -114,7 +117,6 @@ pub async fn update_payment_method_record(
                     if let Some(existing_record) =
                         existing_payouts_mandate.0.get_mut(merchant_connector_id)
                     {
-                        // Update only fields that have values in new record
                         if let Some(transfer_method_id) = &new_payout_record.transfer_method_id {
                             existing_record.transfer_method_id = Some(transfer_method_id.clone());
                         }
@@ -130,7 +132,8 @@ pub async fn update_payment_method_record(
                         payments: mandate_details.payments,
                         payouts: Some(existing_payouts_mandate),
                     }
-                } else {
+                }
+                _ => {
                     // Handle PaymentsMandateReference
                     let mut existing_payments_mandate = mandate_details
                         .payments
@@ -164,26 +167,31 @@ pub async fn update_payment_method_record(
                         payouts: mandate_details.payouts,
                     }
                 }
+            };
+
+            let connector_mandate_details_value = updated_connector_mandate_details
+                .get_mandate_details_value()
+                .map_err(|err| {
+                    logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+                    errors::ApiErrorResponse::MandateUpdateFailed
+                })?;
+
+            PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+                connector_mandate_details: Some(pii::SecretSerdeValue::new(
+                    connector_mandate_details_value,
+                )),
+                network_transaction_id,
+                status,
             }
-            _ => {
-                // If payment_instrument_id or merchant_connector_id is missing, keep existing details
-                mandate_details
+        }
+        _ => {
+            // Update only network_transaction_id and status
+            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
             }
-        };
-    let connector_mandate_details_value = updated_connector_mandate_details
-        .get_mandate_details_value()
-        .map_err(|err| {
-            logger::error!("Failed to get get_mandate_details_value : {:?}", err);
-            errors::ApiErrorResponse::MandateUpdateFailed
-        })?;
-    let pm_update =
-        PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
-            connector_mandate_details: Some(pii::SecretSerdeValue::new(
-                connector_mandate_details_value,
-            )),
-            network_transaction_id,
-            status,
-        };
+        }
+    };
 
     let response = db
         .update_payment_method(
