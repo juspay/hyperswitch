@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    io::BufReader,
-};
+use std::{fs::File, io::BufReader};
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
