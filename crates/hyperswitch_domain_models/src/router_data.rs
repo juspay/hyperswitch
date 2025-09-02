@@ -132,6 +132,7 @@ pub struct L2L3Data {
     pub shipping_country: Option<common_enums::CountryAlpha2>,
     pub shipping_destination_zip: Option<Secret<String>>,
     pub billing_address_city: Option<String>,
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 
 // Different patterns of authentication.
