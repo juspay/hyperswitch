@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, Read},
+    io::BufReader,
 };
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
