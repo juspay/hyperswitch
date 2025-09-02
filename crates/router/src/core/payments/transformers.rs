@@ -1548,6 +1548,9 @@ where
     let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
+        let merchant_tax_registration_id = merchant_context
+            .get_merchant_account()
+            .get_merchant_tax_registration_id();
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
@@ -1590,6 +1593,7 @@ where
                 .as_ref()
                 .and_then(|addr| addr.address.as_ref())
                 .and_then(|details| details.city.clone()),
+            merchant_tax_registration_id,
         }
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
@@ -2232,6 +2236,7 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
+                split_txns_enabled: payment_intent.split_txns_enabled,
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
