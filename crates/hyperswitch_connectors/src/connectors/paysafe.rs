@@ -32,8 +32,9 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -142,7 +143,6 @@ impl ConnectorCommon for Paysafe {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$ PaysafeErrorResponse response: {:?}", res.response);
         let response: paysafe::PaysafeErrorResponse = res
             .response
             .parse_struct("PaysafeErrorResponse")
@@ -151,17 +151,23 @@ impl ConnectorCommon for Paysafe {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let mut reasons: Vec<String> = response.error.details.clone();
+        let reason = match (&response.error.details, &response.error.field_errors) {
+            (Some(details), Some(field_errors)) => {
+                let detail_message = details.first().cloned();
+                let field_error_message = field_errors.first().map(|fe| fe.error.clone());
 
-        if let Some(field_errors) = &response.error.field_errors {
-            for fe in field_errors {
-                reasons.push(format!("{}: {}", fe.field, fe.error));
+                match (detail_message, field_error_message) {
+                    (Some(detail_message), Some(field_error_message)) => {
+                        Some(format!("{detail_message}, {field_error_message}"))
+                    }
+                    (Some(detail_message), None) => Some(detail_message),
+                    (None, Some(field_error_message)) => Some(field_error_message),
+                    _ => None,
+                }
             }
-        }
-        let reason = if reasons.is_empty() {
-            None
-        } else {
-            Some(reasons.join(", "))
+            (Some(details), None) => details.first().cloned(),
+            (None, Some(field_errors)) => field_errors.first().map(|fe| fe.error.clone()),
+            (None, None) => None,
         };
 
         Ok(ErrorResponse {
@@ -246,10 +252,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
 
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ pre processing request{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -281,7 +283,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        println!("$$ preprocessing response: {:?}", res.response);
         let response: paysafe::PaysafePaymentHandleResponse = res
             .response
             .parse_struct("PaysafePaymentHandleResponse")
@@ -341,10 +342,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
 
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$  auth request{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -376,8 +373,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$ auth response: {:?}", res.response);
-        println!("$$ complete auth response: {:?}", res.response);
         let response: paysafe::PaysafePaymentsResponse = res
             .response
             .parse_struct("Paysafe PaymentsAuthorizeResponse")
@@ -418,13 +413,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let connector_payment_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}v1/paymenthandles?merchantRefNum={}",
+            "{}v1/payments?merchantRefNum={}",
             self.base_url(connectors),
             connector_payment_id
         ))
@@ -493,7 +484,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}cardpayments/v1/accounts/auths/{}/settlements",
+            "{}v1/payments/{}/settlements",
             self.base_url(connectors),
             connector_payment_id
         ))
@@ -535,24 +526,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         ))
     }
 
-    // fn handle_response(
-    //     &self,
-    //     data: &PaymentsCaptureRouterData,
-    //     event_builder: Option<&mut ConnectorEvent>,
-    //     res: Response,
-    // ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-    //     let response: paysafe::PaysafePaymentsResponse = res
-    //         .response
-    //         .parse_struct("Paysafe PaymentsCaptureResponse")
-    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-    //     event_builder.map(|i| i.set_response_body(&response));
-    //     router_env::logger::info!(connector_response=?response);
-    //     RouterData::try_from(ResponseRouterData {
-    //         response,
-    //         data: data.clone(),
-    //         http_code: res.status_code,
-    //     })
-    // }
+    fn handle_response(
+        &self,
+        data: &PaymentsCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: paysafe::Settlements = res
+            .response
+            .parse_struct("Paysafe PaymentsCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 
     fn get_error_response(
         &self,
@@ -563,7 +554,97 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Paysafe {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Paysafe {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}v1/payments/{}/voidauths",
+            self.base_url(connectors),
+            connector_payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let minor_amount =
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                })?;
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
+
+        let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
+        let connector_req = paysafe::PaysafeCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: paysafe::VoidResponse = res
+            .response
+            .parse_struct("PaysafeVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paysafe {
     fn get_headers(
@@ -585,7 +666,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paysafe
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}cardpayments/v1/accounts/settlements/{}/refunds",
+            "{}v1/settlements/{}/refunds",
             self.base_url(connectors),
             connector_payment_id
         ))
@@ -674,7 +755,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paysafe {
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}cardpayments/v1/accounts/refunds/{}",
+            "{}v1/refunds/{}",
             self.base_url(connectors),
             connector_refund_id
         ))

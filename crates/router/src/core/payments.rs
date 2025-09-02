@@ -6470,7 +6470,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    println!("$$ Connector: {:?}", connector.connector_name);
     if !is_operation_complete_authorize(&operation)
         && connector
             .connector_name

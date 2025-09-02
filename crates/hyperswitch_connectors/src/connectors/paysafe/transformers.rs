@@ -1,15 +1,22 @@
 use cards::CardNumber;
 use common_enums::enums;
-use common_utils::{pii::IpAddress, request::Method, types::MinorUnit};
+use common_utils::{
+    pii::{IpAddress, SecretSerdeValue},
+    request::Method,
+    types::MinorUnit,
+};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
+    router_request_types::{
+        PaymentsAuthorizeData, PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
+    },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsPreProcessingRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -19,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
         PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
@@ -39,6 +46,22 @@ impl<T> From<(MinorUnit, T)> for PaysafeRouterData<T> {
     }
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PaysafeConnectorMetadataObject {
+    pub account_id: Secret<String>,
+}
+
+impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentHandleRequest {
@@ -52,7 +75,7 @@ pub struct PaysafePaymentHandleRequest {
     pub payment_type: PaysafePaymentType,
     pub transaction_type: TransactionType,
     pub return_links: Vec<ReturnLink>,
-    pub account_id: String,
+    pub account_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,6 +102,11 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
     fn try_from(
         item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
+        let metadata: PaysafeConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
         match item.router_data.request.get_payment_method_data()?.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PaysafeCard {
@@ -96,7 +124,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 };
 
                 let billing_details = None;
-                let account_id = "1002696790".to_string(); // Test account id
+                let account_id = metadata.account_id;
 
                 let amount = item.amount;
                 let payment_type = PaysafePaymentType::Card;
@@ -248,7 +276,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: get_paysafe_payment_status(
+                item.response.status,
+                item.data.request.capture_method,
+            ),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
@@ -362,17 +393,28 @@ pub enum PaysafePaymentStatus {
     Processing,
 }
 
-impl From<PaysafePaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: PaysafePaymentStatus) -> Self {
-        match item {
-            PaysafePaymentStatus::Completed => Self::Charged,
-            PaysafePaymentStatus::Failed => Self::Failure,
-            PaysafePaymentStatus::Pending
-            | PaysafePaymentStatus::Processing
-            | PaysafePaymentStatus::Received => Self::Pending,
-            PaysafePaymentStatus::Cancelled => Self::Voided,
-            PaysafePaymentStatus::Held => Self::Unresolved,
-        }
+pub fn get_paysafe_payment_status(
+    status: PaysafePaymentStatus,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> common_enums::AttemptStatus {
+    match status {
+        PaysafePaymentStatus::Completed => match capture_method {
+            Some(common_enums::CaptureMethod::Manual) => common_enums::AttemptStatus::Authorized,
+            Some(common_enums::CaptureMethod::Automatic) | None => {
+                common_enums::AttemptStatus::Charged
+            }
+            Some(common_enums::CaptureMethod::SequentialAutomatic)
+            | Some(common_enums::CaptureMethod::ManualMultiple)
+            | Some(common_enums::CaptureMethod::Scheduled) => {
+                common_enums::AttemptStatus::Unresolved
+            }
+        },
+        PaysafePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+        PaysafePaymentStatus::Pending
+        | PaysafePaymentStatus::Processing
+        | PaysafePaymentStatus::Received => common_enums::AttemptStatus::Pending,
+        PaysafePaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
+        PaysafePaymentStatus::Held => common_enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -390,7 +432,7 @@ pub struct PaysafeCardResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsSyncResponse {
-    pub payment_handles: Vec<PaysafePaymentHandleResponse>,
+    pub payments: Vec<PaysafePaymentsResponse>,
 }
 
 // Paysafe Payments Response Structure
@@ -408,22 +450,33 @@ pub struct PaysafePaymentsResponse {
 pub struct Settlements {
     pub merchant_ref_num: Option<String>,
     pub id: String,
+    pub status: PaysafeSettlementStatus,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, PaysafePaymentsSyncResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F>
+    TryFrom<
+        ResponseRouterData<F, PaysafePaymentsSyncResponse, PaymentsSyncData, PaymentsResponseData>,
+    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PaysafePaymentsSyncResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            PaysafePaymentsSyncResponse,
+            PaymentsSyncData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let payment_handle = item
             .response
-            .payment_handles
+            .payments
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(Self {
-            status: common_enums::AttemptStatus::from(payment_handle.status),
+            status: get_paysafe_payment_status(
+                payment_handle.status,
+                item.data.request.capture_method,
+            ),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(payment_handle.id.clone()),
                 redirection_data: Box::new(None),
@@ -446,8 +499,6 @@ pub struct PaysafeCaptureRequest {
     pub merchant_ref_num: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<MinorUnit>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dup_check: Option<bool>,
 }
 
 impl TryFrom<&PaysafeRouterData<&PaymentsCaptureRouterData>> for PaysafeCaptureRequest {
@@ -458,7 +509,124 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCaptureRouterData>> for PaysafeCaptureR
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
             amount,
-            dup_check: Some(true),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaysafeSettlementStatus {
+    Received,
+    Initiated,
+    Completed,
+    Expired,
+    Failed,
+    #[default]
+    Pending,
+    Cancelled,
+}
+
+impl From<PaysafeSettlementStatus> for common_enums::AttemptStatus {
+    fn from(item: PaysafeSettlementStatus) -> Self {
+        match item {
+            PaysafeSettlementStatus::Completed
+            | PaysafeSettlementStatus::Pending
+            | PaysafeSettlementStatus::Received => Self::Charged,
+            PaysafeSettlementStatus::Failed | PaysafeSettlementStatus::Expired => Self::Failure,
+            PaysafeSettlementStatus::Cancelled => Self::Voided,
+            PaysafeSettlementStatus::Initiated => Self::AuthenticationPending,
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, Settlements, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, Settlements, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: common_enums::AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<&PaysafeRouterData<&PaymentsCancelRouterData>> for PaysafeCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaysafeRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
+        let amount = Some(item.amount);
+
+        Ok(Self {
+            merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
+            amount,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidResponse {
+    pub merchant_ref_num: Option<String>,
+    pub id: String,
+    pub status: PaysafeVoidStatus,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaysafeVoidStatus {
+    Received,
+    Completed,
+    Held,
+    Failed,
+    #[default]
+    Pending,
+    Cancelled,
+}
+
+impl From<PaysafeVoidStatus> for common_enums::AttemptStatus {
+    fn from(item: PaysafeVoidStatus) -> Self {
+        match item {
+            PaysafeVoidStatus::Completed
+            | PaysafeVoidStatus::Pending
+            | PaysafeVoidStatus::Received => Self::Voided,
+            PaysafeVoidStatus::Failed | PaysafeVoidStatus::Held => Self::Failure,
+            PaysafeVoidStatus::Cancelled => Self::Voided,
+        }
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: common_enums::AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
         })
     }
 }
@@ -469,8 +637,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCaptureRouterData>> for PaysafeCaptureR
 pub struct PaysafeRefundRequest {
     pub merchant_ref_num: String,
     pub amount: MinorUnit,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dup_check: Option<bool>,
 }
 
 impl<F> TryFrom<&PaysafeRouterData<&RefundsRouterData<F>>> for PaysafeRefundRequest {
@@ -481,7 +647,6 @@ impl<F> TryFrom<&PaysafeRouterData<&RefundsRouterData<F>>> for PaysafeRefundRequ
         Ok(Self {
             merchant_ref_num: item.router_data.request.refund_id.clone(),
             amount,
-            dup_check: Some(true),
         })
     }
 }
@@ -491,24 +656,26 @@ impl<F> TryFrom<&PaysafeRouterData<&RefundsRouterData<F>>> for PaysafeRefundRequ
 #[allow(dead_code)]
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
+    Received,
+    Initiated,
+    Completed,
+    Expired,
     Failed,
     #[default]
-    Processing,
+    Pending,
+    Cancelled,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Received | RefundStatus::Completed => Self::Success,
+            RefundStatus::Failed | RefundStatus::Cancelled | RefundStatus::Expired => Self::Failure,
+            RefundStatus::Pending | RefundStatus::Initiated => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -562,7 +729,7 @@ pub struct PaysafeErrorResponse {
 pub struct Error {
     pub code: String,
     pub message: String,
-    pub details: Vec<String>,
+    pub details: Option<Vec<String>>,
     #[serde(rename = "fieldErrors")]
     pub field_errors: Option<Vec<FieldError>>,
 }
