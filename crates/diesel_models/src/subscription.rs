@@ -1,5 +1,6 @@
-use common_utils::generate_id_with_default_len;
+use common_utils::pii::SecretSerdeValue;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -7,17 +8,16 @@ use crate::schema::subscription;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionNew {
-    pub id: String,
-    pub subscription_id: Option<String>,
-    pub billing_processor: Option<String>,
-    pub payment_method_id: Option<String>,
-    pub mca_id: Option<String>,
-    pub client_secret: Option<String>,
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub merchant_id: common_utils::id_type::MerchantId,
-    pub metadata: Option<serde_json::Value>,
-    pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
+    subscription_id: String,
+    billing_processor: Option<String>,
+    payment_method_id: Option<String>,
+    mca_id: Option<String>,
+    client_secret: Option<Secret<String>>,
+    customer_id: common_utils::id_type::CustomerId,
+    merchant_id: common_utils::id_type::MerchantId,
+    metadata: Option<SecretSerdeValue>,
+    created_at: time::PrimitiveDateTime,
+    modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(
@@ -25,8 +25,9 @@ pub struct SubscriptionNew {
 )]
 #[diesel(table_name = subscription, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Subscription {
-    pub id: String,
-    pub subscription_id: Option<String>,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub id: i32,
+    pub subscription_id: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
     pub mca_id: Option<String>,
@@ -41,7 +42,6 @@ pub struct Subscription {
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionUpdate {
-    pub subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -49,19 +49,17 @@ pub struct SubscriptionUpdate {
 impl SubscriptionNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        id: String,
-        subscription_id: Option<String>,
+        subscription_id: String,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
         mca_id: Option<String>,
-        client_secret: Option<String>,
+        client_secret: Option<Secret<String>>,
         customer_id: common_utils::id_type::CustomerId,
         merchant_id: common_utils::id_type::MerchantId,
-        metadata: Option<serde_json::Value>,
+        metadata: Option<SecretSerdeValue>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
-            id,
             subscription_id,
             billing_processor,
             payment_method_id,
@@ -81,9 +79,8 @@ impl SubscriptionNew {
 }
 
 impl SubscriptionUpdate {
-    pub fn new(subscription_id: Option<String>, payment_method_id: Option<String>) -> Self {
+    pub fn new(payment_method_id: Option<String>) -> Self {
         Self {
-            subscription_id,
             payment_method_id,
             modified_at: common_utils::date_time::now(),
         }

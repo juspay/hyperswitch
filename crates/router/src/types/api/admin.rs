@@ -319,6 +319,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
+            split_txns_enabled: item.split_txns_enabled,
         })
     }
 }

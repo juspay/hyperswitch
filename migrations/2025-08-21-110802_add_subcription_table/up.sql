@@ -1,6 +1,6 @@
 CREATE TABLE subscription (
-  id VARCHAR(128) PRIMARY KEY,
-  subscription_id VARCHAR(128),
+  id SERIAL PRIMARY KEY,
+  subscription_id VARCHAR(128) NOT NULL,
   billing_processor VARCHAR(128),
   payment_method_id VARCHAR(128),
   mca_id VARCHAR(128),

@@ -2349,6 +2349,10 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v1")]
@@ -2695,6 +2699,10 @@ pub struct ProfileResponse {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v1")]
@@ -3013,6 +3021,10 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
