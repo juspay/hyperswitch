@@ -5984,7 +5984,7 @@ impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
             })
             .map_or(payment_method_type, |card_type_in_bin_store| {
                 match payment_method_type {
-                    Some(enums::PaymentMethodType::Debit | enums::PaymentMethodType::Credit) 
+                    Some(enums::PaymentMethodType::Debit | enums::PaymentMethodType::Credit)
                         if payment_method_type.as_ref() != Some(&card_type_in_bin_store) => {
                         crate::logger::info!(
                             "BIN lookup override: Card type mismatch - API request={:?}, BIN lookup={}, overriding with BIN result",
