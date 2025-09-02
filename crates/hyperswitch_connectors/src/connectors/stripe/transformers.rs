@@ -1527,7 +1527,7 @@ impl
         Auth3ds,
         bool,
         Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
-        Option<StripeRequestOvercaptureBool>
+        Option<StripeRequestOvercaptureBool>,
     )> for StripePaymentMethodData
 {
     type Error = ConnectorError;
@@ -1537,7 +1537,8 @@ impl
             payment_method_auth_type,
             request_incremental_authorization,
             request_extended_authorization,
-            request_overcapture): (
+            request_overcapture,
+        ): (
             &Card,
             Auth3ds,
             bool,
@@ -1921,7 +1922,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .and_then(get_stripe_card_network),
                             request_incremental_authorization: None,
                             request_extended_authorization: None,
-                            request_overcapture: None, 
+                            request_overcapture: None,
                         }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
@@ -2576,9 +2577,7 @@ pub enum StripeChargeEnum {
 }
 
 impl StripeChargeEnum {
-    pub fn get_overcapture_status(
-        &self,
-    ) -> Option<primitive_wrappers::OvercaptureEnabledBool> {
+    pub fn get_overcapture_status(&self) -> Option<primitive_wrappers::OvercaptureEnabledBool> {
         match self {
             Self::ChargeObject(charge_object) => charge_object
                 .payment_method_details
@@ -2588,14 +2587,12 @@ impl StripeChargeEnum {
                         .overcapture
                         .as_ref()
                         .and_then(|overcapture| match overcapture.status {
-                            Some(StripeOvercaptureStatus::Available) => Some(
-                                primitive_wrappers::OvercaptureEnabledBool::new(true),
-                            ),
-                            Some(StripeOvercaptureStatus::Unavailable) => Some(
-                                primitive_wrappers::OvercaptureEnabledBool::new(
-                                    false,
-                                ),
-                            ),
+                            Some(StripeOvercaptureStatus::Available) => {
+                                Some(primitive_wrappers::OvercaptureEnabledBool::new(true))
+                            }
+                            Some(StripeOvercaptureStatus::Unavailable) => {
+                                Some(primitive_wrappers::OvercaptureEnabledBool::new(false))
+                            }
                             None => None,
                         }),
                     _ => None,
@@ -2882,9 +2879,10 @@ fn extract_payment_method_connector_response_from_latest_charge(
         .as_ref()
         .map(ExtendedAuthorizationResponseData::from);
 
-    if additional_payment_method_data.is_some() 
-    || extended_authorization_data.is_some() 
-    || is_overcapture_enabled.is_some() {
+    if additional_payment_method_data.is_some()
+        || extended_authorization_data.is_some()
+        || is_overcapture_enabled.is_some()
+    {
         Some(ConnectorResponseData::new(
             additional_payment_method_data,
             is_overcapture_enabled,

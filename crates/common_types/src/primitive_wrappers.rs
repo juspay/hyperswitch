@@ -178,7 +178,7 @@ mod bool_wrappers {
     pub struct AlwaysEnableOvercaptureBool(bool);
     impl AlwaysEnableOvercaptureBool {
         /// returns the inner bool value
-         pub fn is_true(&self) -> bool {
+        pub fn is_true(&self) -> bool {
             self.0
         }
     }
@@ -224,7 +224,7 @@ mod bool_wrappers {
         }
     }
 
-    impl From<AlwaysEnableOvercaptureBool>  for EnableOvercaptureBool {
+    impl From<AlwaysEnableOvercaptureBool> for EnableOvercaptureBool {
         fn from(item: AlwaysEnableOvercaptureBool) -> Self {
             Self(item.is_true())
         }
@@ -315,7 +315,6 @@ mod bool_wrappers {
             bool::from_sql(value).map(Self)
         }
     }
-
 }
 
 mod u32_wrappers {

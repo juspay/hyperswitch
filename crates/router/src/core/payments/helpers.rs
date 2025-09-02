@@ -1132,10 +1132,7 @@ pub fn validate_overcapture_request(
     if let Some(overcapture) = enable_overcapture {
         utils::when(
             *overcapture.deref()
-                && !matches!(
-                    *capture_method,
-                    Some(common_enums::CaptureMethod::Manual)
-                ),
+                && !matches!(*capture_method, Some(common_enums::CaptureMethod::Manual)),
             || {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Invalid overcapture request: supported only with manual capture"

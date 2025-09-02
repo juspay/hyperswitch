@@ -215,10 +215,8 @@ impl PaymentIntent {
         if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
             && is_overcapture_supported_by_connector
         {
-            self.enable_overcapture.or_else(|| {
-                always_enable_overcapture.map(
-                    EnableOvercaptureBool::from)
-            })
+            self.enable_overcapture
+                .or_else(|| always_enable_overcapture.map(EnableOvercaptureBool::from))
         } else {
             None
         }
