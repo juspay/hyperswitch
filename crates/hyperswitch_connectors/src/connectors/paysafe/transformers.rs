@@ -31,7 +31,6 @@ use crate::{
     },
 };
 
-//TODO: Fill the struct with respective fields
 pub struct PaysafeRouterData<T> {
     pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -69,8 +68,6 @@ pub struct PaysafePaymentHandleRequest {
     pub amount: MinorUnit,
     pub settle_with_auth: bool,
     pub card: PaysafeCard,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub billing_details: Option<PaysafeBillingDetails>,
     pub currency_code: enums::Currency,
     pub payment_type: PaysafePaymentType,
     pub transaction_type: TransactionType,
@@ -78,11 +75,20 @@ pub struct PaysafePaymentHandleRequest {
     pub account_id: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct ReturnLink {
-    pub rel: String,
+    pub rel: LinkType,
     pub href: String,
     pub method: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkType {
+    OnCompleted,
+    OnFailed,
+    OnCancelled,
+    Default,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,33 +128,30 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     },
                     holder_name: item.router_data.get_optional_billing_full_name(),
                 };
-
-                let billing_details = None;
                 let account_id = metadata.account_id;
 
                 let amount = item.amount;
                 let payment_type = PaysafePaymentType::Card;
                 let transaction_type = TransactionType::Payment;
-                // let redirect_url = item.router_data.request.get_router_return_url()?;
-                let redirect_url = "https://goole.com".to_string(); // Test redirect url
+                let redirect_url = item.router_data.request.get_router_return_url()?;
                 let return_links = vec![
                     ReturnLink {
-                        rel: "default".to_string(),
+                        rel: LinkType::Default,
                         href: redirect_url.clone(),
                         method: Method::Get.to_string(),
                     },
                     ReturnLink {
-                        rel: "on_completed".to_string(),
+                        rel: LinkType::OnCompleted,
                         href: redirect_url.clone(),
                         method: Method::Get.to_string(),
                     },
                     ReturnLink {
-                        rel: "on_failed".to_string(),
+                        rel: LinkType::OnFailed,
                         href: redirect_url.clone(),
                         method: Method::Get.to_string(),
                     },
                     ReturnLink {
-                        rel: "on_cancelled".to_string(),
+                        rel: LinkType::OnCancelled,
                         href: redirect_url.clone(),
                         method: Method::Get.to_string(),
                     },
@@ -162,7 +165,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
                     card,
-                    billing_details,
                     currency_code: item.router_data.request.get_currency()?,
                     payment_type,
                     transaction_type,
@@ -247,7 +249,7 @@ impl<F>
                     .to_string(),
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -295,7 +297,6 @@ impl<F>
     }
 }
 
-// Paysafe Card Payments Request Structure
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsRequest {
@@ -321,20 +322,6 @@ pub struct PaysafeCard {
 pub struct PaysafeCardExpiry {
     pub month: Secret<String>,
     pub year: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PaysafeBillingDetails {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<enums::CountryAlpha2>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub zip: Option<Secret<String>>,
 }
 
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentsRequest {
@@ -379,7 +366,8 @@ impl TryFrom<&ConnectorAuthType> for PaysafeAuthType {
         }
     }
 }
-// Paysafe Payment Status Mapping
+
+// Paysafe Payment Status
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PaysafePaymentStatus {
@@ -418,16 +406,6 @@ pub fn get_paysafe_payment_status(
     }
 }
 
-// Paysafe Card Response Structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaysafeCardResponse {
-    #[serde(rename = "type")]
-    pub card_type: Option<String>,
-    pub last_digits: Option<String>,
-    pub card_expiry: Option<PaysafeCardExpiry>,
-}
-
 // Paysafe Payments Response Structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -442,12 +420,12 @@ pub struct PaysafePaymentsResponse {
     pub id: String,
     pub merchant_ref_num: Option<String>,
     pub status: PaysafePaymentStatus,
-    pub settlements: Option<Vec<Settlements>>,
+    pub settlements: Option<Vec<PaysafeSettlementResponse>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Settlements {
+pub struct PaysafeSettlementResponse {
     pub merchant_ref_num: Option<String>,
     pub id: String,
     pub status: PaysafeSettlementStatus,
@@ -478,7 +456,7 @@ impl<F>
                 item.data.request.capture_method,
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(payment_handle.id.clone()),
+                resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -492,7 +470,6 @@ impl<F>
     }
 }
 
-// Paysafe Capture Request Structure
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCaptureRequest {
@@ -539,12 +516,12 @@ impl From<PaysafeSettlementStatus> for common_enums::AttemptStatus {
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, Settlements, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, Settlements, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, PaysafeSettlementResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -631,7 +608,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoidResponse, T, PaymentsResponseData>>
     }
 }
 
-// Paysafe Refund Request Structure
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeRefundRequest {
@@ -712,16 +688,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaysafeErrorResponse {
-    // pub status_code: u16,
-    // pub code: String,
-    // pub message: String,
-    // pub reason: Option<String>,
-    // pub network_advice_code: Option<String>,
-    // pub network_decline_code: Option<String>,
-    // pub network_error_message: Option<String>,
     pub error: Error,
 }
 

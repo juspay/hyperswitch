@@ -151,22 +151,21 @@ impl ConnectorCommon for Paysafe {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let reason = match (&response.error.details, &response.error.field_errors) {
-            (Some(details), Some(field_errors)) => {
-                let detail_message = details.first().cloned();
-                let field_error_message = field_errors.first().map(|fe| fe.error.clone());
+        let detail_message = response
+            .error
+            .details
+            .as_ref()
+            .and_then(|d| d.first().cloned());
+        let field_error_message = response
+            .error
+            .field_errors
+            .as_ref()
+            .and_then(|f| f.first().map(|fe| fe.error.clone()));
 
-                match (detail_message, field_error_message) {
-                    (Some(detail_message), Some(field_error_message)) => {
-                        Some(format!("{detail_message}, {field_error_message}"))
-                    }
-                    (Some(detail_message), None) => Some(detail_message),
-                    (None, Some(field_error_message)) => Some(field_error_message),
-                    _ => None,
-                }
-            }
-            (Some(details), None) => details.first().cloned(),
-            (None, Some(field_errors)) => field_errors.first().map(|fe| fe.error.clone()),
+        let reason = match (detail_message, field_error_message) {
+            (Some(detail), Some(field)) => Some(format!("{detail}, {field}")),
+            (Some(detail), None) => Some(detail),
+            (None, Some(field)) => Some(field),
             (None, None) => None,
         };
 
@@ -341,7 +340,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -532,9 +530,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paysafe::Settlements = res
+        let response: paysafe::PaysafeSettlementResponse = res
             .response
-            .parse_struct("Paysafe PaymentsCaptureResponse")
+            .parse_struct("PaysafeSettlementResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -855,7 +853,7 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -874,7 +872,7 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -894,7 +892,7 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 
 static PAYSAFE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Paysafe",
-    description: "Paysafe connector",
+    description: "Paysafe gives ambitious businesses a launchpad with safe, secure online payment solutions, and gives consumers the ability to turn their transactions into meaningful experiences.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
