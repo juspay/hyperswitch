@@ -263,6 +263,8 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
+        #[max_length = 16]
+        split_txns_enabled -> Nullable<Varchar>,
     }
 }
 
@@ -1039,6 +1041,8 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        #[max_length = 16]
+        split_txns_enabled -> Nullable<Varchar>,
     }
 }
 
@@ -1400,6 +1404,32 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    subscription (id) {
+        id -> Int4,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 128]
+        billing_processor -> Nullable<Varchar>,
+        #[max_length = 128]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        mca_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     themes (theme_id) {
         #[max_length = 64]
         theme_id -> Varchar,
@@ -1601,6 +1631,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    subscription,
     themes,
     tokenization,
     unified_translations,

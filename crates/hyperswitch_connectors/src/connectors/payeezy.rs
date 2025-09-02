@@ -1,8 +1,9 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
@@ -21,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
@@ -45,9 +49,7 @@ use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
 
-use crate::{
-    constants::headers, types::ResponseRouterData, utils::construct_not_implemented_error_report,
-};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Debug, Clone)]
 pub struct Payeezy;
@@ -154,24 +156,7 @@ impl ConnectorCommon for Payeezy {
     }
 }
 
-impl ConnectorValidation for Payeezy {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _payment_method: PaymentMethod,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic
-            | CaptureMethod::Manual
-            | CaptureMethod::SequentialAutomatic => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Payeezy {}
 
 impl api::Payment for Payeezy {}
 
@@ -596,4 +581,63 @@ impl IncomingWebhook for Payeezy {
     }
 }
 
-impl ConnectorSpecifications for Payeezy {}
+static PAYEEZY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_networks = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+    ];
+
+    let mut payeezy_supported_payment_methods = SupportedPaymentMethods::new();
+
+    payeezy_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks,
+                    }
+                }),
+            ),
+        },
+    );
+
+    payeezy_supported_payment_methods
+});
+
+static PAYEEZY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payeezy",
+    description: "Payeezy is a payment gateway platform that facilitates online and mobile payment processing for businesses. It provides a range of features, including support for various payment methods, security features like PCI-DSS compliance and tokenization, and tools for managing transactions and customer interactions.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+};
+
+static PAYEEZY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Payeezy {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYEEZY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PAYEEZY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PAYEEZY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

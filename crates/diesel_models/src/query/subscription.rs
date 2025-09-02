@@ -60,7 +60,7 @@ impl Subscription {
 
     pub async fn update_subscription_entry(
         conn: &PgPooledConn,
-        id: String,
+        subscription_id: String,
         subscription_update: SubscriptionUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<
@@ -70,8 +70,8 @@ impl Subscription {
             _,
         >(
             conn,
-            dsl::id
-                .eq(id.to_owned()),
+            dsl::subscription_id
+                .eq(subscription_id.to_owned()),
             subscription_update,
         )
         .await?
