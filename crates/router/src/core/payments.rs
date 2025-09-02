@@ -9310,6 +9310,7 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
     }
 }
 
+// This represents the recurring details of a connector which will be used for retries
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
@@ -9331,15 +9332,9 @@ pub fn filter_network_tokenization_supported_connectors(
 }
 
 #[cfg(feature = "v1")]
+#[derive(Default)]
 pub struct ActionTypesBuilder {
     action_types: Vec<ActionType>,
-}
-
-#[cfg(feature = "v1")]
-impl Default for ActionTypesBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 #[cfg(feature = "v1")]

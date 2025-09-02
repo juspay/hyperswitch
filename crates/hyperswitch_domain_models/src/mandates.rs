@@ -14,6 +14,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use crate::router_data::RecurringMandatePaymentData;
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct MandateDetails {
@@ -174,7 +176,8 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-impl From<&PaymentsMandateReferenceRecord> for crate::router_data::RecurringMandatePaymentData {
+#[cfg(feature = "v1")]
+impl From<&PaymentsMandateReferenceRecord> for RecurringMandatePaymentData {
     fn from(mandate_reference_record: &PaymentsMandateReferenceRecord) -> Self {
         Self {
             payment_method_type: mandate_reference_record.payment_method_type,
