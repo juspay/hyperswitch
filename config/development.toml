@@ -986,7 +986,7 @@ apple_pay = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization"  }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }

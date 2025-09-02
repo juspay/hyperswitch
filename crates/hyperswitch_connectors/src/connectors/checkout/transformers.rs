@@ -217,13 +217,6 @@ pub enum PaymentSource {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayPredecrypt {
-    source: GPaySource,
-    amount: MinorUnit,
-    currency: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GPaySource {
     #[serde(rename = "type")]
     _type: String,
     token: cards::CardNumber,
@@ -368,17 +361,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                 })?;
                             Ok(PaymentSource::GooglePayPredecrypt(Box::new(
                                 GooglePayPredecrypt {
-                                    source: GPaySource {
-                                        _type: "network_token".to_string(),
-                                        token,
-                                        token_type: "googlepay".to_string(),
-                                        expiry_month,
-                                        expiry_year,
-                                        eci: Some("06".to_string()),
-                                        cryptogram,
-                                    },
-                                    amount: item.amount.to_owned(),
-                                    currency: item.router_data.request.currency.to_string(),
+                                    _type: "network_token".to_string(),
+                                    token,
+                                    token_type: "googlepay".to_string(),
+                                    expiry_month,
+                                    expiry_year,
+                                    eci: Some("06".to_string()),
+                                    cryptogram,
                                 },
                             )))
                         }

@@ -108,7 +108,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
-    configs::settings::{ApplePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter},
+    configs::settings::{ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -6854,6 +6854,11 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     payment_method_token,
                     connector_filter.apple_pay_pre_decrypt_flow.clone(),
                 )
+                && is_google_pay_pre_decrypt_type_connector_tokenization(
+                    payment_method_type,
+                    payment_method_token,
+                    connector_filter.google_pay_pre_decrypt_flow.clone(),
+                )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
                     connector_filter.flow.clone(),
@@ -6889,6 +6894,23 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
         ) => !matches!(
             apple_pay_pre_decrypt_flow_filter,
             Some(ApplePayPreDecryptFlow::NetworkTokenization)
+        ),
+        _ => true,
+    }
+}
+
+fn is_google_pay_pre_decrypt_type_connector_tokenization(
+    payment_method_type: Option<storage::enums::PaymentMethodType>,
+    payment_method_token: Option<&PaymentMethodToken>,
+    google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
+) -> bool {
+    match (payment_method_type, payment_method_token) {
+        (
+            Some(storage::enums::PaymentMethodType::GooglePay),
+            Some(PaymentMethodToken::GooglePayDecrypt(..)),
+        ) => !matches!(
+            google_pay_pre_decrypt_flow_filter,
+            Some(GooglePayPreDecryptFlow::NetworkTokenization)
         ),
         _ => true,
     }
