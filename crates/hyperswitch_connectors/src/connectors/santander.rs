@@ -492,23 +492,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 ))
             }
             Some(enums::PaymentMethodType::Boleto) => {
-                let santander_mca_metadata =
-                    santander::SantanderMetadataObject::try_from(&req.connector_meta_data)?;
-
-                let workspace_id = santander_mca_metadata.workspace_id.clone();
-
-                let bank_number = req.request.connector_reference_id.clone().ok_or(
-                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                        id: "bank_number".to_string(),
-                    },
-                )?;
+                let bill_id = req
+                    .request
+                    .connector_meta
+                    .clone()
+                    .and_then(|val| val.as_str().map(|s| s.to_string()))
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "bill_id",
+                    })?;
 
                 Ok(format!(
-                    "{:?}{}/workspaces/{}/bank_slips/{}",
+                    "{:?}/{}/bills/{}/bank_slips",
                     connectors.santander.secondary_base_url.clone(),
                     santander_constants::SANTANDER_VERSION,
-                    workspace_id,
-                    bank_number
+                    bill_id
                 ))
             }
             _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -518,19 +515,53 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         }
     }
 
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = santander::SantanderRouterData::from((amount, req));
+        let connector_req =
+            santander::SantanderPSyncBoletoRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
+        match req.request.payment_method_type {
+            Some(enums::PaymentMethodType::Pix) => Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Get)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .build(),
+            )),
+            Some(enums::PaymentMethodType::Boleto) => Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .set_body(types::PaymentsSyncType::get_request_body(
+                        self, req, connectors,
+                    )?)
+                    .build(),
+            )),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type",
+            }
+            .into()),
+        }
     }
 
     fn handle_response(
@@ -546,11 +577,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
 
         let original_amount = match response {
             santander::SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
-                pix_data.value.original.clone()
+                pix_data.base.value.original.clone()
             }
-            santander::SantanderPaymentsSyncResponse::Boleto(ref boleto_data) => {
-                boleto_data.nominal_value.clone()
-            }
+            santander::SantanderPaymentsSyncResponse::Boleto(_) => convert_amount(
+                self.amount_converter,
+                data.request.amount,
+                data.request.currency,
+            )?,
         };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -760,7 +793,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: santander::SantanderVoidResponse = res
+        let response: santander::SantanderPixVoidResponse = res
             .response
             .parse_struct("Santander PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
