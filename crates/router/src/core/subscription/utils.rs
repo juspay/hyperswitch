@@ -1,49 +1,33 @@
-use api_models::payments::CustomerDetailsResponse;
-use common_utils::{
-    crypto::Encryptable,
-    events::ApiEventMetric,
-    id_type::GenerateId,
-    pii, type_name,
-    types::keymanager::{Identifier, ToEncryptable},
-};
-use error_stack::{report, ResultExt};
+use api_models::{customers::CustomerRequest, payments::CustomerDetailsResponse};
+use common_utils::{events::ApiEventMetric, id_type::GenerateId, pii};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    customer::Customer,
-    merchant_context::MerchantContext,
+    api::ApplicationResponse, merchant_context::MerchantContext,
     router_request_types::CustomerDetails,
-    type_encryption::{crypto_operation, CryptoOperation},
 };
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 
 use crate::{
-    db::{
-        errors::{self, RouterResult},
-        StorageInterface,
-    },
+    core::customers::create_customer,
+    db::{errors, StorageInterface},
     routes::SessionState,
-    types::domain,
+    types::{api::CustomerResponse, transformers::ForeignInto},
 };
 
 pub async fn get_or_create_customer(
-    state: &SessionState,
-    customer_details: &CustomerDetails,
-    merchant_context: &MerchantContext,
-) -> RouterResult<Option<Customer>> {
+    state: SessionState,
+    customer_request: Option<CustomerRequest>,
+    merchant_context: MerchantContext,
+) -> errors::CustomerResponse<CustomerResponse> {
     let db: &dyn StorageInterface = &*state.store;
 
     // Create customer_id if not passed in request
-    let customer_id = customer_details
-        .customer_id
-        .clone()
+    let customer_id = customer_request
+        .as_ref()
+        .and_then(|c| c.customer_id.clone())
         .unwrap_or_else(common_utils::id_type::CustomerId::generate);
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
-    let key = merchant_context
-        .get_merchant_key_store()
-        .key
-        .get_inner()
-        .peek();
-    let key_manager_state = &state.into();
+    let key_manager_state = &(&state).into();
 
     match db
         .find_customer_optional_by_customer_id_merchant_id(
@@ -55,137 +39,37 @@ pub async fn get_or_create_customer(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("subscription: unable to perform db read query")?
+        .attach_printable("subscription: unable to perform db read query")
+        .unwrap()
     {
         // Customer found
-        Some(customer) => Ok(Some(customer)),
+        Some(customer) => {
+            let api_customer: CustomerResponse =
+                (customer, None::<api_models::payments::AddressDetails>).foreign_into();
+            Ok(ApplicationResponse::Json(api_customer))
+        }
 
         // Customer not found
-        // create only if atleast one of the fields were provided for customer creation or else throw error
-        None => {
-            if customer_details.name.is_some()
-                || customer_details.email.is_some()
-                || customer_details.phone.is_some()
-                || customer_details.phone_country_code.is_some()
-            {
-                let encrypted_data = crypto_operation(
-                    &state.into(),
-                    type_name!(Customer),
-                    CryptoOperation::BatchEncrypt(
-                        domain::FromRequestEncryptableCustomer::to_encryptable(
-                            domain::FromRequestEncryptableCustomer {
-                                name: customer_details.name.clone(),
-                                email: customer_details
-                                    .email
-                                    .clone()
-                                    .map(|a| a.expose().switch_strategy()),
-                                phone: customer_details.phone.clone(),
-                                tax_registration_id: customer_details.tax_registration_id.clone(),
-                            },
-                        ),
-                    ),
-                    Identifier::Merchant(
-                        merchant_context
-                            .get_merchant_key_store()
-                            .merchant_id
-                            .clone(),
-                    ),
-                    key,
-                )
-                .await
-                .and_then(|val| val.try_into_batchoperation())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encrypt customer")?;
-                let encryptable_customer =
-                    domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to form EncryptableCustomer")?;
-
-                let customer = Customer {
-                    customer_id: customer_id.clone(),
-                    merchant_id: merchant_id.to_owned().clone(),
-                    name: encryptable_customer.name,
-                    email: encryptable_customer.email.map(|email| {
-                        let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
-                            Encryptable::new(
-                                email.clone().into_inner().switch_strategy(),
-                                email.into_encrypted(),
-                            );
-                        encryptable
-                    }),
-                    phone: encryptable_customer.phone,
-                    description: None,
-                    phone_country_code: customer_details.phone_country_code.to_owned(),
-                    metadata: None,
-                    connector_customer: None,
-                    created_at: common_utils::date_time::now(),
-                    modified_at: common_utils::date_time::now(),
-                    address_id: None,
-                    default_payment_method_id: None,
-                    updated_by: None,
-                    version: common_types::consts::API_VERSION,
-                    tax_registration_id: encryptable_customer.tax_registration_id,
-                };
-
-                Ok(Some(
-                    db.insert_customer(
-                        customer,
-                        key_manager_state,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Failed to insert customer [id - {customer_id:?}] for merchant [id - {merchant_id:?}]",
-                        )
-                    })?,
-                ))
-            } else {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {customer_id:?} not found"),
-                }))
-            }
-        }
+        None => Ok(create_customer(
+            state,
+            merchant_context,
+            customer_request.ok_or(errors::CustomersErrorResponse::CustomerNotFound)?,
+            None,
+        )
+        .await?),
     }
 }
 
 pub fn get_customer_details_from_request(request: CreateSubscriptionRequest) -> CustomerDetails {
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
-
-    let customer_name = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.name.clone());
-
-    let customer_email = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.email.clone());
-
-    let customer_phone = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone.clone());
-
-    let customer_phone_code = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone_country_code.clone());
-
-    let tax_registration_id = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.tax_registration_id.clone());
-
+    let customer = request.customer.as_ref();
     CustomerDetails {
         customer_id,
-        name: customer_name,
-        email: customer_email,
-        phone: customer_phone,
-        phone_country_code: customer_phone_code,
-        tax_registration_id,
+        name: customer.and_then(|cus| cus.name.clone()),
+        email: customer.and_then(|cus| cus.email.clone()),
+        phone: customer.and_then(|cus| cus.phone.clone()),
+        phone_country_code: customer.and_then(|cus| cus.phone_country_code.clone()),
+        tax_registration_id: customer.and_then(|cus| cus.tax_registration_id.clone()),
     }
 }
 
@@ -198,7 +82,7 @@ pub struct CreateSubscriptionRequest {
     pub mca_id: Option<String>,
     pub confirm: bool,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub customer: Option<CustomerDetails>,
+    pub customer: Option<CustomerRequest>,
 }
 
 impl CreateSubscriptionRequest {
@@ -274,6 +158,16 @@ impl CreateSubscriptionResponse {
             customer: None,
             invoice: None,
         }
+    }
+}
+
+pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResponse {
+    CustomerDetailsResponse {
+        id: Some(r.customer_id.clone()),
+        name: r.name.as_ref().map(|n| n.clone().into_inner()),
+        email: r.email.as_ref().map(|e| pii::Email::from(e.clone())),
+        phone: r.phone.as_ref().map(|p| p.clone().into_inner()),
+        phone_country_code: r.phone_country_code.clone(),
     }
 }
 

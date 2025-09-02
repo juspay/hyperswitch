@@ -1,4 +1,4 @@
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,10 @@ impl SubscriptionNew {
     }
 
     pub fn generate_client_secret(&self) -> Option<String> {
-        Some(generate_id_with_default_len(&format!("{}_secret", self.id)))
+        Some(generate_id_with_default_len(&format!(
+            "{}_secret",
+            self.subscription_id
+        )))
     }
 }
 

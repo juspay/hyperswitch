@@ -1,7 +1,7 @@
-//! Analysis for usage of Routing in Payment flows
+//! Analysis for usage of Subscription in Payment flows
 //!
-//! Functions that are used to perform the api level configuration, retrieval, updation
-//! of Routing configs.
+//! Functions that are used to perform the api level configuration and retrieval
+//! of various types under Subscriptions.
 
 use actix_web::{web, HttpRequest, Responder};
 use router_env::{
@@ -24,7 +24,7 @@ pub async fn create_subscription(
     req: HttpRequest,
     json_payload: web::Json<subscription_types::CreateSubscriptionRequest>,
 ) -> impl Responder {
-    let flow = Flow::RoutingCreateConfig;
+    let flow = Flow::CreateSubscription;
     Box::pin(oss_api::server_wrap(
         flow,
         state,

@@ -7777,6 +7777,7 @@ pub enum Resource {
     RunRecon,
     ReconConfig,
     RevenueRecovery,
+    Subscription,
     InternalConnector,
     Theme,
 }

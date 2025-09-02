@@ -1,9 +1,8 @@
 pub mod utils;
-use api_models::payments::CustomerDetailsResponse;
 use common_utils::generate_id_with_default_len;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_context::MerchantContext;
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use payment_methods::helpers::StorageErrorExt;
 use utils::{
     self as subscription_types, get_customer_details_from_request, get_or_create_customer,
@@ -11,14 +10,15 @@ use utils::{
 };
 
 use super::errors::{self, RouterResponse};
-use crate::{routes::SessionState, services::api as service_api, types::transformers::ForeignInto};
+use crate::routes::SessionState;
 
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<CreateSubscriptionResponse> {
-    let db = state.store.as_ref();
+    let store = state.store.clone();
+    let db = store.as_ref();
     let id = generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX);
     let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
     let mut response = CreateSubscriptionResponse::new(
@@ -37,9 +37,16 @@ pub async fn create_subscription(
         || customer.phone.is_some()
         || customer.phone_country_code.is_some()
     {
-        let customer = get_or_create_customer(&state, &customer, &merchant_context).await?;
-        let customer_table_response: Option<CustomerDetailsResponse> =
-            customer.as_ref().map(ForeignInto::foreign_into);
+        let customer = get_or_create_customer(state, request.customer, merchant_context.clone())
+            .await
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to process customer")
+            .unwrap();
+
+        let customer_table_response = match &customer {
+            ApplicationResponse::Json(inner) => Some(utils::map_customer_resp_to_details(inner)),
+            _ => None,
+        };
         response.customer = customer_table_response;
         response
             .customer
@@ -56,7 +63,6 @@ pub async fn create_subscription(
         id,
         None,
         None,
-        None,
         request.mca_id,
         None,
         customer_id,
@@ -69,5 +75,5 @@ pub async fn create_subscription(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("subscriptions: unable to insert subscription entry to database")?;
 
-    Ok(service_api::ApplicationResponse::Json(response))
+    Ok(ApplicationResponse::Json(response))
 }
