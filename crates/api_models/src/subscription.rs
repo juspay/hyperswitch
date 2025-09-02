@@ -1,6 +1,9 @@
 use common_utils::{events::ApiEventMetric, pii};
 
-use crate::{customers::{CustomerRequest, CustomerResponse}, payments::CustomerDetailsResponse};
+use crate::{
+    customers::{CustomerRequest, CustomerResponse},
+    payments::CustomerDetailsResponse,
+};
 
 pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 

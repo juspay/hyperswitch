@@ -1,15 +1,14 @@
 pub mod utils;
+use api_models::subscription::{
+    self as subscription_types, CreateSubscriptionResponse, Subscription, SubscriptionStatus,
+    SUBSCRIPTION_ID_PREFIX,
+};
 use common_utils::generate_id_with_default_len;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use payment_methods::helpers::StorageErrorExt;
-use api_models::subscription::{
-    self as subscription_types,
-    CreateSubscriptionResponse, Subscription, SubscriptionStatus, SUBSCRIPTION_ID_PREFIX,
-};
-
-use utils::{get_or_create_customer, get_customer_details_from_request};
+use utils::{get_customer_details_from_request, get_or_create_customer};
 
 use super::errors::{self, RouterResponse};
 use crate::routes::SessionState;
@@ -42,10 +41,12 @@ pub async fn create_subscription(
         let customer = get_or_create_customer(state, request.customer, merchant_context.clone())
             .await
             .map_err(|e| e.change_context(errors::ApiErrorResponse::CustomerNotFound))
-            .attach_printable("subscriptions: unable to process customer")?;  
+            .attach_printable("subscriptions: unable to process customer")?;
 
         let customer_table_response = match &customer {
-            ApplicationResponse::Json(inner) => Some(subscription_types::map_customer_resp_to_details(inner)),
+            ApplicationResponse::Json(inner) => {
+                Some(subscription_types::map_customer_resp_to_details(inner))
+            }
             _ => None,
         };
         response.customer = customer_table_response;
