@@ -33,7 +33,8 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData
+        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
+        RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -342,122 +343,132 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             Some(enums::CaptureMethod::Automatic)
         );
 
-         let (payment_type, challenge_indicator) = if item.router_data.request.is_mandate_payment()
-            {
-                (CheckoutPaymentType::Recurring,CheckoutChallengeIndicator::ChallengeRequestedMandate)
-            } else {
-                (CheckoutPaymentType::Regular,CheckoutChallengeIndicator::ChallengeRequested)
-            };
+        let (payment_type, challenge_indicator) = if item.router_data.request.is_mandate_payment() {
+            (
+                CheckoutPaymentType::Recurring,
+                CheckoutChallengeIndicator::ChallengeRequestedMandate,
+            )
+        } else {
+            (
+                CheckoutPaymentType::Regular,
+                CheckoutChallengeIndicator::ChallengeRequested,
+            )
+        };
 
-        let (source_var, previous_payment_id, merchant_initiated, capture, payment_type) = match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(ccard) => {
-                let a = PaymentSource::Card(CardSource {
-                    source_type: CheckoutSourceTypes::Card,
-                    number: ccard.card_number.clone(),
-                    expiry_month: ccard.card_exp_month.clone(),
-                    expiry_year: ccard.card_exp_year.clone(),
-                    cvv: ccard.card_cvc,
-                });
-                Ok((a, None, Some(false), capture, payment_type))
-            }
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(_) => {
-                    let p_source = PaymentSource::Wallets(WalletSource {
-                        source_type: CheckoutSourceTypes::Token,
-                        token: match item.router_data.get_payment_method_token()? {
-                            PaymentMethodToken::Token(token) => token,
-                            PaymentMethodToken::ApplePayDecrypt(_) => Err(
-                                unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
-                            )?,
+        let (source_var, previous_payment_id, merchant_initiated, capture, payment_type) =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(ccard) => {
+                    let a = PaymentSource::Card(CardSource {
+                        source_type: CheckoutSourceTypes::Card,
+                        number: ccard.card_number.clone(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.card_exp_year.clone(),
+                        cvv: ccard.card_cvc,
+                    });
+                    Ok((a, None, Some(false), capture, payment_type))
+                }
+                PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                    WalletData::GooglePay(_) => {
+                        let p_source = PaymentSource::Wallets(WalletSource {
+                            source_type: CheckoutSourceTypes::Token,
+                            token: match item.router_data.get_payment_method_token()? {
+                                PaymentMethodToken::Token(token) => token,
+                                PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(unimplemented_payment_method!(
+                                        "Apple Pay",
+                                        "Simplified",
+                                        "Checkout"
+                                    ))?
+                                }
+                                PaymentMethodToken::PazeDecrypt(_) => {
+                                    Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                                }
+                                PaymentMethodToken::GooglePayDecrypt(_) => {
+                                    Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
+                                }
+                            },
+                        });
+                        Ok((p_source, None, Some(false), capture, payment_type))
+                    }
+                    WalletData::ApplePay(_) => {
+                        let payment_method_token = item.router_data.get_payment_method_token()?;
+                        match payment_method_token {
+                            PaymentMethodToken::Token(apple_pay_payment_token) => {
+                                let p_source = PaymentSource::Wallets(WalletSource {
+                                    source_type: CheckoutSourceTypes::Token,
+                                    token: apple_pay_payment_token,
+                                });
+                                Ok((p_source, None, Some(false), capture, payment_type))
+                            }
+                            PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                let exp_month = decrypt_data.get_expiry_month().change_context(
+                                    errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "expiration_month",
+                                    },
+                                )?;
+                                let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
+                                let p_source = PaymentSource::ApplePayPredecrypt(Box::new(
+                                    ApplePayPredecrypt {
+                                        token: decrypt_data.application_primary_account_number,
+                                        decrypt_type: "network_token".to_string(),
+                                        token_type: "applepay".to_string(),
+                                        expiry_month: exp_month,
+                                        expiry_year: expiry_year_4_digit,
+                                        eci: decrypt_data.payment_data.eci_indicator,
+                                        cryptogram: decrypt_data
+                                            .payment_data
+                                            .online_payment_cryptogram,
+                                    },
+                                ));
+                                Ok((p_source, None, Some(false), capture, payment_type))
+                            }
                             PaymentMethodToken::PazeDecrypt(_) => {
                                 Err(unimplemented_payment_method!("Paze", "Checkout"))?
                             }
                             PaymentMethodToken::GooglePayDecrypt(_) => {
                                 Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
                             }
-                        },
-                    });
-                    Ok((p_source ,None, Some(false), capture, payment_type))
-                },
-                WalletData::ApplePay(_) => {
-                    let payment_method_token = item.router_data.get_payment_method_token()?;
-                    match payment_method_token {
-                        PaymentMethodToken::Token(apple_pay_payment_token) => {
-                            let p_source = PaymentSource::Wallets(WalletSource {
-                                source_type: CheckoutSourceTypes::Token,
-                                token: apple_pay_payment_token,
-                            });
-                            Ok((p_source ,None, Some(false), capture, payment_type))
-                        }
-                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let exp_month = decrypt_data.get_expiry_month().change_context(
-                                errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
-                                },
-                            )?;
-                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
-                            let p_source = PaymentSource::ApplePayPredecrypt(Box::new(
-                                ApplePayPredecrypt {
-                                    token: decrypt_data.application_primary_account_number,
-                                    decrypt_type: "network_token".to_string(),
-                                    token_type: "applepay".to_string(),
-                                    expiry_month: exp_month,
-                                    expiry_year: expiry_year_4_digit,
-                                    eci: decrypt_data.payment_data.eci_indicator,
-                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
-                                },
-                            ));
-                            Ok((p_source ,None, Some(false), capture, payment_type))
-                        }
-                        PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
-                        }
-                        PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
                         }
                     }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("checkout"),
+                    )),
+                },
+                PaymentMethodData::MandatePayment => {
+                    let mandate_source = PaymentSource::MandatePayment(MandateSource {
+                        source_type: CheckoutSourceTypes::SourceId,
+                        source_id: item.router_data.request.connector_mandate_id(),
+                    });
+                    let previous_id = Some(
+                        item.router_data
+                            .request
+                            .get_connector_mandate_request_reference_id()?,
+                    );
+                    let p_type = CheckoutPaymentType::Recurring;
+                    Ok((mandate_source, previous_id, Some(true), true, p_type))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
-            },
-            PaymentMethodData::MandatePayment => {
-                let mandate_source = PaymentSource::MandatePayment(MandateSource {
-                    source_type: CheckoutSourceTypes::SourceId,
-                    source_id: item.router_data.request.connector_mandate_id(),
-                });
-                let previous_id =  Some(
-                    item.router_data
-                        .request
-                        .get_connector_mandate_request_reference_id()?,
-                );
-                let p_type = CheckoutPaymentType::Recurring;
-                Ok((mandate_source, previous_id, Some(true), true, p_type))
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("checkout"),
-            )),
-        }?;
+            }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
         let three_ds = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => {
-                CheckoutThreeDS {
-                    enabled: true,
-                    force_3ds: true,
-                    eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                    cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                    xid: authentication_data
-                        .and_then(|auth| auth.threeds_server_transaction_id.clone()),
-                    version: authentication_data.and_then(|auth| {
-                        auth.message_version
-                            .clone()
-                            .map(|version| version.to_string())
-                    }),
-                    challenge_indicator,
-                }
-            }
+            enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
+                enabled: true,
+                force_3ds: true,
+                eci: authentication_data.and_then(|auth| auth.eci.clone()),
+                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
+                xid: authentication_data
+                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
+                version: authentication_data.and_then(|auth| {
+                    auth.message_version
+                        .clone()
+                        .map(|version| version.to_string())
+                }),
+                challenge_indicator,
+            },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
@@ -490,22 +501,21 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
 
         Ok(Self {
-                source: source_var,
-                amount: item.amount.to_owned(),
-                currency: item.router_data.request.currency.to_string(),
-                processing_channel_id,
-                three_ds,
-                return_url,
-                capture,
-                reference: item.router_data.connector_request_reference_id.clone(),
-                metadata,
-                payment_type,
-                merchant_initiated,
-                previous_payment_id,
-            })
-        }
+            source: source_var,
+            amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency.to_string(),
+            processing_channel_id,
+            three_ds,
+            return_url,
+            capture,
+            reference: item.router_data.connector_request_reference_id.clone(),
+            metadata,
+            payment_type,
+            merchant_initiated,
+            previous_payment_id,
+        })
     }
-
+}
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum CheckoutPaymentStatus {
@@ -716,7 +726,6 @@ fn get_connector_meta(
 impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: PaymentsResponseRouterData<PaymentsResponse>) -> Result<Self, Self::Error> {
-    
         let status =
             get_attempt_status_cap((item.response.status, item.data.request.capture_method));
 
@@ -747,7 +756,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 ..item.data
             });
         }
-        
+
         let connector_meta =
             get_connector_meta(item.data.request.capture_method.unwrap_or_default())?;
 
@@ -830,7 +839,8 @@ impl
             None
         };
 
-        let mandate_reference = item.response
+        let mandate_reference = item
+            .response
             .source
             .as_ref()
             .and_then(|src| src.id.clone())
@@ -898,21 +908,20 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
-        let mandate_reference =
-            if item.data.request.is_mandate_payment() {
-                item.response
-                    .source
-                    .as_ref()
-                    .and_then(|src| src.id.clone())
-                    .map(|id| MandateReference {
-                        connector_mandate_id: Some(id),
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: Some(item.response.id.clone()),
-                    })
-            } else {
-                None
-            };
+        let mandate_reference = if item.data.request.is_mandate_payment() {
+            item.response
+                .source
+                .as_ref()
+                .and_then(|src| src.id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                })
+        } else {
+            None
+        };
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
