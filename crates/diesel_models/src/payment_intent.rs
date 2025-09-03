@@ -95,6 +95,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v1")]
@@ -355,6 +356,7 @@ pub struct PaymentIntentNew {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub enable_partial_authorization: Option<bool>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -800,6 +802,7 @@ impl PaymentIntentUpdateInternal {
             duty_amount: source.duty_amount,
             order_date: source.order_date,
             enable_partial_authorization: None,
+            split_txns_enabled: source.split_txns_enabled,
         }
     }
 }

@@ -3,7 +3,6 @@ use common_enums::MerchantCategoryCode;
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
-use time::PrimitiveDateTime;
 
 use crate::address::Address;
 
@@ -169,7 +168,7 @@ pub struct UasConfirmationRequestData {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub confirmation_timestamp: Option<String>,
     // Authorisation code associated with an approved transaction.
     pub network_authorization_code: Option<String>,
     // The unique authorisation related tracing value assigned by a Payment Network and provided in an authorisation response. Required only when checkoutEventType=01. If checkoutEventType=01 and the value of networkTransactionIdentifier is unknown, please pass UNAVLB

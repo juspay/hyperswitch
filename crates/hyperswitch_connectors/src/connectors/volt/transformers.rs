@@ -357,6 +357,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -401,6 +402,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
