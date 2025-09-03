@@ -25,7 +25,8 @@ pub trait SubscriptionInterface {
 
     async fn update_subscription_entry(
         &self,
-        id: String,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
         data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError>;
 }
@@ -63,11 +64,12 @@ impl SubscriptionInterface for Store {
     #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
-        id: String,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
         data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Subscription::update_subscription_entry(&conn, id, data)
+        storage::Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, data)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -93,7 +95,8 @@ impl SubscriptionInterface for MockDb {
 
     async fn update_subscription_entry(
         &self,
-        _id: String,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _subscription_id: String,
         _data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -126,9 +129,12 @@ impl SubscriptionInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
-        id: String,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
         data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
-        self.diesel_store.update_subscription_entry(id, data).await
+        self.diesel_store
+            .update_subscription_entry(merchant_id, subscription_id, data)
+            .await
     }
 }
