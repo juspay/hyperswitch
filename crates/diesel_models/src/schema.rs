@@ -1484,6 +1484,8 @@ diesel::table! {
         mca_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
+        #[max_length = 128]
+        connector_subscription_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
