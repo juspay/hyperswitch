@@ -133,6 +133,8 @@ impl SubscriptionInterface for KafkaStore {
         subscription_id: String,
         data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
-        self.diesel_store.update_subscription_entry(merchant_id, subscription_id, data).await
+        self.diesel_store
+            .update_subscription_entry(merchant_id, subscription_id, data)
+            .await
     }
 }
