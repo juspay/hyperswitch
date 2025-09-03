@@ -1465,7 +1465,7 @@ pub async fn check_payout_eligibility(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let (error_code, error_message) = (Some(err.code), Some(err.message));
-            let (unified_code, unified_message) = helpers::get_gsm_record(
+            let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                 state,
                 error_code.clone(),
                 error_message.clone(),
@@ -1474,6 +1474,12 @@ pub async fn check_payout_eligibility(
             )
             .await
             .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            if unified_code.is_none() && unified_message.is_none() {
+                (unified_code, unified_message) = (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                );
+            }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -1681,7 +1687,7 @@ pub async fn create_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let (error_code, error_message) = (Some(err.code), Some(err.message));
-            let (unified_code, unified_message) = helpers::get_gsm_record(
+            let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                 state,
                 error_code.clone(),
                 error_message.clone(),
@@ -1690,6 +1696,12 @@ pub async fn create_payout(
             )
             .await
             .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            if unified_code.is_none() && unified_message.is_none() {
+                (unified_code, unified_message) = (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                );
+            }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -1880,7 +1892,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     payout_response_data.error_code.clone(),
                     payout_response_data.error_message.clone(),
                 );
-                let (unified_code, unified_message) = helpers::get_gsm_record(
+                let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                     state,
                     error_code.clone(),
                     error_message.clone(),
@@ -1889,6 +1901,12 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                 )
                 .await
                 .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+                if unified_code.is_none() && unified_message.is_none() {
+                    (unified_code, unified_message) = (
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                    );
+                }
                 storage::PayoutAttemptUpdate::StatusUpdate {
                     connector_payout_id: payout_response_data.connector_payout_id.clone(),
                     status,
@@ -2124,7 +2142,7 @@ pub async fn create_recipient_disburse_account(
         }
         Err(err) => {
             let (error_code, error_message) = (Some(err.code), Some(err.message));
-            let (unified_code, unified_message) = helpers::get_gsm_record(
+            let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                 state,
                 error_code.clone(),
                 error_message.clone(),
@@ -2133,6 +2151,12 @@ pub async fn create_recipient_disburse_account(
             )
             .await
             .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            if unified_code.is_none() && unified_message.is_none() {
+                (unified_code, unified_message) = (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                );
+            }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status: storage_enums::PayoutStatus::Failed,
@@ -2242,7 +2266,7 @@ pub async fn cancel_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let (error_code, error_message) = (Some(err.code), Some(err.message));
-            let (unified_code, unified_message) = helpers::get_gsm_record(
+            let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                 state,
                 error_code.clone(),
                 error_message.clone(),
@@ -2251,6 +2275,12 @@ pub async fn cancel_payout(
             )
             .await
             .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            if unified_code.is_none() && unified_message.is_none() {
+                (unified_code, unified_message) = (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                );
+            }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -2413,7 +2443,7 @@ pub async fn fulfill_payout(
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
             let (error_code, error_message) = (Some(err.code), Some(err.message));
-            let (unified_code, unified_message) = helpers::get_gsm_record(
+            let (mut unified_code, mut unified_message) = helpers::get_gsm_record(
                 state,
                 error_code.clone(),
                 error_message.clone(),
@@ -2422,6 +2452,12 @@ pub async fn fulfill_payout(
             )
             .await
             .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            if unified_code.is_none() && unified_message.is_none() {
+                (unified_code, unified_message) = (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                );
+            }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
