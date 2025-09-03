@@ -47,6 +47,20 @@ use crate::{
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
 
+#[cfg(feature = "v1")]
+use crate::{
+    core::{
+        errors::ConnectorErrorExt,
+        payments,
+        utils as core_utils,
+    },
+    services,
+    types,
+    utils::ConnectorResponseExt,
+};
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+
 const VAULT_SERVICE_NAME: &str = "CARD";
 
 pub struct SupplementaryVaultData {
@@ -1872,6 +1886,85 @@ pub async fn delete_payment_method_data_from_vault(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete payment method from vault"),
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_from_vault_external_v1(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    pm: &domain::PaymentMethod,
+    merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
+    let connector_vault_id = pm
+        .locker_id
+        .clone()
+        .map(|id| id.to_string());
+
+    let router_data = crate::core::utils::construct_vault_router_data_for_ext_v1(
+        state,
+        merchant_id,
+        &merchant_connector_account,
+        None,
+        connector_vault_id,
+        None,
+    )
+    .await?;
+
+    let old_router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::VaultConnectorFlowData::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the external vault retrieve api call",
+        )?;
+
+    let connector_name = merchant_connector_account.get_connector_name_as_string();
+
+    let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        Some(merchant_connector_account.get_id()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get the connector data")?;
+
+    let connector_integration: crate::services::BoxedVaultConnectorIntegrationInterface<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
+        crate::types::VaultRequestData,
+        crate::types::VaultResponseData,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data_resp = crate::services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &old_router_data,
+        crate::core::payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_vault_failed_response()?;
+
+    get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+}
+
+pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
+    router_data: hyperswitch_domain_models::types::VaultRouterData<F>,
+) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
+    match router_data.response {
+        Ok(response) => match response {
+            crate::types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
+                Ok(vault_data)
+            }
+            crate::types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | crate::types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | crate::types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
+                Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid Vault Response"))
+            }
+        },
+        Err(_err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method")),
     }
 }
 

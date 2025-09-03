@@ -13,7 +13,7 @@ use common_utils::{
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
+    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails, ExternalVaultConnectorDetails
 };
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::{
@@ -84,6 +84,8 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +142,8 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -203,6 +207,8 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
+            is_external_vault_enabled: value.is_external_vault_enabled,
+            external_vault_connector_details: value.external_vault_connector_details,
         }
     }
 }
@@ -266,6 +272,8 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -348,6 +356,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 } = *update;
 
                 Self {
@@ -401,6 +411,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -457,6 +469,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -510,6 +524,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -563,6 +579,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -616,6 +634,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -669,6 +689,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -722,6 +744,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -775,6 +799,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
         }
     }
@@ -848,6 +874,8 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 
@@ -947,6 +975,8 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 dispute_polling_interval: item.dispute_polling_interval,
+                is_external_vault_enabled: item.is_external_vault_enabled,
+                external_vault_connector_details: item.external_vault_connector_details,
             })
         }
         .await
@@ -1013,6 +1043,8 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 }
