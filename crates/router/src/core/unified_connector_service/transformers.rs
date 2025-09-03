@@ -967,8 +967,8 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 }
             });
         Ok(Self {
-            shipping_address: shipping.or(unified_payment_method_billing.clone()),
-            billing_address: billing.or(unified_payment_method_billing),
+            shipping_address: shipping,
+            billing_address: unified_payment_method_billing.or(billing),
         })
     }
 }
