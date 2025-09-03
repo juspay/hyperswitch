@@ -2585,25 +2585,26 @@ async fn subscription_incoming_webhook_flow(
         return Ok(WebhookResponseTracker::NoEffect)
     }
 
-    // For now, we need a payment_method_id to create the subscription workflow
-    // TODO: Implement proper payment method retrieval from subscription/customer data
-
-    let payment_method_id = state
+    // Find subscription by merchant_id and subscription_id to get payment_method_id
+    let subscription = state
         .store
-        .find_payment_method_ids_by_billing_connector_subscription_id(
+        .find_by_merchant_id_subscription_id(
+            merchant_context.get_merchant_account().get_id(),
             mit_payment_data
                 .subscription_id
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing subscription_id in MIT payment data")?,
+                .attach_printable("Missing subscription_id in MIT payment data")?
+                .clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to find payment method IDs by subscription ID")?
-        .first()
+        .attach_printable("Failed to find subscription by merchant ID and subscription ID")?;
+
+    let payment_method_id = subscription
+        .payment_method_id
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("No payment method found for subscription ID")?
-        .clone();
+        .attach_printable("No payment method found for subscription")?;
 
 
     logger::info!("Payment method ID found: {}", payment_method_id);

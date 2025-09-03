@@ -7789,9 +7789,8 @@ where
     let db = &*state.store;
 
     // Fetch Subscriptions record from DB
-    db.find_by_merchant_id_customer_id_subscription_id(
+    db.find_by_merchant_id_subscription_id(
         merchant_id,
-        &customer_id,
         billing_processor_detail.subscription_id.clone(),
     )
     .await
