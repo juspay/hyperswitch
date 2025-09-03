@@ -1364,7 +1364,7 @@ impl ConnectorSpecifications for Trustpay {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
-  #[cfg(feature = "v2")]
+    #[cfg(feature = "v2")]
     fn generate_connector_request_reference_id(
         &self,
         _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
@@ -1372,5 +1372,5 @@ impl ConnectorSpecifications for Trustpay {
     ) -> String {
         // The length of receipt for Trustpay order request should not exceed 35 characters.
         uuid::Uuid::now_v7().simple().to_string()
-  }
+    }
 }
