@@ -42,7 +42,7 @@ pub async fn create_subscription(
                 is_platform_allowed: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::ProfileRoutingWrite,
+                permission: Permission::ProfileSubscriptionWrite,
             },
             req.headers(),
         ),
