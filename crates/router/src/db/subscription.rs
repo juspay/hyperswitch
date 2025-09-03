@@ -119,10 +119,7 @@ impl SubscriptionInterface for KafkaStore {
         subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         self.diesel_store
-            .find_by_merchant_id_subscription_id(
-                merchant_id,
-                subscription_id,
-            )
+            .find_by_merchant_id_subscription_id(merchant_id, subscription_id)
             .await
     }
 
