@@ -405,7 +405,6 @@ impl
             &NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
-        // println!("$$$ in network token data 1");
         let (_item, network_token_data) = value;
         let token_number = network_token_data.get_network_token();
         let aci_network_token_data = AciNetworkTokenData {
@@ -689,8 +688,6 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
     fn try_from(
         value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &Card),
     ) -> Result<Self, Self::Error> {
-        // println!("$$$ in card data");
-
         let (item, card_data) = value;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let txn_details = get_transaction_details(item)?;
@@ -719,8 +716,6 @@ impl
             &NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
-        // println!("$$$ in network token data 2");
-
         let (item, network_token_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, network_token_data))?;

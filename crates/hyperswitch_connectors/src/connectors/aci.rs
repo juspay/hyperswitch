@@ -992,24 +992,6 @@ impl IncomingWebhook for Aci {
     }
 }
 
-// impl
-//     ConnectorIntegration<
-//         PostAuthentication,
-//         ConnectorPostAuthenticationRequestData,
-//         AuthenticationResponseData,
-//     > for Aci
-// {
-// }
-
-// impl
-//     ConnectorIntegration<
-//         PreAuthenticationVersionCall,
-//         PreAuthNRequestData,
-//         AuthenticationResponseData,
-//     > for Aci
-// {
-// }
-
 static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
         enums::CaptureMethod::Automatic,
