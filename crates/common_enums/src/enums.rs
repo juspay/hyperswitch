@@ -7777,6 +7777,7 @@ pub enum Resource {
     RunRecon,
     ReconConfig,
     RevenueRecovery,
+    Subscription,
     InternalConnector,
     Theme,
 }
@@ -8733,6 +8734,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    SubscriptionsWorkflow,
 }
 
 #[derive(Debug)]

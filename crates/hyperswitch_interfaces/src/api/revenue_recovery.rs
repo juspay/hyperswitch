@@ -13,9 +13,8 @@ use hyperswitch_domain_models::{
         RevenueRecoveryRecordBackResponse,
     },
 };
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use super::ConnectorCommon;
+ use crate::api::ConnectorCommon;
 use super::ConnectorIntegration;
 
 /// trait RevenueRecovery
@@ -27,6 +26,7 @@ pub trait RevenueRecovery:
     + BillingConnectorInvoiceSyncIntegration
 {
 }
+
 
 /// trait BillingConnectorPaymentsSyncIntegration
 pub trait BillingConnectorPaymentsSyncIntegration:
@@ -47,6 +47,8 @@ pub trait RevenueRecoveryRecordBack:
 >
 {
 }
+
+
 
 /// trait BillingConnectorInvoiceSyncIntegration
 pub trait BillingConnectorInvoiceSyncIntegration:

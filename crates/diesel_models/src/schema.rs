@@ -1086,6 +1086,7 @@ diesel::table! {
         duty_amount -> Nullable<Int8>,
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
+        billing_processor_details -> Nullable<Jsonb>,
     }
 }
 
