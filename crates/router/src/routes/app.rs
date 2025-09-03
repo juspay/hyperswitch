@@ -17,7 +17,7 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeadersBuilder},
+    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersBuilder},
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -148,10 +148,11 @@ impl SessionState {
         }
     }
     pub fn get_grpc_headers(&self) -> GrpcHeadersBuilder {
-        GrpcHeadersBuilder::new(
-            self.tenant.tenant_id.get_string_repr().to_string(),
-            self.request_id.map(|req_id| (*req_id).to_string()),
-        )
+        let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
+        let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        GrpcHeaders::builder()
+            .tenant_id(tenant_id)
+            .request_id(request_id)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {

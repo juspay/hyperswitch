@@ -26,6 +26,7 @@ use router_env::logger;
 use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
+use typed_builder::TypedBuilder;
 
 #[cfg(feature = "revenue_recovery")]
 pub use self::revenue_recovery::{
@@ -142,48 +143,13 @@ impl GrpcClientSettings {
 }
 
 /// Contains grpc headers
-#[derive(Debug)]
+#[derive(Debug, TypedBuilder)]
 pub struct GrpcHeaders {
     /// Tenant id
     tenant_id: String,
     /// Request id
+    #[builder(default)]
     request_id: Option<String>,
-}
-
-impl GrpcHeaders {
-    /// Create a new instance of GrpcHeadersBuilder
-    pub fn new(builder: GrpcHeadersBuilder) -> Self {
-        Self {
-            tenant_id: builder.tenant_id,
-            request_id: builder.request_id,
-        }
-    }
-}
-
-/// Builder for GrpcHeaders
-#[derive(Debug)]
-pub struct GrpcHeadersBuilder {
-    tenant_id: String,
-    request_id: Option<String>,
-    lineage_ids: Option<LineageIds>,
-}
-
-impl GrpcHeadersBuilder {
-    /// Create a new instance of GrpcHeadersBuilder
-    pub fn new(tenant_id: String, request_id: Option<String>) -> Self {
-        Self {
-            tenant_id,
-            request_id,
-            lineage_ids: None,
-        }
-    }
-    /// Build the GrpcHeaders
-    pub fn build(self) -> GrpcHeaders {
-        GrpcHeaders {
-            tenant_id: self.tenant_id,
-            request_id: self.request_id,
-        }
-    }
 }
 
 /// struct to represent set of Lineage ids
