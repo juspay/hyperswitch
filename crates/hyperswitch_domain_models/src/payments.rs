@@ -936,6 +936,22 @@ impl<F: Clone> PaymentConfirmData<F> {
         self.payment_attempt.payment_method_id = Some(payment_method_id);
         self.payment_method = Some(payment_method);
     }
+
+    pub fn change_flow<Flow: Clone>(self) -> PaymentConfirmData<Flow> {
+        let payment_data: PaymentConfirmData<Flow> = PaymentConfirmData {
+            flow: PhantomData,
+            payment_intent: self.payment_intent,
+            payment_attempt: self.payment_attempt,
+            payment_method_data: self.payment_method_data,
+            payment_address: self.payment_address,
+            mandate_data: self.mandate_data,
+            payment_method: self.payment_method,
+            merchant_connector_details: self.merchant_connector_details,
+            // redirect_response: self.redirect_response,
+            external_vault_pmd: self.external_vault_pmd,
+        };
+        payment_data
+    }
 }
 
 #[cfg(feature = "v2")]
