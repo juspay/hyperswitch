@@ -32,6 +32,7 @@ impl Subscription {
 
     pub async fn update_subscription_entry(
         conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,
         subscription_update: SubscriptionUpdate,
     ) -> StorageResult<Self> {
@@ -43,7 +44,8 @@ impl Subscription {
         >(
             conn,
             dsl::subscription_id
-                .eq(subscription_id.to_owned()),
+                .eq(subscription_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
             subscription_update,
         )
         .await?
