@@ -1,7 +1,7 @@
-//! Analysis for usage of Routing in Payment flows
+//! Analysis for usage of Subscription in Payment flows
 //!
-//! Functions that are used to perform the api level configuration, retrieval, updation
-//! of Routing configs.
+//! Functions that are used to perform the api level configuration and retrieval
+//! of various types under Subscriptions.
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::subscription as subscription_types;
@@ -24,7 +24,7 @@ pub async fn create_subscription(
     req: HttpRequest,
     json_payload: web::Json<subscription_types::CreateSubscriptionRequest>,
 ) -> impl Responder {
-    let flow = Flow::RoutingCreateConfig;
+    let flow = Flow::CreateSubscription;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -34,12 +34,7 @@ pub async fn create_subscription(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::create_subscription(
-                state,
-                merchant_context,
-                auth.profile_id,
-                payload.clone(),
-            )
+            subscription::create_subscription(state, merchant_context, payload.clone())
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -47,7 +42,7 @@ pub async fn create_subscription(
                 is_platform_allowed: false,
             }),
             &auth::JWTAuth {
-                permission: Permission::ProfileRoutingWrite,
+                permission: Permission::ProfileSubscriptionWrite,
             },
             req.headers(),
         ),

@@ -50,6 +50,7 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+#[cfg(feature = "v1")]
 pub mod subscription;
 pub mod three_ds_decision_rule;
 pub mod tokenization;

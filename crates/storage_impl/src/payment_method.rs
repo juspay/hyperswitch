@@ -955,17 +955,17 @@ impl PaymentMethodInterface for MockDb {
         &self,
         subscription_id: &str,
     ) -> CustomResult<Vec<String>, errors::StorageError> {
-        let subscriptions = self.subscriptions.lock().await;
-        let payment_method_ids: Vec<String> = subscriptions
-            .iter()
-            .filter(|sub| {
-                sub.subscription_id
-                    .as_ref()
-                    .map_or(false, |id| id == subscription_id)
-            })
-            .filter_map(|sub| sub.payment_method_id.clone())
-            .collect();
-        Ok(payment_method_ids)
+        // let subscriptions = self.subscriptions.lock().await;
+        // let payment_method_ids: Vec<String> = subscriptions
+        //     .iter()
+        //     .filter(|sub| {
+        //         sub.subscription_id
+        //             .as_ref()
+        //             .map_or(false, |id| id == subscription_id)
+        //     })
+        //     .filter_map(|sub| sub.payment_method_id.clone())
+        //     .collect();
+        Ok(vec![])
     }
 
     async fn update_payment_method(

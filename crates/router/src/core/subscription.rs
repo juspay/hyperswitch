@@ -1,3 +1,4 @@
+pub mod utils;
 use super::errors::{self, RouterResponse};
 use crate::{
     core::{payments as payments_core, payouts::helpers},
@@ -5,129 +6,86 @@ use crate::{
     services::{api as service_api, logger},
     types::api as api_types,
 };
-use api_models::{
-    enums as api_enums,
-    subscription::{self as subscription_types, SUBSCRIPTION_ID_PREFIX},
+use api_models::enums as api_enums;
+use api_models::subscription::{
+    self as subscription_types, CreateSubscriptionResponse, Subscription, SubscriptionStatus,
+    SUBSCRIPTION_ID_PREFIX,
 };
 use common_types::payments::CustomerAcceptance;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{events::ApiEventMetric, generate_id_with_default_len, id_type};
 use diesel_models::subscription::{SubscriptionNew, SubscriptionUpdate};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    merchant_context::MerchantContext, router_request_types::CustomerDetails,
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use payment_methods::helpers::StorageErrorExt;
 use std::{num::NonZeroI64, str::FromStr};
+use utils::{get_customer_details_from_request, get_or_create_customer};
 
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<CreateSubscriptionResponse> {
-    let db = state.store.as_ref();
-    // let key_manager_state = &(&state).into();
-
+) -> RouterResponse<subscription_types::CreateSubscriptionResponse> {
+    let store = state.store.clone();
+    let db = store.as_ref();
     let id = generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX);
+    let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
+    let mut response = subscription_types::CreateSubscriptionResponse::new(
+        subscription_details,
+        merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_string_repr(),
+        request.mca_id.clone(),
+    );
 
-    // Fetch customer details from request and create new or else use existing customer that was attached
     let customer = get_customer_details_from_request(request.clone());
-    let result_customer;
     let customer_id = if customer.customer_id.is_some()
         || customer.name.is_some()
         || customer.email.is_some()
         || customer.phone.is_some()
         || customer.phone_country_code.is_some()
     {
-        result_customer =
-            helpers::get_or_create_customer_details(&state, &customer, &merchant_context)
-                .await
-                .change_context(errors::ApiErrorResponse::CustomerRedacted)
-                .attach_printable("Unable to retrieve or create customer")?
-                .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
-        result_customer.customer_id
+        let customer = get_or_create_customer(state, request.customer, merchant_context.clone())
+            .await
+            .map_err(|e| e.change_context(errors::ApiErrorResponse::CustomerNotFound))
+            .attach_printable("subscriptions: unable to process customer")?;
+
+        let customer_table_response = match &customer {
+            ApplicationResponse::Json(inner) => {
+                Some(subscription_types::map_customer_resp_to_details(inner))
+            }
+            _ => None,
+        };
+        response.customer = customer_table_response;
+        response
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.id.clone())
     } else {
-        request
-            .customer_id
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
-    };
+        request.customer_id.clone()
+    }
+    .ok_or(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("subscriptions: unable to create a customer")?;
 
     // If provided we can strore plan_id, coupon_code etc as metadata
-    // let metadata;
-    let subscription = SubscriptionNew::new(
+    let mut subscription = SubscriptionNew::new(
         id,
-        None,
         None,
         None,
         request.mca_id,
         None,
-        customer_id,
         merchant_context.get_merchant_account().get_id().clone(),
-        None,
-    );
-    let client_secret = subscription.generate_client_secret();
-    let record = db
-        .insert_subscription_entry(subscription)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let subscription_details = Subscription::new(record.id, "created", None);
-
-    let result = CreateSubscriptionResponse::new(
-        subscription_details,
-        client_secret,
-        merchant_context
-            .get_merchant_account()
-            .get_id()
-            .get_string_repr(),
-        None,
-        None,
-        customer,
-        None,
-    );
-
-    Ok(service_api::ApplicationResponse::Json(result))
-}
-
-pub fn get_customer_details_from_request(
-    request: subscription_types::CreateSubscriptionRequest,
-) -> CustomerDetails {
-    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
-
-    let customer_name = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.name.clone());
-
-    let customer_email = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.email.clone());
-
-    let customer_phone = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone.clone());
-
-    let customer_phone_code = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone_country_code.clone());
-
-    let tax_registration_id = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.tax_registration_id.clone());
-
-    CustomerDetails {
         customer_id,
-        name: customer_name,
-        email: customer_email,
-        phone: customer_phone,
-        phone_country_code: customer_phone_code,
-        tax_registration_id,
-    }
+        None,
+    );
+    response.client_secret = subscription.generate_and_set_client_secret();
+    db.insert_subscription_entry(subscription)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("subscriptions: unable to insert subscription entry to database")?;
+
+    Ok(ApplicationResponse::Json(response))
 }
 
 pub async fn confirm_subscription(
@@ -143,11 +101,7 @@ pub async fn confirm_subscription(
     let key_store = merchant_context.get_merchant_key_store();
     let subscription = state
         .store
-        .find_by_merchant_id_customer_id_subscription_id(
-            merchant_id,
-            &"cust_id".to_string(), // fix this
-            subscription_id.clone(),
-        )
+        .find_by_merchant_id_subscription_id(mercahnt_account.get_id(), subscription_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!("subscription not found for id: {}", subscription_id),
@@ -344,7 +298,11 @@ pub async fn confirm_subscription(
     }?;
     // Semd back response
     let response = ConfirmSubscriptionResponse {
-        subscription: Subscription::new(subscription.id.clone(), "active", None), // ?!?
+        subscription: Subscription::new(
+            subscription.subscription_id.clone(),
+            SubscriptionStatus::Created,
+            None,
+        ), // ?!?
         customer_id: Some(subscription.customer_id.to_owned()),
         invoice: None,
         payment: payment_res,
@@ -354,37 +312,9 @@ pub async fn confirm_subscription(
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct CreateSubscriptionResponse {
-    pub subscription: Subscription,
-    pub client_secret: String,
-    pub merchant_id: String,
-    pub plan_id: Option<String>,
-    pub coupon_code: Option<String>,
-    pub customer: CustomerDetails,
-    pub invoice: Option<Invoice>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Subscription {
-    pub id: String,
-    pub status: String,
-    pub plan_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
 pub struct Invoice {
     pub id: String,
     pub total: u64,
-}
-
-impl Subscription {
-    pub fn new(id: impl Into<String>, status: impl Into<String>, plan_id: Option<String>) -> Self {
-        Self {
-            id: id.into(),
-            status: status.into(),
-            plan_id,
-        }
-    }
 }
 
 impl Invoice {
@@ -395,30 +325,6 @@ impl Invoice {
         }
     }
 }
-impl CreateSubscriptionResponse {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        subscription: Subscription,
-        client_secret: impl Into<String>,
-        merchant_id: impl Into<String>,
-        plan_id: Option<String>,
-        coupon_code: Option<String>,
-        customer: CustomerDetails,
-        invoice: Option<Invoice>,
-    ) -> Self {
-        Self {
-            subscription,
-            client_secret: client_secret.into(),
-            merchant_id: merchant_id.into(),
-            plan_id,
-            coupon_code,
-            customer,
-            invoice,
-        }
-    }
-}
-
-impl ApiEventMetric for CreateSubscriptionResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentData {
