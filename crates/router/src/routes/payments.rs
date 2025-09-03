@@ -2944,7 +2944,7 @@ pub async fn payment_confirm_intent(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            // let operation = payments::operations::PaymentIntentConfirm;
+            let operation = payments::operations::PaymentIntentConfirm;
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
@@ -2954,7 +2954,7 @@ pub async fn payment_confirm_intent(
                 req_state,
                 merchant_context,
                 auth.profile,
-                // operation,
+                operation,
                 request,
                 payment_id,
                 payments::CallConnectorAction::Trigger,
