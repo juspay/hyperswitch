@@ -981,6 +981,8 @@ diesel::table! {
         routing_approach -> Nullable<RoutingApproach>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
     }
 }
 
@@ -1468,10 +1470,9 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     subscription (id) {
+        id -> Int4,
         #[max_length = 128]
-        id -> Varchar,
-        #[max_length = 128]
-        subscription_id -> Nullable<Varchar>,
+        subscription_id -> Varchar,
         #[max_length = 128]
         billing_processor -> Nullable<Varchar>,
         #[max_length = 128]

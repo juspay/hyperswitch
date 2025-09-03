@@ -1386,6 +1386,7 @@ impl PaymentCreate {
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
+                network_transaction_id:None,
             },
             additional_pm_data,
 

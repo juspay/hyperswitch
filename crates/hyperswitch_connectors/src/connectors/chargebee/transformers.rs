@@ -516,10 +516,26 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             retry_count,
             invoice_next_billing_time,
             invoice_billing_started_at_time,
-            card_network: Some(payment_method_details.card.brand),
-            card_isin: Some(payment_method_details.card.iin),
             // This field is none because it is specific to stripebilling.
             charge_id: None,
+            // Need to populate these card info field
+            card_info: api_models::payments::AdditionalCardInfo {
+                card_network: Some(payment_method_details.card.brand),
+                card_isin: Some(payment_method_details.card.iin),
+                card_issuer: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                last4: None,
+                card_extended_bin: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+                payment_checks: None,
+                authentication_data: None,
+                is_regulated: None,
+                signature_network: None,
+            },
         })
     }
 }

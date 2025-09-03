@@ -16,6 +16,25 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
   card: {
@@ -38,31 +57,6 @@ const payment_method_data_no3ds = {
       merchant_advice_code: "",
       merchant_advice_code_description: null,
     },
-  },
-  billing: null,
-};
-
-const payment_method_data_3ds = {
-  card: {
-    last4: "0961",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "RIVER VALLEY CREDIT UNION",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "400002",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "25",
-    card_holder_name: "CL-BRW1",
-    payment_checks: {
-      avs_description: null,
-      avs_result_code: "",
-      cvv_2_reply_code: "",
-      cvv_2_description: null,
-      merchant_advice_code: "",
-      merchant_advice_code_description: null,
-    },
-    authentication_data: {},
   },
   billing: null,
 };
@@ -204,7 +198,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -315,7 +308,25 @@ export const connectorDetails = {
         },
       },
     },
-
+    ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     ZeroAuthPaymentIntent: {
       Request: {
         amount: 0,
@@ -331,9 +342,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -343,11 +351,110 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 501,
-        error: {
-          type: "invalid_request",
-          message: "Setup Mandate flow for Nuvei is not implemented",
-          code: "IR_00",
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
+          payment_method: "card",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -475,9 +582,6 @@ export const connectorDetails = {
     },
     // Payment method ID mandate scenarios
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {

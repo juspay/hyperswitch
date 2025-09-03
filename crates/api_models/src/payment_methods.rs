@@ -190,7 +190,10 @@ impl PaymentMethodIntentConfirm {
     ) -> bool {
         match payment_method_type {
             api_enums::PaymentMethod::Card => {
-                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
+                )
             }
             _ => false,
         }
@@ -437,7 +440,10 @@ impl PaymentMethodCreate {
     ) -> bool {
         match payment_method_type {
             api_enums::PaymentMethod::Card => {
-                matches!(payment_method_data, PaymentMethodCreateData::Card(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
+                )
             }
             _ => false,
         }
