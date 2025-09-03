@@ -437,12 +437,12 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
-        connector: Option<String>,
-        payment_method_type: Option<enums::PaymentMethod>,
-        payment_method_subtype: Option<enums::PaymentMethodType>,
-        authentication_type: Option<enums::AuthenticationType>,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-        card_network: Option<enums::CardNetwork>,
+        connector: Option<Vec<String>>,
+        payment_method_type: Option<Vec<enums::PaymentMethod>>,
+        payment_method_subtype: Option<Vec<enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<enums::AuthenticationType>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<enums::CardNetwork>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -450,24 +450,24 @@ impl PaymentAttempt {
             .filter(dsl::id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
 
-        if let Some(connector) = connector {
-            filter = filter.filter(dsl::connector.eq(connector));
+        if let Some(connectors) = connector {
+            filter = filter.filter(dsl::connector.eq_any(connectors));
         }
 
-        if let Some(payment_method_type) = payment_method_type {
-            filter = filter.filter(dsl::payment_method_type_v2.eq(payment_method_type));
+        if let Some(payment_method_types) = payment_method_type {
+            filter = filter.filter(dsl::payment_method_type_v2.eq_any(payment_method_types));
         }
-        if let Some(payment_method_subtype) = payment_method_subtype {
-            filter = filter.filter(dsl::payment_method_subtype.eq(payment_method_subtype));
+        if let Some(payment_method_subtypes) = payment_method_subtype {
+            filter = filter.filter(dsl::payment_method_subtype.eq_any(payment_method_subtypes));
         }
-        if let Some(authentication_type) = authentication_type {
-            filter = filter.filter(dsl::authentication_type.eq(authentication_type));
+        if let Some(authentication_types) = authentication_type {
+            filter = filter.filter(dsl::authentication_type.eq_any(authentication_types));
         }
-        if let Some(merchant_connector_id) = merchant_connector_id {
-            filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id))
+        if let Some(merchant_connector_ids) = merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_ids));
         }
-        if let Some(card_network) = card_network {
-            filter = filter.filter(dsl::card_network.eq(card_network))
+        if let Some(card_networks) = card_network {
+            filter = filter.filter(dsl::card_network.eq_any(card_networks));
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());

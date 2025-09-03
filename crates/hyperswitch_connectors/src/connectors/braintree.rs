@@ -182,6 +182,7 @@ impl ConnectorCommon for Braintree {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Ok(braintree::ErrorResponses::BraintreeErrorResponse(response)) => {
@@ -198,6 +199,7 @@ impl ConnectorCommon for Braintree {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -1307,7 +1309,8 @@ static BRAINTREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Braintree",
     description:
         "Braintree, a PayPal service, offers a full-stack payment platform that simplifies accepting payments in your app or website, supporting various payment methods including credit cards and PayPal.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

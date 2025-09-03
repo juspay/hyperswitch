@@ -188,6 +188,7 @@ impl ConnectorCommon for Helcim {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -901,7 +902,8 @@ static HELCIM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Helcim",
         description:
             "Helcim is a payment processing company that offers transparent, affordable merchant services for businesses of all sizes",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static HELCIM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

@@ -87,6 +87,7 @@ mod payload;
 mod payme;
 mod payone;
 mod paypal;
+mod paysafe;
 mod paystack;
 mod paytm;
 mod payu;

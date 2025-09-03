@@ -157,6 +157,7 @@ impl ConnectorCommon for Bitpay {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -446,7 +447,8 @@ static BITPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Bitpay",
         description:
             "BitPay is a cryptocurrency payment processor that enables businesses to accept Bitcoin and other digital currencies ",
-        connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+        connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static BITPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

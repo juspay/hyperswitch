@@ -8,6 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::Email,
     request::Method,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -27,7 +28,7 @@ use hyperswitch_domain_models::{
         RefundsRouterData, SetupMandateRouterData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
@@ -67,16 +68,13 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct AuthorizedotnetRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AuthorizedotnetRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for AuthorizedotnetRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -155,7 +153,7 @@ pub enum WalletMethod {
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency_code: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     payment: Option<PaymentDetails>,
@@ -276,7 +274,7 @@ struct AuthorizationIndicator {
 struct TransactionVoidOrCaptureRequest {
     transaction_type: TransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
-    amount: Option<f64>,
+    amount: Option<FloatMajorUnit>,
     ref_trans_id: String,
 }
 
@@ -529,6 +527,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::MbWayRedirect(_)
                 | WalletData::MobilePayRedirect(_)
                 | WalletData::PaypalRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
@@ -645,6 +644,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 });
                 Ok(Self {
                     response,
@@ -716,6 +716,7 @@ impl<F, T>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 });
                 Ok(Self {
                     response,
@@ -902,13 +903,15 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
+            customer: item.router_data.customer_id.as_ref().and_then(|cid| {
+                if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                    Some(CustomerDetails {
+                        id: cid.get_string_repr().to_string(),
+                        email: item.router_data.request.get_optional_email(),
+                    })
                 } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
+                    None
+                }
             }),
             bill_to: item
                 .router_data
@@ -991,13 +994,15 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
+            customer: item.router_data.customer_id.as_ref().and_then(|cid| {
+                if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                    Some(CustomerDetails {
+                        id: cid.get_string_repr().to_string(),
+                        email: item.router_data.request.get_optional_email(),
+                    })
                 } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
+                    None
+                }
             }),
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
@@ -1033,21 +1038,19 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
-            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                create_profile: true,
-            })),
-            Some(CustomerDetails {
-                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+        let profile = Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+            create_profile: true,
+        }));
+        let customer = item.router_data.customer_id.as_ref().and_then(|cid| {
+            if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                Some(CustomerDetails {
+                    id: cid.get_string_repr().to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            } else {
+                None
+            }
+        });
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1117,19 +1120,19 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
-            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                create_profile: true,
-            })),
-            Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+        let profile = Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+            create_profile: true,
+        }));
+        let customer = item.router_data.customer_id.as_ref().and_then(|cid| {
+            if cid.get_string_repr().len() <= MAX_ID_LENGTH {
+                Some(CustomerDetails {
+                    id: cid.get_string_repr().to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            } else {
+                None
+            }
+        });
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1481,6 +1484,7 @@ impl<F, T>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1581,6 +1585,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1631,7 +1636,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
 #[serde(rename_all = "camelCase")]
 struct RefundTransactionRequest {
     transaction_type: TransactionType,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency_code: String,
     payment: PaymentDetails,
     #[serde(rename = "refTransId")]
@@ -1732,6 +1737,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         });
 
@@ -2028,6 +2034,7 @@ fn get_err_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     })
 }
 
@@ -2165,6 +2172,7 @@ fn get_wallet_data(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPay(_)
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)

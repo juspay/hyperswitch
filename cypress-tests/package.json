@@ -16,6 +16,8 @@
     "report:generate": "node scripts/report-generator.js",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
     "dashboard:serve": "node scripts/serve-dashboard.js",
+    "mockserver": "npx tsx cypress/e2e/configs/mock-server/mockserver.ts",
+    "build:ts": "tsc",
     "dashboard": "npm run dashboard:serve",
     "cypress:ci:report": "npm run cypress:ci && npm run report:generate",
     "build": "node scripts/build.js",
@@ -26,19 +28,26 @@
   "author": "Hyperswitch",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
-    "cypress": "^14.5.3",
+    "@eslint/js": "^9.33.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "cypress": "^14.5.4",
     "cypress-mochawesome-reporter": "^4.0.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-cypress": "^5.1.0",
-    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.3.0",
     "jsqr": "^1.4.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1"
   }
 }

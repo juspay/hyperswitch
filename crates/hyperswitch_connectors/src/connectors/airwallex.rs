@@ -146,6 +146,7 @@ impl ConnectorCommon for Airwallex {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1304,7 +1305,8 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Airwallex",
     description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
