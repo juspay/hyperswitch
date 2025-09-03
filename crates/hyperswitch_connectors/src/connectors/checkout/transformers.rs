@@ -1,4 +1,4 @@
-use common_enums::enums::{self, AttemptStatus};
+use common_enums::enums::{self, AttemptStatus, FutureUsage};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
@@ -9,14 +9,15 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
-    router_flow_types::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_flow_types::{Execute, RSync, SetupMandate},
+    router_request_types::{ResponseId, SetupMandateRequestData},
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
+
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -28,12 +29,10 @@ use crate::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
         ResponseRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
-    },
-    unimplemented_payment_method,
-    utils::{
-        self, PaymentsCaptureRequestData, RouterData as OtherRouterData,
+    }, unimplemented_payment_method, utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RouterData as OtherRouterData,
         WalletData as OtherWalletData,
-    },
+    }
 };
 
 #[derive(Debug, Serialize)]
@@ -207,11 +206,20 @@ pub struct WalletSource {
 }
 
 #[derive(Debug, Serialize)]
+pub struct MandateSource {
+    #[serde(rename = "type")]
+    pub source_type: CheckoutSourceTypes,
+    #[serde(rename = "id")]
+    pub source_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
+    MandatePayment(MandateSource),
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +239,14 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    #[serde(rename = "id")]
+    SourceId,
+}
+
+#[derive(Debug, Serialize)]
+pub enum CheckoutPaymentType {
+    Recurring,
+    Regular,
 }
 
 pub struct CheckoutAuthType {
@@ -258,6 +274,9 @@ pub struct PaymentsRequest {
     pub capture: bool,
     pub reference: String,
     pub metadata: Option<Secret<serde_json::Value>>,
+    pub payment_type: CheckoutPaymentType,
+    pub merchant_initiated: Option<bool>,
+    pub previous_payment_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -271,6 +290,15 @@ pub enum CheckoutPaymentIntent {
     Authorize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckoutChallengeIndicator {
+    NoPreference,
+    ChallengeRequestedMandate,
+    ChallengeRequested,
+    NoChallengeRequested,
+}
+
 #[derive(Debug, Serialize)]
 pub struct CheckoutThreeDS {
     enabled: bool,
@@ -279,6 +307,7 @@ pub struct CheckoutThreeDS {
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
+    challenge_indicator: CheckoutChallengeIndicator,
 }
 
 impl TryFrom<&ConnectorAuthType> for CheckoutAuthType {
@@ -368,59 +397,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         }
                     }
                 }
-                WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
-                | WalletData::AliPayHkRedirect(_)
-                | WalletData::AmazonPay(_)
-                | WalletData::AmazonPayRedirect(_)
-                | WalletData::Paysera(_)
-                | WalletData::Skrill(_)
-                | WalletData::BluecodeRedirect {}
-                | WalletData::MomoRedirect(_)
-                | WalletData::KakaoPayRedirect(_)
-                | WalletData::GoPayRedirect(_)
-                | WalletData::GcashRedirect(_)
-                | WalletData::ApplePayRedirect(_)
-                | WalletData::ApplePayThirdPartySdk(_)
-                | WalletData::DanaRedirect {}
-                | WalletData::GooglePayRedirect(_)
-                | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
-                | WalletData::MobilePayRedirect(_)
-                | WalletData::PaypalRedirect(_)
-                | WalletData::PaypalSdk(_)
-                | WalletData::Paze(_)
-                | WalletData::SamsungPay(_)
-                | WalletData::TwintRedirect {}
-                | WalletData::VippsRedirect {}
-                | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
-                | WalletData::CashappQr(_)
-                | WalletData::SwishQr(_)
-                | WalletData::WeChatPayQr(_)
-                | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )),
             },
-
-            PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::MandatePayment => {
+                let mandate_source = PaymentSource::MandatePayment(MandateSource { source_type: CheckoutSourceTypes::SourceId, source_id: item.router_data.request.connector_mandate_id() });
+                Ok(mandate_source)
+            },
+            _ => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 ))
@@ -430,18 +415,27 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
         let three_ds = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
-                enabled: true,
-                force_3ds: true,
-                eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                xid: authentication_data
-                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.and_then(|auth| {
-                    auth.message_version
-                        .clone()
-                        .map(|version| version.to_string())
-                }),
+            enums::AuthenticationType::ThreeDs => {
+                let challenge_indicator = if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+                {
+                    CheckoutChallengeIndicator::ChallengeRequestedMandate
+                } else {
+                    CheckoutChallengeIndicator::ChallengeRequested
+                };
+                CheckoutThreeDS {
+                    enabled: true,
+                    force_3ds: true,
+                    eci: authentication_data.and_then(|auth| auth.eci.clone()),
+                    cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
+                    xid: authentication_data
+                        .and_then(|auth| auth.threeds_server_transaction_id.clone()),
+                    version: authentication_data.and_then(|auth| {
+                        auth.message_version
+                            .clone()
+                            .map(|version| version.to_string())
+                    }),
+                    challenge_indicator,
+                }
             },
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
@@ -450,6 +444,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 cryptogram: None,
                 xid: None,
                 version: None,
+                challenge_indicator: CheckoutChallengeIndicator::NoPreference,
             },
         };
 
@@ -468,26 +463,54 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .map(|return_url| format!("{return_url}?status=failure")),
         };
 
-        let capture = matches!(
-            item.router_data.request.capture_method,
-            Some(enums::CaptureMethod::Automatic)
-        );
-
         let connector_auth = &item.router_data.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
-        Ok(Self {
-            source: source_var,
-            amount: item.amount.to_owned(),
-            currency: item.router_data.request.currency.to_string(),
-            processing_channel_id,
-            three_ds,
-            return_url,
-            capture,
-            reference: item.router_data.connector_request_reference_id.clone(),
-            metadata,
-        })
+        
+        match item.router_data.request.payment_method_data {
+            PaymentMethodData::MandatePayment => {
+                Ok(Self {
+                    source: source_var,
+                    amount: item.amount.to_owned(),
+                    currency: item.router_data.request.currency.to_string(),
+                    processing_channel_id,
+                    three_ds,
+                    return_url,
+                    capture: true,
+                    reference: item.router_data.connector_request_reference_id.clone(),
+                    metadata,
+                    payment_type : CheckoutPaymentType::Recurring,
+                    merchant_initiated: Some(true),
+                    previous_payment_id : Some(item.router_data.request.get_connector_mandate_request_reference_id()?),
+                })
+            }
+            _ => {
+                let capture = matches!(
+                    item.router_data.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic)
+                );
+                let payment_type = if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession) {
+                        CheckoutPaymentType::Recurring
+                    } else {
+                        CheckoutPaymentType::Regular
+                    };
+                Ok(Self {
+                    source: source_var,
+                    amount: item.amount.to_owned(),
+                    currency: item.router_data.request.currency.to_string(),
+                    processing_channel_id,
+                    three_ds,
+                    return_url,
+                    capture,
+                    reference: item.router_data.connector_request_reference_id.clone(),
+                    metadata,
+                    payment_type,
+                    merchant_initiated: Some(false),
+                    previous_payment_id: None,
+                })
+            }
+        }
     }
 }
 
@@ -590,15 +613,14 @@ fn get_attempt_status_intent(
         }
         CheckoutPaymentStatus::Captured
         | CheckoutPaymentStatus::PartiallyRefunded
-        | CheckoutPaymentStatus::Refunded => AttemptStatus::Charged,
+        | CheckoutPaymentStatus::Refunded
+        | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
         CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
         CheckoutPaymentStatus::Declined
         | CheckoutPaymentStatus::Expired
         | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
         CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
-        CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
-            AttemptStatus::Pending
-        }
+        CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
     }
 }
@@ -642,6 +664,12 @@ pub struct Href {
 pub struct Links {
     redirect: Option<Href>,
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct Source { 
+    id : Option<String>,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
@@ -657,6 +685,7 @@ pub struct PaymentsResponse {
     response_summary: Option<String>,
     approved: Option<bool>,
     processed_on: Option<String>,
+    source: Option<Source>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -747,6 +776,94 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
     }
 }
 
+impl
+    TryFrom<
+        ResponseRouterData<
+            SetupMandate,
+            PaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            SetupMandate,
+            PaymentsResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let connector_meta =
+            get_connector_meta(item.data.request.capture_method.unwrap_or_default())?;
+        let redirection_data = item
+            .response
+            .links
+            .redirect
+            .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
+        let status =
+            get_attempt_status_cap((item.response.status, item.data.request.capture_method));
+  
+        let error_response = if status == AttemptStatus::Failure {
+            Some(ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .response_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_summary
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_summary,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            None
+        };
+
+        let mandate_reference = if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
+            item.response
+                .source
+                .as_ref()
+                .and_then(|src| src.id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                })
+        } else {
+            None
+        };
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(mandate_reference),
+            connector_metadata: Some(connector_meta),
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                item.response.reference.unwrap_or(item.response.id),
+            ),
+            incremental_authorization_allowed: None,
+            charges: None,
+        };
+        Ok(Self {
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            ..item.data
+        })
+    }
+}
+
 impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -783,10 +900,26 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         } else {
             None
         };
+
+        let mandate_reference = if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
+            item.response
+                .source
+                .as_ref()
+                .and_then(|src| src.id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                })
+        } else {
+            None
+        };
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
-            mandate_reference: Box::new(None),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -1276,6 +1409,7 @@ pub struct CheckoutWebhookBody {
     pub data: CheckoutWebhookData,
     #[serde(rename = "_links")]
     pub links: Links,
+    pub source: Option<Source>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1440,6 +1574,10 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             currency: Some(data.currency),
             processed_on: data.processed_on,
             approved: data.approved,
+            source: Some(Source{
+                    id: details.source.and_then(|src| src.id)
+                }
+            ),
         };
 
         Ok(psync_struct)

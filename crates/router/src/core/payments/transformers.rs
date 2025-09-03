@@ -4313,6 +4313,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .payment_attempt
                 .connector_response_reference_id
                 .clone(),
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
         })
     }
 }

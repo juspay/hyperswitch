@@ -705,6 +705,7 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 #[derive(Debug, Default, Clone)]
