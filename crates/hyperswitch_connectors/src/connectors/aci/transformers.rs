@@ -8,17 +8,13 @@ use hyperswitch_domain_models::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::{
-        authentication::{Authentication, PreAuthentication},
-        SetupMandate,
-    },
+    router_flow_types::SetupMandate,
     router_request_types::{
-        AuthenticationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData,
-        ResponseId, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, MandateReference, PaymentsResponseData, RedirectForm,
-        RefundsResponseData,
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -26,14 +22,17 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, NetworkTokenData as NetworkTokenDataTrait, PhoneDetailsData, RouterData as _},
+    utils::{
+        self, CardData, NetworkTokenData as NetworkTokenDataTrait, PhoneDetailsData,
+        RouterData as _,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -62,8 +61,8 @@ impl GetCaptureMethod for PaymentsCancelData {
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
-    amount: StringMajorUnit,
-    router_data: T,
+    pub amount: StringMajorUnit,
+    pub router_data: T,
 }
 
 impl<T> From<(StringMajorUnit, T)> for AciRouterData<T> {
@@ -149,6 +148,7 @@ pub enum PaymentDetails {
     Wallet(Box<WalletPMData>),
     Klarna,
     Mandate,
+    AciNetworkToken(Box<AciNetworkTokenData>),
 }
 
 impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
@@ -375,6 +375,8 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     fn try_from(
         (card_data, card_holder_name): (Card, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
+        let card_expiry_year = card_data.get_expiry_year_4_digit();
+
         let payment_brand = get_aci_payment_brand(card_data.card_network)?;
 
         Ok(Self::AciCard(Box::new(CardDetails {
@@ -382,36 +384,60 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
             card_holder: card_holder_name.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "card_holder_name",
             })?,
-            card_expiry_month: card_data.card_exp_month,
-            card_expiry_year: card_data.card_exp_year,
+            card_expiry_month: card_data.card_exp_month.clone(),
+            card_expiry_year,
             card_cvv: card_data.card_cvc,
             payment_brand,
         })))
     }
 }
 
-impl TryFrom<(NetworkTokenData, Option<Secret<String>>)> for PaymentDetails {
+impl
+    TryFrom<(
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
+        &NetworkTokenData,
+    )> for PaymentDetails
+{
     type Error = Error;
     fn try_from(
-        (network_token_data, card_holder_name): (NetworkTokenData, Option<Secret<String>>),
+        value: (
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
+            &NetworkTokenData,
+        ),
     ) -> Result<Self, Self::Error> {
-        let payment_brand = PaymentBrand::Visa;
-
-        Ok(Self::AciCard(Box::new(CardDetails {
-            card_number: network_token_data.get_network_token(),
-            card_holder: card_holder_name.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_holder_name",
-            })?,
-            card_expiry_month: network_token_data.get_network_token_expiry_month(),
-            card_expiry_year: network_token_data.get_expiry_year_4_digit(),
-            card_cvv: network_token_data.get_cryptogram().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "network_token_cryptogram",
-                },
-            )?,
-            payment_brand,
-        })))
+        // println!("$$$ in network token data 1");
+        let (_item, network_token_data) = value;
+        let token_number = network_token_data.get_network_token();
+        let aci_network_token_data = AciNetworkTokenData {
+            token_type: AciTokenAccountType::Network,
+            token_number,
+            token_expiry_month: network_token_data.get_network_token_expiry_month(),
+            token_expiry_year: network_token_data.get_expiry_year_4_digit(),
+            token_cryptogram: Some(network_token_data.get_cryptogram().clone().unwrap_or_default()),
+        };
+        Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AciTokenAccountType {
+    Network,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciNetworkTokenData {
+    #[serde(rename = "tokenAccount.type")]
+    pub token_type: AciTokenAccountType,
+    #[serde(rename = "tokenAccount.number")]
+    pub token_number: cards::CardNumber,
+    #[serde(rename = "tokenAccount.expiryMonth")]
+    pub token_expiry_month: Secret<String>,
+    #[serde(rename = "tokenAccount.expiryYear")]
+    pub token_expiry_year: Secret<String>,
+    #[serde(rename = "tokenAccount.cryptogram")]
+    pub token_cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -663,6 +689,8 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
     fn try_from(
         value: (&AciRouterData<&PaymentsAuthorizeRouterData>, &Card),
     ) -> Result<Self, Self::Error> {
+        // println!("$$$ in card data");
+
         let (item, card_data) = value;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let txn_details = get_transaction_details(item)?;
@@ -691,11 +719,11 @@ impl
             &NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
+        // println!("$$$ in network token data 2");
+
         let (item, network_token_data) = value;
-        let card_holder_name = item.router_data.get_optional_billing_full_name();
         let txn_details = get_transaction_details(item)?;
-        let payment_method =
-            PaymentDetails::try_from((network_token_data.clone(), card_holder_name))?;
+        let payment_method = PaymentDetails::try_from((item, network_token_data))?;
         let instruction = get_instruction_details(item);
 
         Ok(Self {
@@ -802,7 +830,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                 let details = PaymentDetails::AciCard(Box::new(CardDetails {
                     card_number: card_data.card_number.clone(),
                     card_expiry_month: card_data.card_exp_month.clone(),
-                    card_expiry_year: card_data.card_exp_year.clone(),
+                    card_expiry_year: card_data.get_expiry_year_4_digit(),
                     card_cvv: card_data.card_cvc.clone(),
                     card_holder: card_data.card_holder_name.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
@@ -931,49 +959,6 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-fn build_3ds_redirect_form(redirect_data: AciRedirectionData) -> RedirectForm {
-    if let Some(preconditions) = redirect_data.preconditions {
-        if let Some(first_precondition) = preconditions.first() {
-            let precondition_form_fields = std::collections::HashMap::<_, _>::from_iter(
-                first_precondition
-                    .parameters
-                    .iter()
-                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
-            );
-
-            let authentication_form_fields = std::collections::HashMap::<_, _>::from_iter(
-                redirect_data
-                    .parameters
-                    .iter()
-                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
-            );
-
-            return RedirectForm::AciThreeDSFlow {
-                precondition_url: first_precondition.url.to_string(),
-                precondition_method: first_precondition.method.unwrap_or(Method::Post),
-                precondition_form_fields,
-                authentication_url: redirect_data.url.to_string(),
-                authentication_method: redirect_data.method.unwrap_or(Method::Post),
-                authentication_form_fields,
-            };
-        }
-    }
-
-    // Fallback to simple form for non-3DS flows or 3DS without preconditions
-    let form_fields = std::collections::HashMap::<_, _>::from_iter(
-        redirect_data
-            .parameters
-            .iter()
-            .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
-    );
-
-    RedirectForm::Form {
-        endpoint: redirect_data.url.to_string(),
-        method: redirect_data.method.unwrap_or(Method::Post),
-        form_fields,
-    }
-}
-
 impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
     for RouterData<F, Req, PaymentsResponseData>
 where
@@ -983,7 +968,23 @@ where
     fn try_from(
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.redirect.map(build_3ds_redirect_form);
+        let redirection_data = item.response.redirect.map(|data| {
+            let form_fields = std::collections::HashMap::<_, _>::from_iter(
+                data.parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+            );
+
+            // If method is Get, parameters are appended to URL
+            // If method is post, we http Post the method to URL
+            RedirectForm::Form {
+                endpoint: data.url.to_string(),
+                // Handles method for Bank redirects currently.
+                // 3DS response have method within preconditions. That would require replacing below line with a function.
+                method: data.method.unwrap_or(Method::Post),
+                form_fields,
+            }
+        });
 
         let mandate_reference = item.response.registration_id.map(|id| MandateReference {
             connector_mandate_id: Some(id.expose()),
@@ -1258,80 +1259,6 @@ pub enum AciWebhookEventType {
     Payment,
 }
 
-// Standalone 3DS Authentication Structures
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AciStandalone3DSRequest {
-    entity_id: Secret<String>,
-    amount: StringMajorUnit,
-    currency: common_enums::Currency,
-    merchant_transaction_id: String,
-    #[serde(rename = "card.number")]
-    card_number: cards::CardNumber,
-    #[serde(rename = "card.expiryMonth")]
-    card_expiry_month: Secret<String>,
-    #[serde(rename = "card.expiryYear")]
-    card_expiry_year: Secret<String>,
-    #[serde(rename = "card.holder")]
-    card_holder: Secret<String>,
-    #[serde(rename = "card.cvv")]
-    card_cvv: Secret<String>,
-    shopper_result_url: String,
-    #[serde(
-        rename = "threeDSecure.challengeIndicator",
-        skip_serializing_if = "Option::is_none"
-    )]
-    challenge_indicator: Option<String>,
-    #[serde(
-        rename = "customParameters[3DS2_enrolled]",
-        skip_serializing_if = "Option::is_none"
-    )]
-    three_ds_enrolled: Option<bool>,
-    #[serde(
-        rename = "customParameters[3DS2_flow]",
-        skip_serializing_if = "Option::is_none"
-    )]
-    three_ds_flow: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    test_mode: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    recurring_type: Option<AciRecurringType>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum AciRecurringType {
-    Initial,
-    Repeated,
-    Installment,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AciStandalone3DSResponse {
-    pub id: String,
-    pub result: ResultCode,
-    #[serde(rename = "threeDSProcessingInfo")]
-    pub three_ds_processing_info: Option<ThreeDSProcessingInfo>,
-    pub redirect: Option<AciRedirectionData>,
-    pub timestamp: String,
-    pub ndc: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ThreeDSProcessingInfo {
-    pub acs_url: Option<String>,
-    pub creq: Option<String>,
-    pub three_ds_version: Option<String>,
-    pub transaction_id: Option<String>,
-    pub ds_transaction_id: Option<String>,
-    pub acs_transaction_id: Option<String>,
-    pub challenge_flow: Option<String>,
-    pub challenge_indicator: Option<String>,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum AciWebhookAction {
     Created,
@@ -1413,259 +1340,24 @@ pub struct AciWebhookNotification {
     pub payload: serde_json::Value,
 }
 
-fn determine_recurring_type_for_3ds<T>(
-    item: &RouterData<T, AuthenticationData, AuthenticationResponseData>,
-) -> Option<AciRecurringType> {
-    if let Some(metadata) = item.connector_meta_data.as_ref() {
-        if let Some(meta_obj) = metadata.peek().as_object() {
-            if let Some(recurring_type) = meta_obj.get("recurring_type").and_then(|v| v.as_str()) {
-                match recurring_type {
-                    "REPEATED" => return Some(AciRecurringType::Repeated),
-                    "INITIAL" => return Some(AciRecurringType::Initial),
-                    "INSTALLMENT" => return Some(AciRecurringType::Installment),
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    None
-}
-
-impl TryFrom<&RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>>
-    for AciStandalone3DSRequest
-{
-    type Error = Error;
-
-    fn try_from(
-        item: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
-
-        let connector_metadata = item
-            .connector_meta_data
-            .as_ref()
-            .and_then(|meta| meta.peek().as_object())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta_data_with_card_details",
-            })?;
-
-        let card_number = connector_metadata
-            .get("card_number")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_number_in_metadata",
-            })?;
-
-        let card_expiry_month = connector_metadata
-            .get("card_expiry_month")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_expiry_month_in_metadata",
-            })?;
-
-        let card_expiry_year = connector_metadata
-            .get("card_expiry_year")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_expiry_year_in_metadata",
-            })?;
-
-        let card_holder = connector_metadata
-            .get("card_holder")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_holder_in_metadata",
-            })?;
-
-        let amount = connector_metadata
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount_in_metadata",
-            })?
-            .to_string();
-
-        let currency = connector_metadata
-            .get("currency")
-            .and_then(|v| v.as_str())
-            .and_then(|s| s.parse::<common_enums::Currency>().ok())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency_in_metadata",
-            })?;
-
-        let card_cvv = connector_metadata
-            .get("card_cvv")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_cvv_in_metadata",
-            })?;
-
-        let merchant_transaction_id = item.payment_id.clone();
-
-        let challenge_indicator = connector_metadata
-            .get("challenge_indicator")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        Ok(Self {
-            entity_id: auth.entity_id,
-            amount: StringMajorUnit::from_str(&amount).map_err(|_| {
-                errors::ConnectorError::InvalidDataFormat {
-                    field_name: "amount",
-                }
-            })?,
-            currency,
-            merchant_transaction_id,
-            card_number: cards::CardNumber::from_str(card_number).map_err(|_| {
-                errors::ConnectorError::InvalidDataFormat {
-                    field_name: "card_number",
-                }
-            })?,
-            card_expiry_month: Secret::new(card_expiry_month.to_string()),
-            card_expiry_year: Secret::new(card_expiry_year.to_string()),
-            card_holder: Secret::new(card_holder.to_string()),
-            card_cvv: Secret::new(card_cvv.to_string()),
-            shopper_result_url: item
-                .connector_meta_data
-                .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .and_then(|obj| obj.get("webhook_url"))
-                .and_then(|url| url.as_str())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "webhook_url_in_metadata",
-                })?
-                .to_string(),
-            challenge_indicator,
-            three_ds_enrolled: Some(true),
-            three_ds_flow: Some("frictionless".to_string()),
-            test_mode: Some("INTERNAL".to_string()),
-            recurring_type: determine_recurring_type_for_3ds(item),
-        })
-    }
-}
-
-impl TryFrom<&RouterData<Authentication, AuthenticationData, AuthenticationResponseData>>
-    for AciStandalone3DSRequest
-{
-    type Error = Error;
-
-    fn try_from(
-        item: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
-
-        let _threeds_server_transaction_id = item
-            .request
-            .threeds_server_transaction_id
-            .as_ref()
-            .cloned()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "threeds_server_transaction_id",
-            })?;
-
-        let connector_metadata = item
-            .connector_meta_data
-            .as_ref()
-            .and_then(|meta| meta.peek().as_object())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta_data_with_card_details",
-            })?;
-
-        let card_number = connector_metadata
-            .get("card_number")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_number_in_metadata",
-            })?;
-
-        let card_expiry_month = connector_metadata
-            .get("card_expiry_month")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_expiry_month_in_metadata",
-            })?
-            .to_string();
-
-        let card_expiry_year = connector_metadata
-            .get("card_expiry_year")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_expiry_year_in_metadata",
-            })?
-            .to_string();
-
-        let card_holder = connector_metadata
-            .get("card_holder")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_holder_in_metadata",
-            })?
-            .to_string();
-
-        let amount = connector_metadata
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount_in_metadata",
-            })?
-            .to_string();
-
-        let currency = connector_metadata
-            .get("currency")
-            .and_then(|v| v.as_str())
-            .and_then(|s| s.parse::<common_enums::Currency>().ok())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency_in_metadata",
-            })?;
-
-        let card_cvv = connector_metadata
-            .get("card_cvv")
-            .and_then(|v| v.as_str())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_cvv_in_metadata",
-            })?;
-
-        let merchant_transaction_id = item.payment_id.clone();
-
-        let challenge_indicator = connector_metadata
-            .get("challenge_indicator")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-
-        Ok(Self {
-            entity_id: auth.entity_id,
-            amount: StringMajorUnit::from_str(&amount).map_err(|_| {
-                errors::ConnectorError::InvalidDataFormat {
-                    field_name: "amount",
-                }
-            })?,
-            currency,
-            merchant_transaction_id,
-            card_number: cards::CardNumber::from_str(&card_number).map_err(|_| {
-                errors::ConnectorError::InvalidDataFormat {
-                    field_name: "card_number",
-                }
-            })?,
-            card_expiry_month: Secret::new(card_expiry_month),
-            card_expiry_year: Secret::new(card_expiry_year),
-            card_holder: Secret::new(card_holder),
-            card_cvv: Secret::new(card_cvv.to_string()),
-            shopper_result_url: item
-                .connector_meta_data
-                .as_ref()
-                .and_then(|meta| meta.peek().as_object())
-                .and_then(|obj| obj.get("webhook_url"))
-                .and_then(|url| url.as_str())
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "webhook_url_in_metadata",
-                })?
-                .to_string(),
-            challenge_indicator,
-            three_ds_enrolled: Some(true),
-            three_ds_flow: Some("frictionless".to_string()),
-            test_mode: Some("INTERNAL".to_string()),
-            recurring_type: determine_recurring_type_for_3ds(item),
-        })
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChallengeIndicator {
+    #[serde(rename = "01")]
+    NoPreference,
+    #[serde(rename = "02")]
+    NoChallengeRequested,
+    #[serde(rename = "03")]
+    ChallengeRequestedRequestorPreference,
+    #[serde(rename = "04")]
+    ChallengeRequestedMandate,
+    #[serde(rename = "05")]
+    NoChallengeRequestedRiskAnalysis,
+    #[serde(rename = "06")]
+    NoChallengeRequestedDataShareOnly,
+    #[serde(rename = "07")]
+    NoChallengeRequestedSCAAlreadyPerformed,
+    #[serde(rename = "08")]
+    NoChallengeRequestedWhitelistExemption,
+    #[serde(rename = "09")]
+    ChallengeRequestedWhitelistPrompt,
 }

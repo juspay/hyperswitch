@@ -18,18 +18,17 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        authentication::{Authentication, PreAuthentication},
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, AuthenticationData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -97,7 +96,7 @@ impl ConnectorCommon for Aci {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -512,7 +511,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -754,269 +752,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Aci {}
 
-impl ConnectorIntegration<PreAuthentication, AuthenticationData, AuthenticationResponseData>
-    for Aci
-{
-    fn get_headers(
-        &self,
-        req: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/threeDSecure", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = aci::AciStandalone3DSRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&self.get_url(req, connectors)?)
-                .attach_default_headers()
-                .headers(self.get_headers(req, connectors)?)
-                .set_body(self.get_request_body(req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<
-        RouterData<PreAuthentication, AuthenticationData, AuthenticationResponseData>,
-        errors::ConnectorError,
-    > {
-        let response: aci::AciStandalone3DSResponse = res
-            .response
-            .parse_struct("AciStandalone3DSResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let response_data = if response.redirect.is_some() {
-            AuthenticationResponseData::PreAuthNResponse {
-                threeds_server_transaction_id: response.id.clone(),
-                maximum_supported_3ds_version: common_utils::types::SemanticVersion::new(2, 2, 0),
-                connector_authentication_id: response.id.clone(),
-                three_ds_method_data: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.creq.clone()),
-                three_ds_method_url: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.acs_url.clone()),
-                message_version: common_utils::types::SemanticVersion::new(2, 2, 0),
-                connector_metadata: response.redirect.clone().map(|redirect_data| {
-                    serde_json::json!({
-                        "acs_url": redirect_data.url,
-                        "parameters": redirect_data.parameters
-                    })
-                }),
-                directory_server_id: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.ds_transaction_id.clone()),
-            }
-        } else {
-            AuthenticationResponseData::PreAuthNResponse {
-                threeds_server_transaction_id: response.id.clone(),
-                maximum_supported_3ds_version: common_utils::types::SemanticVersion::new(2, 2, 0),
-                connector_authentication_id: response.id.clone(),
-                three_ds_method_data: None,
-                three_ds_method_url: None,
-                message_version: common_utils::types::SemanticVersion::new(2, 2, 0),
-                connector_metadata: None,
-                directory_server_id: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.ds_transaction_id.clone()),
-            }
-        };
-
-        Ok(RouterData {
-            status: common_enums::AttemptStatus::AuthenticationPending,
-            response: Ok(response_data),
-            ..data.clone()
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl ConnectorIntegration<Authentication, AuthenticationData, AuthenticationResponseData> for Aci {
-    fn get_headers(
-        &self,
-        req: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/threeDSecure", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = aci::AciStandalone3DSRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&self.get_url(req, connectors)?)
-                .attach_default_headers()
-                .headers(self.get_headers(req, connectors)?)
-                .set_body(self.get_request_body(req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<
-        RouterData<Authentication, AuthenticationData, AuthenticationResponseData>,
-        errors::ConnectorError,
-    > {
-        let response: aci::AciStandalone3DSResponse = res
-            .response
-            .parse_struct("AciStandalone3DSResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let authn_flow_type = if response.redirect.is_some() {
-            use hyperswitch_domain_models::router_request_types::authentication::{
-                AuthNFlowType, ChallengeParams,
-            };
-            AuthNFlowType::Challenge(Box::new(ChallengeParams {
-                acs_url: response
-                    .redirect
-                    .as_ref()
-                    .map(|redirect| redirect.url.clone()),
-                challenge_request: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.creq.clone()),
-                acs_reference_number: None,
-                acs_trans_id: response
-                    .three_ds_processing_info
-                    .as_ref()
-                    .and_then(|info| info.acs_transaction_id.clone()),
-                three_dsserver_trans_id: Some(response.id.clone()),
-                acs_signed_content: None,
-            }))
-        } else {
-            use hyperswitch_domain_models::router_request_types::authentication::AuthNFlowType;
-            AuthNFlowType::Frictionless
-        };
-
-        let response_data = AuthenticationResponseData::AuthNResponse {
-            authn_flow_type,
-            authentication_value: None,
-            trans_status: common_enums::TransactionStatus::Success,
-            connector_metadata: response.three_ds_processing_info.clone().map(|info| {
-                serde_json::json!({
-                    "acs_url": info.acs_url,
-                    "three_ds_version": info.three_ds_version,
-                    "transaction_id": info.transaction_id,
-                    "ds_transaction_id": info.ds_transaction_id,
-                    "challenge_flow": info.challenge_flow
-                })
-            }),
-            ds_trans_id: response
-                .three_ds_processing_info
-                .as_ref()
-                .and_then(|info| info.ds_transaction_id.clone()),
-            eci: None,
-            challenge_code: None,
-            challenge_cancel: None,
-            challenge_code_reason: None,
-            message_extension: None,
-        };
-
-        Ok(RouterData {
-            status: common_enums::AttemptStatus::AuthenticationSuccessful,
-            response: Ok(response_data),
-            ..data.clone()
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
 /// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
 /// are provided separately as hex strings. This is specifically tailored for ACI webhooks.
 ///
@@ -1256,6 +991,24 @@ impl IncomingWebhook for Aci {
         }
     }
 }
+
+// impl
+//     ConnectorIntegration<
+//         PostAuthentication,
+//         ConnectorPostAuthenticationRequestData,
+//         AuthenticationResponseData,
+//     > for Aci
+// {
+// }
+
+// impl
+//     ConnectorIntegration<
+//         PreAuthenticationVersionCall,
+//         PreAuthNRequestData,
+//         AuthenticationResponseData,
+//     > for Aci
+// {
+// }
 
 static ACI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![

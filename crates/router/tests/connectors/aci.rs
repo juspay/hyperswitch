@@ -3,9 +3,10 @@ use std::str::FromStr;
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{Card, PaymentMethodData},
+    router_request_types::AuthenticationData,
 };
 use masking::Secret;
-use router::types::{self, domain, storage::enums, PaymentAddress};
+use router::types::{self, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -72,7 +73,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
 
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: PaymentMethodData::Card(Card {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
@@ -86,7 +87,7 @@ fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
 
 fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: domain::PaymentMethodData::Card(domain::Card {
+        payment_method_data: PaymentMethodData::Card(Card {
             card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
@@ -95,22 +96,23 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             ..utils::CCardType::default().0
         }),
         enrolled_for_3ds: true,
-        authentication_data: Some(domain::AuthenticationData {
+        authentication_data: Some(AuthenticationData {
             eci: Some("05".to_string()),
             cavv: Secret::new("jJ81HADVRtXfCBATEp01CJUAAAA".to_string()),
             threeds_server_transaction_id: Some("9458d8d4-f19f-4c28-b5c7-421b1dd2e1aa".to_string()),
             message_version: Some(common_utils::types::SemanticVersion::new(2, 1, 0)),
             ds_trans_id: Some("97267598FAE648F28083B2D2AF7B1234".to_string()),
-            created_at: time::OffsetDateTime::now_utc().into(),
+            created_at: common_utils::date_time::now(),
             challenge_code: Some("01".to_string()),
             challenge_cancel: None,
             challenge_code_reason: Some("01".to_string()),
             message_extension: None,
+            acs_trans_id: None,
+            authentication_type: None,
         }),
         ..utils::PaymentAuthorizeType::default().0
     })
 }
-
 
 #[actix_web::test]
 async fn should_only_authorize_payment() {
@@ -120,7 +122,6 @@ async fn should_only_authorize_payment() {
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
 }
-
 
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
@@ -134,7 +135,6 @@ async fn should_capture_authorized_payment() {
         .expect("Capture payment response");
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
-
 
 #[actix_web::test]
 async fn should_partially_capture_authorized_payment() {
@@ -151,7 +151,6 @@ async fn should_partially_capture_authorized_payment() {
         .expect("Capture payment response");
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
-
 
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
@@ -176,7 +175,6 @@ async fn should_sync_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Authorized,);
 }
 
-
 #[actix_web::test]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
@@ -194,7 +192,6 @@ async fn should_void_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Voided);
 }
 
-
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
@@ -211,7 +208,6 @@ async fn should_refund_manually_captured_payment() {
         enums::RefundStatus::Success,
     );
 }
-
 
 #[actix_web::test]
 async fn should_partially_refund_manually_captured_payment() {
@@ -232,7 +228,6 @@ async fn should_partially_refund_manually_captured_payment() {
         enums::RefundStatus::Success,
     );
 }
-
 
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
@@ -260,7 +255,6 @@ async fn should_sync_manually_captured_refund() {
     );
 }
 
-
 #[actix_web::test]
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
@@ -269,7 +263,6 @@ async fn should_make_payment() {
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
-
 
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
@@ -297,7 +290,6 @@ async fn should_sync_auto_captured_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Charged,);
 }
 
-
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
@@ -313,7 +305,6 @@ async fn should_refund_auto_captured_payment() {
         enums::RefundStatus::Success,
     );
 }
-
 
 #[actix_web::test]
 async fn should_partially_refund_succeeded_payment() {
@@ -334,7 +325,6 @@ async fn should_partially_refund_succeeded_payment() {
     );
 }
 
-
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
     CONNECTOR
@@ -348,7 +338,6 @@ async fn should_refund_succeeded_payment_multiple_times() {
         )
         .await;
 }
-
 
 #[actix_web::test]
 async fn should_sync_refund() {
@@ -375,8 +364,6 @@ async fn should_sync_refund() {
     );
 }
 
-
-
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
@@ -397,7 +384,6 @@ async fn should_fail_payment_for_incorrect_cvc() {
         "Payment should fail with incorrect CVC"
     );
 }
-
 
 #[actix_web::test]
 async fn should_fail_payment_for_invalid_exp_month() {
@@ -420,7 +406,6 @@ async fn should_fail_payment_for_invalid_exp_month() {
     );
 }
 
-
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
@@ -442,7 +427,6 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     );
 }
 
-
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
@@ -462,7 +446,6 @@ async fn should_fail_void_payment_for_auto_capture() {
     );
 }
 
-
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
@@ -474,7 +457,6 @@ async fn should_fail_capture_for_invalid_payment() {
         "Capture should fail for invalid payment ID"
     );
 }
-
 
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
@@ -495,11 +477,8 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     );
 }
 
-
-
-
 #[actix_web::test]
-#[ignore] 
+#[ignore]
 async fn should_make_threeds_payment() {
     let authorize_response = CONNECTOR
         .make_payment(
@@ -509,7 +488,6 @@ async fn should_make_threeds_payment() {
         .await
         .unwrap();
 
-    
     assert!(
         authorize_response.status == enums::AttemptStatus::AuthenticationPending
             || authorize_response.status == enums::AttemptStatus::Charged,
@@ -517,7 +495,6 @@ async fn should_make_threeds_payment() {
         authorize_response.status
     );
 
-    
     if let Ok(types::PaymentsResponseData::TransactionResponse {
         redirection_data, ..
     }) = &authorize_response.response
@@ -531,9 +508,8 @@ async fn should_make_threeds_payment() {
     }
 }
 
-
 #[actix_web::test]
-#[ignore] 
+#[ignore]
 async fn should_authorize_threeds_payment() {
     let response = CONNECTOR
         .authorize_payment(
@@ -543,7 +519,6 @@ async fn should_authorize_threeds_payment() {
         .await
         .expect("Authorize 3DS payment response");
 
-    
     assert!(
         response.status == enums::AttemptStatus::AuthenticationPending
             || response.status == enums::AttemptStatus::Authorized,
@@ -552,9 +527,8 @@ async fn should_authorize_threeds_payment() {
     );
 }
 
-
 #[actix_web::test]
-#[ignore] 
+#[ignore]
 async fn should_sync_threeds_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(
@@ -583,5 +557,3 @@ async fn should_sync_threeds_payment() {
         "3DS sync should maintain AuthenticationPending or Authorized status"
     );
 }
-
-
