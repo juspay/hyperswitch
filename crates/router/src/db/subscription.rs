@@ -17,10 +17,9 @@ pub trait SubscriptionInterface {
         subscription_new: storage::subscription::SubscriptionNew,
     ) -> CustomResult<storage::Subscription, errors::StorageError>;
 
-    async fn find_by_merchant_id_customer_id_subscription_id(
+    async fn find_by_merchant_id_subscription_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
         subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError>;
 
@@ -46,17 +45,15 @@ impl SubscriptionInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_by_merchant_id_customer_id_subscription_id(
+    async fn find_by_merchant_id_subscription_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
         subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Subscription::find_by_merchant_id_customer_id_subscription_id(
+        storage::Subscription::find_by_merchant_id_subscription_id(
             &conn,
             merchant_id,
-            customer_id,
             subscription_id,
         )
         .await
@@ -86,10 +83,9 @@ impl SubscriptionInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_by_merchant_id_customer_id_subscription_id(
+    async fn find_by_merchant_id_subscription_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _customer_id: &common_utils::id_type::CustomerId,
         _subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -117,18 +113,13 @@ impl SubscriptionInterface for KafkaStore {
     }
 
     #[instrument(skip_all)]
-    async fn find_by_merchant_id_customer_id_subscription_id(
+    async fn find_by_merchant_id_subscription_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
         subscription_id: String,
     ) -> CustomResult<storage::Subscription, errors::StorageError> {
         self.diesel_store
-            .find_by_merchant_id_customer_id_subscription_id(
-                merchant_id,
-                customer_id,
-                subscription_id,
-            )
+            .find_by_merchant_id_subscription_id(merchant_id, subscription_id)
             .await
     }
 

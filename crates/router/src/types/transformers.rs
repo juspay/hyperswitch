@@ -17,6 +17,8 @@ use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "v2")]
+use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
     core::errors,
     headers::{
@@ -368,9 +370,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
-                Self::GiftCard
-            }
+            api_enums::PaymentMethodType::Givex
+            | api_enums::PaymentMethodType::PaySafeCard
+            | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
@@ -1247,6 +1249,24 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(value: api_enums::PaymentMethod) -> Result<Self, Self::Error> {
+        match value {
+            api_enums::PaymentMethod::Card => Ok(Self::Card),
+            api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("PaymentMethod {value:?} is not supported for payouts"),
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert PaymentMethod to PayoutType"),
         }
     }
 }
@@ -2210,6 +2230,33 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
+    for payments::AdditionalCardInfo
+{
+    fn foreign_from(value: &revenue_recovery_redis_operation::PaymentProcessorTokenStatus) -> Self {
+        let card_info = &value.payment_processor_token_details;
+        // TODO! All other card info fields needs to be populated in redis.
+        Self {
+            card_issuer: card_info.card_issuer.to_owned(),
+            card_network: card_info.card_network.to_owned(),
+            card_type: card_info.card_type.to_owned(),
+            card_issuing_country: None,
+            bank_code: None,
+            last4: card_info.last_four_digits.to_owned(),
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: card_info.expiry_month.to_owned(),
+            card_exp_year: card_info.expiry_year.to_owned(),
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }

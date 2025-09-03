@@ -1,7 +1,7 @@
 use base64::Engine;
 use common_enums::{enums, FutureUsage};
 use common_types::payments::ApplePayPredecryptData;
-use common_utils::{consts, ext_traits::OptionExt, pii};
+use common_utils::{consts, ext_traits::OptionExt, pii, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, GooglePayWalletData, PaymentMethodData, SamsungPayWalletData,
@@ -64,23 +64,13 @@ impl TryFrom<&ConnectorAuthType> for BankOfAmericaAuthType {
 }
 
 pub struct BankOfAmericaRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, api_models::enums::Currency, i64, T)>
-    for BankOfAmericaRouterData<T>
-{
+impl<T> TryFrom<(StringMajorUnit, T)> for BankOfAmericaRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &api::CurrencyUnit,
-            api_models::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -275,7 +265,7 @@ pub struct OrderInformationWithBill {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
@@ -324,6 +314,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -1110,6 +1101,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::PaypalRedirect(_)
                         | WalletData::PaypalSdk(_)
                         | WalletData::Paze(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::TouchNGoRedirect(_)
@@ -1502,7 +1494,7 @@ pub struct Initiator {
 pub struct MerchantInitiatedTransactionResponse {
     agreement_id: Option<String>,
     previous_transaction_id: Option<String>,
-    original_authorized_amount: Option<String>,
+    original_authorized_amount: Option<StringMajorUnit>,
     reason: Option<String>,
 }
 
@@ -2573,7 +2565,7 @@ impl TryFrom<&SetupMandateRouterData> for OrderInformationWithBill {
 
         Ok(Self {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
