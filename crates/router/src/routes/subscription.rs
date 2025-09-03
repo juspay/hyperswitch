@@ -4,11 +4,11 @@
 //! of various types under Subscriptions.
 
 use actix_web::{web, HttpRequest, Responder};
+use api_models::subscription as subscription_types;
 use router_env::{
     tracing::{self, instrument},
     Flow,
 };
-use api_models::subscription as subscription_types;
 
 use crate::{
     core::{api_locking, subscription},

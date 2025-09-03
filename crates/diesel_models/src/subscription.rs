@@ -1,6 +1,5 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -12,7 +11,7 @@ pub struct SubscriptionNew {
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
     mca_id: Option<String>,
-    client_secret: Option<Secret<String>>,
+    client_secret: Option<String>,
     merchant_id: common_utils::id_type::MerchantId,
     customer_id: common_utils::id_type::CustomerId,
     metadata: Option<SecretSerdeValue>,
@@ -53,7 +52,7 @@ impl SubscriptionNew {
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
         mca_id: Option<String>,
-        client_secret: Option<Secret<String>>,
+        client_secret: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         customer_id: common_utils::id_type::CustomerId,
         metadata: Option<SecretSerdeValue>,
@@ -73,11 +72,14 @@ impl SubscriptionNew {
         }
     }
 
-    pub fn generate_client_secret(&self) -> Option<String> {
-        Some(generate_id_with_default_len(&format!(
+    pub fn generate_and_set_client_secret(&mut self) -> Option<String> {
+        let client_secret = Some(generate_id_with_default_len(&format!(
             "{}_secret",
             self.subscription_id
-        )))
+        )));
+
+        self.client_secret = self.client_secret.clone();
+        client_secret
     }
 }
 

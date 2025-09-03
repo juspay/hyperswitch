@@ -71,4 +71,3 @@ pub fn get_customer_details_from_request(request: CreateSubscriptionRequest) -> 
         tax_registration_id: customer.and_then(|cus| cus.tax_registration_id.clone()),
     }
 }
-
