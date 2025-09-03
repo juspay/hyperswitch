@@ -2340,6 +2340,7 @@ impl PaymentMethodInterface for KafkaStore {
             .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await
     }
+
 }
 
 #[cfg(not(feature = "payouts"))]

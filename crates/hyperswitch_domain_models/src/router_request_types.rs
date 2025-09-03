@@ -2,6 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
+pub mod subscriptions;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};

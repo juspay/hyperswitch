@@ -65,6 +65,7 @@ pub struct MockDb {
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
+    pub subscriptions: Arc<Mutex<Vec<store::subscription::Subscription>>>,
 }
 
 impl MockDb {
@@ -113,6 +114,7 @@ impl MockDb {
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
             themes: Default::default(),
+            subscriptions: Default::default(),
         })
     }
 

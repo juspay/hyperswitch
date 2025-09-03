@@ -2105,6 +2105,9 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            billing_processor_details: self
+                .billing_processor_details
+                .and_then(|details| serde_json::to_value(details).ok()),
         })
     }
 
@@ -2213,6 +2216,9 @@ impl behaviour::Conversion for PaymentIntent {
                 duty_amount: storage_model.duty_amount,
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
+                billing_processor_details: storage_model
+                    .billing_processor_details
+                    .and_then(|details| serde_json::from_value(details).ok()),
             })
         }
         .await
@@ -2293,6 +2299,9 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            billing_processor_details: self
+                .billing_processor_details
+                .and_then(|details| serde_json::to_value(details).ok()),
         })
     }
 }

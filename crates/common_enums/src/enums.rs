@@ -8733,6 +8733,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    SubscriptionsWorkflow,
 }
 
 #[derive(Debug)]
