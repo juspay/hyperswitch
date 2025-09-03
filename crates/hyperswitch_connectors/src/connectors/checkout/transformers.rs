@@ -11,13 +11,14 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{Execute, RSync, SetupMandate},
     router_request_types::{ResponseId, SetupMandateRequestData},
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
-
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -29,10 +30,12 @@ use crate::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
         ResponseRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
-    }, unimplemented_payment_method, utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RouterData as OtherRouterData,
-        WalletData as OtherWalletData,
-    }
+    },
+    unimplemented_payment_method,
+    utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        RouterData as OtherRouterData, WalletData as OtherWalletData,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -402,21 +405,23 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 )),
             },
             PaymentMethodData::MandatePayment => {
-                let mandate_source = PaymentSource::MandatePayment(MandateSource { source_type: CheckoutSourceTypes::SourceId, source_id: item.router_data.request.connector_mandate_id() });
+                let mandate_source = PaymentSource::MandatePayment(MandateSource {
+                    source_type: CheckoutSourceTypes::SourceId,
+                    source_id: item.router_data.request.connector_mandate_id(),
+                });
                 Ok(mandate_source)
-            },
-            _ => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("checkout"),
-                ))
             }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+            )),
         }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
         let three_ds = match item.router_data.auth_type {
             enums::AuthenticationType::ThreeDs => {
-                let challenge_indicator = if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+                let challenge_indicator = if item.router_data.request.setup_future_usage
+                    == Some(FutureUsage::OffSession)
                 {
                     CheckoutChallengeIndicator::ChallengeRequestedMandate
                 } else {
@@ -436,7 +441,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     }),
                     challenge_indicator,
                 }
-            },
+            }
             enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
@@ -467,34 +472,38 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
-        
+
         match item.router_data.request.payment_method_data {
-            PaymentMethodData::MandatePayment => {
-                Ok(Self {
-                    source: source_var,
-                    amount: item.amount.to_owned(),
-                    currency: item.router_data.request.currency.to_string(),
-                    processing_channel_id,
-                    three_ds,
-                    return_url,
-                    capture: true,
-                    reference: item.router_data.connector_request_reference_id.clone(),
-                    metadata,
-                    payment_type : CheckoutPaymentType::Recurring,
-                    merchant_initiated: Some(true),
-                    previous_payment_id : Some(item.router_data.request.get_connector_mandate_request_reference_id()?),
-                })
-            }
+            PaymentMethodData::MandatePayment => Ok(Self {
+                source: source_var,
+                amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency.to_string(),
+                processing_channel_id,
+                three_ds,
+                return_url,
+                capture: true,
+                reference: item.router_data.connector_request_reference_id.clone(),
+                metadata,
+                payment_type: CheckoutPaymentType::Recurring,
+                merchant_initiated: Some(true),
+                previous_payment_id: Some(
+                    item.router_data
+                        .request
+                        .get_connector_mandate_request_reference_id()?,
+                ),
+            }),
             _ => {
                 let capture = matches!(
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
                 );
-                let payment_type = if item.router_data.request.setup_future_usage == Some(FutureUsage::OffSession) {
-                        CheckoutPaymentType::Recurring
-                    } else {
-                        CheckoutPaymentType::Regular
-                    };
+                let payment_type = if item.router_data.request.setup_future_usage
+                    == Some(FutureUsage::OffSession)
+                {
+                    CheckoutPaymentType::Recurring
+                } else {
+                    CheckoutPaymentType::Regular
+                };
                 Ok(Self {
                     source: source_var,
                     amount: item.amount.to_owned(),
@@ -666,8 +675,8 @@ pub struct Links {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct Source { 
-    id : Option<String>,
+pub struct Source {
+    id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -804,7 +813,7 @@ impl
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
         let status =
             get_attempt_status_cap((item.response.status, item.data.request.capture_method));
-  
+
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
@@ -829,20 +838,21 @@ impl
             None
         };
 
-        let mandate_reference = if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
-            item.response
-                .source
-                .as_ref()
-                .and_then(|src| src.id.clone())
-                .map(|id| MandateReference {
-                    connector_mandate_id: Some(id),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
-                })
-        } else {
-            None
-        };
+        let mandate_reference =
+            if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
+                item.response
+                    .source
+                    .as_ref()
+                    .and_then(|src| src.id.clone())
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    })
+            } else {
+                None
+            };
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -901,20 +911,21 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
-        let mandate_reference = if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
-            item.response
-                .source
-                .as_ref()
-                .and_then(|src| src.id.clone())
-                .map(|id| MandateReference {
-                    connector_mandate_id: Some(id),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
-                })
-        } else {
-            None
-        };
+        let mandate_reference =
+            if item.data.request.setup_future_usage == Some(FutureUsage::OffSession) {
+                item.response
+                    .source
+                    .as_ref()
+                    .and_then(|src| src.id.clone())
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    })
+            } else {
+                None
+            };
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1574,10 +1585,9 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             currency: Some(data.currency),
             processed_on: data.processed_on,
             approved: data.approved,
-            source: Some(Source{
-                    id: details.source.and_then(|src| src.id)
-                }
-            ),
+            source: Some(Source {
+                id: details.source.and_then(|src| src.id),
+            }),
         };
 
         Ok(psync_struct)

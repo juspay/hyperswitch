@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, TokenizationRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     types::{
         AcceptDisputeType, DefendDisputeType, PaymentsAuthorizeType, PaymentsCaptureType,
         PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        SubmitEvidenceType, TokenizationType, UploadFileType, SetupMandateType,
+        SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
     },
     webhooks,
 };
@@ -381,9 +381,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 .url(&SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(SetupMandateType::get_request_body(
-                    self, req, connectors,
-                )?)
+                .set_body(SetupMandateType::get_request_body(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -393,7 +391,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         data: &SetupMandateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>, errors::ConnectorError> {
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
         let response: checkout::PaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
