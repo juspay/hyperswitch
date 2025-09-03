@@ -4264,11 +4264,44 @@ pub struct RewardData {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BoletoVoucherData {
-    /// The shopper's social security number
+    /// The shopper's social security number (CPF or CNPJ)
     #[schema(value_type = Option<String>)]
     pub social_security_number: Option<Secret<String>>,
+
+    /// The shopper's bank account number associated with the boleto
+    #[schema(value_type = Option<String>)]
+    pub bank_number: Option<Secret<String>>,
+
+    /// The type of identification document used (e.g., CPF or CNPJ)
+    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    pub document_type: Option<common_enums::DocumentKind>,
+
+    /// The fine percentage charged if payment is overdue
+    #[schema(value_type = Option<String>)]
+    pub fine_percentage: Option<String>,
+
+    /// The number of days after the due date when the fine is applied
+    #[schema(value_type = Option<String>)]
+    pub fine_quantity_days: Option<String>,
+
+    /// The interest percentage charged on late payments
+    #[schema(value_type = Option<String>)]
+    pub interest_percentage: Option<String>,
+
+    /// The number of days after which the boleto is written off (canceled)
+    #[schema(value_type = Option<String>)]
+    pub write_off_quantity_days: Option<String>,
+
+    /// Custom messages or instructions to display on the boleto
+    #[schema(value_type = Option<Vec<String>>)]
+    pub messages: Option<Vec<String>>,
+
+    // #[serde(with = "common_utils::custom_serde::date_yyyy_mm_dd::option")]
+    #[schema(value_type = Option<String>, format = "date", example = "2025-08-22")]
+    // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4979,6 +5012,8 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
+    /// Voucher entry date
+    pub entry_date: Option<String>,
     /// Voucher expiry date and time
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction
@@ -4987,6 +5022,8 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
+    /// Human-readable numeric version of the barcode.
+    pub digitable_line: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
