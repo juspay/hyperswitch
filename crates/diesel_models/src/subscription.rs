@@ -1,6 +1,5 @@
 use common_utils::pii::SecretSerdeValue;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -12,7 +11,7 @@ pub struct SubscriptionNew {
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
     mca_id: Option<String>,
-    client_secret: Option<Secret<String>>,
+    client_secret: Option<String>,
     merchant_id: common_utils::id_type::MerchantId,
     customer_id: common_utils::id_type::CustomerId,
     metadata: Option<SecretSerdeValue>,
@@ -53,7 +52,7 @@ impl SubscriptionNew {
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
         mca_id: Option<String>,
-        client_secret: Option<Secret<String>>,
+        client_secret: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         customer_id: common_utils::id_type::CustomerId,
         metadata: Option<SecretSerdeValue>,
