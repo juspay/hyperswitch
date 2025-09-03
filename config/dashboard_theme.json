@@ -1,9 +1,7 @@
 {
     "settings": {
         "colors": {
-            "primary": "#FF0000",
-            "secondary": "#303E5F",
-            "background": "#006df9"
+            "primary": "#FF0000"
         },
         "sidebar": {
             "primary": "#FCFCFD",
