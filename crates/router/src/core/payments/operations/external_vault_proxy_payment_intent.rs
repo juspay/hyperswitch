@@ -423,7 +423,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
-                &payment_method.id,
+                payment_method.get_id(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));
