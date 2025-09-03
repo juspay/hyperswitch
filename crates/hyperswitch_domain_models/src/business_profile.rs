@@ -246,6 +246,8 @@ pub struct ProfileGeneralUpdate {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
@@ -348,6 +350,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    always_request_extended_authorization,
                 } = *update;
 
                 Self {
@@ -385,7 +388,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
-                    always_request_extended_authorization: None,
+                    always_request_extended_authorization,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
                     card_testing_guard_config,
