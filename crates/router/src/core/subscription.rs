@@ -63,6 +63,7 @@ pub async fn create_subscription(
     // If provided we can strore plan_id, coupon_code etc as metadata
     let mut subscription = SubscriptionNew::new(
         id,
+        SubscriptionStatus::Created.to_string(),
         None,
         None,
         request.mca_id,

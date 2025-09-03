@@ -44,7 +44,7 @@ pub struct Subscription {
     pub plan_id: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display)]
 pub enum SubscriptionStatus {
     Created,
     Active,
