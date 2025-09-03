@@ -573,6 +573,7 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSHandleResponse(Vec<u8>),
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2857,6 +2858,29 @@ pub enum RequestIncrementalAuthorization {
     #[default]
     False,
     Default,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SplitTxnsEnabled {
+    Enable,
+    #[default]
+    Skip,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -8489,6 +8513,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    RevenueGrowthManagementPlatform,
 }
 
 /// Connector Integration Status

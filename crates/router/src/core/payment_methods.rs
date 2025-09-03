@@ -1,4 +1,5 @@
 pub mod cards;
+pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 #[cfg(feature = "v1")]
@@ -1036,11 +1037,14 @@ pub async fn create_payment_method_card_core(
     .await;
 
     let (response, payment_method) = match vaulting_result {
-        Ok(pm_types::AddVaultResponse {
-            vault_id,
-            fingerprint_id,
-            ..
-        }) => {
+        Ok((
+            pm_types::AddVaultResponse {
+                vault_id,
+                fingerprint_id,
+                ..
+            },
+            external_vault_source,
+        )) => {
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
@@ -1052,7 +1056,7 @@ pub async fn create_payment_method_card_core(
                 network_tokenization_resp,
                 Some(req.payment_method_type),
                 Some(req.payment_method_subtype),
-                None,
+                external_vault_source,
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -2395,7 +2399,10 @@ pub async fn vault_payment_method(
     profile: &domain::Profile,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<pm_types::AddVaultResponse> {
+) -> RouterResult<(
+    pm_types::AddVaultResponse,
+    Option<id_type::MerchantConnectorAccountId>,
+)> {
     let is_external_vault_enabled = profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
@@ -2427,17 +2434,17 @@ pub async fn vault_payment_method(
                 merchant_connector_account,
             )
             .await
+            .map(|value| (value, Some(external_vault_source)))
         }
-        false => {
-            vault_payment_method_internal(
-                state,
-                pmd,
-                merchant_context,
-                existing_vault_id,
-                customer_id,
-            )
-            .await
-        }
+        false => vault_payment_method_internal(
+            state,
+            pmd,
+            merchant_context,
+            existing_vault_id,
+            customer_id,
+        )
+        .await
+        .map(|value| (value, None)),
     }
 }
 
@@ -2812,20 +2819,20 @@ pub async fn update_payment_method_core(
         // cannot use async map because of problems related to lifetimes
         // to overcome this, we will have to use a move closure and add some clones
         Some(ref vault_request_data) => {
-            Some(
-                vault_payment_method(
-                    state,
-                    vault_request_data,
-                    merchant_context,
-                    profile,
-                    // using current vault_id for now,
-                    // will have to refactor this to generate new one on each vaulting later on
-                    current_vault_id,
-                    &payment_method.customer_id,
-                )
-                .await
-                .attach_printable("Failed to add payment method in vault")?,
+            let (vault_response, _) = vault_payment_method(
+                state,
+                vault_request_data,
+                merchant_context,
+                profile,
+                // using current vault_id for now,
+                // will have to refactor this to generate new one on each vaulting later on
+                current_vault_id,
+                &payment_method.customer_id,
             )
+            .await
+            .attach_printable("Failed to add payment method in vault")?;
+
+            Some(vault_response)
         }
         None => None,
     };
