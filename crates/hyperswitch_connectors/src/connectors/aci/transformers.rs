@@ -4,6 +4,7 @@ use common_enums::enums;
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
@@ -125,7 +126,7 @@ pub struct AciCancelRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AciMandateRequest {
     pub entity_id: Secret<String>,
-    pub payment_brand: String,
+    pub payment_brand: PaymentBrand,
     #[serde(flatten)]
     pub payment_details: PaymentDetails,
 }
@@ -407,12 +408,19 @@ impl
     ) -> Result<Self, Self::Error> {
         let (_item, network_token_data) = value;
         let token_number = network_token_data.get_network_token();
+        let payment_brand = get_aci_payment_brand(network_token_data.card_network.clone())?;
         let aci_network_token_data = AciNetworkTokenData {
             token_type: AciTokenAccountType::Network,
             token_number,
             token_expiry_month: network_token_data.get_network_token_expiry_month(),
             token_expiry_year: network_token_data.get_expiry_year_4_digit(),
-            token_cryptogram: Some(network_token_data.get_cryptogram().clone().unwrap_or_default()),
+            token_cryptogram: Some(
+                network_token_data
+                    .get_cryptogram()
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            payment_brand,
         };
         Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
     }
@@ -430,13 +438,15 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.type")]
     pub token_type: AciTokenAccountType,
     #[serde(rename = "tokenAccount.number")]
-    pub token_number: cards::CardNumber,
+    pub token_number: NetworkTokenNumber,
     #[serde(rename = "tokenAccount.expiryMonth")]
     pub token_expiry_month: Secret<String>,
     #[serde(rename = "tokenAccount.expiryYear")]
     pub token_expiry_year: Secret<String>,
     #[serde(rename = "tokenAccount.cryptogram")]
     pub token_cryptogram: Option<Secret<String>>,
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -814,13 +824,15 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
         let (payment_brand, payment_details) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 let brand = get_aci_payment_brand(card_data.card_network.clone())?;
-                let brand_str = match brand {
-                    PaymentBrand::Visa => "VISA",
-                    PaymentBrand::Mastercard => "MASTER",
-                    PaymentBrand::AmericanExpress => "AMEX",
-                    _ => "VISA",
+                match brand {
+                    PaymentBrand::Visa
+                    | PaymentBrand::Mastercard
+                    | PaymentBrand::AmericanExpress => {}
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Payment method not supported for mandate setup".to_string(),
+                        connector: "ACI",
+                    })?,
                 }
-                .to_string();
 
                 let details = PaymentDetails::AciCard(Box::new(CardDetails {
                     card_number: card_data.card_number.clone(),
@@ -832,14 +844,14 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                             field_name: "card_holder_name",
                         },
                     )?,
-                    payment_brand: brand,
+                    payment_brand: brand.clone(),
                 }));
 
-                (brand_str, details)
+                (brand, details)
             }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
-                    message: "Payment method not supported for mandate setup".to_string(),
+                    message: "Card network not supported for mandate setup".to_string(),
                     connector: "ACI",
                 }
                 .into());
