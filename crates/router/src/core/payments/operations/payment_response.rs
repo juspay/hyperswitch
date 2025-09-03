@@ -302,7 +302,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             ),
                         })?;
 
-                    let udpate = storage::SubscriptionUpdate::new(Some(pm_id.clone()));
+                    let udpate = storage::SubscriptionUpdate::new(Some(pm_id.clone()), None);
 
                     state
                         .store

@@ -298,10 +298,20 @@ pub async fn confirm_subscription(
         }
     }?;
     // Semd back response
+    let update = SubscriptionUpdate::new(None, Some(SubscriptionStatus::Active.to_string()));
+    db.update_subscription_entry(
+        &subscription.merchant_id,
+        subscription.subscription_id.clone(),
+        update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("subscriptions: unable to update subscription entry to database")?;
+
     let response = ConfirmSubscriptionResponse {
         subscription: Subscription::new(
             subscription.subscription_id.clone(),
-            SubscriptionStatus::Created,
+            SubscriptionStatus::Active,
             None,
         ), // ?!?
         customer_id: Some(subscription.customer_id.to_owned()),
