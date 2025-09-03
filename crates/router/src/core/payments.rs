@@ -2880,26 +2880,6 @@ where
     router_data_and_should_continue_payment
 }
 
-fn convert_payment_data<F, F2>(payment_data: PaymentConfirmData<F>) -> PaymentConfirmData<F2>
-where
-    F: Clone,
-    F2: Clone,
-{
-    let payment_data: PaymentConfirmData<F2> = PaymentConfirmData {
-        flow: PhantomData,
-        payment_intent: payment_data.payment_intent,
-        payment_attempt: payment_data.payment_attempt,
-        payment_method_data: payment_data.payment_method_data,
-        payment_address: payment_data.payment_address,
-        mandate_data: payment_data.mandate_data,
-        payment_method: payment_data.payment_method,
-        merchant_connector_details: payment_data.merchant_connector_details,
-        // redirect_response: payment_data.redirect_response,
-        external_vault_pmd: payment_data.external_vault_pmd,
-    };
-    payment_data
-}
-
 async fn payments_execute_internal_core_flow<F, FData, D, Op, Req>(
     mut payment_data: D,
     state: &SessionState,
@@ -3071,10 +3051,8 @@ pub async fn payments_execute_core(
 
             let response = match connector_flow {
                 NextActionFlows::PreAuthenticate => {
-                    let mut payment_data = convert_payment_data::<
-                        _,
-                        hyperswitch_domain_models::router_flow_types::PreAuthenticate,
-                    >(payment_data.clone());
+                    let mut payment_data: PaymentConfirmData<api::PreAuthenticate> =
+                        payment_data.change_flow();
 
                     let router_data = payments_execute_internal_core_flow(
                         payment_data.clone(),
@@ -3139,10 +3117,8 @@ pub async fn payments_execute_core(
                     response
                 }
                 NextActionFlows::Authenticate => {
-                    let mut payment_data = convert_payment_data::<
-                        _,
-                        hyperswitch_domain_models::router_flow_types::Authenticate,
-                    >(payment_data);
+                    let mut payment_data: PaymentConfirmData<api::Authenticate> =
+                        payment_data.change_flow();
 
                     let router_data = payments_execute_internal_core_flow(
                         payment_data.clone(),
@@ -3205,10 +3181,8 @@ pub async fn payments_execute_core(
 
                         response
                     } else {
-                        let mut payment_data = convert_payment_data::<
-                            _,
-                            hyperswitch_domain_models::router_flow_types::Authorize,
-                        >(payment_data);
+                        let mut payment_data: PaymentConfirmData<api::Authorize> =
+                            payment_data.change_flow();
 
                         let router_data = payments_execute_internal_core_flow(
                             payment_data.clone(),
@@ -3272,10 +3246,8 @@ pub async fn payments_execute_core(
                     response
                 }
                 NextActionFlows::PostAuthenticate => {
-                    let mut payment_data = convert_payment_data::<
-                        _,
-                        hyperswitch_domain_models::router_flow_types::PostAuthenticate,
-                    >(payment_data);
+                    let mut payment_data: PaymentConfirmData<api::PostAuthenticate> =
+                        payment_data.change_flow();
 
                     let router_data = payments_execute_internal_core_flow(
                         payment_data.clone(),
@@ -3292,10 +3264,8 @@ pub async fn payments_execute_core(
                     )
                     .await?;
 
-                    let mut payment_data = convert_payment_data::<
-                        _,
-                        hyperswitch_domain_models::router_flow_types::Authorize,
-                    >(payment_data);
+                    let mut payment_data: PaymentConfirmData<api::Authorize> =
+                        payment_data.change_flow();
 
                     let router_data = payments_execute_internal_core_flow(
                         payment_data.clone(),
