@@ -28,7 +28,7 @@ pub async fn create_subscription(
 ) -> RouterResponse<subscription_types::CreateSubscriptionResponse> {
     let store = state.store.clone();
     let db = store.as_ref();
-    let id = generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX);
+    let id = request.subscription_id.clone().unwrap_or(generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX));
     let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
     let mut response = subscription_types::CreateSubscriptionResponse::new(
         subscription_details,
@@ -71,6 +71,7 @@ pub async fn create_subscription(
     // If provided we can strore plan_id, coupon_code etc as metadata
     let mut subscription = SubscriptionNew::new(
         id,
+        SubscriptionStatus::Created.to_string(),
         None,
         None,
         request.mca_id,
