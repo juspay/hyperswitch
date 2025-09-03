@@ -124,6 +124,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
+            | Flow::PaymentMethodsBatchUpdate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData

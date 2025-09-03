@@ -288,6 +288,14 @@ pub struct PaymentMethodMigrateResponse {
     pub network_transaction_id_migrated: Option<bool>,
 }
 
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodRecordUpdateResponse {
+    pub payment_method_id: String,
+    pub status: common_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+}
+
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
     pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
@@ -2646,6 +2654,28 @@ pub struct PaymentMethodRecord {
     pub network_token_requestor_ref_id: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdatePaymentMethodRecord {
+    pub payment_method_id: String,
+    pub status: Option<common_enums::PaymentMethodStatus>,
+    pub network_transaction_id: Option<String>,
+    pub line_number: Option<i64>,
+    pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentMethodUpdateResponse {
+    pub payment_method_id: String,
+    pub status: Option<common_enums::PaymentMethodStatus>,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub update_status: UpdateStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_error: Option<String>,
+    pub line_number: Option<i64>,
+}
+
 #[derive(Debug, Default, serde::Serialize)]
 pub struct PaymentMethodMigrationResponse {
     pub line_number: Option<i64>,
@@ -2668,6 +2698,13 @@ pub struct PaymentMethodMigrationResponse {
 
 #[derive(Debug, Default, serde::Serialize)]
 pub enum MigrationStatus {
+    Success,
+    #[default]
+    Failed,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub enum UpdateStatus {
     Success,
     #[default]
     Failed,
@@ -2732,6 +2769,12 @@ type PaymentMethodMigrationResponseType = (
 );
 
 #[cfg(feature = "v1")]
+type PaymentMethodUpdateResponseType = (
+    Result<PaymentMethodRecordUpdateResponse, String>,
+    UpdatePaymentMethodRecord,
+);
+
+#[cfg(feature = "v1")]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
@@ -2756,6 +2799,32 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 card_number_masked: Some(record.card_number_masked),
                 line_number: record.line_number,
                 ..Self::default()
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
+    fn from((response, record): PaymentMethodUpdateResponseType) -> Self {
+        match response {
+            Ok(res) => Self {
+                payment_method_id: res.payment_method_id,
+                status: Some(res.status),
+                network_transaction_id: res.network_transaction_id,
+                connector_mandate_details: res.connector_mandate_details,
+                update_status: UpdateStatus::Success,
+                update_error: None,
+                line_number: record.line_number,
+            },
+            Err(e) => Self {
+                payment_method_id: record.payment_method_id,
+                status: record.status,
+                network_transaction_id: record.network_transaction_id,
+                connector_mandate_details: None,
+                update_status: UpdateStatus::Failed,
+                update_error: Some(e),
+                line_number: record.line_number,
             },
         }
     }
