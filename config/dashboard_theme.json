@@ -10,14 +10,6 @@
             "textColor": "#525866",
             "textColorPrimary": "#1C6DEA"
         },
-        "typography": {
-            "fontFamily": "Roboto, sans-serif",
-            "fontSize": "14px",
-            "headingFontSize": "24px",
-            "textColor": "#006DF9",
-            "linkColor": "#3498db",
-            "linkHoverColor": "#005ED6"
-        },
         "buttons": {
             "primary": {
                 "backgroundColor": "#1272f9",
@@ -29,14 +21,6 @@
                 "textColor": "#626168",
                 "hoverBackgroundColor": "#fcfcfd"
             }
-        },
-        "borders": {
-            "defaultRadius": "4px",
-            "borderColor": "#1272F9"
-        },
-        "spacing": {
-            "padding": "16px",
-            "margin": "16px"
         }
     },
     "urls": {
