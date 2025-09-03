@@ -113,7 +113,7 @@ impl SmithyGenerator {
                     def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
                 }
 
-                def.push_str("}");
+                def.push('}');
                 def
             }
             crate::types::SmithyShape::Union {
@@ -146,7 +146,7 @@ impl SmithyGenerator {
                     def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
                 }
 
-                def.push_str("}");
+                def.push('}');
                 def
             }
             crate::types::SmithyShape::Enum {
@@ -173,7 +173,7 @@ impl SmithyGenerator {
                     def.push_str(&format!("    {}\n", value_name));
                 }
 
-                def.push_str("}");
+                def.push('}');
                 def
             }
             crate::types::SmithyShape::String { traits } => {
@@ -226,7 +226,7 @@ impl SmithyGenerator {
                 def.push_str(&format!("list {} {{\n", name));
                 let resolved_target = resolve_target(&member.target);
                 def.push_str(&format!("    member: {}\n", resolved_target));
-                def.push_str("}");
+                def.push('}');
                 def
             }
         }

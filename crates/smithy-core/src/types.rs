@@ -179,7 +179,7 @@ pub fn resolve_type_and_generate_shapes(
                     .last()
                     .unwrap_or(&inner_smithy_type)
                     .split('#')
-                    .last()
+                    .next_back()
                     .unwrap_or(&inner_smithy_type)
             );
             if !shapes.contains_key(&list_shape_name)
