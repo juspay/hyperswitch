@@ -14,6 +14,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -68,7 +69,7 @@ use crate::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData, UploadFileRouterData,
     },
-    utils::{self, ConnectorErrorType, RefundsRequestData},
+    utils::{self,is_mandate_supported, ConnectorErrorType, PaymentMethodDataType, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -195,6 +196,16 @@ impl ConnectorCommon for Checkout {
 }
 
 impl ConnectorValidation for Checkout {
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+        ]);
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
     fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
