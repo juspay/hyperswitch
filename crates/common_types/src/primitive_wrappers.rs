@@ -261,13 +261,6 @@ mod safe_string {
             if contains_potential_xss_or_sqli(&value) {
                 return Err("Input contains potentially malicious content".into());
             }
-
-            // Basic length validation
-            const MAX_LENGTH: usize = 1000;
-            if value.len() > MAX_LENGTH {
-                return Err(format!("Input exceeds maximum length of {MAX_LENGTH}"));
-            }
-
             Ok(Self(value))
         }
 
