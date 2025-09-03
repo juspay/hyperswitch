@@ -302,11 +302,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             ),
                         })?;
 
-                    let udpate = storage::SubscriptionUpdate::new(Some(pm_id.clone()));
+                    let update = storage::SubscriptionUpdate::new(Some(pm_id.clone()),None);
 
                     state
                         .store
-                        .update_subscription_entry(subscription_record.subscription_id.clone(), udpate)
+                        .update_subscription_entry(&subscription_record.merchant_id, subscription_record.subscription_id.clone(), update)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to update subscription with payment method")?;
