@@ -769,10 +769,11 @@ pub async fn call_unified_connector_service_for_webhook(
         })?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
-    };
+    let grpc_headers = external_services::grpc_client::GrpcHeadersBuilder::new(
+        state.tenant.tenant_id.get_string_repr().to_string(),
+        Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
+    )
+    .build();
 
     // Make UCS call - client availability already verified
     match ucs_client
@@ -814,6 +815,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersBuilder,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -822,7 +824,12 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
-    F: FnOnce(RouterData<T, Req, Resp>, GrpcReq) -> Fut + Send,
+    F: FnOnce(
+            RouterData<T, Req, Resp>,
+            GrpcReq,
+            external_services::grpc_client::GrpcHeadersBuilder,
+        ) -> Fut
+        + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);

@@ -282,17 +282,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
-
+        let header_payload = state.get_grpc_headers();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
             payment_register_request,
-            |mut router_data, payment_register_request| async move {
+            header_payload,
+            |mut router_data, payment_register_request, header_payload| async move {
                 let response = client
                     .payment_setup_mandate(
                         payment_register_request,
                         connector_auth_metadata,
-                        state.get_grpc_headers(),
+                        header_payload.build(),
                     )
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)

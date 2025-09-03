@@ -14,6 +14,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
+use common_utils::id_type;
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -22,6 +23,7 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
+use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 
@@ -143,9 +145,59 @@ impl GrpcClientSettings {
 #[derive(Debug)]
 pub struct GrpcHeaders {
     /// Tenant id
-    pub tenant_id: String,
+    tenant_id: String,
     /// Request id
-    pub request_id: Option<String>,
+    request_id: Option<String>,
+}
+
+impl GrpcHeaders {
+    /// Create a new instance of GrpcHeadersBuilder
+    pub fn new(builder: GrpcHeadersBuilder) -> Self {
+        Self {
+            tenant_id: builder.tenant_id,
+            request_id: builder.request_id,
+        }
+    }
+}
+
+/// Builder for GrpcHeaders
+#[derive(Debug)]
+pub struct GrpcHeadersBuilder {
+    tenant_id: String,
+    request_id: Option<String>,
+    lineage_ids: Option<LineageIds>,
+}
+
+impl GrpcHeadersBuilder {
+    /// Create a new instance of GrpcHeadersBuilder
+    pub fn new(tenant_id: String, request_id: Option<String>) -> Self {
+        Self {
+            tenant_id,
+            request_id,
+            lineage_ids: None,
+        }
+    }
+    /// Build the GrpcHeaders
+    pub fn build(self) -> GrpcHeaders {
+        GrpcHeaders {
+            tenant_id: self.tenant_id,
+            request_id: self.request_id,
+        }
+    }
+}
+
+/// struct to represent set of Lineage ids
+#[derive(Debug, serde::Serialize)]
+pub struct LineageIds {
+    merchant_id: id_type::MerchantId,
+}
+impl LineageIds {
+    pub fn new(merchant_id: id_type::MerchantId) -> Self {
+        Self { merchant_id }
+    }
+    pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {
+        serde_urlencoded::to_string(&self)
+    }
 }
 
 #[cfg(feature = "dynamic_routing")]
