@@ -69,14 +69,14 @@ impl Feature<PreAuthenticate, types::PaymentsPreAuthenticateData>
     ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
-                connector
-                    .connector
-                    .validate_connector_against_payment_request(
-                        self.request.capture_method,
-                        self.payment_method,
-                        self.request.payment_method_type,
-                    )
-                    .to_payment_failed_response()?;
+                // connector
+                //     .connector
+                //     .validate_connector_against_payment_request(
+                //         self.request.capture_method,
+                //         self.payment_method,
+                //         self.request.payment_method_type,
+                //     )
+                //     .to_payment_failed_response()?;
 
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     PreAuthenticate,

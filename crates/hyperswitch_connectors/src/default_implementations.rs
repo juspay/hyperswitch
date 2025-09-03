@@ -2036,6 +2036,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Payone,
     connectors::Paypal,
     connectors::Paystack,
+    connectors::Paysafe,
     connectors::Paytm,
     connectors::Payu,
     connectors::Phonepe,
@@ -8429,6 +8430,15 @@ impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPostAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }

@@ -9,7 +9,7 @@ pub mod complete_authorize_flow;
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
-// pub mod postauthenticate_flow;
+pub mod postauthenticate_flow;
 pub mod preauthenticate_flow;
 pub mod psync_flow;
 pub mod reject_flow;
