@@ -251,6 +251,7 @@ pub struct PaymentIntentUpdateFields {
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -447,6 +448,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1097,6 +1099,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_amount_tax: value.shipping_amount_tax,
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
+                    enable_overcapture: value.enable_overcapture,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1265,6 +1268,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            enable_overcapture,
         } = value;
         Self {
             amount,
@@ -1314,6 +1318,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            enable_overcapture,
         }
     }
 }
@@ -1784,6 +1789,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         })
     }
     async fn convert_back(
@@ -2105,6 +2111,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
         })
     }
 
@@ -2213,6 +2220,7 @@ impl behaviour::Conversion for PaymentIntent {
                 duty_amount: storage_model.duty_amount,
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_overcapture: storage_model.enable_overcapture,
             })
         }
         .await
@@ -2293,6 +2301,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
         })
     }
 }

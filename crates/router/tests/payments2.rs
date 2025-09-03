@@ -230,6 +230,8 @@ async fn payments_create_core() {
         payment_channel: None,
         network_transaction_id: None,
         enable_partial_authorization: None,
+        is_overcapture_enabled: None,
+        enable_overcapture: None,
     };
 
     let expected_response =
@@ -519,6 +521,8 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_channel: None,
             network_transaction_id: None,
             enable_partial_authorization: None,
+            is_overcapture_enabled: None,
+            enable_overcapture: None,
         },
         vec![],
     ));
