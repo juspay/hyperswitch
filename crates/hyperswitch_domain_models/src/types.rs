@@ -19,6 +19,7 @@ use crate::{
             RevenueRecoveryRecordBackRequest,
         },
         subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{SubscriptionsRecordBackRequest, SubscriptionCreateRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -40,12 +41,16 @@ use crate::{
             RevenueRecoveryRecordBackResponse,
         },
         subscriptions::GetSubscriptionPlansResponse,
+        subscriptions::SubscriptionCreateResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
+
+#[cfg(feature = "v1")]
+use crate::router_flow_types::subscriptions::{SubscriptionRecordBack, SubscriptionCreate};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -176,4 +181,18 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     router_data_v2::flow_common_types::ExternalVaultProxyFlowData,
     ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
+>;
+
+#[cfg(feature = "v1")]
+pub type SubscriptionRecordBackRouterData = RouterData<
+    SubscriptionRecordBack,
+    SubscriptionsRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+#[cfg(feature = "v1")]
+pub type SubscriptionCreateRouterData = RouterData<
+    SubscriptionCreate,
+    SubscriptionCreateRequest,
+    SubscriptionCreateResponse,
 >;

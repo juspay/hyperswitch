@@ -33,6 +33,7 @@ use hyperswitch_domain_models::{
             RevenueRecoveryRecordBackRequest,
         },
         subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{SubscriptionsRecordBackRequest, SubscriptionCreateRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -274,6 +275,22 @@ pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
     RevenueRecoveryRecordBackResponse,
 >;
 
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegration<SubscriptionRecordBack, SubscriptionsRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type SubscriptionRecordBackType = dyn ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+    SubscriptionsRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>`
+pub type SubscriptionCreateType = dyn ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+    SubscriptionCreateRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
 pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSync,
@@ -317,6 +334,22 @@ pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
     GetSubscriptionPlans,
     GetSubscriptionPlansRequest,
     GetSubscriptionPlansResponse,
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegrationV2<SubscriptionRecordBack, SubscriptionCreateData, SubscriptionsRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type SubscriptionRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+    flow_common_types::SubscriptionCreateData,
+    SubscriptionsRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegrationV2<SubscriptionCreate, SubscriptionCreateData, SubscriptionCreateRequest, SubscriptionCreateResponse>`
+pub type SubscriptionCreateTypeV2 = dyn ConnectorIntegrationV2<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+    flow_common_types::SubscriptionCreateData,
+    SubscriptionCreateRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`

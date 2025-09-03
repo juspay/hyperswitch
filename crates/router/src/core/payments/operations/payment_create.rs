@@ -1630,6 +1630,7 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
+            billing_processor_details: request.billing_processor_details.clone(),
         })
     }
 

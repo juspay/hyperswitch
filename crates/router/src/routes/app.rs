@@ -65,7 +65,9 @@ use super::{
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -1152,6 +1154,29 @@ impl Routing {
                     .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Subscription;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl Subscription {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/subscription")
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/create").route(
+                web::post().to(|state, req, payload| {
+                    subscription::create_subscription(state, req, payload)
+                }),
+            ))
+            .service(
+                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::confirm_subscription(state, req, id, payload)
+                    },
+                )),
+            )
     }
 }
 

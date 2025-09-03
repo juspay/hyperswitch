@@ -277,6 +277,46 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             } else {
                 None
             };
+
+            if let Some(ref pm_id) = payment_method_id {
+                let billing_processor_detail = payment_data
+                    .payment_intent
+                    .billing_processor_details
+                    .clone();
+
+                if let Some(details) = billing_processor_detail {
+                    let merchant_id = &payment_data.payment_intent.merchant_id;
+                    // Update subscription record with the payment method id
+
+                    let subscription_record = state
+                        .store
+                        .find_by_merchant_id_subscription_id(
+                            merchant_id,
+                            details.subscription_id.clone(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: format!(
+                                "subscription not found for id: {}",
+                                &details.subscription_id
+                            ),
+                        })?;
+
+                    let udpate = storage::SubscriptionUpdate::new(Some(pm_id.clone()), None);
+
+                    state
+                        .store
+                        .update_subscription_entry(
+                            &subscription_record.merchant_id,
+                            subscription_record.subscription_id.clone(),
+                            udpate,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to update subscription with payment method")?;
+                }
+            }
+
             payment_data.payment_attempt.payment_method_id = payment_method_id;
             payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
                 .clone()

@@ -1,4 +1,4 @@
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +8,7 @@ use crate::schema::subscription;
 #[diesel(table_name = subscription)]
 pub struct SubscriptionNew {
     subscription_id: String,
+    status: String,
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
     mca_id: Option<String>,
@@ -27,6 +28,7 @@ pub struct Subscription {
     #[serde(skip_serializing, skip_deserializing)]
     pub id: i32,
     pub subscription_id: String,
+    pub status: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
     pub mca_id: Option<String>,
@@ -42,6 +44,7 @@ pub struct Subscription {
 #[diesel(table_name = subscription)]
 pub struct SubscriptionUpdate {
     pub payment_method_id: Option<String>,
+    pub status: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
 }
 
@@ -49,6 +52,7 @@ impl SubscriptionNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscription_id: String,
+        status: String,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
         mca_id: Option<String>,
@@ -60,6 +64,7 @@ impl SubscriptionNew {
         let now = common_utils::date_time::now();
         Self {
             subscription_id,
+            status,
             billing_processor,
             payment_method_id,
             mca_id,
@@ -71,12 +76,23 @@ impl SubscriptionNew {
             modified_at: now,
         }
     }
+
+    pub fn generate_and_set_client_secret(&mut self) -> Option<String> {
+        let client_secret = Some(generate_id_with_default_len(&format!(
+            "{}_secret",
+            self.subscription_id
+        )));
+
+        self.client_secret = self.client_secret.clone();
+        client_secret
+    }
 }
 
 impl SubscriptionUpdate {
-    pub fn new(payment_method_id: Option<String>) -> Self {
+    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
         Self {
             payment_method_id,
+            status,
             modified_at: common_utils::date_time::now(),
         }
     }
