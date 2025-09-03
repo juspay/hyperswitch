@@ -393,7 +393,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
-        let headers_builder = state.get_grpc_headers();
+        let headers_builder = state
+            .get_grpc_headers()
+            .external_vault_proxy_metadata(external_vault_proxy_metadata);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
@@ -404,7 +406,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .payment_authorize(
                         payment_authorize_request,
                         connector_auth_metadata,
-                        Some(external_vault_proxy_metadata),
                         grpc_headers,
                     )
                     .await

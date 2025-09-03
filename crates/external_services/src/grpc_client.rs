@@ -151,15 +151,12 @@ pub struct GrpcHeaders {
     request_id: Option<String>,
     /// Lineage ids
     lineage_ids: LineageIds,
+    /// External vault proxy metadata
+    #[builder(default, setter(strip_option))]
+    external_vault_proxy_metadata: Option<String>,
 }
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersBuilderInitial = GrpcHeadersBuilder<((String,), (Option<String>,), ())>;
-/// Type aliase for GrpcHeaders builder in intemediate stage
-/// This is where all mandatory fields will be set
-pub type GrpcHeadersBuilderIntermediate = GrpcHeadersBuilder<((String,), (Option<String>,), ())>;
-/// This is where all mandatory fields are set
-pub type GrpcHeadersBuilderFinal =
-    GrpcHeadersBuilder<((String,), (Option<String>,), (LineageIds,))>;
+pub type GrpcHeadersBuilderInitial = GrpcHeadersBuilder<((String,), (Option<String>,), (), ())>;
 
 /// struct to represent set of Lineage ids
 #[derive(Debug, serde::Serialize)]

@@ -814,11 +814,11 @@ pub fn extract_webhook_content_from_ucs_response(
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
 #[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
-pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, GrpcHeaderGeneric>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
-    grpc_header_builder: external_services::grpc_client::GrpcHeadersBuilderIntermediate,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersBuilder<GrpcHeaderGeneric>,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where

@@ -864,7 +864,6 @@ async fn call_unified_connector_service_authorize(
                 .payment_authorize(
                     payment_authorize_request,
                     connector_auth_metadata,
-                    None,
                     grpc_headers,
                 )
                 .await
