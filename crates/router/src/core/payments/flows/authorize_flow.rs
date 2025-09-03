@@ -859,13 +859,13 @@ async fn call_unified_connector_service_authorize(
         state,
         payment_authorize_request,
         headers_builder,
-        |mut router_data, payment_authorize_request, headers_builder| async move {
+        |mut router_data, payment_authorize_request, grpc_headers| async move {
             let response = client
                 .payment_authorize(
                     payment_authorize_request,
                     connector_auth_metadata,
                     None,
-                    headers_builder.build(),
+                    grpc_headers,
                 )
                 .await
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -931,12 +931,12 @@ async fn call_unified_connector_service_repeat_payment(
         state,
         payment_repeat_request,
         headers_builder,
-        |mut router_data, payment_repeat_request, headers_builder| async move {
+        |mut router_data, payment_repeat_request, grpc_headers| async move {
             let response = client
                 .payment_repeat(
                     payment_repeat_request,
                     connector_auth_metadata.clone(),
-                    headers_builder.build(),
+                    grpc_headers,
                 )
                 .await
                 .change_context(ApiErrorResponse::InternalServerError)

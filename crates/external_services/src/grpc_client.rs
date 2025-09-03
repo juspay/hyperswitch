@@ -148,9 +148,18 @@ pub struct GrpcHeaders {
     /// Tenant id
     tenant_id: String,
     /// Request id
-    #[builder(default)]
     request_id: Option<String>,
+    /// Lineage ids
+    lineage_ids: LineageIds,
 }
+/// Type aliase for GrpcHeaders builder in initial stage
+pub type GrpcHeadersBuilderInitial = GrpcHeadersBuilder<((String,), (Option<String>,), ())>;
+/// Type aliase for GrpcHeaders builder in intemediate stage
+/// This is where all mandatory fields will be set
+pub type GrpcHeadersBuilderIntermediate = GrpcHeadersBuilder<((String,), (Option<String>,), ())>;
+/// This is where all mandatory fields are set
+pub type GrpcHeadersBuilderFinal =
+    GrpcHeadersBuilder<((String,), (Option<String>,), (LineageIds,))>;
 
 /// struct to represent set of Lineage ids
 #[derive(Debug, serde::Serialize)]
@@ -158,9 +167,11 @@ pub struct LineageIds {
     merchant_id: id_type::MerchantId,
 }
 impl LineageIds {
+    /// constructor for LineageIds
     pub fn new(merchant_id: id_type::MerchantId) -> Self {
         Self { merchant_id }
     }
+    /// get url encoded string representation of LineageIds
     pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {
         serde_urlencoded::to_string(&self)
     }

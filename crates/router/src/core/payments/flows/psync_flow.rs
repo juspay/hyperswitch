@@ -272,13 +272,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             state,
             payment_get_request,
             header_payload,
-            |mut router_data, payment_get_request, header_payload| async move {
+            |mut router_data, payment_get_request, grpc_headers| async move {
                 let response = client
-                    .payment_get(
-                        payment_get_request,
-                        connector_auth_metadata,
-                        header_payload.build(),
-                    )
+                    .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get payment")?;

@@ -288,12 +288,12 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             state,
             payment_register_request,
             header_payload,
-            |mut router_data, payment_register_request, header_payload| async move {
+            |mut router_data, payment_register_request, grpc_headers| async move {
                 let response = client
                     .payment_setup_mandate(
                         payment_register_request,
                         connector_auth_metadata,
-                        header_payload.build(),
+                        grpc_headers,
                     )
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)

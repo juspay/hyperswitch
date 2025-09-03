@@ -399,13 +399,13 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
-            |mut router_data, payment_authorize_request, headers_builder| async move {
+            |mut router_data, payment_authorize_request, grpc_headers| async move {
                 let response = client
                     .payment_authorize(
                         payment_authorize_request,
                         connector_auth_metadata,
                         Some(external_vault_proxy_metadata),
-                        headers_builder.build(),
+                        grpc_headers,
                     )
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)

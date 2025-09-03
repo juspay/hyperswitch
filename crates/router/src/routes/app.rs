@@ -17,7 +17,7 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersBuilder},
+    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersBuilderInitial},
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -147,7 +147,7 @@ impl SessionState {
             event_context: events::EventContext::new(self.event_handler.clone()),
         }
     }
-    pub fn get_grpc_headers(&self) -> GrpcHeadersBuilder {
+    pub fn get_grpc_headers(&self) -> GrpcHeadersBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.map(|req_id| (*req_id).to_string());
         GrpcHeaders::builder()
