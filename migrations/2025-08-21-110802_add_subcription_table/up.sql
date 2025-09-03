@@ -12,4 +12,4 @@ CREATE TABLE subscription (
   modified_at TIMESTAMP NOT NULL
 );
 
-CREATE UNIQUE INDEX merchant_customer_subscription_unique_index ON subscription (merchant_id, subscription_id);
+CREATE UNIQUE INDEX merchant_subscription_unique_index ON subscription (merchant_id, subscription_id);
