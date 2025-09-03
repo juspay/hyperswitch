@@ -174,6 +174,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargebeePaymentsResponse, T, PaymentsR
 pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(rename = "subscription_items[item_price_id][0]")]
     pub item_price_id: String,
+    #[serde(rename = "id")]
+    pub subscription_id: String,
     #[serde(rename = "subscription_items[quantity][0]")]
     pub quantity: Option<u32>,
     #[serde(rename = "billing_address[line1]")]
@@ -210,6 +212,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 
         Ok(Self {
             item_price_id: first_item.item_price_id.clone(),
+            subscription_id: req.subscription_id.clone(),
             quantity: first_item.quantity,
             billing_address_line1: req
                 .billing_address

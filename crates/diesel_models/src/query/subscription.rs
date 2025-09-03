@@ -1,7 +1,9 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl};
-use error_stack::ResultExt;
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
+};
 use error_stack::report;
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -31,7 +33,6 @@ impl Subscription {
         )
         .await
     }
-
 
     pub async fn find_payment_method_ids_by_billing_connector_subscription_id(
         conn: &PgPooledConn,
@@ -81,11 +82,11 @@ impl Subscription {
         })
     }
 
-    pub async fn find_subscription_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::id.eq(id.to_owned()),
-        )
-        .await
-    }
+    // pub async fn find_subscription_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
+    //     generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    //         conn,
+    //         dsl::id.eq(id.to_owned()),
+    //     )
+    //     .await
+    // }
 }

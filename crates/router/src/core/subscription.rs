@@ -139,17 +139,22 @@ pub async fn confirm_subscription(
 ) -> RouterResponse<ConfirmSubscriptionResponse> {
     let db = state.store.as_ref();
     // Fetch subscription from DB
-    let subscription = db
-        .find_subscription_by_id(subscription_id)
+    let mercahnt_account = merchant_context.get_merchant_account();
+    let key_store = merchant_context.get_merchant_key_store();
+    let subscription = state
+        .store
+        .find_by_merchant_id_customer_id_subscription_id(
+            merchant_id,
+            &"cust_id".to_string(), // fix this
+            subscription_id.clone(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Subscription not found".to_string(),
+            message: format!("subscription not found for id: {}", subscription_id),
         })?;
 
     logger::debug!("fetched_subscription: {:?}", subscription);
 
-    let mercahnt_account = merchant_context.get_merchant_account();
-    let key_store = merchant_context.get_merchant_key_store();
     let mca_id = subscription
         .mca_id
         .as_ref()
@@ -218,6 +223,7 @@ pub async fn confirm_subscription(
     let conn_request =
         hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
             customer_id: subscription.customer_id.get_string_repr().to_string(),
+            subscription_id: subscription.subscription_id.clone(),
             subscription_items: vec![subscription_item],
             billing_address: request.billing_address.clone().ok_or(
                 errors::ApiErrorResponse::InvalidRequestData {
@@ -274,14 +280,6 @@ pub async fn confirm_subscription(
     })?;
 
     crate::logger::debug!("connector_resp: {:?}", connector_resp);
-
-    // Update subscription with billing processor subscription_id
-    let udpate = SubscriptionUpdate::new(Some(connector_resp.subscription_id.clone()), None);
-
-    db.update_subscription_entry(subscription.id.clone(), udpate)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update subscription with billing processor subscription_id")?;
 
     // Form Payments Request with billing processor details
     let billing_connector_details = api_models::payments::BillingConnectorDetails {

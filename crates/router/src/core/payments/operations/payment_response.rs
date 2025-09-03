@@ -284,15 +284,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     .billing_processor_details
                     .clone();
 
-                if let Some((details, cust_id)) = billing_processor_detail.zip(customer_id) {
+                if let Some(details) = billing_processor_detail {
                     let merchant_id = &payment_data.payment_intent.merchant_id;
                     // Update subscription record with the payment method id
 
                     let subscription_record = state
                         .store
-                        .find_by_merchant_id_customer_id_subscription_id(
+                        .find_by_merchant_id_subscription_id(
                             merchant_id,
-                            &cust_id,
                             details.subscription_id.clone(),
                         )
                         .await
@@ -303,7 +302,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             ),
                         })?;
 
-                    let udpate = storage::SubscriptionUpdate::new(None, Some(pm_id.clone()));
+                    let udpate = storage::SubscriptionUpdate::new(Some(pm_id.clone()));
 
                     state
                         .store

@@ -29,10 +29,10 @@ pub trait SubscriptionInterface {
         data: storage::SubscriptionUpdate,
     ) -> CustomResult<storage::Subscription, errors::StorageError>;
 
-    async fn find_subscription_by_id(
-        &self,
-        id: String,
-    ) -> CustomResult<storage::Subscription, errors::StorageError>;
+    // async fn find_subscription_by_id(
+    //     &self,
+    //     id: String,
+    // ) -> CustomResult<storage::Subscription, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -77,16 +77,16 @@ impl SubscriptionInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
-    async fn find_subscription_by_id(
-        &self,
-        id: String,
-    ) -> CustomResult<storage::Subscription, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Subscription::find_subscription_by_id(&conn, id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+    // #[instrument(skip_all)]
+    // async fn find_subscription_by_id(
+    //     &self,
+    //     id: String,
+    // ) -> CustomResult<storage::Subscription, errors::StorageError> {
+    //     let conn = connection::pg_connection_write(self).await?;
+    //     storage::Subscription::find_subscription_by_id(&conn, id)
+    //         .await
+    //         .map_err(|error| report!(errors::StorageError::from(error)))
+    // }
 }
 
 #[async_trait::async_trait]
@@ -115,12 +115,12 @@ impl SubscriptionInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_subscription_by_id(
-        &self,
-        _id: String,
-    ) -> CustomResult<storage::Subscription, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
-    }
+    // async fn find_subscription_by_id(
+    //     &self,
+    //     _id: String,
+    // ) -> CustomResult<storage::Subscription, errors::StorageError> {
+    //     Err(errors::StorageError::MockDbError)?
+    // }
 }
 
 #[async_trait::async_trait]
@@ -155,10 +155,10 @@ impl SubscriptionInterface for KafkaStore {
         self.diesel_store.update_subscription_entry(id, data).await
     }
 
-    async fn find_subscription_by_id(
-        &self,
-        id: String,
-    ) -> CustomResult<storage::Subscription, errors::StorageError> {
-        self.diesel_store.find_subscription_by_id(id).await
-    }
+    // async fn find_subscription_by_id(
+    //     &self,
+    //     id: String,
+    // ) -> CustomResult<storage::Subscription, errors::StorageError> {
+    //     self.diesel_store.find_subscription_by_id(id).await
+    // }
 }
