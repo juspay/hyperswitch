@@ -12,11 +12,9 @@ use hyperswitch_domain_models::router_flow_types::{
 };
 
 use hyperswitch_domain_models::router_flow_types::{
-    SubscriptionRecordBack as SubscriptionRecordBackFlow,
     SubscriptionCreate as SubscriptionCreateFlow,
+    SubscriptionRecordBack as SubscriptionRecordBackFlow,
 };
-use hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest;
-use hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse;
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
@@ -26,13 +24,16 @@ use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
     RevenueRecoveryRecordBackRequest,
 };
+use hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest;
+use hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse;
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::router_response_types::revenue_recovery::{
-    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
-};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+    RevenueRecoveryRecordBackResponse,
+};
 
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
@@ -55,8 +56,8 @@ use hyperswitch_domain_models::{
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
-        subscriptions::SubscriptionsRecordBackRequest,
         authentication,
+        subscriptions::SubscriptionsRecordBackRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -135,7 +136,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{Subscriptions,SubscriptionRecordBack,SubscriptionCreate},
+        subscriptions::{SubscriptionCreate, SubscriptionRecordBack, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -8275,6 +8276,7 @@ default_imp_for_subscription_create!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -8791,7 +8793,6 @@ impl<const T: u8>
     > for connectors::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
