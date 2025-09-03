@@ -1273,15 +1273,19 @@ fn get_bank_debit_data(
     }
 }
 
+pub struct PaymentRequestDetails {
+    pub auth_type: enums::AuthenticationType,
+    pub payment_method_token: Option<PaymentMethodToken>,
+    pub is_customer_initiated_mandate_payment: Option<bool>,
+    pub billing_address: StripeBillingAddress,
+    pub request_incremental_authorization: bool,
+    pub request_extended_authorization: Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
+    pub request_overcapture: Option<StripeRequestOvercaptureBool>,
+}
+
 fn create_stripe_payment_method(
     payment_method_data: &PaymentMethodData,
-    auth_type: enums::AuthenticationType,
-    payment_method_token: Option<PaymentMethodToken>,
-    is_customer_initiated_mandate_payment: Option<bool>,
-    billing_address: StripeBillingAddress,
-    request_incremental_authorization: bool,
-    request_extended_authorization: Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
-    request_overcapture: Option<StripeRequestOvercaptureBool>,
+    payment_request_details: PaymentRequestDetails,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1292,7 +1296,7 @@ fn create_stripe_payment_method(
 > {
     match payment_method_data {
         PaymentMethodData::Card(card_details) => {
-            let payment_method_auth_type = match auth_type {
+            let payment_method_auth_type = match payment_request_details.auth_type {
                 enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
@@ -1300,12 +1304,12 @@ fn create_stripe_payment_method(
                 StripePaymentMethodData::try_from((
                     card_details,
                     payment_method_auth_type,
-                    request_incremental_authorization,
-                    request_extended_authorization,
-                    request_overcapture,
+                    payment_request_details.request_incremental_authorization,
+                    payment_request_details.request_extended_authorization,
+                    payment_request_details.request_overcapture,
                 ))?,
                 Some(StripePaymentMethodType::Card),
-                billing_address,
+                payment_request_details.billing_address,
             ))
         }
         PaymentMethodData::PayLater(pay_later_data) => {
@@ -1316,17 +1320,17 @@ fn create_stripe_payment_method(
                     payment_method_data_type: stripe_pm_type,
                 }),
                 Some(stripe_pm_type),
-                billing_address,
+                payment_request_details.billing_address,
             ))
         }
         PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            let billing_address = if is_customer_initiated_mandate_payment == Some(true) {
+            let billing_address = if payment_request_details.is_customer_initiated_mandate_payment == Some(true) {
                 mandatory_parameters_for_sepa_bank_debit_mandates(
-                    &Some(billing_address.to_owned()),
-                    is_customer_initiated_mandate_payment,
+                    &Some(payment_request_details.billing_address.to_owned()),
+                    payment_request_details.is_customer_initiated_mandate_payment,
                 )?
             } else {
-                billing_address
+                payment_request_details.billing_address
             };
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
             let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
@@ -1336,7 +1340,7 @@ fn create_stripe_payment_method(
         PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = get_stripe_payment_method_type_from_wallet_data(wallet_data)?;
             let wallet_specific_data =
-                StripePaymentMethodData::try_from((wallet_data, payment_method_token))?;
+                StripePaymentMethodData::try_from((wallet_data, payment_request_details.payment_method_token))?;
             Ok((
                 wallet_specific_data,
                 pm_type,
@@ -1350,7 +1354,7 @@ fn create_stripe_payment_method(
                 bank_specific_data: bank_debit_data,
             });
 
-            Ok((pm_data, Some(pm_type), billing_address))
+            Ok((pm_data, Some(pm_type), payment_request_details.billing_address))
         }
         PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.deref() {
             payment_method_data::BankTransferData::AchBankTransfer {} => Ok((
@@ -1371,7 +1375,7 @@ fn create_stripe_payment_method(
                         MultibancoTransferData {
                             payment_method_data_type: StripeCreditTransferTypes::Multibanco,
                             payment_method_type: StripeCreditTransferTypes::Multibanco,
-                            email: billing_address.email.ok_or(
+                            email: payment_request_details.billing_address.email.ok_or(
                                 ConnectorError::MissingRequiredField {
                                     field_name: "billing_address.email",
                                 },
@@ -1389,7 +1393,7 @@ fn create_stripe_payment_method(
                         bank_transfer_type: BankTransferType::EuBankTransfer,
                         balance_funding_type: BankTransferType::BankTransfers,
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
-                        country: billing_address.country.ok_or(
+                        country: payment_request_details.billing_address.country.ok_or(
                             ConnectorError::MissingRequiredField {
                                 field_name: "billing_address.country",
                             },
@@ -1397,7 +1401,7 @@ fn create_stripe_payment_method(
                     }),
                 )),
                 Some(StripePaymentMethodType::CustomerBalance),
-                billing_address,
+                payment_request_details.billing_address,
             )),
             payment_method_data::BankTransferData::BacsBankTransfer {} => Ok((
                 StripePaymentMethodData::BankTransfer(StripeBankTransferData::BacsBankTransfers(
@@ -1409,7 +1413,7 @@ fn create_stripe_payment_method(
                     }),
                 )),
                 Some(StripePaymentMethodType::CustomerBalance),
-                billing_address,
+                payment_request_details.billing_address,
             )),
             payment_method_data::BankTransferData::Pix { .. } => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
@@ -1959,24 +1963,25 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                     let (payment_method_data, payment_method_type, billing_address) =
                         create_stripe_payment_method(
                             &item.request.payment_method_data,
-                            item.auth_type,
-                            item.payment_method_token.clone(),
-                            Some(
+                            PaymentRequestDetails {
+                                auth_type : item.auth_type,
+                                payment_method_token: item.payment_method_token.clone(),
+                                is_customer_initiated_mandate_payment: Some(
                                 PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                                     &item.request,
                                 ),
                             ),
-                            billing_address.ok_or_else(|| {
+                            billing_address: billing_address.ok_or_else(|| {
                                 ConnectorError::MissingRequiredField {
                                     field_name: "billing_address",
                                 }
                             })?,
-                            item.request.request_incremental_authorization,
-                            item.request.request_extended_authorization,
-                            item.request
+                            request_incremental_authorization: item.request.request_incremental_authorization,
+                            request_extended_authorization: item.request.request_extended_authorization,
+                            request_overcapture: item.request
                                 .enable_overcapture
                                 .and_then(get_stripe_overcapture_request),
-                        )?;
+                })?;
 
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
@@ -2306,14 +2311,15 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             _ => {
                 create_stripe_payment_method(
                     &item.request.payment_method_data,
-                    item.auth_type,
-                    item.payment_method_token.clone(),
-                    None,
-                    StripeBillingAddress::default(),
-                    false,
-                    None,
-                    None,
-                )?
+                    PaymentRequestDetails {
+                        auth_type : item.auth_type,
+                        payment_method_token: item.payment_method_token.clone(),
+                        is_customer_initiated_mandate_payment: None,
+                        billing_address: StripeBillingAddress::default(),
+                        request_incremental_authorization: false,
+                        request_extended_authorization: None,
+                        request_overcapture: None,
+            })?
                 .0
             }
         };
@@ -2573,7 +2579,7 @@ pub struct PaymentIntentSyncResponse {
 #[serde(untagged)]
 pub enum StripeChargeEnum {
     ChargeId(String),
-    ChargeObject(StripeCharge),
+    ChargeObject(Box<StripeCharge>),
 }
 
 impl StripeChargeEnum {
