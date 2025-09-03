@@ -79,9 +79,8 @@ impl SmithyGenerator {
         current_namespace: &str,
         shape_to_namespace: &HashMap<String, String>,
     ) -> String {
-        let resolve_target = |target: &str| {
-            self.resolve_type(target, current_namespace, shape_to_namespace)
-        };
+        let resolve_target =
+            |target: &str| self.resolve_type(target, current_namespace, shape_to_namespace);
 
         match shape {
             crate::types::SmithyShape::Structure {
@@ -284,7 +283,7 @@ impl SmithyGenerator {
             crate::types::SmithyTrait::HttpLabel => "httpLabel".to_string(),
             crate::types::SmithyTrait::HttpQuery { name } => {
                 format!("httpQuery(\"{}\")", name)
-            },
+            }
             crate::types::SmithyTrait::Mixin => "mixin".to_string(),
         }
     }

@@ -168,11 +168,23 @@ pub fn resolve_type_and_generate_shapes(
         vt if vt.starts_with("Vec<") && vt.ends_with('>') => {
             let inner_type = extract_generic_inner_type(vt, "Vec")
                 .map_err(|e| syn::Error::new(value_type_span, e))?;
-            let (inner_smithy_type, new_shapes) = resolve_type_and_generate_shapes(inner_type, shapes)?;
+            let (inner_smithy_type, new_shapes) =
+                resolve_type_and_generate_shapes(inner_type, shapes)?;
             generated_shapes.extend(new_shapes);
 
-            let list_shape_name = format!("{}List", inner_smithy_type.split("::").last().unwrap_or(&inner_smithy_type).split('#').last().unwrap_or(&inner_smithy_type));
-            if !shapes.contains_key(&list_shape_name) && !generated_shapes.contains_key(&list_shape_name) {
+            let list_shape_name = format!(
+                "{}List",
+                inner_smithy_type
+                    .split("::")
+                    .last()
+                    .unwrap_or(&inner_smithy_type)
+                    .split('#')
+                    .last()
+                    .unwrap_or(&inner_smithy_type)
+            );
+            if !shapes.contains_key(&list_shape_name)
+                && !generated_shapes.contains_key(&list_shape_name)
+            {
                 let list_shape = SmithyShape::List {
                     member: Box::new(SmithyMember {
                         target: inner_smithy_type,
@@ -209,9 +221,13 @@ pub fn resolve_type_and_generate_shapes(
                 parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
             let (key_smithy_type, key_shapes) = resolve_type_and_generate_shapes(key_type, shapes)?;
             generated_shapes.extend(key_shapes);
-            let (value_smithy_type, value_shapes) = resolve_type_and_generate_shapes(value_type, shapes)?;
+            let (value_smithy_type, value_shapes) =
+                resolve_type_and_generate_shapes(value_type, shapes)?;
             generated_shapes.extend(value_shapes);
-            format!("smithy.api#Map<key: {}, value: {}>", key_smithy_type, value_smithy_type)
+            format!(
+                "smithy.api#Map<key: {}, value: {}>",
+                key_smithy_type, value_smithy_type
+            )
         }
 
         vt if vt.starts_with("BTreeMap<") && vt.ends_with('>') => {
@@ -221,9 +237,13 @@ pub fn resolve_type_and_generate_shapes(
                 parse_map_types(inner_types).map_err(|e| syn::Error::new(value_type_span, e))?;
             let (key_smithy_type, key_shapes) = resolve_type_and_generate_shapes(key_type, shapes)?;
             generated_shapes.extend(key_shapes);
-            let (value_smithy_type, value_shapes) = resolve_type_and_generate_shapes(value_type, shapes)?;
+            let (value_smithy_type, value_shapes) =
+                resolve_type_and_generate_shapes(value_type, shapes)?;
             generated_shapes.extend(value_shapes);
-            format!("smithy.api#Map<key: {}, value: {}>", key_smithy_type, value_smithy_type)
+            format!(
+                "smithy.api#Map<key: {}, value: {}>",
+                key_smithy_type, value_smithy_type
+            )
         }
 
         _ => {
