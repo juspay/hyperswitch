@@ -1279,7 +1279,8 @@ pub struct PaymentRequestDetails {
     pub is_customer_initiated_mandate_payment: Option<bool>,
     pub billing_address: StripeBillingAddress,
     pub request_incremental_authorization: bool,
-    pub request_extended_authorization: Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
+    pub request_extended_authorization:
+        Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub request_overcapture: Option<StripeRequestOvercaptureBool>,
 }
 
@@ -1324,14 +1325,15 @@ fn create_stripe_payment_method(
             ))
         }
         PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            let billing_address = if payment_request_details.is_customer_initiated_mandate_payment == Some(true) {
-                mandatory_parameters_for_sepa_bank_debit_mandates(
-                    &Some(payment_request_details.billing_address.to_owned()),
-                    payment_request_details.is_customer_initiated_mandate_payment,
-                )?
-            } else {
-                payment_request_details.billing_address
-            };
+            let billing_address =
+                if payment_request_details.is_customer_initiated_mandate_payment == Some(true) {
+                    mandatory_parameters_for_sepa_bank_debit_mandates(
+                        &Some(payment_request_details.billing_address.to_owned()),
+                        payment_request_details.is_customer_initiated_mandate_payment,
+                    )?
+                } else {
+                    payment_request_details.billing_address
+                };
             let pm_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
             let bank_redirect_data = StripePaymentMethodData::try_from(bank_redirect_data)?;
 
@@ -1339,8 +1341,10 @@ fn create_stripe_payment_method(
         }
         PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = get_stripe_payment_method_type_from_wallet_data(wallet_data)?;
-            let wallet_specific_data =
-                StripePaymentMethodData::try_from((wallet_data, payment_request_details.payment_method_token))?;
+            let wallet_specific_data = StripePaymentMethodData::try_from((
+                wallet_data,
+                payment_request_details.payment_method_token,
+            ))?;
             Ok((
                 wallet_specific_data,
                 pm_type,
@@ -1354,7 +1358,11 @@ fn create_stripe_payment_method(
                 bank_specific_data: bank_debit_data,
             });
 
-            Ok((pm_data, Some(pm_type), payment_request_details.billing_address))
+            Ok((
+                pm_data,
+                Some(pm_type),
+                payment_request_details.billing_address,
+            ))
         }
         PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data.deref() {
             payment_method_data::BankTransferData::AchBankTransfer {} => Ok((
@@ -2312,14 +2320,15 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 create_stripe_payment_method(
                     &item.request.payment_method_data,
                     PaymentRequestDetails {
-                        auth_type : item.auth_type,
+                        auth_type: item.auth_type,
                         payment_method_token: item.payment_method_token.clone(),
                         is_customer_initiated_mandate_payment: None,
                         billing_address: StripeBillingAddress::default(),
                         request_incremental_authorization: false,
                         request_extended_authorization: None,
                         request_overcapture: None,
-            })?
+                    },
+                )?
                 .0
             }
         };
