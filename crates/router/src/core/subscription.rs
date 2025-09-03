@@ -20,7 +20,10 @@ pub async fn create_subscription(
 ) -> RouterResponse<CreateSubscriptionResponse> {
     let store = state.store.clone();
     let db = store.as_ref();
-    let id = request.subscription_id.clone().unwrap_or(generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX));
+    let id = request
+        .subscription_id
+        .clone()
+        .unwrap_or(generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX));
     let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
     let mut response = CreateSubscriptionResponse::new(
         subscription_details,
