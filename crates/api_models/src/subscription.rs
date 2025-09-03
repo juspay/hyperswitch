@@ -9,6 +9,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CreateSubscriptionRequest {
+    pub subscription_id: Option<String>,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
     pub mca_id: Option<String>,
