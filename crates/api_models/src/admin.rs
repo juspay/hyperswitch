@@ -2791,6 +2791,11 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
