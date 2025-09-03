@@ -914,6 +914,7 @@ pub async fn construct_router_data_for_psync<'a>(
         split_payments: None,
         payment_experience: None,
         connector_reference_id: attempt.connector_response_reference_id.clone(),
+        setup_future_usage: payment_intent.setup_future_usage,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
