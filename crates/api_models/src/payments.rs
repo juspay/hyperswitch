@@ -5452,7 +5452,8 @@ pub struct PaymentsResponse {
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
 
-    /// Network Response 
+    /// Contains Network Response 
+    #[schema(value_type = Option<NetworkDetails>)]
     pub network_details: Option<NetworkDetails>
 }
 
