@@ -348,7 +348,6 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
         }
-    
     }
 }
 

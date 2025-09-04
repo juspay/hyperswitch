@@ -2294,8 +2294,8 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     co_badged_card_data,
                                     business_profile.is_external_vault_enabled.unwrap_or(false),
                                     payment_method_info,
-                        merchant_key_store,
-                        business_profile.get_id(),
+                                    merchant_key_store,
+                                    business_profile.get_id(),
                                 )
                                 .await
                             })
@@ -2374,8 +2374,8 @@ pub async fn fetch_card_details_from_locker(
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
     is_external_vault_enabled: bool,
     payment_method_info: domain::PaymentMethod,
-     merchant_key_store: &domain::MerchantKeyStore,
-     profile_id: &id_type::ProfileId,
+    merchant_key_store: &domain::MerchantKeyStore,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Card> {
     if is_external_vault_enabled && payment_method_info.vault_type.unwrap_or(enums::VaultType::Internal) == enums::VaultType::External {
         fetch_card_details_from_external_vault(
@@ -2387,7 +2387,7 @@ pub async fn fetch_card_details_from_locker(
             co_badged_card_data,
             payment_method_info,
             merchant_key_store,
-            profile_id
+            profile_id,
         )
         .await
     } else {
@@ -2469,8 +2469,8 @@ pub async fn fetch_card_details_from_external_vault(
     card_token_data: Option<&domain::CardToken>,
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
     payment_method_info: domain::PaymentMethod,
-     merchant_key_store: &domain::MerchantKeyStore,
-     profile_id: &id_type::ProfileId,
+    merchant_key_store: &domain::MerchantKeyStore,
+    profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Card> {
     logger::debug!("Fetching card details from external locker");
     let external_vault_mca_id = payment_method_info
@@ -2478,28 +2478,34 @@ pub async fn fetch_card_details_from_external_vault(
         .as_ref()
         .get_required_value("external_vault_mca_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)?; //if pm.external_vault_source is None, it is a bug. hence returning internal server error.
-    //or should i fetch from profile and call vault?
+                                                                         //or should i fetch from profile and call vault?
     let vault_merchant_connector_account = get_merchant_connector_account(
-                state,
-                merchant_id,
-                None,
-                merchant_key_store,
-                profile_id,
-                "vgs", //this hardcoding should be removed //get_merchant_connector_account_from_id fn
-                Some(&external_vault_mca_id),
-            )
-            .await
-            .attach_printable("Failed to fetch merchant connector account for external vault")?;
+        state,
+        merchant_id,
+        None,
+        merchant_key_store,
+        profile_id,
+        "vgs", //this hardcoding should be removed //get_merchant_connector_account_from_id fn
+        Some(&external_vault_mca_id),
+    )
+    .await
+    .attach_printable("Failed to fetch merchant connector account for external vault")?;
 
-            let merchant_connector_account_details = match vault_merchant_connector_account {
-                MerchantConnectorAccountType::DbVal(merchant_connector_account) => {
-                    *merchant_connector_account
-                }
-                MerchantConnectorAccountType::CacheVal(merchant_connector_details) => {
-                    return Err(errors::ApiErrorResponse::InternalServerError.into())
-                }
-            };
-let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(state, merchant_id,  &payment_method_info, merchant_connector_account_details).await?;
+    let merchant_connector_account_details = match vault_merchant_connector_account {
+        MerchantConnectorAccountType::DbVal(merchant_connector_account) => {
+            *merchant_connector_account
+        }
+        MerchantConnectorAccountType::CacheVal(merchant_connector_details) => {
+            return Err(errors::ApiErrorResponse::InternalServerError.into())
+        }
+    };
+    let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
+        state,
+        merchant_id,
+        &payment_method_info,
+        merchant_connector_account_details,
+    )
+    .await?;
 
     // // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // // from payment_method_data.card_token object
@@ -2516,7 +2522,7 @@ let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(state, me
     // };
 
     println!("vault_resppp: {:?}", vault_resp);
-    match vault_resp{
+    match vault_resp {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => {
             // let name_on_card = if let Some(name) = card.name_on_card.clone() {
             //     if name.clone().expose().is_empty() {
@@ -2540,8 +2546,8 @@ let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(state, me
                     .card_cvc
                     .unwrap_or_default(),
                 card_issuer: None,
-                nick_name: None, //this
-                card_network:None, //should be populated with actual val
+                nick_name: None,    //this
+                card_network: None, //should be populated with actual val
                 card_type: None,
                 card_issuing_country: None,
                 bank_code: None,

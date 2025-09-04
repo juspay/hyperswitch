@@ -3980,7 +3980,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 external_vault_connector_details: self
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
-
             },
         )))
     }

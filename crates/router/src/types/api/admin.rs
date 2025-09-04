@@ -495,7 +495,8 @@ pub async fn create_profile_from_merchant_account(
         merchant_country_code: request.merchant_country_code,
         dispute_polling_interval: request.dispute_polling_interval,
         is_external_vault_enabled: request.is_external_vault_enabled,
-        external_vault_connector_details: request.external_vault_connector_details
-                .map(ForeignInto::foreign_into),
+        external_vault_connector_details: request
+            .external_vault_connector_details
+            .map(ForeignInto::foreign_into),
     }))
 }

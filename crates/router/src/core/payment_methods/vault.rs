@@ -14,6 +14,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
     types::VaultRouterData,
 };
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -46,20 +48,12 @@ use crate::{
     types::{self, payment_methods as pm_types},
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
-
 #[cfg(feature = "v1")]
 use crate::{
-    core::{
-        errors::ConnectorErrorExt,
-        payments,
-        utils as core_utils,
-    },
-    services,
-    types,
+    core::{errors::ConnectorErrorExt, payments, utils as core_utils},
+    services, types,
     utils::ConnectorResponseExt,
 };
-#[cfg(feature = "v1")]
-use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -1896,10 +1890,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     pm: &domain::PaymentMethod,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
-    let connector_vault_id = pm
-        .locker_id
-        .clone()
-        .map(|id| id.to_string());
+    let connector_vault_id = pm.locker_id.clone().map(|id| id.to_string());
 
     let router_data = crate::core::utils::construct_vault_router_data_for_ext_v1(
         state,
