@@ -26404,28 +26404,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ali_pay_qr"
-            ],
-            "properties": {
-              "ali_pay_qr": {
-                "$ref": "#/components/schemas/AliPayQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ali_pay_redirect"
-            ],
-            "properties": {
-              "ali_pay_redirect": {
-                "$ref": "#/components/schemas/AliPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "AliPayHkRedirect",
             "required": [
               "ali_pay_hk_redirect"
             ],
@@ -26437,6 +26416,31 @@
           },
           {
             "type": "object",
+            "title": "AliPayQr",
+            "required": [
+              "ali_pay_qr"
+            ],
+            "properties": {
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AliPayRedirect",
+            "required": [
+              "ali_pay_redirect"
+            ],
+            "properties": {
+              "ali_pay_redirect": {
+                "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPay",
             "required": [
               "amazon_pay"
             ],
@@ -26448,6 +26452,7 @@
           },
           {
             "type": "object",
+            "title": "AmazonPayRedirect",
             "required": [
               "amazon_pay_redirect"
             ],
@@ -26459,6 +26464,43 @@
           },
           {
             "type": "object",
+            "title": "ApplePay",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/ApplePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ApplePayRedirect",
+            "required": [
+              "apple_pay_redirect"
+            ],
+            "properties": {
+              "apple_pay_redirect": {
+                "$ref": "#/components/schemas/ApplePayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ApplePayThirdPartySdk",
+            "required": [
+              "apple_pay_third_party_sdk"
+            ],
+            "properties": {
+              "apple_pay_third_party_sdk": {
+                "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BluecodeRedirect",
             "required": [
               "bluecode_redirect"
             ],
@@ -26471,105 +26513,19 @@
           },
           {
             "type": "object",
+            "title": "CashappQr",
             "required": [
-              "skrill"
+              "cashapp_qr"
             ],
             "properties": {
-              "skrill": {
-                "$ref": "#/components/schemas/SkrillData"
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
               }
             }
           },
           {
             "type": "object",
-            "required": [
-              "paysera"
-            ],
-            "properties": {
-              "paysera": {
-                "$ref": "#/components/schemas/PayseraData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "momo_redirect"
-            ],
-            "properties": {
-              "momo_redirect": {
-                "$ref": "#/components/schemas/MomoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay"
-            ],
-            "properties": {
-              "apple_pay": {
-                "$ref": "#/components/schemas/ApplePayWalletData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay_redirect"
-            ],
-            "properties": {
-              "apple_pay_redirect": {
-                "$ref": "#/components/schemas/ApplePayRedirectData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay_third_party_sdk"
-            ],
-            "properties": {
-              "apple_pay_third_party_sdk": {
-                "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "DanaRedirect",
             "required": [
               "dana_redirect"
             ],
@@ -26582,6 +26538,31 @@
           },
           {
             "type": "object",
+            "title": "GcashRedirect",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GoPayRedirect",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GooglePay",
             "required": [
               "google_pay"
             ],
@@ -26593,6 +26574,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayRedirect",
             "required": [
               "google_pay_redirect"
             ],
@@ -26604,6 +26586,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayThirdPartySdk",
             "required": [
               "google_pay_third_party_sdk"
             ],
@@ -26615,6 +26598,19 @@
           },
           {
             "type": "object",
+            "title": "KakaoPayRedirect",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MbWayRedirect",
             "required": [
               "mb_way_redirect"
             ],
@@ -26626,6 +26622,19 @@
           },
           {
             "type": "object",
+            "title": "Mifinity",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayRedirect",
             "required": [
               "mobile_pay_redirect"
             ],
@@ -26637,6 +26646,19 @@
           },
           {
             "type": "object",
+            "title": "MomoRedirect",
+            "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PaypalRedirect",
             "required": [
               "paypal_redirect"
             ],
@@ -26648,6 +26670,7 @@
           },
           {
             "type": "object",
+            "title": "PaypalSdk",
             "required": [
               "paypal_sdk"
             ],
@@ -26659,6 +26682,19 @@
           },
           {
             "type": "object",
+            "title": "Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Paze",
             "required": [
               "paze"
             ],
@@ -26670,6 +26706,19 @@
           },
           {
             "type": "object",
+            "title": "RevolutPay",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SamsungPay",
             "required": [
               "samsung_pay"
             ],
@@ -26681,6 +26730,43 @@
           },
           {
             "type": "object",
+            "title": "Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SwishQr",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TouchNGoRedirect",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TwintRedirect",
             "required": [
               "twint_redirect"
             ],
@@ -26693,6 +26779,7 @@
           },
           {
             "type": "object",
+            "title": "VippsRedirect",
             "required": [
               "vipps_redirect"
             ],
@@ -26705,28 +26792,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "touch_n_go_redirect"
-            ],
-            "properties": {
-              "touch_n_go_redirect": {
-                "$ref": "#/components/schemas/TouchNGoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "we_chat_pay_redirect"
-            ],
-            "properties": {
-              "we_chat_pay_redirect": {
-                "$ref": "#/components/schemas/WeChatPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "WeChatPayQr",
             "required": [
               "we_chat_pay_qr"
             ],
@@ -26738,45 +26804,13 @@
           },
           {
             "type": "object",
+            "title": "WeChatPayRedirect",
             "required": [
-              "cashapp_qr"
+              "we_chat_pay_redirect"
             ],
             "properties": {
-              "cashapp_qr": {
-                "$ref": "#/components/schemas/CashappQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish_qr"
-            ],
-            "properties": {
-              "swish_qr": {
-                "$ref": "#/components/schemas/SwishQrData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mifinity"
-            ],
-            "properties": {
-              "mifinity": {
-                "$ref": "#/components/schemas/MifinityData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "revolut_pay"
-            ],
-            "properties": {
-              "revolut_pay": {
-                "$ref": "#/components/schemas/RevolutPayData"
+              "we_chat_pay_redirect": {
+                "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
           }
