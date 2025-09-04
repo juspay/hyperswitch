@@ -6428,7 +6428,7 @@ type = "Text"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.account_value]
+[nordea.metadata.destination_account_number]
   name="destination_account_number"
   label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
@@ -6534,6 +6534,12 @@ required = true
 type = "Select"
 options = []
 
+[santander]
+[[santander.voucher]]
+  payment_method_type = "boleto"
+[[santander.bank_transfer]]
+  payment_method_type = "pix"  
+
 [santander.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
@@ -6572,6 +6578,20 @@ label = "Merchant Name"
 placeholder = "Enter the merchant name"
 required = true
 type = "Text"
+
+[santander.metadata.workspace_id]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
+
+[santander.metadata.covenant_code]
+name="covenant_code"
+label="Covenant Code"
+placeholder="Enter the covenant code"
+required=true
+type="Text"
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]

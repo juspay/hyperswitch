@@ -7312,7 +7312,55 @@
         "properties": {
           "social_security_number": {
             "type": "string",
-            "description": "The shopper's social security number",
+            "description": "The shopper's social security number (CPF or CNPJ)",
+            "nullable": true
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The shopper's bank account number associated with the boleto",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "default": "Cnpj",
+            "nullable": true
+          },
+          "fine_percentage": {
+            "type": "string",
+            "description": "The fine percentage charged if payment is overdue",
+            "nullable": true
+          },
+          "fine_quantity_days": {
+            "type": "string",
+            "description": "The number of days after the due date when the fine is applied",
+            "nullable": true
+          },
+          "interest_percentage": {
+            "type": "string",
+            "description": "The interest percentage charged on late payments",
+            "nullable": true
+          },
+          "write_off_quantity_days": {
+            "type": "string",
+            "description": "The number of days after which the boleto is written off (canceled)",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Custom messages or instructions to display on the boleto",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-08-22",
             "nullable": true
           }
         }
@@ -10707,6 +10755,13 @@
           "dispute_lost"
         ]
       },
+      "DocumentKind": {
+        "type": "string",
+        "enum": [
+          "CNPJ",
+          "CPF"
+        ]
+      },
       "DokuBankTransferInstructions": {
         "type": "object",
         "required": [
@@ -12978,7 +13033,8 @@
           "payout_processor",
           "authentication_provider",
           "fraud_and_risk_management_provider",
-          "tax_calculation_provider"
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
         ]
       },
       "HyperswitchVaultSessionDetails": {
@@ -14654,6 +14710,11 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
             "nullable": true
           }
         },
@@ -19315,6 +19376,7 @@
           "apply_mit_exemption",
           "payment_link_enabled",
           "request_incremental_authorization",
+          "split_txns_enabled",
           "expires_on",
           "request_external_three_ds_authentication",
           "payment_type"
@@ -19465,6 +19527,14 @@
           },
           "request_incremental_authorization": {
             "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
           },
           "expires_on": {
             "type": "string",
@@ -22077,6 +22147,15 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22110,7 +22189,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
-          "is_clear_pan_retries_enabled"
+          "is_clear_pan_retries_enabled",
+          "split_txns_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -22362,6 +22442,14 @@
               }
             ],
             "nullable": true
+          },
+          "split_txns_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SplitTxnsEnabled"
+              }
+            ],
+            "default": "skip"
           }
         }
       },
@@ -24812,6 +24900,13 @@
           }
         ],
         "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
+      "SplitTxnsEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
       },
       "StaticRoutingAlgorithm": {
         "oneOf": [

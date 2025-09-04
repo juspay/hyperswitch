@@ -551,12 +551,12 @@ impl Connector {
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
-        HashSet::new()
+        HashSet::from([PaymentMethod::Card])
     }
     pub fn get_payment_method_types_supporting_extended_authorization(
         self,
     ) -> HashSet<PaymentMethodType> {
-        HashSet::new()
+        HashSet::from([PaymentMethodType::Credit, PaymentMethodType::Debit])
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
