@@ -135,7 +135,7 @@ where
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: payment_data.address.clone(),
@@ -466,7 +466,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -811,7 +811,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -944,7 +944,7 @@ pub async fn construct_router_data_for_psync<'a>(
         attempt_id: attempt.get_id().get_string_repr().to_owned(),
         status: attempt.status,
         payment_method: attempt.payment_method_type,
-        payment_method_type: None,
+        payment_method_type: Some(attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_intent
             .description
@@ -1274,6 +1274,11 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
         customer_name,
+        metadata: payment_data.payment_intent.metadata,
+        order_tax_amount,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        payment_method: None,
+        payment_method_type: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1519,7 +1524,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -1985,7 +1990,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
-        payment_method_type: None,
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,

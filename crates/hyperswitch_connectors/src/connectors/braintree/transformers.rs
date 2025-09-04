@@ -376,14 +376,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                 ))?))
             }
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                WalletData::GooglePayRedirect(ref req_wallet) => {
-                    let payment_method_id = match &req_wallet.token {
-                        Some(token) => token,
-                        None => {
-                            return Err(errors::ConnectorError::RequestEncodingFailed)
-                                .attach_printable("Expected nonce for Google Pay in Braintree");
-                        }
-                    };
+                WalletData::GooglePayThirdPartySdk(ref req_wallet) => {
+                    let payment_method_id = &req_wallet.token;
                     let query = match item.router_data.request.is_auto_capture()? {
                         true => CHARGE_GOOGLE_PAY_MUTATION.to_string(),
                         false => AUTHORIZE_GOOGLE_PAY_MUTATION.to_string(),
@@ -393,7 +387,12 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                         query,
                         variables: GenericVariableInput {
                             input: WalletPaymentInput {
-                                payment_method_id: payment_method_id.clone(),
+                                payment_method_id: payment_method_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "google_pay token",
+                                    },
+                                )?,
+
                                 transaction: WalletTransactionBody {
                                     amount: item.amount.clone(),
                                     merchant_account_id: metadata.merchant_account_id,
@@ -406,14 +405,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                         },
                     }))
                 }
-                WalletData::ApplePayRedirect(ref req_wallet) => {
-                    let payment_method_id = match &req_wallet.token {
-                        Some(token) => token,
-                        None => {
-                            return Err(errors::ConnectorError::RequestEncodingFailed)
-                                .attach_printable("Expected nonce for Apple Pay in Braintree");
-                        }
-                    };
+                WalletData::ApplePayThirdPartySdk(ref req_wallet) => {
+                    let payment_method_id = &req_wallet.token;
 
                     let query = match item.router_data.request.is_auto_capture()? {
                         true => CHARGE_APPLE_PAY_MUTATION.to_string(),
@@ -424,7 +417,11 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                         query,
                         variables: GenericVariableInput {
                             input: WalletPaymentInput {
-                                payment_method_id: payment_method_id.clone(),
+                                payment_method_id: payment_method_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "apple_pay token",
+                                    },
+                                )?,
                                 transaction: WalletTransactionBody {
                                     amount: item.amount.clone(),
                                     merchant_account_id: metadata.merchant_account_id,

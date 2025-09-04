@@ -555,8 +555,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::Paysera
                         | common_enums::PaymentMethodType::Skrill
-                        | common_enums::PaymentMethodType::Paysera
-                        | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::ApplePay
                         | common_enums::PaymentMethodType::Atome
                         | common_enums::PaymentMethodType::Bacs
