@@ -461,11 +461,11 @@ where
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
                 let external_vault_mca_id = &business_profile
-                .external_vault_connector_details
-                .clone()
-                .map(|connector_details| connector_details.vault_connector_id.clone())
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("mca_id not present for external vault")?;
+                    .external_vault_connector_details
+                    .clone()
+                    .map(|connector_details| connector_details.vault_connector_id.clone())
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("mca_id not present for external vault")?;
                 let vault_type = if business_profile.is_external_vault_enabled.unwrap_or(false) {
                     Some(common_enums::VaultType::External)
                 } else {
@@ -564,7 +564,7 @@ where
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
                                                 Some(external_vault_mca_id), //Should check this and pass proper value here
-                                                vault_type, //check this
+                                                vault_type,                  //check this
                                             )
                                             .await
                                     } else {
@@ -685,7 +685,7 @@ where
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
                                                     Some(external_vault_mca_id), //Should check this and pass proper value here
-                                                    vault_type, //check this
+                                                    vault_type,                  //check this
                                                 )
                                                 .await
                                         } else {
@@ -908,7 +908,7 @@ where
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                     Some(external_vault_mca_id), //Should check this and pass proper value here
-                                    vault_type, //check this
+                                    vault_type,                  //check this
                                 )
                                 .await?;
 

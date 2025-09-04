@@ -391,7 +391,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .await?,
                 external_vault_source: item.external_vault_source,
                 vault_type: item.vault_type,
-
             })
         }
         .await
