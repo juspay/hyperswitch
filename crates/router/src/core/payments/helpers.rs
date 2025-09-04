@@ -2485,7 +2485,7 @@ pub async fn fetch_card_details_from_external_vault(
                 None,
                 merchant_key_store,
                 profile_id,
-                "vgs", //this hardcoding should be removed
+                "vgs", //this hardcoding should be removed //get_merchant_connector_account_from_id fn
                 Some(&external_vault_mca_id),
             )
             .await

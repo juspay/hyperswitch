@@ -89,7 +89,6 @@ pub struct PaymentMethod {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
     pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
-    pub external_vault_token_data: OptionalEncryptableValue,
 }
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -301,7 +300,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
-            external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
         })
     }
 
@@ -390,20 +388,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                     })
                     .await?,
                 external_vault_source: item.external_vault_source,
-                external_vault_token_data: item
-                .external_vault_token_data
-                .async_lift(|inner| async {
-                        crypto_operation(
-                            state,
-                            type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(inner),
-                            key_manager_identifier.clone(),
-                            key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await?,
 
             })
         }
@@ -454,7 +438,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
-            external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
         })
     }
 }
@@ -1150,7 +1133,6 @@ mod tests {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             external_vault_source: None,
-            external_vault_token_data: None,
         };
         payment_method.clone()
     }

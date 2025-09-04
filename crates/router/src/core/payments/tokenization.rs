@@ -64,15 +64,8 @@ async fn save_in_locker_or_external_vault(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    println!("save_in_locker_or_external_vault called");
-    // Check if external vault is enabled
-    // let is_external_vault_enabled = business_profile.is_external_vault_enabled();
-
-    // let is_external_vault_enabled = true; // Temporary disable external vault
 
     if business_profile.is_external_vault_enabled.unwrap_or(false) {
-        println!("woah");
-        // Use external vault
         logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
         // For external vault, we need to convert the card data to PaymentMethodVaultingData
@@ -93,17 +86,6 @@ async fn save_in_locker_or_external_vault(
                     },
                 );
             let profile_id = business_profile.get_id();
-
-            // // Get external vault connector details
-            // let external_vault_source = business_profile
-            //     .external_vault_connector_details
-            //     .clone()
-            //     .ok_or(errors::ApiErrorResponse::InternalServerError)
-            //     .attach_printable("External vault connector details not found")?;
-
-            // Get merchant connector account for external vault
-            // let mca_id =
-            //     id_type::MerchantConnectorAccountId::wrap("mca_du8Dyn1bDtrvhRYhYkEs".to_string()).unwrap();
             let external_vault_mca_id = business_profile
                 .external_vault_connector_details
                 .clone()
@@ -139,16 +121,6 @@ async fn save_in_locker_or_external_vault(
                 merchant_connector_account_details,
             )
             .await?;
-            println!("vault_response: {:?}", vault_response);
-
-            // vault_payment_method_external(
-            //         state,
-            //         pmd,
-            //         merchant_context.get_merchant_account(),
-            //         merchant_connector_account,
-            //     )
-            //     .await
-            //     .map(|value| (value, Some(external_vault_source)))
 
             // Convert vault response to payment method response format
             let customer_id = payment_method_request
@@ -201,7 +173,6 @@ async fn save_in_locker_or_external_vault(
             save_in_locker(state, merchant_context, payment_method_request, card_detail).await
         }
     } else {
-        println!("not again");
         // Use internal vault (locker)
         save_in_locker(state, merchant_context, payment_method_request, card_detail).await
     }
@@ -388,7 +359,6 @@ where
                         save_payment_method_data.attempt_status,
                     );
                     pm_status = Some(payment_method_status);
-                    println!("hereeeAbout to call save_card_and_network_token_in_locker");
                     save_card_and_network_token_in_locker(
                         state,
                         customer_id.clone(),
@@ -492,14 +462,12 @@ where
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
-                println!("yayyyaa lockerr");
                 let external_vault_mca_id = &business_profile
                 .external_vault_connector_details
                 .clone()
                 .map(|connector_details| connector_details.vault_connector_id.clone())
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("mca_id not present for external vault")?;
-                println!("external_vault_mca_id: {:?}", external_vault_mca_id);
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -593,7 +561,6 @@ where
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
                                                 Some(external_vault_mca_id), //Should check this and pass proper value here
-                                                None,
                                             )
                                             .await
                                     } else {
@@ -714,7 +681,6 @@ where
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
                                                     Some(external_vault_mca_id),//Should check this and pass proper value here
-                                                    None,
                                                 )
                                                 .await
                                         } else {
@@ -937,7 +903,6 @@ where
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                     Some(external_vault_mca_id),//Should check this and pass proper value here
-                                    None,
                                 )
                                 .await?;
 
@@ -1225,7 +1190,6 @@ pub async fn save_in_locker(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    println!("Hereeee123");
     payment_method_request.validate()?;
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = payment_method_request
@@ -1828,7 +1792,6 @@ pub async fn save_card_and_network_token_in_locker(
                     .network_token_data
                     .clone(),
             );
-            println!("Hereeee456");
 
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
                 let (res, dc) = Box::pin(save_in_locker(
@@ -1890,7 +1853,6 @@ pub async fn save_card_and_network_token_in_locker(
             }
         }
         _ => {
-            println!("no wayyy");
             let card_data = payment_method_create_request.card.clone();
             let (res, dc) = Box::pin(save_in_locker_or_external_vault(
                 state,

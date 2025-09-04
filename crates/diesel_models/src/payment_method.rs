@@ -61,7 +61,6 @@ pub struct PaymentMethod {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
     pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub external_vault_token_data: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -91,7 +90,6 @@ pub struct PaymentMethod {
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub external_vault_token_data: Option<Encryption>,
 }
 
 impl PaymentMethod {
@@ -147,7 +145,6 @@ pub struct PaymentMethodNew {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
     pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub external_vault_token_data: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -458,7 +455,6 @@ impl PaymentMethodUpdateInternal {
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
             external_vault_source: source.external_vault_source,
-            external_vault_token_data: source.external_vault_token_data,
         }
     }
 }
@@ -878,7 +874,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .network_token_payment_method_data
                 .clone(),
             external_vault_source: payment_method_new.external_vault_source.clone(),
-            external_vault_token_data: payment_method_new.external_vault_token_data.clone(),
         }
     }
 }
