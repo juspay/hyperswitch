@@ -7932,15 +7932,7 @@
         }
       },
       "ApplePayRedirectData": {
-        "type": "object",
-        "required": [
-          "token"
-        ],
-        "properties": {
-          "token": {
-            "type": "string"
-          }
-        }
+        "type": "object"
       },
       "ApplePayRegularBillingDetails": {
         "type": "object",
@@ -8050,7 +8042,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -16272,15 +16270,7 @@
         }
       },
       "GooglePayRedirectData": {
-        "type": "object",
-        "required": [
-          "token"
-        ],
-        "properties": {
-          "token": {
-            "type": "string"
-          }
-        }
+        "type": "object"
       },
       "GooglePaySessionResponse": {
         "type": "object",
@@ -16363,7 +16353,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",

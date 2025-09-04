@@ -457,7 +457,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let payment_method = payment_attempt
         .payment_method
-        .get_required_value("payment_method_type")
+        .get_required_value("payment_method")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account_id_or_connector_name = payment_attempt
