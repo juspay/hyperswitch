@@ -26,6 +26,9 @@ use crate::{
     utils::OptionExt,
 };
 
+/// Operation name for payment cancellation
+const PAYMENT_CANCEL_OPERATION: &str = "cancel";
+
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentsCancel;
 
@@ -163,7 +166,7 @@ impl<F: Send + Clone + Sync>
                 enums::IntentStatus::Processing,
                 enums::IntentStatus::RequiresMerchantAction,
             ],
-            "cancel",
+            PAYMENT_CANCEL_OPERATION,
         )?;
 
         let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
@@ -183,8 +186,6 @@ impl<F: Send + Clone + Sync>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // Note: Currency is not directly available in v2 AttemptAmountDetails
-        // let currency = ...; // Will be retrieved from payment intent if needed
         let amount = payment_attempt.amount_details.get_net_amount();
 
         payment_attempt
@@ -208,8 +209,6 @@ impl<F: Send + Clone + Sync>
             })
             .await
             .transpose()?;
-
-        // Business profile is passed as parameter in v2
 
         let payment_data = hyperswitch_domain_models::payments::PaymentCancelData {
             flow: PhantomData,
@@ -258,7 +257,7 @@ impl<F: Clone + Send + Sync>
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::VoidUpdate {
                 status: enums::IntentStatus::Cancelled,
-                updated_by: "payment_cancel_v2".to_string(),
+                updated_by: storage_scheme.to_string(),
             };
 
         let updated_payment_intent = db
@@ -278,7 +277,7 @@ impl<F: Clone + Send + Sync>
             let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
                 status: enums::AttemptStatus::Voided,
                 cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
-                updated_by: "payment_cancel_v2".to_string(),
+                updated_by: storage_scheme.to_string(),
             };
 
             db.update_payment_attempt(

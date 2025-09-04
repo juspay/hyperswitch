@@ -46,7 +46,6 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for hyperswitch_domain_models::payments::PaymentCancelData<api::Void>
 {
-    #[cfg(feature = "v2")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
