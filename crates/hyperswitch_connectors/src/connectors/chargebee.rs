@@ -25,18 +25,27 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        subscriptions::GetSubscriptionPlans,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        subscriptions::GetSubscriptionPlansRequest, AccessTokenRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        subscriptions::GetSubscriptionPlansResponse, ConnectorInfo, PaymentsResponseData,
+        RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        GetSubscriptionPlansRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::api::subscriptions_v2::GetSubscriptionPlansV2;
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -51,7 +60,10 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    connectors::chargebee::transformers::ChargebeeListPlansResponse, constants::headers,
+    types::ResponseRouterData, utils,
+};
 
 #[derive(Clone)]
 pub struct Chargebee {
@@ -661,6 +673,185 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+}
+
+fn get_chargebee_plans_query_params(
+    _req: &RouterData<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    >,
+) -> CustomResult<String, errors::ConnectorError> {
+    let limit = 10; // hardcoded limit param
+    let item_type = "plan"; // hardcoded filter param
+    let param = format!("?limit={}&type[is]={}", limit, item_type);
+    Ok(param)
+}
+
+impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+
+impl
+    ConnectorIntegration<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let query_params = get_chargebee_plans_query_params(req)?;
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        let url = self
+            .base_url(connectors)
+            .to_string()
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+        Ok(format!("{url}v2/items{query_params}"))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn build_request(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::GetSubscriptionPlansType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::GetSubscriptionPlansType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &GetSubscriptionPlansRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<GetSubscriptionPlansRouterData, errors::ConnectorError> {
+        let response: ChargebeeListPlansResponse = res
+            .response
+            .parse_struct("chargebee ChargebeeListPlansResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl GetSubscriptionPlansV2 for Chargebee {}
+
+#[cfg(feature = "v2")]
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionPlans,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn build_request_v2(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response_v2(
+        &self,
+        _data: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: types::Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+        errors::ConnectorError,
+    > {
+        todo!()
+    }
+
+    fn get_error_response_v2(
+        &self,
+        _res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
     }
 }
 
