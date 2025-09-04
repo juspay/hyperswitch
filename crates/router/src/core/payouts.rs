@@ -2537,7 +2537,7 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-    let billing = billing_address.as_ref().cloned().map(From::from);
+    let billing = billing_address.map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
         state,
@@ -2679,7 +2679,7 @@ pub async fn payout_create_db_entries(
     })
     .attach_printable("Error converting payout_id to PaymentId type")?;
 
-    // Optimized billing address resolution using helper function
+    // Get or create billing address
     let (billing_address, address_id) = helpers::resolve_billing_address_for_payout(
         state,
         req.billing.as_ref(),
