@@ -468,6 +468,7 @@ async fn payments_create_core() {
         payment_channel: None,
         network_transaction_id: None,
         enable_partial_authorization: None,
+        network_details: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -749,6 +750,7 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_channel: None,
             network_transaction_id: None,
             enable_partial_authorization: None,
+            network_details: None,
         },
         vec![],
     ));
