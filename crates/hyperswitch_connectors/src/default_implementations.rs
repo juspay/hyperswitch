@@ -126,7 +126,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{Subscriptions, GetSubscriptionPlansFlow},
+        subscriptions::{GetSubscriptionPlansFlow, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,

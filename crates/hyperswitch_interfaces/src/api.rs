@@ -130,7 +130,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + subscriptions::Subscriptions
+            + subscriptions::Subscriptions,
     > Connector for T
 {
 }
