@@ -48,7 +48,6 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::transformers::ForeignTryFrom,
-    utils,
 };
 
 pub mod transformers;
@@ -770,12 +769,12 @@ pub async fn call_unified_connector_service_for_webhook(
         })?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders::builder()
-        .tenant_id(state.tenant.tenant_id.get_string_repr().to_string())
-        .request_id(Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")))
+    let grpc_headers = state
+        .get_grpc_headers_ucs()
         .lineage_ids(LineageIds::new(
             merchant_context.get_merchant_account().get_id().clone(),
         ))
+        .external_vault_proxy_metadata(None)
         .build();
 
     // Make UCS call - client availability already verified
@@ -814,11 +813,11 @@ pub fn extract_webhook_content_from_ucs_response(
 /// This function wraps UCS calls with comprehensive event logging.
 /// It logs the actual gRPC request/response data, timing, and error information.
 #[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
-pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, GrpcHeaderGeneric>(
+pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
-    grpc_header_builder: external_services::grpc_client::GrpcHeadersBuilder<GrpcHeaderGeneric>,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderIntermediate,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -830,7 +829,7 @@ where
     F: FnOnce(
             RouterData<T, Req, Resp>,
             GrpcReq,
-            external_services::grpc_client::GrpcHeaders,
+            external_services::grpc_client::GrpcHeadersUcs,
         ) -> Fut
         + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,

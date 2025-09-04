@@ -143,20 +143,29 @@ impl GrpcClientSettings {
 }
 
 /// Contains grpc headers
-#[derive(Debug, TypedBuilder)]
+#[derive(Debug)]
 pub struct GrpcHeaders {
     /// Tenant id
-    tenant_id: String,
+    pub tenant_id: String,
     /// Request id
-    request_id: Option<String>,
+    pub request_id: Option<String>,
+}
+
+/// Contains grpc headers for Ucs
+#[derive(Debug, TypedBuilder)]
+pub struct GrpcHeadersUcs {
+    /// Tenant id
+    tenant_id: String,
     /// Lineage ids
     lineage_ids: LineageIds,
     /// External vault proxy metadata
-    #[builder(default, setter(strip_option))]
     external_vault_proxy_metadata: Option<String>,
 }
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersBuilderInitial = GrpcHeadersBuilder<((String,), (Option<String>,), (), ())>;
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), ())>;
+/// Type aliase for GrpcHeaders builder in intermediate stage
+pub type GrpcHeadersUcsBuilderIntermediate =
+    GrpcHeadersUcsBuilder<((String,), (), (Option<String>,))>;
 
 /// struct to represent set of Lineage ids
 #[derive(Debug, serde::Serialize)]
