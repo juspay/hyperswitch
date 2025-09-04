@@ -1426,7 +1426,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        #[max_length = 128]
+        #[max_length = 64]
         profile_id -> Varchar,
     }
 }
