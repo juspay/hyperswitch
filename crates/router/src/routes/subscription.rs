@@ -50,3 +50,43 @@ pub async fn create_subscription(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn get_subscription_plans(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let client_secret = path.into_inner();
+    let flow = Flow::GetPlansForSubscription;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        client_secret,
+        |state, auth: auth::AuthenticationData, client_secret, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::get_subscription_plans(
+                state,
+                merchant_context,
+                auth.profile_id,
+                client_secret,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRoutingRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

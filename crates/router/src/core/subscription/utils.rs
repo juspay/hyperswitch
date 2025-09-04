@@ -1,12 +1,15 @@
 use api_models::{customers::CustomerRequest, subscription::CreateSubscriptionRequest};
-use common_utils::id_type::GenerateId;
+use common_utils::{ext_traits::OptionExt, id_type::GenerateId};
+use diesel_models::subscription::Subscription;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
     router_request_types::CustomerDetails,
 };
+use router_env::instrument;
 
 use crate::{
+    consts,
     core::customers::create_customer,
     db::{errors, StorageInterface},
     routes::SessionState,
@@ -69,5 +72,32 @@ pub fn get_customer_details_from_request(request: CreateSubscriptionRequest) -> 
         phone: customer.and_then(|cus| cus.phone.clone()),
         phone_country_code: customer.and_then(|cus| cus.phone_country_code.clone()),
         tax_registration_id: customer.and_then(|cus| cus.tax_registration_id.clone()),
+    }
+}
+
+#[instrument(skip_all)]
+pub fn authenticate_subscription_client_secret_and_check_expiry(
+    req_client_secret: &String,
+    subscription: &Subscription,
+) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
+    let stored_client_secret = subscription
+        .client_secret
+        .clone()
+        .get_required_value("client_secret")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })
+        .attach_printable("client secret not found in db")?;
+
+    if req_client_secret != &stored_client_secret {
+        Err((errors::ApiErrorResponse::ClientSecretInvalid).into())
+    } else {
+        let current_timestamp = common_utils::date_time::now();
+        let session_expiry = subscription
+            .created_at
+            .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+        let expired = current_timestamp > session_expiry;
+        Ok(expired)
     }
 }
