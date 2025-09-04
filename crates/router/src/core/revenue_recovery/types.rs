@@ -429,7 +429,8 @@ impl Action {
                     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                         payment_intent,
                     );
-
+                
+                let event_class = common_enums::EventClass::Payments;
                 // handle proxy api's response
                 match response {
                     Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -447,16 +448,16 @@ impl Action {
 
                             // publish events to kafka
                             if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
-                            state,
-                            &recovery_payment_tuple,
-                            Some(process.retry_count+1)
-                        )
-                        .await{
-                            router_env::logger::error!(
-                                "Failed to publish revenue recovery event to kafka: {:?}",
-                                e
-                            );
-                        };
+                                state,
+                                &recovery_payment_tuple,
+                                Some(process.retry_count+1)
+                            )
+                            .await{
+                                router_env::logger::error!(
+                                    "Failed to publish revenue recovery event to kafka: {:?}",
+                                    e
+                                );
+                            };
 
                             let is_hard_decline = revenue_recovery::check_hard_decline(
                                 state,
@@ -477,10 +478,35 @@ impl Action {
 
                             // unlocking the token
                             let _unlock_the_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::unlock_connector_customer_status(
-                    state,
-                    &connector_customer_id,
-                )
-                .await;
+                                state,
+                                &connector_customer_id,
+                            )
+                            .await;
+                            
+                            let event_status = common_enums::EventType::PaymentSucceeded;
+
+                            let payments_response  =  
+                                payment_data.clone().generate_response(state, None, None, None, &merchant_context,profile, None);
+
+                            let event_status = common_enums::EventType::PaymentSucceeded;
+
+                            if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+                                // create event and trigger outgoing webhook
+                                    let outgoing_webhook_content = api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
+                                    create_event_and_trigger_outgoing_webhook(
+                                        state.clone(),
+                                        profile.clone(),
+                                        merchant_context.get_merchant_key_store(),
+                                        event_status,
+                                        event_class,
+                                        payment_data.payment_intent.get_id().get_string_repr().to_string(),
+                                        enums::EventObjectType::PaymentDetails,
+                                        outgoing_webhook_content,
+                                        payment_data.payment_intent.created_at
+                                    )
+                                    .await.change_context(errors::RecoveryError::InvalidTask)
+                                    .attach_printable("Failed to send out going webhook")?;
+                            };
 
                             Ok(Self::SuccessfulPayment(
                                 payment_data.payment_attempt.clone(),
