@@ -7,7 +7,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, Card, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
+        AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundIntegrityObject,
+        RefundsData, ResponseId, SyncIntegrityObject,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -17,7 +19,7 @@ use hyperswitch_domain_models::{
         RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{errors, integrity::GetIntegrityObject};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -25,7 +27,11 @@ use url::Url;
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PhoneDetailsData, RouterData as _},
+    utils::{
+        self, get_authorise_integrity_object, get_capture_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object, PhoneDetailsData, RouterData as _,
+        StringMajorUnitToMinorUnitAmountConvertor,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -703,6 +709,9 @@ pub struct AciPaymentsResponse {
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
+    // Amount and currency fields for integrity checks
+    pub amount: Option<StringMajorUnit>,
+    pub currency: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -968,6 +977,9 @@ pub struct AciRefundResponse {
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+    // Amount and currency fields for integrity checks
+    pub amount: Option<StringMajorUnit>,
+    pub currency: Option<String>,
 }
 
 impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRouterData<F> {
@@ -1071,4 +1083,318 @@ pub struct AciWebhookNotification {
     pub event_type: AciWebhookEventType,
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
+}
+
+// Integrity Check implementations for ACI connector
+
+impl GetIntegrityObject<AuthoriseIntegrityObject> for AciPaymentsResponse {
+    fn get_response_integrity_object(&self) -> Option<AuthoriseIntegrityObject> {
+        match (&self.amount, &self.currency) {
+            (Some(amount), Some(currency)) => get_authorise_integrity_object(
+                &StringMajorUnitToMinorUnitAmountConvertor,
+                amount.clone(),
+                currency.clone(),
+            )
+            .ok(),
+            _ => None,
+        }
+    }
+}
+
+impl GetIntegrityObject<SyncIntegrityObject> for AciPaymentsResponse {
+    fn get_response_integrity_object(&self) -> Option<SyncIntegrityObject> {
+        match (&self.amount, &self.currency) {
+            (Some(amount), Some(currency)) => get_sync_integrity_object(
+                &StringMajorUnitToMinorUnitAmountConvertor,
+                amount.clone(),
+                currency.clone(),
+            )
+            .ok(),
+            _ => None,
+        }
+    }
+}
+
+impl GetIntegrityObject<CaptureIntegrityObject> for AciCaptureResponse {
+    fn get_response_integrity_object(&self) -> Option<CaptureIntegrityObject> {
+        get_capture_integrity_object(
+            &StringMajorUnitToMinorUnitAmountConvertor,
+            Some(self.amount.clone()),
+            self.currency.clone(),
+        )
+        .ok()
+    }
+}
+
+impl GetIntegrityObject<RefundIntegrityObject> for AciRefundResponse {
+    fn get_response_integrity_object(&self) -> Option<RefundIntegrityObject> {
+        match (&self.amount, &self.currency) {
+            (Some(amount), Some(currency)) => get_refund_integrity_object(
+                &StringMajorUnitToMinorUnitAmountConvertor,
+                amount.clone(),
+                currency.clone(),
+            )
+            .ok(),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_aci_integrity_objects {
+    #![allow(clippy::unwrap_used)]
+
+    use common_utils::types::StringMajorUnit;
+    use masking::Secret;
+
+    use super::*;
+
+    fn create_aci_payments_response(
+        amount: Option<i64>,
+        currency: Option<&str>,
+    ) -> AciPaymentsResponse {
+        AciPaymentsResponse {
+            id: "test_payment_id".to_string(),
+            registration_id: None,
+            ndc: "test_ndc_12345".to_string(),
+            timestamp: "2023-01-01T00:00:00Z".to_string(),
+            build_number: "BUILD_12345".to_string(),
+            result: ResultCode {
+                code: "000.100.110".to_string(),
+                description: "Request successfully processed".to_string(),
+                parameter_errors: None,
+            },
+            redirect: None,
+            amount: amount.map(StringMajorUnit::from),
+            currency: currency.map(|c| c.to_string()),
+        }
+    }
+
+    fn create_aci_capture_response(amount: i64, currency: &str) -> AciCaptureResponse {
+        AciCaptureResponse {
+            id: "test_capture_id".to_string(),
+            referenced_id: "test_payment_id".to_string(),
+            payment_type: AciPaymentType::Debit,
+            amount: StringMajorUnit::from(amount),
+            currency: currency.to_string(),
+            descriptor: "Test Merchant".to_string(),
+            result: AciCaptureResult {
+                code: "000.100.110".to_string(),
+                description: "Request successfully processed".to_string(),
+            },
+            result_details: AciCaptureResultDetails::default(),
+            build_number: "BUILD_12345".to_string(),
+            timestamp: "2023-01-01T00:00:00Z".to_string(),
+            ndc: Secret::new("test_ndc_12345".to_string()),
+            source: Secret::new("test_source".to_string()),
+            payment_method: "VISA".to_string(),
+            short_id: "short_12345".to_string(),
+        }
+    }
+
+    fn create_aci_refund_response(
+        amount: Option<i64>,
+        currency: Option<&str>,
+    ) -> AciRefundResponse {
+        AciRefundResponse {
+            id: "test_refund_id".to_string(),
+            ndc: "test_ndc_12345".to_string(),
+            timestamp: "2023-01-01T00:00:00Z".to_string(),
+            build_number: "BUILD_12345".to_string(),
+            result: ResultCode {
+                code: "000.100.110".to_string(),
+                description: "Request successfully processed".to_string(),
+                parameter_errors: None,
+            },
+            amount: amount.map(StringMajorUnit::from),
+            currency: currency.map(|c| c.to_string()),
+        }
+    }
+
+    #[test]
+    fn should_create_authorize_integrity_object_with_valid_amount_and_currency() {
+        // Arrange
+        let response = create_aci_payments_response(Some(1000), Some("USD")); // $1000.00
+
+        // Act
+        let integrity_object: Option<AuthoriseIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.amount.get_amount_as_i64(), 100000); // $1000.00 = 100000 cents
+        assert_eq!(obj.currency, common_enums::enums::Currency::USD);
+    }
+
+    #[test]
+    fn should_return_none_for_authorize_integrity_object_when_amount_missing() {
+        // Arrange
+        let response = create_aci_payments_response(None, Some("USD"));
+
+        // Act
+        let integrity_object: Option<AuthoriseIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_none());
+    }
+
+    #[test]
+    fn should_return_none_for_authorize_integrity_object_when_currency_missing() {
+        // Arrange
+        let response = create_aci_payments_response(Some(1000), None);
+
+        // Act
+        let integrity_object: Option<AuthoriseIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_none());
+    }
+
+    #[test]
+    fn should_create_sync_integrity_object_with_valid_amount_and_currency() {
+        // Arrange
+        let response = create_aci_payments_response(Some(500), Some("EUR")); // €500.00
+
+        // Act
+        let integrity_object: Option<SyncIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.amount.unwrap().get_amount_as_i64(), 50000); // €500.00 = 50000 cents
+        assert_eq!(obj.currency.unwrap(), common_enums::enums::Currency::EUR);
+    }
+
+    #[test]
+    fn should_create_capture_integrity_object_with_valid_amount_and_currency() {
+        // Arrange
+        let response = create_aci_capture_response(750, "GBP"); // £750.00
+
+        // Act
+        let integrity_object = response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.capture_amount.unwrap().get_amount_as_i64(), 75000); // £750.00 = 75000 pence
+        assert_eq!(obj.currency, common_enums::enums::Currency::GBP);
+    }
+
+    #[test]
+    fn should_create_refund_integrity_object_with_valid_amount_and_currency() {
+        // Arrange
+        let response = create_aci_refund_response(Some(250), Some("USD")); // $250.00 refund
+
+        // Act
+        let integrity_object = response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.refund_amount.get_amount_as_i64(), 25000); // $250.00 = 25000 cents
+        assert_eq!(obj.currency, common_enums::enums::Currency::USD);
+    }
+
+    #[test]
+    fn should_return_none_for_refund_integrity_object_when_amount_missing() {
+        // Arrange
+        let response = create_aci_refund_response(None, Some("USD"));
+
+        // Act
+        let integrity_object = response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_none());
+    }
+
+    #[test]
+    fn should_handle_zero_amount_for_authorize_integrity_object() {
+        // Arrange
+        let response = create_aci_payments_response(Some(0), Some("USD"));
+
+        // Act
+        let integrity_object: Option<AuthoriseIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.amount.get_amount_as_i64(), 0);
+        assert_eq!(obj.currency, common_enums::enums::Currency::USD);
+    }
+
+    #[test]
+    fn should_handle_zero_amount_for_capture_integrity_object() {
+        // Arrange
+        let response = create_aci_capture_response(0, "USD");
+
+        // Act
+        let integrity_object = response.get_response_integrity_object();
+
+        // Assert
+        assert!(integrity_object.is_some());
+        let obj = integrity_object.unwrap();
+        assert_eq!(obj.capture_amount.unwrap().get_amount_as_i64(), 0);
+        assert_eq!(obj.currency, common_enums::enums::Currency::USD);
+    }
+
+    #[test]
+    fn should_support_multiple_currencies_for_integrity_objects() {
+        let test_cases = vec![
+            ("USD", common_enums::enums::Currency::USD, 1000, 100000),
+            ("EUR", common_enums::enums::Currency::EUR, 1000, 100000),
+            ("GBP", common_enums::enums::Currency::GBP, 1000, 100000),
+            ("JPY", common_enums::enums::Currency::JPY, 1000, 1000), // JPY has no minor units
+        ];
+
+        for (currency_str, expected_currency, test_amount, expected_minor_amount) in test_cases {
+            // Arrange
+            let response = create_aci_payments_response(Some(test_amount), Some(currency_str));
+
+            // Act
+            let integrity_object: Option<AuthoriseIntegrityObject> =
+                response.get_response_integrity_object();
+
+            // Assert
+            assert!(
+                integrity_object.is_some(),
+                "Failed to create integrity object for currency: {}",
+                currency_str
+            );
+
+            let obj = integrity_object.unwrap();
+            assert_eq!(
+                obj.currency, expected_currency,
+                "Currency mismatch for: {}",
+                currency_str
+            );
+            assert_eq!(
+                obj.amount.get_amount_as_i64(),
+                expected_minor_amount,
+                "Amount mismatch for currency: {} (expected {} minor units)",
+                currency_str,
+                expected_minor_amount
+            );
+        }
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_currency() {
+        // Arrange
+        let response = create_aci_payments_response(Some(1000), Some("INVALID_CURRENCY"));
+
+        // Act
+        let integrity_object: Option<AuthoriseIntegrityObject> =
+            response.get_response_integrity_object();
+
+        // Assert
+        assert!(
+            integrity_object.is_none(),
+            "Should return None for invalid currency"
+        );
+    }
 }

@@ -454,3 +454,171 @@ async fn refunds_create_failure() {
     println!("{response:?}");
     assert!(response, "The refund was intended to fail but it passed");
 }
+
+// Integrity Check Tests
+// Tests to verify that ACI connector supports integrity checking across all payment flows
+
+#[actix_web::test]
+#[ignore]
+async fn should_validate_payment_integrity_on_authorization() {
+    use hyperswitch_connectors::connectors::aci::transformers::{
+        AciPaymentsResponse, ResultCode
+    };
+    use hyperswitch_interfaces::integrity::GetIntegrityObject;
+    use hyperswitch_domain_models::router_request_types::AuthoriseIntegrityObject;
+    use common_utils::types::StringMajorUnit;
+
+    // Arrange - Create a successful ACI authorization response with integrity data
+    let auth_response = AciPaymentsResponse {
+        id: "aci_auth_12345".to_string(),
+        registration_id: None,
+        ndc: "aci_ndc_67890".to_string(),
+        timestamp: "2023-01-01T00:00:00Z".to_string(),
+        build_number: "ACI_BUILD_001".to_string(),
+        result: ResultCode {
+            code: "000.100.110".to_string(),
+            description: "Request successfully processed".to_string(),
+            parameter_errors: None,
+        },
+        redirect: None,
+        amount: Some(StringMajorUnit::from(1000)), // $1000.00 - matches existing test pattern
+        currency: Some("USD".to_string()),
+    };
+
+    // Act - Extract integrity object from response
+    let integrity_object: Option<AuthoriseIntegrityObject> = auth_response.get_response_integrity_object();
+
+    // Assert - Verify integrity object is created correctly
+    assert!(integrity_object.is_some(), "Authorization integrity object should be created from ACI response");
+    
+    let obj = integrity_object.unwrap();
+    assert_eq!(obj.amount.get_amount_as_i64(), 100000, "Amount should be converted to minor units correctly"); // $1000.00 = 100000 cents
+    assert_eq!(obj.currency, common_enums::enums::Currency::USD, "Currency should match response");
+}
+
+#[actix_web::test]
+#[ignore]  
+async fn should_validate_payment_integrity_on_capture() {
+    use hyperswitch_connectors::connectors::aci::transformers::{
+        AciCaptureResponse, AciPaymentType, AciCaptureResult, AciCaptureResultDetails
+    };
+    use hyperswitch_interfaces::integrity::GetIntegrityObject;
+    use hyperswitch_domain_models::router_request_types::CaptureIntegrityObject;
+    use common_utils::types::StringMajorUnit;
+    use masking::Secret;
+
+    // Arrange - Create a successful ACI capture response with integrity data
+    let capture_response = AciCaptureResponse {
+        id: "aci_capture_12345".to_string(),
+        referenced_id: "aci_auth_12345".to_string(),
+        payment_type: AciPaymentType::Debit,
+        amount: StringMajorUnit::from(1000), // Full capture: $1000.00
+        currency: "USD".to_string(),
+        descriptor: "TEST MERCHANT INC".to_string(),
+        result: AciCaptureResult {
+            code: "000.100.110".to_string(),
+            description: "Request successfully processed".to_string(),
+        },
+        result_details: AciCaptureResultDetails::default(),
+        build_number: "ACI_BUILD_001".to_string(),
+        timestamp: "2023-01-01T00:01:00Z".to_string(),
+        ndc: Secret::new("aci_capture_ndc".to_string()),
+        source: Secret::new("aci_source".to_string()),
+        payment_method: "VISA".to_string(),
+        short_id: "cap_short123".to_string(),
+    };
+
+    // Act - Extract integrity object from capture response
+    let integrity_object: Option<CaptureIntegrityObject> = capture_response.get_response_integrity_object();
+
+    // Assert - Verify capture integrity object is created correctly
+    assert!(integrity_object.is_some(), "Capture integrity object should be created from ACI response");
+    
+    let obj = integrity_object.unwrap();
+    assert_eq!(obj.capture_amount.unwrap().get_amount_as_i64(), 100000, "Capture amount should be converted to minor units correctly");
+    assert_eq!(obj.currency, common_enums::enums::Currency::USD, "Currency should match capture response");
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_validate_payment_integrity_on_refund() {
+    use hyperswitch_connectors::connectors::aci::transformers::{
+        AciRefundResponse, ResultCode
+    };
+    use hyperswitch_interfaces::integrity::GetIntegrityObject;
+    use hyperswitch_domain_models::router_request_types::RefundIntegrityObject;
+    use common_utils::types::StringMajorUnit;
+
+    // Arrange - Create a successful ACI refund response with integrity data  
+    let refund_response = AciRefundResponse {
+        id: "aci_refund_12345".to_string(),
+        ndc: "aci_refund_ndc".to_string(),
+        timestamp: "2023-01-01T00:02:00Z".to_string(),
+        build_number: "ACI_BUILD_001".to_string(),
+        result: ResultCode {
+            code: "000.100.110".to_string(),
+            description: "Request successfully processed".to_string(),
+            parameter_errors: None,
+        },
+        amount: Some(StringMajorUnit::from(500)), // Partial refund: $500.00
+        currency: Some("USD".to_string()),
+    };
+
+    // Act - Extract integrity object from refund response
+    let integrity_object: Option<RefundIntegrityObject> = refund_response.get_response_integrity_object();
+
+    // Assert - Verify refund integrity object is created correctly
+    assert!(integrity_object.is_some(), "Refund integrity object should be created from ACI response");
+    
+    let obj = integrity_object.unwrap();
+    assert_eq!(obj.refund_amount.get_amount_as_i64(), 50000, "Refund amount should be converted to minor units correctly"); // $500.00 = 50000 cents
+    assert_eq!(obj.currency, common_enums::enums::Currency::USD, "Currency should match refund response");
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_handle_missing_integrity_fields_gracefully() {
+    use hyperswitch_connectors::connectors::aci::transformers::{
+        AciPaymentsResponse, AciRefundResponse, ResultCode
+    };
+    use hyperswitch_interfaces::integrity::GetIntegrityObject;
+    use hyperswitch_domain_models::router_request_types::{AuthoriseIntegrityObject, RefundIntegrityObject};
+
+    // Arrange - Create ACI responses without amount/currency for integrity checking
+    let auth_response_no_amount = AciPaymentsResponse {
+        id: "aci_no_integrity".to_string(),
+        registration_id: None,
+        ndc: "aci_ndc_incomplete".to_string(),
+        timestamp: "2023-01-01T00:00:00Z".to_string(),
+        build_number: "ACI_BUILD_001".to_string(),
+        result: ResultCode {
+            code: "000.100.110".to_string(),
+            description: "Request successfully processed".to_string(),
+            parameter_errors: None,
+        },
+        redirect: None,
+        amount: None, // Missing amount
+        currency: Some("USD".to_string()),
+    };
+
+    let refund_response_no_currency = AciRefundResponse {
+        id: "aci_refund_incomplete".to_string(),
+        ndc: "aci_refund_ndc".to_string(),
+        timestamp: "2023-01-01T00:00:00Z".to_string(),
+        build_number: "ACI_BUILD_001".to_string(),
+        result: ResultCode {
+            code: "000.100.110".to_string(),
+            description: "Request successfully processed".to_string(),
+            parameter_errors: None,
+        },
+        amount: Some(common_utils::types::StringMajorUnit::from(100)),
+        currency: None, // Missing currency
+    };
+
+    // Act & Assert - Should handle missing fields gracefully by returning None
+    let auth_integrity: Option<AuthoriseIntegrityObject> = auth_response_no_amount.get_response_integrity_object();
+    assert!(auth_integrity.is_none(), "Should return None when amount is missing");
+
+    let refund_integrity: Option<RefundIntegrityObject> = refund_response_no_currency.get_response_integrity_object();
+    assert!(refund_integrity.is_none(), "Should return None when currency is missing");
+}
