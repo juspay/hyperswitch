@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.03.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** Revert [AUTHORIZEDOTNET] customer id population fixed in authorize flow ([#9276](https://github.com/juspay/hyperswitch/pull/9276)) ([`77c7ec3`](https://github.com/juspay/hyperswitch/commit/77c7ec33ade36cdaf2155325657f1cae88d7e4ee))
+
+**Full Changelog:** [`2025.09.03.0...2025.09.03.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.09.03.0...2025.09.03.0-hotfix1)
+
+- - -
+
 ## 2025.09.03.0
 
 ### Features
