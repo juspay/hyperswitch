@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 

@@ -34,13 +34,18 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        subscriptions::GetSubscriptionPlansResponse, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        subscriptions::GetSubscriptionPlansResponse, ConnectorInfo, PaymentsResponseData,
+        RefundsResponseData,
     },
     types::{
         GetSubscriptionPlansRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::api::subscriptions_v2::GetSubscriptionPlansV2;
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -684,6 +689,8 @@ fn get_chargebee_plans_query_params(
     Ok(param)
 }
 
+impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+
 impl
     ConnectorIntegration<
         GetSubscriptionPlans,
@@ -762,6 +769,89 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl GetSubscriptionPlansV2 for Chargebee {}
+
+#[cfg(feature = "v2")]
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionPlans,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn build_request_v2(
+        &self,
+        _req: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response_v2(
+        &self,
+        _data: &RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: types::Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            GetSubscriptionPlans,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse,
+        >,
+        errors::ConnectorError,
+    > {
+        todo!()
+    }
+
+    fn get_error_response_v2(
+        &self,
+        _res: types::Response,
+        _event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
     }
 }
 
