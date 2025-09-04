@@ -613,8 +613,8 @@ impl<F> TryFrom<&PaysafeRouterData<&RefundsRouterData<F>>> for PaysafeRefundRequ
 
 // Type definition for Refund Response
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Received,
     Initiated,
