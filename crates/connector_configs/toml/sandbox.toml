@@ -6723,3 +6723,9 @@ api_key = "Username"
 key1 = "Password"
 [paysafe.connector_webhook_details]
 merchant_secret = "Source verification key"
+[paysafe.metadata.account_id]
+name="account_id"
+label="Payment Method Account ID"
+placeholder="Enter Account ID"
+required=true
+type="Text"
