@@ -418,6 +418,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 impl Profile {
@@ -708,6 +709,7 @@ impl ProfileUpdateInternal {
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: None,
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
+            is_manual_retry_enabled: None,
         }
     }
 }

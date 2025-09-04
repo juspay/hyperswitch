@@ -2117,6 +2117,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
+            is_manual_retry_enabled: None,
         })
     }
 
