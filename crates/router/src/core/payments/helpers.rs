@@ -5404,6 +5404,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
@@ -5425,6 +5428,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay_combined: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay_combined.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
@@ -6936,7 +6942,6 @@ pub enum UnifiedAuthenticationServiceFlow {
     ExternalAuthenticationPostAuthenticate {
         authentication_id: id_type::AuthenticationId,
     },
-    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6947,7 +6952,6 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
-    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6983,17 +6987,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    let should_do_uas_confirmation_call = payment_data
-                        .service_details
-                        .as_ref()
-                        .map(|details| details.is_network_confirmation_call_required())
-                        .unwrap_or(true);
-
-                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-                    } else {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
-                    }
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
                 } else {
                     None
                 }

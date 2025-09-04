@@ -5,11 +5,11 @@ use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
 use masking::Secret;
 use redis_interface::{DelReply, SetnxReply};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
-use crate::{db::errors, SessionState};
+use crate::{db::errors, types::storage::enums::RevenueRecoveryAlgorithmType, SessionState};
 
 // Constants for retry window management
 const RETRY_WINDOW_DAYS: i32 = 30;
@@ -456,21 +456,33 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         error_code: &Option<String>,
         is_hard_decline: &Option<bool>,
+        payment_processor_token_id: Option<&str>,
     ) -> CustomResult<bool, errors::StorageError> {
         let today = OffsetDateTime::now_utc().date();
-        let updated_token =
-            Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
-                .await?
-                .values()
-                .find(|status| status.scheduled_at.is_some())
-                .map(|status| PaymentProcessorTokenStatus {
-                    payment_processor_token_details: status.payment_processor_token_details.clone(),
-                    inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
-                    error_code: error_code.clone(),
-                    daily_retry_history: status.daily_retry_history.clone(),
-                    scheduled_at: None,
-                    is_hard_decline: *is_hard_decline,
-                });
+        let updated_token = match payment_processor_token_id {
+            Some(token_id) => {
+                Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
+                    .await?
+                    .values()
+                    .find(|status| {
+                        status
+                            .payment_processor_token_details
+                            .payment_processor_token
+                            == token_id
+                    })
+                    .map(|status| PaymentProcessorTokenStatus {
+                        payment_processor_token_details: status
+                            .payment_processor_token_details
+                            .clone(),
+                        inserted_by_attempt_id: status.inserted_by_attempt_id.clone(),
+                        error_code: error_code.clone(),
+                        daily_retry_history: status.daily_retry_history.clone(),
+                        scheduled_at: None,
+                        is_hard_decline: *is_hard_decline,
+                    })
+            }
+            None => None,
+        };
 
         match updated_token {
             Some(mut token) => {
@@ -512,7 +524,7 @@ impl RedisTokenManager {
             None => {
                 tracing::debug!(
                     connector_customer_id = connector_customer_id,
-                    "No Token found with scheduled time to update error code",
+                    "No Token found with token id to update error code",
                 );
                 Ok(false)
             }
@@ -601,33 +613,26 @@ impl RedisTokenManager {
         Ok(scheduled_token)
     }
 
-    // Get payment processor token with max retry remaining for cascading retry algorithm
+    // Get payment processor token using token id
     #[instrument(skip_all)]
-    pub async fn get_token_with_max_retry_remaining(
+    pub async fn get_payment_processor_token_using_token_id(
         state: &SessionState,
         connector_customer_id: &str,
-    ) -> CustomResult<Option<PaymentProcessorTokenWithRetryInfo>, errors::StorageError> {
+        payment_processor_token: &str,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         // Get all tokens for the customer
         let tokens_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
-
-        // Tokens with retry metadata
-        let tokens_with_retry = Self::get_tokens_with_retry_metadata(state, &tokens_map);
-
-        // Find the token with max retry remaining
-        let max_retry_token = tokens_with_retry
-            .into_iter()
-            .filter(|(_, token_info)| !token_info.token_status.is_hard_decline.unwrap_or(false))
-            .max_by_key(|(_, token_info)| token_info.monthly_retry_remaining)
-            .map(|(_, token_info)| token_info);
+        let token_details = tokens_map.get(payment_processor_token).cloned();
 
         tracing::debug!(
-            connector_customer_id = connector_customer_id,
-            "Fetched payment processor token with max retry remaining",
+            token_found = token_details.is_some(),
+            customer_id = connector_customer_id,
+            "Fetched payment processor token & Checked existence ",
         );
 
-        Ok(max_retry_token)
+        Ok(token_details)
     }
 
     // Check if all tokens are hard declined or no token found for the customer
@@ -639,10 +644,9 @@ impl RedisTokenManager {
         let tokens_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
                 .await?;
-        let all_hard_declined = tokens_map.is_empty()
-            && tokens_map
-                .values()
-                .all(|token| token.is_hard_decline.unwrap_or(false));
+        let all_hard_declined = tokens_map
+            .values()
+            .all(|token| token.is_hard_decline.unwrap_or(false));
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,
@@ -651,5 +655,53 @@ impl RedisTokenManager {
         );
 
         Ok(all_hard_declined)
+    }
+
+    // Get token based on retry type
+    pub async fn get_token_based_on_retry_type(
+        state: &SessionState,
+        connector_customer_id: &str,
+        retry_algorithm_type: RevenueRecoveryAlgorithmType,
+        last_token_used: Option<&str>,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
+        let mut token = None;
+        match retry_algorithm_type {
+            RevenueRecoveryAlgorithmType::Monitoring => {
+                logger::error!("Monitoring type found for Revenue Recovery retry payment");
+            }
+
+            RevenueRecoveryAlgorithmType::Cascading => {
+                token = match last_token_used {
+                    Some(token_id) => {
+                        Self::get_payment_processor_token_using_token_id(
+                            state,
+                            connector_customer_id,
+                            token_id,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+            }
+
+            RevenueRecoveryAlgorithmType::Smart => {
+                token = Self::get_payment_processor_token_with_schedule_time(
+                    state,
+                    connector_customer_id,
+                )
+                .await?;
+            }
+        }
+
+        token = token.and_then(|t| {
+            t.is_hard_decline
+                .unwrap_or(false)
+                .then(|| {
+                    logger::error!("Token is hard declined");
+                })
+                .map_or(Some(t), |_| None)
+        });
+
+        Ok(token)
     }
 }

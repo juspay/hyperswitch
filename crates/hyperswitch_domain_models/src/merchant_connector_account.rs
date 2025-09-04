@@ -313,6 +313,12 @@ pub struct RevenueRecoveryMetadata {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ExternalVaultConnectorMetadata {
+    pub proxy_url: common_utils::types::Url,
+    pub certificate: Secret<String>,
+}
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
 pub struct AccountReferenceMap {
     pub recovery_to_billing: HashMap<id_type::MerchantConnectorAccountId, String>,

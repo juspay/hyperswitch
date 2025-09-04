@@ -223,6 +223,22 @@ impl MerchantAccount {
         &self.organization_id
     }
 
+    /// Get the merchant_details from MerchantAccount
+    pub fn get_merchant_details(&self) -> &OptionalEncryptableValue {
+        &self.merchant_details
+    }
+
+    /// Extract merchant_tax_registration_id from merchant_details
+    pub fn get_merchant_tax_registration_id(&self) -> Option<Secret<String>> {
+        self.merchant_details.as_ref().and_then(|details| {
+            details
+                .get_inner()
+                .peek()
+                .get("merchant_tax_registration_id")
+                .and_then(|id| id.as_str().map(|s| Secret::new(s.to_string())))
+        })
+    }
+
     /// Check whether the merchant account is a platform account
     pub fn is_platform_account(&self) -> bool {
         matches!(
