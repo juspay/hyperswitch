@@ -3897,7 +3897,7 @@ pub enum WalletData {
     /// The wallet data for Samsung Pay
     #[schema(title = "SamsungPay")]
     SamsungPay(Box<SamsungPayWalletData>),
-     /// The wallet data for Skrill
+    /// The wallet data for Skrill
     #[schema(title = "Skrill")]
     Skrill(SkrillData),
     // The wallet data for Swish
@@ -3917,7 +3917,7 @@ pub enum WalletData {
     WeChatPayQr(Box<WeChatPayQr>),
     /// The wallet data for WeChat Pay Redirection
     #[schema(title = "WeChatPayRedirect")]
-    WeChatPayRedirect(Box<WeChatPayRedirection>),    
+    WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
