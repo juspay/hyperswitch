@@ -13,7 +13,7 @@ use common_utils::{
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails, ExternalVaultConnectorDetails
+    CardTestingGuardConfig, ExternalVaultConnectorDetails, ProfileUpdateInternal, WebhookDetails,
 };
 #[cfg(feature = "v2")]
 use diesel_models::business_profile::{

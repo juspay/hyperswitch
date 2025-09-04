@@ -57,7 +57,6 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     #[cfg(feature = "v2")]

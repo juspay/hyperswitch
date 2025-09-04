@@ -39,20 +39,15 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
-};
-use hyperswitch_domain_models::{
-    payment_method_data, payment_methods as domain_payment_methods,
-};
-
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData,
-    router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
-};
-
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_methods::VaultId;
+use hyperswitch_domain_models::{
+    payment_method_data, payment_methods as domain_payment_methods,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_flow_types::ExternalVaultInsertFlow,
+    types::VaultRouterData,
+};
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
@@ -90,16 +85,16 @@ use crate::{
     consts,
     core::{
         errors::{ProcessTrackerError, RouterResult},
-        payments::helpers as payment_helpers, utils as core_utils,
+        payments::helpers as payment_helpers,
+        utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
     errors, logger,
     routes::{app::StorageInterface, SessionState},
     services,
     types::{
-        self, domain,
+        self, api, domain, payment_methods as pm_types,
         storage::{self, enums as storage_enums},
-        api, payment_methods as pm_types,
     },
 };
 
@@ -2393,10 +2388,9 @@ pub async fn vault_payment_method_external_v1(
             "Cannot construct router data for making the external vault insert api call",
         )?;
 
-    let connector_name = merchant_connector_account
-        .get_connector_name_as_string();
-        // .ok_or(errors::ApiErrorResponse::InternalServerError)
-        // .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name_as_string();
+    // .ok_or(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
@@ -2444,13 +2438,13 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 let vault_id = VaultId::generate(connector_vault_id);
                 #[cfg(not(feature = "v2"))]
                 let vault_id = connector_vault_id;
-                
+
                 Ok(pm_types::AddVaultResponse {
                     vault_id,
                     fingerprint_id: Some(fingerprint_id),
                     entity_id: None,
                 })
-            },
+            }
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
             | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
             | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {

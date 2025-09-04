@@ -26,6 +26,8 @@ use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::vault_payment_method_external_v1;
 use crate::{
     consts,
     core::{
@@ -51,9 +53,6 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::vault_payment_method_external_v1;
-
-#[cfg(feature = "v1")]
 async fn save_in_locker_or_external_vault(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -64,7 +63,6 @@ async fn save_in_locker_or_external_vault(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-
     if business_profile.is_external_vault_enabled.unwrap_or(false) {
         logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
@@ -463,11 +461,11 @@ where
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
                 let external_vault_mca_id = &business_profile
-                .external_vault_connector_details
-                .clone()
-                .map(|connector_details| connector_details.vault_connector_id.clone())
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("mca_id not present for external vault")?;
+                    .external_vault_connector_details
+                    .clone()
+                    .map(|connector_details| connector_details.vault_connector_id.clone())
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("mca_id not present for external vault")?;
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -680,7 +678,7 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
-                                                    Some(external_vault_mca_id),//Should check this and pass proper value here
+                                                    Some(external_vault_mca_id), //Should check this and pass proper value here
                                                 )
                                                 .await
                                         } else {
@@ -902,7 +900,7 @@ where
                                     network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
-                                    Some(external_vault_mca_id),//Should check this and pass proper value here
+                                    Some(external_vault_mca_id), //Should check this and pass proper value here
                                 )
                                 .await?;
 

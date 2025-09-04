@@ -2378,7 +2378,9 @@ pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-    payment_method_vaulting_data: Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>,
+    payment_method_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
@@ -2414,7 +2416,9 @@ pub async fn construct_vault_router_data_for_ext_v1<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    payment_method_vaulting_data: Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>,
+    payment_method_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {

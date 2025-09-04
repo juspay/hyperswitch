@@ -388,7 +388,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                     })
                     .await?,
                 external_vault_source: item.external_vault_source,
-
             })
         }
         .await
