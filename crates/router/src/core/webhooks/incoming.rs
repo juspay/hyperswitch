@@ -1157,7 +1157,7 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data = Box::pin(payouts::make_payout_data(
+        let mut payout_data = Box::pin(payouts::make_payout_data(
             &state,
             &merchant_context,
             None,
@@ -1181,8 +1181,9 @@ async fn payouts_incoming_webhook_flow(
                     payout_attempt.payout_attempt_id
                 )
             })?;
+        payout_data.payout_attempt = updated_payout_attempt;
 
-        let event_type: Option<enums::EventType> = updated_payout_attempt.status.into();
+        let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
 
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
@@ -1195,20 +1196,21 @@ async fn payouts_incoming_webhook_flow(
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Payouts,
-                updated_payout_attempt
+                payout_data
+                    .payout_attempt
                     .payout_id
                     .get_string_repr()
                     .to_string(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
-                Some(updated_payout_attempt.created_at),
+                Some(payout_data.payout_attempt.created_at),
             ))
             .await?;
         }
 
         Ok(WebhookResponseTracker::Payout {
-            payout_id: updated_payout_attempt.payout_id,
-            status: updated_payout_attempt.status,
+            payout_id: payout_data.payout_attempt.payout_id,
+            status: payout_data.payout_attempt.status,
         })
     } else {
         metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
