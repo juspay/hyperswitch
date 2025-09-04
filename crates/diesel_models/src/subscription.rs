@@ -39,7 +39,7 @@ pub struct Subscription {
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    profile_id: common_utils::id_type::ProfileId,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
