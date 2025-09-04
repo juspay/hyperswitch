@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, RequestSurchargeDetails,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -16,6 +16,7 @@ use common_utils::{
 use diesel_models::{
     ephemeral_key,
     payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+    payment_attempt::NetworkDetails as DieselNetworkDetails,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
@@ -3381,6 +3382,7 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
+            network_details: payment_attempt.network_details.into(),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3678,6 +3680,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
+            network_details:Some(NetworkDetails{
+                network_advice_code:pa.network_details.network_advice_code
+            })
         }
     }
 }
@@ -5892,6 +5897,22 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             mandate_metadata: value.get_mandate_metadata(),
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
+        }
+    }
+}
+
+impl ForeignFrom<DieselNetworkDetails> for NetworkDetails {
+    fn foreign_from(value: DieselNetworkDetails) -> Self {
+        Self {
+            network_advice_code: value.network_advice_code,
+        }
+    }
+}
+
+impl ForeignFrom<NetworkDetails> for DieselNetworkDetails {
+    fn foreign_from(value: NetworkDetails) -> Self {
+        Self {
+            network_advice_code: value.network_advice_code,
         }
     }
 }

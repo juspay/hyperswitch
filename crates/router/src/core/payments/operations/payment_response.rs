@@ -1592,6 +1592,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 authentication_type: auth_update,
                                 issuer_error_code: err.network_decline_code,
                                 issuer_error_message: err.network_error_message,
+                                network_details: Some(diesel_models::NetworkDetails {
+                                    network_advice_code: err.network_advice_code,
+                                }),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1632,6 +1635,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             authentication_type: auth_update,
                             issuer_error_code: None,
                             issuer_error_message: None,
+                            network_details: None,
                         }),
                         None,
                     )

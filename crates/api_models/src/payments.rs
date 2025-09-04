@@ -2027,6 +2027,11 @@ impl Default for MandateType {
     }
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkDetails {
+    pub network_advice_code: Option<String>,
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct Card {
     /// The card number
@@ -5446,6 +5451,9 @@ pub struct PaymentsResponse {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Network Response 
+    pub network_details: Option<NetworkDetails>
 }
 
 #[cfg(feature = "v2")]
