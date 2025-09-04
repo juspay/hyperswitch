@@ -19022,6 +19022,15 @@
           }
         }
       },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -23929,6 +23938,14 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25323,6 +25340,14 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
