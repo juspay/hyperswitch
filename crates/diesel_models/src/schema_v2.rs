@@ -248,6 +248,7 @@ diesel::table! {
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
+        is_manual_retry_enabled -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -265,7 +266,6 @@ diesel::table! {
         external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
-        is_manual_retry_enabled -> Nullable<Bool>,
     }
 }
 
