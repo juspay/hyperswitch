@@ -2669,16 +2669,6 @@ pub async fn payout_create_db_entries(
         _ => None,
     };
 
-    // We have to do this because the function that is being used to create / get address is from payments
-    // which expects a payment_id
-    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-        payout_id.get_string_repr().to_string(),
-    ))
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "payout_id contains invalid data".to_string(),
-    })
-    .attach_printable("Error converting payout_id to PaymentId type")?;
-
     // Get or create billing address
     let (billing_address, address_id) = helpers::resolve_billing_address_for_payout(
         state,
@@ -2687,7 +2677,7 @@ pub async fn payout_create_db_entries(
         payment_method.as_ref(),
         merchant_context,
         customer_id.as_ref(),
-        &payout_id_as_payment_id_type,
+        payout_id,
     )
     .await?;
 

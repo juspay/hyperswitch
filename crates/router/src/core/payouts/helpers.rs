@@ -1284,16 +1284,6 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data.payouts.customer_id.clone()
     };
 
-    // We have to do this because the function that is being used to create / get address is from payments
-    // which expects a payment_id
-    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-        payout_id.get_string_repr().to_string(),
-    ))
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
-    })
-    .attach_printable("Error converting payout_id to PaymentId type")?;
-
     let (billing_address, address_id) = resolve_billing_address_for_payout(
         state,
         req.billing.as_ref(),
@@ -1301,7 +1291,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data.payment_method.as_ref(),
         merchant_context,
         customer_id.as_ref(),
-        &payout_id_as_payment_id_type,
+        &payout_id,
     )
     .await?;
 
@@ -1552,11 +1542,19 @@ pub async fn resolve_billing_address_for_payout(
     payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
     merchant_context: &domain::MerchantContext,
     customer_id: Option<&id_type::CustomerId>,
-    payout_id_as_payment_id: &id_type::PaymentId,
+    payout_id: &id_type::PayoutId,
 ) -> RouterResult<(
     Option<hyperswitch_domain_models::address::Address>,
     Option<String>,
 )> {
+    let payout_id_as_payment_id = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
+        payout_id.get_string_repr().to_string(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
+
     match (req_billing, existing_address_id, payment_method) {
         // Address in request
         (Some(_), _, _) => {
@@ -1567,7 +1565,7 @@ pub async fn resolve_billing_address_for_payout(
                 merchant_context.get_merchant_account().get_id(),
                 customer_id,
                 merchant_context.get_merchant_key_store(),
-                payout_id_as_payment_id,
+                &payout_id_as_payment_id,
                 merchant_context.get_merchant_account().storage_scheme,
             )
             .await?;
@@ -1586,7 +1584,7 @@ pub async fn resolve_billing_address_for_payout(
                 merchant_context.get_merchant_account().get_id(),
                 customer_id,
                 merchant_context.get_merchant_key_store(),
-                payout_id_as_payment_id,
+                &payout_id_as_payment_id,
                 merchant_context.get_merchant_account().storage_scheme,
             )
             .await?;
