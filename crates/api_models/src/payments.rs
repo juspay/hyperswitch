@@ -2027,7 +2027,7 @@ impl Default for MandateType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq,ToSchema)]
 pub struct NetworkDetails {
     pub network_advice_code: Option<String>,
 }
