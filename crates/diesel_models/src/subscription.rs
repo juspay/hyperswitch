@@ -31,7 +31,7 @@ pub struct Subscription {
     pub status: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
-    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub client_secret: Option<String>,
     pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
