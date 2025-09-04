@@ -202,7 +202,19 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Paysafe {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Paysafe {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Paysafe {
+    // Not Implemented (R)
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Paysafe".to_string())
+                .into(),
+        )
+    }
+}
 
 impl api::PaymentsPreProcessing for Paysafe {}
 

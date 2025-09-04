@@ -108,6 +108,12 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
     fn try_from(
         item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Paysafe",
+            })?
+        };
         let metadata: PaysafeConnectorMetadataObject =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -313,6 +319,12 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
     fn try_from(
         item: &PaysafeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Paysafe",
+            })?
+        };
         let payment_handle_token = Secret::new(item.router_data.get_preprocessing_id()?);
         let amount = item.amount;
         let customer_ip = Some(
