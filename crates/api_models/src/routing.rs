@@ -949,8 +949,8 @@ pub struct CreateDynamicRoutingWrapper {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum DynamicRoutingPayload {
-    SuccessBasedRoutingPayload(SuccessBasedRoutingConfig),
-    EliminationRoutingPayload(EliminationRoutingConfig),
+    SuccessBasedRoutingPayload(SuccessSection),
+    EliminationRoutingPayload(EliminationSection),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -965,6 +965,20 @@ pub struct EliminationRoutingConfig {
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
     #[schema(value_type = DecisionEngineEliminationData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineEliminationData>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EliminationDetail {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EliminationSection {
+    pub config: EliminationRoutingConfig,
+    pub detail: EliminationDetail,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, ToSchema)]
@@ -1046,6 +1060,20 @@ pub struct SuccessBasedRoutingConfig {
     pub config: Option<SuccessBasedRoutingConfigBody>,
     #[schema(value_type = DecisionEngineSuccessRateData)]
     pub decision_engine_configs: Option<open_router::DecisionEngineSuccessRateData>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SuccessDetail {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SuccessSection {
+    pub config: SuccessBasedRoutingConfig,
+    pub detail: SuccessDetail,
 }
 
 impl Default for SuccessBasedRoutingConfig {
