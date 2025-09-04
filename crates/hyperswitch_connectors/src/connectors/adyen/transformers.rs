@@ -1804,7 +1804,13 @@ impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
     fn from(item: &PaymentsAuthorizeRouterData) -> Self {
         match item.request.off_session {
             Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
+            _ => match item.request.payment_channel {
+                Some(common_enums::PaymentChannel::Ecommerce)
+                | None
+                | Some(common_enums::PaymentChannel::Other(_)) => Self::Ecommerce,
+                Some(common_enums::PaymentChannel::MailOrder)
+                | Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Moto,
+            },
         }
     }
 }
@@ -4507,6 +4513,8 @@ pub fn get_present_to_shopper_metadata(
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
+                entry_date: None,
+                digitable_line: None,
             };
 
             Some(voucher_data.encode_to_value())
