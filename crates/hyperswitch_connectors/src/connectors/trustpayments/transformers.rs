@@ -312,7 +312,7 @@ pub struct TrustpaymentsPaymentsRequest {
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsPaymentRequestData {
     pub accounttypedescription: String,
-    pub baseamount: String,
+    pub baseamount: StringMinorUnit,
     pub billingfirstname: Option<String>,
     pub billinglastname: Option<String>,
     pub currencyiso3a: String,
@@ -368,7 +368,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     version: TRUSTPAYMENTS_API_VERSION.to_string(),
                     request: vec![TrustpaymentsPaymentRequestData {
                         accounttypedescription: "ECOM".to_string(),
-                        baseamount: item.amount.to_string(),
+                        baseamount: item.amount.clone(),
                         billingfirstname: item
                             .router_data
                             .get_optional_billing_first_name()
@@ -461,7 +461,7 @@ pub struct TrustpaymentsPaymentResponseData {
     pub errorcode: TrustpaymentsErrorCode,
     pub errormessage: String,
     pub authcode: Option<String>,
-    pub baseamount: Option<String>,
+    pub baseamount: Option<StringMinorUnit>,
     pub currencyiso3a: Option<String>,
     pub transactionreference: Option<String>,
     pub settlestatus: Option<TrustpaymentsSettleStatus>,
@@ -951,7 +951,7 @@ pub struct TrustpaymentsRefundRequestData {
     pub requesttypedescriptions: Vec<String>,
     pub sitereference: String,
     pub parenttransactionreference: String,
-    pub baseamount: String,
+    pub baseamount: StringMinorUnit,
     pub currencyiso3a: String,
 }
 
@@ -972,7 +972,7 @@ impl<F> TryFrom<&TrustpaymentsRouterData<&RefundsRouterData<F>>> for Trustpaymen
                 requesttypedescriptions: vec!["REFUND".to_string()],
                 sitereference: auth.site_reference.expose(),
                 parenttransactionreference: parent_transaction_reference,
-                baseamount: item.amount.to_string(),
+                baseamount: item.amount.clone(),
                 currencyiso3a: item.router_data.request.currency.to_string(),
             }],
         })
