@@ -15,8 +15,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
-        RefundsResponseData,
+        revenue_recovery::RevenueRecoveryRecordBackResponse,
+        subscriptions::{BillingAddressResponse, CreateCustomerResponse},
+        PaymentsResponseData, RefundsResponseData,
     },
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
@@ -769,6 +770,236 @@ impl
             response: Ok(RevenueRecoveryRecordBackResponse {
                 merchant_reference_id,
             }),
+            ..item.data
+        })
+    }
+}
+/*
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeCustomerResponse {
+    pub customer: ChargebeeCustomerData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeCustomerData {
+    pub id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub auto_collection: String,
+    pub net_term_days: i64,
+    pub allow_direct_debit: bool,
+    pub created_at: i64,
+    pub taxability: String,
+    pub updated_at: i64,
+    pub locale: Option<String>,
+    pub pii_cleared: String,
+    pub channel: String,
+    pub resource_version: i64,
+    pub deleted: bool,
+    pub object: String,
+    pub billing_address: Option<ChargebeeBillingAddress>,
+    pub card_status: String,
+    pub promotional_credits: i64,
+    pub refundable_credits: i64,
+    pub excess_payments: i64,
+    pub unbilled_charges: i64,
+    pub preferred_currency_code: Option<String>,
+    pub mrr: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeBillingAddress {
+    pub first_name: String,
+    pub last_name: String,
+    pub line1: String,
+    pub city: String,
+    pub state_code: Option<String>,
+    pub state: String,
+    pub country: String,
+    pub zip: String,
+    pub validation_status: String,
+    pub object: String,
+}
+impl<F, T> TryFrom<ResponseRouterData<F, ChargebeeCustomerResponse, T, CreateCustomerResponse>>
+    for RouterData<F, T, CreateCustomerResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<F, ChargebeeCustomerResponse, T, CreateCustomerResponse>,
+    ) -> Result<Self, Self::Error> {
+        let c = item.response.customer;
+
+        Ok(Self {
+            response: Ok(CreateCustomerResponse {
+                customer_id: c.id,
+                first_name: c.first_name,
+                last_name: c.last_name,
+                email: c.email,
+                locale: c.locale,
+                preferred_currency_code: c.preferred_currency_code,
+                billing_address: c.billing_address.map(|b| BillingAddressResponse {
+                    first_name: b.first_name,
+                    last_name: b.last_name,
+                    line1: b.line1,
+                    city: b.city,
+                    state: b.state,
+                    country: b.country,
+                    zip: b.zip,
+                }),
+            }),
+            ..item.data
+        })
+    }
+}*/
+
+#[derive(Debug, Serialize)]
+pub struct ChargebeeCustomerCreateRequest {
+    #[serde(rename = "first_name")]
+    pub first_name: String,
+    #[serde(rename = "last_name")]
+    pub last_name: String,
+    #[serde(rename = "email")]
+    pub email: String,
+    #[serde(rename = "locale")]
+    pub locale: Option<String>,
+    #[serde(rename = "billing_address[first_name]")]
+    pub billing_address_first_name: Option<String>,
+    #[serde(rename = "billing_address[last_name]")]
+    pub billing_address_last_name: Option<String>,
+    #[serde(rename = "billing_address[line1]")]
+    pub billing_address_line1: Option<String>,
+    #[serde(rename = "billing_address[city]")]
+    pub billing_address_city: Option<String>,
+    #[serde(rename = "billing_address[state]")]
+    pub billing_address_state: Option<String>,
+    #[serde(rename = "billing_address[zip]")]
+    pub billing_address_zip: Option<String>,
+    #[serde(rename = "billing_address[country]")]
+    pub billing_address_country: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCustomerRouterData>>
+    for ChargebeeCustomerCreateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &ChargebeeRouterData<
+            &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+
+        Ok(Self {
+            first_name: req.first_name.clone(),
+            last_name: req.last_name.clone(),
+            email: req.email.clone(),
+            locale: req.locale.clone(),
+            billing_address_first_name: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.first_name.clone()),
+            billing_address_last_name: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.last_name.clone()),
+            billing_address_line1: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.line1.clone()),
+            billing_address_city: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.city.clone()),
+            billing_address_state: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.state.clone()),
+            billing_address_zip: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.zip.clone()),
+            billing_address_country: req
+                .billing_address
+                .as_ref()
+                .map(|addr| addr.country.clone()),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeCustomerCreateResponse {
+    pub customer: ChargebeeCustomerDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeCustomerDetails {
+    pub id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub locale: Option<String>,
+    pub preferred_currency_code: Option<String>,
+    pub billing_address: Option<ChargebeeBillingAddress>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeBillingAddress {
+    pub first_name: String,
+    pub last_name: String,
+    pub line1: String,
+    pub city: String,
+    pub state: String,
+    pub country: String,
+    pub zip: String,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<
+    ResponseRouterData<
+        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        ChargebeeCustomerCreateResponse,
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+    >,
+> for hyperswitch_domain_models::types::CreateCustomerRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            ChargebeeCustomerCreateResponse,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let c = &item.response.customer;
+        Ok(Self {
+            response: Ok(
+                hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse {
+                    customer_id: c.id.clone(),
+                    first_name: c.first_name.clone(),
+                    last_name: c.last_name.clone(),
+                    email: c.email.clone(),
+                    locale: c.locale.clone(),
+                    preferred_currency_code: c.preferred_currency_code.clone(),
+                    billing_address: c.billing_address.as_ref().map(|b| {
+                        hyperswitch_domain_models::router_response_types::subscriptions::BillingAddressResponse {
+                            first_name: b.first_name.clone(),
+                            last_name: b.last_name.clone(),
+                            line1: b.line1.clone(),
+                            city: b.city.clone(),
+                            state: b.state.clone(),
+                            country: b.country.clone(),
+                            zip: b.zip.clone(),
+                        }
+                    }),
+                },
+            ),
             ..item.data
         })
     }
