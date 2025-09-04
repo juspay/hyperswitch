@@ -132,6 +132,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
+        vault_type: Option<common_enums::VaultType>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -192,6 +193,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_locker_id,
                     network_token_payment_method_data,
                     external_vault_source: external_vault_source.cloned(),
+                    vault_type,
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -318,6 +320,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         locker_id,
                         None,
                         req.network_transaction_id.clone(),
+                        None,
                         None,
                         None,
                         None,
@@ -468,6 +471,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
+        vault_type: Option<common_enums::VaultType>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = resp.card.clone().map(|card| {
             PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
@@ -502,6 +506,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             external_vault_source,
+            vault_type,
         )
         .await
     }
@@ -1304,6 +1309,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None, //check this too
+                        None, //check this too
                     )
                     .await?;
 
@@ -1374,6 +1380,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 Some(enums::PaymentMethodStatus::AwaitingData),
                 None,
                 payment_method_billing_address,
+                None,
                 None,
                 None,
                 None,

@@ -2377,7 +2377,7 @@ pub async fn fetch_card_details_from_locker(
      merchant_key_store: &domain::MerchantKeyStore,
      profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Card> {
-    if is_external_vault_enabled {
+    if is_external_vault_enabled && payment_method_info.vault_type.unwrap_or(enums::VaultType::Internal) == enums::VaultType::External {
         fetch_card_details_from_external_vault(
             state,
             customer_id,
@@ -2550,33 +2550,6 @@ let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(state, me
             Ok(domain::Card::from((api_card, co_badged_card_data)))
         }
     }
-
-    // let api_card = api::Card {
-    //     card_number: card.card_number,
-    //     card_holder_name: name_on_card,
-    //     card_exp_month: card.card_exp_month,
-    //     card_exp_year: card.card_exp_year,
-    //     card_cvc: card_token_data
-    //         .cloned()
-    //         .unwrap_or_default()
-    //         .card_cvc
-    //         .unwrap_or_default(),
-    //     card_issuer: None,
-    //     nick_name: card.nick_name.map(masking::Secret::new),
-    //     card_network: card
-    //         .card_brand
-    //         .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
-    //         .transpose()
-    //         .map_err(|e| {
-    //             logger::error!("Failed to parse card network {e:?}");
-    //         })
-    //         .ok()
-    //         .flatten(),
-    //     card_type: None,
-    //     card_issuing_country: None,
-    //     bank_code: None,
-    // };
-    // Ok(domain::Card::from((api_card, co_badged_card_data)))
 }
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(

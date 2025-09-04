@@ -8840,3 +8840,28 @@ impl RoutingApproach {
 pub enum CallbackMapperIdType {
     NetworkTokenRequestorReferenceID,
 }
+
+/// Payment Method Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultType {
+    /// Indicates that the payment method is stored in internal vault.
+    Internal,
+    /// Indicates that the payment method is stored in external vault.
+    External,
+
+}

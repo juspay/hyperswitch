@@ -89,6 +89,7 @@ pub struct PaymentMethod {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
     pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
+    pub vault_type: Option<storage_enums::VaultType>,
 }
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -300,6 +301,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
+            vault_type: self.vault_type,
         })
     }
 
@@ -388,6 +390,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     })
                     .await?,
                 external_vault_source: item.external_vault_source,
+                vault_type: item.vault_type,
 
             })
         }
@@ -438,6 +441,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
+            vault_type: self.vault_type,
         })
     }
 }
@@ -1133,6 +1137,7 @@ mod tests {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             external_vault_source: None,
+            vault_type: None,
         };
         payment_method.clone()
     }
