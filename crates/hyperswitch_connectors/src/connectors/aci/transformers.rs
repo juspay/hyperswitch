@@ -31,8 +31,8 @@ use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, CardData, NetworkTokenData as NetworkTokenDataTrait, PhoneDetailsData,
-        RouterData as _,
+        self, CardData, NetworkTokenData as NetworkTokenDataTrait, PaymentsAuthorizeRequestData,
+        PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -350,6 +350,7 @@ impl
 
 fn get_aci_payment_brand(
     card_network: Option<common_enums::CardNetwork>,
+    is_network_token_flow: bool,
 ) -> Result<PaymentBrand, Error> {
     match card_network {
         Some(common_enums::CardNetwork::Visa) => Ok(PaymentBrand::Visa),
@@ -367,7 +368,16 @@ fn get_aci_payment_brand(
             ),
             connector: "ACI",
         })?,
-        None => Ok(PaymentBrand::Visa),
+        None => {
+            if is_network_token_flow {
+                Ok(PaymentBrand::Visa)
+            } else {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card.card_network",
+                }
+                .into())
+            }
+        }
     }
 }
 
@@ -378,7 +388,7 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     ) -> Result<Self, Self::Error> {
         let card_expiry_year = card_data.get_expiry_year_4_digit();
 
-        let payment_brand = get_aci_payment_brand(card_data.card_network)?;
+        let payment_brand = get_aci_payment_brand(card_data.card_network, false)?;
 
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
@@ -408,7 +418,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let (_item, network_token_data) = value;
         let token_number = network_token_data.get_network_token();
-        let payment_brand = get_aci_payment_brand(network_token_data.card_network.clone())?;
+        let payment_brand = get_aci_payment_brand(network_token_data.card_network.clone(), true)?;
         let aci_network_token_data = AciNetworkTokenData {
             token_type: AciTokenAccountType::Network,
             token_number,
@@ -770,11 +780,16 @@ fn get_transaction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<TransactionDetails, error_stack::Report<errors::ConnectorError>> {
     let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
+    let payment_type = if item.router_data.request.is_auto_capture()? {
+        AciPaymentType::Debit
+    } else {
+        AciPaymentType::Preauthorization
+    };
     Ok(TransactionDetails {
         entity_id: auth.entity_id,
         amount: item.amount.to_owned(),
         currency: item.router_data.request.currency.to_string(),
-        payment_type: AciPaymentType::Debit,
+        payment_type,
     })
 }
 
@@ -823,7 +838,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
 
         let (payment_brand, payment_details) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let brand = get_aci_payment_brand(card_data.card_network.clone())?;
+                let brand = get_aci_payment_brand(card_data.card_network.clone(), false)?;
                 match brand {
                     PaymentBrand::Visa
                     | PaymentBrand::Mastercard
@@ -851,7 +866,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
             }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
-                    message: "Card network not supported for mandate setup".to_string(),
+                    message: "Payment method not supported for mandate setup".to_string(),
                     connector: "ACI",
                 }
                 .into());
@@ -890,6 +905,7 @@ fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::
         AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
     }
 }
+
 impl FromStr for AciPaymentStatus {
     type Err = error_stack::Report<errors::ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -1086,10 +1102,43 @@ pub struct AciCaptureResultDetails {
     extended_description: String,
     #[serde(rename = "clearingInstituteName")]
     clearing_institute_name: String,
-    connector_tx_id1: String,
-    connector_tx_id3: String,
-    connector_tx_id2: String,
+    connector_tx_i_d1: String,
+    connector_tx_i_d3: String,
+    connector_tx_i_d2: String,
     acquirer_response: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub enum AciCaptureStatus {
+    Succeeded,
+    Failed,
+    #[default]
+    Pending,
+}
+
+impl FromStr for AciCaptureStatus {
+    type Err = error_stack::Report<errors::ConnectorError>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if FAILURE_CODES.contains(&s) {
+            Ok(Self::Failed)
+        } else if PENDING_CODES.contains(&s) {
+            Ok(Self::Pending)
+        } else if SUCCESSFUL_CODES.contains(&s) {
+            Ok(Self::Succeeded)
+        } else {
+            Err(report!(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(s.to_owned())
+            )))
+        }
+    }
+}
+
+fn map_aci_capture_status(item: AciCaptureStatus) -> enums::AttemptStatus {
+    match item {
+        AciCaptureStatus::Succeeded => enums::AttemptStatus::Charged,
+        AciCaptureStatus::Failed => enums::AttemptStatus::Failure,
+        AciCaptureStatus::Pending => enums::AttemptStatus::Pending,
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>>
@@ -1100,10 +1149,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: map_aci_attempt_status(
-                AciPaymentStatus::from_str(&item.response.result.code)?,
-                false,
-            ),
+            status: map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?),
             reference_id: Some(item.response.referenced_id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
