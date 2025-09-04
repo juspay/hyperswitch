@@ -6,7 +6,7 @@ use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
-#[cfg(feature = "revenue_recovery")]
+#[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
     consts,
@@ -307,7 +307,7 @@ pub async fn retry_sync_task(
 /// Schedule the task for retry and upate redis token expiry time
 ///
 /// Returns bool which indicates whether this was the last retry or not
-#[cfg(feature = "revenue_recovery")]
+#[cfg(feature = "v2")]
 pub async fn recovery_retry_sync_task(
     state: &SessionState,
     connector_customer_id: Option<String>,
