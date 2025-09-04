@@ -1076,11 +1076,13 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::ApplePay(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -1180,6 +1182,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Becs
                     | enums::PaymentMethodType::Benefit
                     | enums::PaymentMethodType::Bizum
+                    | enums::PaymentMethodType::BhnCardNetwork
                     | enums::PaymentMethodType::Blik
                     | enums::PaymentMethodType::Boleto
                     | enums::PaymentMethodType::BcaBankTransfer
@@ -1197,6 +1200,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
                     | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
                     | enums::PaymentMethodType::Evoucher
                     | enums::PaymentMethodType::Giropay
@@ -1408,12 +1412,12 @@ impl TryFrom<&GiftCardData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
-            GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
-            }
+            GiftCardData::Givex(_)
+            | GiftCardData::PaySafeCard {}
+            | GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }
@@ -2564,8 +2568,22 @@ pub struct PaypalFulfillResponse {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaypalBatchResponse {
-    payout_batch_id: String,
-    batch_status: PaypalFulfillStatus,
+    pub payout_batch_id: String,
+    pub batch_status: PaypalFulfillStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalPayoutSyncResponse {
+    batch_header: PaypalSyncBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalSyncBatchResponse {
+    pub payout_batch_id: Option<String>,
+    pub sender_batch_id: Option<String>,
+    pub batch_status: PaypalFulfillStatus,
 }
 
 #[cfg(feature = "payouts")]
@@ -2577,16 +2595,24 @@ pub enum PaypalFulfillStatus {
     Processing,
     Success,
     Cancelled,
+    Failed,
+    Refunded,
+    Returned,
 }
 
 #[cfg(feature = "payouts")]
 pub(crate) fn get_payout_status(status: PaypalFulfillStatus) -> storage_enums::PayoutStatus {
     match status {
         PaypalFulfillStatus::Success => storage_enums::PayoutStatus::Success,
-        PaypalFulfillStatus::Denied => storage_enums::PayoutStatus::Failed,
+        PaypalFulfillStatus::Denied | PaypalFulfillStatus::Failed => {
+            storage_enums::PayoutStatus::Failed
+        }
         PaypalFulfillStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
         PaypalFulfillStatus::Pending | PaypalFulfillStatus::Processing => {
             storage_enums::PayoutStatus::Pending
+        }
+        PaypalFulfillStatus::Refunded | PaypalFulfillStatus::Returned => {
+            storage_enums::PayoutStatus::Reversed
         }
     }
 }
@@ -2607,6 +2633,57 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalFulfillResponse>> for Payouts
                 error_message: None,
             }),
             ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>> for PayoutsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(get_payout_status(item.response.batch_header.batch_status)),
+                connector_payout_id: item.response.batch_header.payout_batch_id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PaypalBatchPayoutWebhooks> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(webhook_body: PaypalBatchPayoutWebhooks) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: Some(webhook_body.batch_header.payout_batch_id),
+                sender_batch_id: None,
+                batch_status: webhook_body.batch_header.batch_status,
+            },
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<(PaypalItemPayoutWebhooks, PaypalWebhookEventType)> for PaypalPayoutSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (webhook_body, webhook_event): (PaypalItemPayoutWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            batch_header: PaypalSyncBatchResponse {
+                payout_batch_id: None,
+                sender_batch_id: Some(webhook_body.sender_batch_id),
+                batch_status: PaypalFulfillStatus::try_from(webhook_event)
+                    .attach_printable("Could not find suitable webhook event")?,
+            },
         })
     }
 }
@@ -2704,7 +2781,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::Voided
-            | storage_enums::AttemptStatus::Expired => 0,
+            | storage_enums::AttemptStatus::VoidedPostCharge
+            | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::PartiallyAuthorized => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -2936,6 +3015,42 @@ pub enum PaypalWebhookEventType {
     CustomerDisputedUpdated,
     #[serde(rename = "RISK.DISPUTE.CREATED")]
     RiskDisputeCreated,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.SUCCESS")]
+    PayoutsBatchSuccess,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.PROCESSING")]
+    PayoutsBatchProcessing,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTSBATCH.DENIED")]
+    PayoutsBatchDenied,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.SUCCEEDED")]
+    PayoutsItemSuccess,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.FAILED")]
+    PayoutsItemFailed,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.BLOCKED")]
+    PayoutsItemBlocked,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.CANCELED")]
+    PayoutsItemCanceled,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.DENIED")]
+    PayoutsItemDenied,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.HELD")]
+    PayoutsItemHeld,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.REFUNDED")]
+    PayoutsItemRefunded,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.RETURNED")]
+    PayoutsItemReturned,
+    #[cfg(feature = "payouts")]
+    #[serde(rename = "PAYMENT.PAYOUTS-ITEM.UNCLAIMED")]
+    PayoutsItemUnclaimed,
     #[serde(other)]
     Unknown,
 }
@@ -2947,6 +3062,23 @@ pub enum PaypalResource {
     PaypalRedirectsWebhooks(Box<PaypalRedirectsWebhooks>),
     PaypalRefundWebhooks(Box<PaypalRefundWebhooks>),
     PaypalDisputeWebhooks(Box<PaypalDisputeWebhooks>),
+    #[cfg(feature = "payouts")]
+    PaypalBatchPayoutWebhooks(Box<PaypalBatchPayoutWebhooks>),
+    #[cfg(feature = "payouts")]
+    PaypalItemPayoutWebhooks(Box<PaypalItemPayoutWebhooks>),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalBatchPayoutWebhooks {
+    pub batch_header: PaypalBatchResponse,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalItemPayoutWebhooks {
+    pub sender_batch_id: String,
+    pub transaction_status: PaypalFulfillStatus,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3087,6 +3219,23 @@ pub(crate) fn get_payapl_webhooks_event(
         | PaypalWebhookEventType::CheckoutOrderApproved
         | PaypalWebhookEventType::CustomerDisputedUpdated
         | PaypalWebhookEventType::Unknown => IncomingWebhookEvent::EventNotSupported,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchSuccess
+        | PaypalWebhookEventType::PayoutsItemSuccess => IncomingWebhookEvent::PayoutSuccess,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchProcessing
+        | PaypalWebhookEventType::PayoutsItemHeld
+        | PaypalWebhookEventType::PayoutsItemUnclaimed => IncomingWebhookEvent::PayoutProcessing,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsBatchDenied
+        | PaypalWebhookEventType::PayoutsItemDenied
+        | PaypalWebhookEventType::PayoutsItemBlocked
+        | PaypalWebhookEventType::PayoutsItemCanceled => IncomingWebhookEvent::PayoutCancelled,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsItemFailed => IncomingWebhookEvent::PayoutFailure,
+        #[cfg(feature = "payouts")]
+        PaypalWebhookEventType::PayoutsItemRefunded
+        | PaypalWebhookEventType::PayoutsItemReturned => IncomingWebhookEvent::PayoutReversed,
     }
 }
 
@@ -3238,6 +3387,21 @@ impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
@@ -3248,6 +3412,58 @@ impl TryFrom<PaypalWebhookEventType> for RefundStatus {
         match event {
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Completed),
             PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PaypalWebhookEventType> for PaypalFulfillStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
+        match event {
+            PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemSuccess => Ok(Self::Success),
+            PaypalWebhookEventType::PayoutsBatchProcessing => Ok(Self::Processing),
+            PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => Ok(Self::Pending),
+            PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled => Ok(Self::Cancelled),
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsItemDenied => Ok(Self::Denied),
+            PaypalWebhookEventType::PayoutsItemFailed => Ok(Self::Failed),
+            PaypalWebhookEventType::PayoutsItemRefunded => Ok(Self::Refunded),
+            PaypalWebhookEventType::PayoutsItemReturned => Ok(Self::Returned),
+            PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureCompleted
@@ -3284,6 +3500,21 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
             | PaypalWebhookEventType::CustomerDisputedUpdated
             | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+            #[cfg(feature = "payouts")]
+            PaypalWebhookEventType::PayoutsBatchDenied
+            | PaypalWebhookEventType::PayoutsBatchProcessing
+            | PaypalWebhookEventType::PayoutsBatchSuccess
+            | PaypalWebhookEventType::PayoutsItemBlocked
+            | PaypalWebhookEventType::PayoutsItemCanceled
+            | PaypalWebhookEventType::PayoutsItemDenied
+            | PaypalWebhookEventType::PayoutsItemFailed
+            | PaypalWebhookEventType::PayoutsItemHeld
+            | PaypalWebhookEventType::PayoutsItemRefunded
+            | PaypalWebhookEventType::PayoutsItemReturned
+            | PaypalWebhookEventType::PayoutsItemSuccess
+            | PaypalWebhookEventType::PayoutsItemUnclaimed => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }

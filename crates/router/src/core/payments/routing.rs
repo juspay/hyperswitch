@@ -48,7 +48,6 @@ use rand::SeedableRng;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
-use utils::perform_decision_euclid_routing;
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
@@ -189,7 +188,19 @@ pub fn make_dsl_input_for_payouts(
         payment_method_type: payout_data
             .payout_method_data
             .as_ref()
-            .map(api_enums::PaymentMethodType::foreign_from),
+            .map(api_enums::PaymentMethodType::foreign_from)
+            .or_else(|| {
+                payout_data.payment_method.as_ref().and_then(|pm| {
+                    #[cfg(feature = "v1")]
+                    {
+                        pm.payment_method_type
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        pm.payment_method_subtype
+                    }
+                })
+            }),
         card_network: None,
     };
     Ok(dsl_inputs::BackendInput {
@@ -442,6 +453,7 @@ pub async fn perform_static_routing_v1(
     Vec<routing_types::RoutableConnectorChoice>,
     Option<common_enums::RoutingApproach>,
 )> {
+    logger::debug!("euclid_routing: performing routing for connector selection");
     let get_merchant_fallback_config = || async {
         #[cfg(feature = "v1")]
         return routing::helpers::get_merchant_default_config(
@@ -460,6 +472,7 @@ pub async fn perform_static_routing_v1(
         id
     } else {
         let fallback_config = get_merchant_fallback_config().await?;
+        logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
         return Ok((fallback_config, None));
     };
     let cached_algorithm = ensure_algorithm_cached_v1(
@@ -492,33 +505,24 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    let de_euclid_connectors = if state.conf.open_router.static_routing_enabled {
-        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
-            state.tenant.tenant_id.clone(),
-            state.request_id,
-            payment_id,
-            business_profile.get_id().to_owned(),
-            business_profile.merchant_id.to_owned(),
-            "DecisionEngine: Euclid Static Routing".to_string(),
-            None,
-            true,
-            false,
-        );
-
-        perform_decision_euclid_routing(
+    // Decision of de-routing is stored
+    let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
+        logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
+        Vec::default()
+    } else {
+        utils::decision_engine_routing(
             state,
             backend_input.clone(),
-            business_profile.get_id().get_string_repr().to_string(),
-            routing_events_wrapper,
+            business_profile,
+            payment_id,
             get_merchant_fallback_config().await?,
         )
         .await
         .map_err(|e|
             // errors are ignored as this is just for diff checking as of now (optional flow).
             logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
-        ).unwrap_or_default()
-    } else {
-        Vec::default()
+        )
+        .unwrap_or_default()
     };
 
     let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
@@ -538,8 +542,14 @@ pub async fn perform_static_routing_v1(
         ),
     };
 
+    // Results are logged for diff(between legacy and decision_engine's euclid) and have parameters as:
+    // is_equal: verifies all output are matching in order,
+    // is_equal_length: matches length of both outputs (useful for verifying volume based routing
+    // results)
+    // de_response: response from the decision_engine's euclid
+    // hs_response: response from legacy_euclid
     utils::compare_and_log_result(
-        de_euclid_connectors.clone(),
+        de_evaluated_connector.clone(),
         routable_connectors.clone(),
         "evaluate_routing".to_string(),
     );
@@ -549,7 +559,7 @@ pub async fn perform_static_routing_v1(
             state,
             business_profile,
             routable_connectors,
-            de_euclid_connectors,
+            de_evaluated_connector,
         )
         .await,
         routing_approach,
@@ -1042,6 +1052,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    logger::debug!("euclid_routing: performing eligibility");
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
@@ -1076,7 +1087,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         .iter()
         .map(|item| item.connector)
         .collect::<Vec<_>>();
-    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
+    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "euclid_routing: List of final selected connectors for routing");
 
     Ok(final_selection)
 }

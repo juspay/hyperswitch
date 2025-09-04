@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -23,7 +24,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -166,6 +167,7 @@ impl ConnectorCommon for Stripebilling {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -597,7 +599,7 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/payment_intents/{}?expand[0]=latest_charge",
+            "{}v1/charges/{}",
             self.base_url(connectors),
             req.request.billing_connector_psync_id
         ))
@@ -630,10 +632,10 @@ impl
         recovery_router_data_types::BillingConnectorPaymentsSyncRouterData,
         errors::ConnectorError,
     > {
-        let response: stripebilling::StripebillingBillingConnectorPaymentSyncResponseData = res
+        let response: stripebilling::StripebillingRecoveryDetailsData = res
             .response
-            .parse_struct::<stripebilling::StripebillingBillingConnectorPaymentSyncResponseData>(
-                "StripebillingBillingConnectorPaymentSyncResponseData",
+            .parse_struct::<stripebilling::StripebillingRecoveryDetailsData>(
+                "StripebillingRecoveryDetailsData",
             )
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -805,9 +807,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook.data.object.payment_intent,
-            ),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.data.object.charge),
         ))
     }
 
@@ -912,4 +912,22 @@ fn get_signature_elements_from_header(
     Ok(header_hashmap)
 }
 
-impl ConnectorSpecifications for Stripebilling {}
+static STRIPEBILLING_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Stripebilling",
+    description: "Stripe Billing manages subscriptions, recurring payments, and invoicing. It supports trials, usage-based billing, coupons, and automated retries.",
+    connector_type: enums::HyperswitchConnectorCategory::RevenueGrowthManagementPlatform,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
+};
+
+static STRIPEBILLING_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
+    [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Stripebilling {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&STRIPEBILLING_CONNECTOR_INFO)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&STRIPEBILLING_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

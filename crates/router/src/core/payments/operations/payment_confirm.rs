@@ -467,6 +467,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
             })
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
+        payment_intent.enable_partial_authorization = request
+            .enable_partial_authorization
+            .or(payment_intent.enable_partial_authorization);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
@@ -659,6 +662,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_method_type = Option::<api_models::enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         payment_attempt.payment_method_type = payment_method_type
@@ -1224,7 +1228,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         mandate_type: Option<api_models::payments::MandateTransactionType>,
-        do_authorisation_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let unified_authentication_service_flow =
             helpers::decide_action_for_unified_authentication_service(
@@ -1234,7 +1237,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data,
                 connector_call_type,
                 mandate_type,
-                do_authorisation_confirmation,
             )
             .await?;
 
@@ -1374,60 +1376,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             authentication
                         };
                         payment_data.authentication = Some(authentication_store);
-                },
-                helpers::UnifiedAuthenticationServiceFlow::ClickToPayConfirmation => {
-                    let authentication_product_ids = business_profile
-                    .authentication_product_ids
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                        message: "authentication_product_ids is not configured in business profile"
-                            .to_string(),
-                    })?;
-                    let click_to_pay_mca_id = authentication_product_ids
-                    .get_click_to_pay_connector_account_id()
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "click_to_pay_mca_id",
-                    })?;
-                    let key_manager_state = &(state).into();
-                    let merchant_id = &business_profile.merchant_id;
-
-                    let connector_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            key_manager_state,
-                            merchant_id,
-                            &click_to_pay_mca_id,
-                            key_store,
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: click_to_pay_mca_id.get_string_repr().to_string(),
-                            },
-                        )?;
-
-                    let payment_method = payment_data.payment_attempt.payment_method.ok_or(
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method",
-                        },
-                    )?;
-
-                    ClickToPay::confirmation(
-                                            state,
-                                            key_store,
-                                            business_profile,
-                                            payment_data.payment_attempt.authentication_id.as_ref(),
-                                            payment_data.payment_intent.currency,
-                                            payment_data.payment_attempt.status,
-                                            payment_data.service_details.clone(),
-                                            &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
-                                            &connector_mca.connector_name,
-                                            payment_method,
-                                            payment_data.payment_attempt.net_amount.get_order_amount(),
-                                            Some(&payment_data.payment_intent.payment_id),
-                                            merchant_id,
-                                        )
-                                        .await?
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
                     acquirer_details,
@@ -1846,7 +1794,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.get_total_amount();
 
         let client_source = header_payload
             .client_source
@@ -1936,7 +1883,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         straight_through_algorithm: m_straight_through_algorithm,
                         error_code: m_error_code,
                         error_message: m_error_message,
-                        amount_capturable: Some(authorized_amount),
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
@@ -1966,6 +1912,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         card_discovery,
                         routing_approach: payment_data.payment_attempt.routing_approach,
                         connector_request_reference_id,
+                        network_transaction_id: payment_data
+                            .payment_attempt
+                            .network_transaction_id
+                            .clone(),
                     },
                     storage_scheme,
                 )
@@ -2054,6 +2004,20 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
+                        payment_channel: payment_data.payment_intent.payment_channel,
+                        feature_metadata: payment_data
+                            .payment_intent
+                            .feature_metadata
+                            .clone()
+                            .map(masking::Secret::new),
+                        tax_status: payment_data.payment_intent.tax_status,
+                        discount_amount: payment_data.payment_intent.discount_amount,
+                        order_date: payment_data.payment_intent.order_date,
+                        shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                        duty_amount: payment_data.payment_intent.duty_amount,
+                        enable_partial_authorization: payment_data
+                            .payment_intent
+                            .enable_partial_authorization,
                     })),
                     &m_key_store,
                     storage_scheme,

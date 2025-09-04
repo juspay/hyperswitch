@@ -1266,6 +1266,7 @@ impl PaymentCreate {
         let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         // TODO: remove once https://github.com/juspay/hyperswitch/issues/7421 is fixed
@@ -1386,6 +1387,7 @@ impl PaymentCreate {
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
+                network_transaction_id:None,
             },
             additional_pm_data,
 
@@ -1465,6 +1467,7 @@ impl PaymentCreate {
                 phone: request.phone.clone(),
                 email: request.email.clone(),
                 phone_country_code: request.phone_country_code.clone(),
+                tax_registration_id: None,
             })
         } else {
             None
@@ -1621,6 +1624,13 @@ impl PaymentCreate {
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
             is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
+            payment_channel: request.payment_channel.clone(),
+            order_date: request.order_date,
+            discount_amount: request.discount_amount,
+            duty_amount: request.duty_amount,
+            tax_status: request.tax_status,
+            shipping_amount_tax: request.shipping_amount_tax,
+            enable_partial_authorization: request.enable_partial_authorization,
         })
     }
 

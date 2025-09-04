@@ -128,6 +128,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        l2_l3_data: None,
+        minor_amount_capturable: None,
     })
 }
 
@@ -235,6 +237,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
                         eci: authentication_details.eci,
+                        challenge_code: authentication_details.challenge_code,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
+                        message_extension: authentication_details.message_extension,
                     },
                 )
             }
@@ -271,6 +277,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         ),
                         trans_status,
                         eci: authentication_details.eci,
+                        challenge_cancel: authentication_details.challenge_cancel,
+                        challenge_code_reason: authentication_details.challenge_code_reason,
                     },
                 )
             }
@@ -309,12 +317,12 @@ pub fn get_checkout_event_status_and_reason(
 ) -> (Option<String>, Option<String>) {
     match attempt_status {
         common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized => (
-            Some("02".to_string()),
-            Some("Approval Code received".to_string()),
+            Some("01".to_string()),
+            Some("The payment was successful".to_string()),
         ),
         _ => (
             Some("03".to_string()),
-            Some("No Approval Code received".to_string()),
+            Some("The payment was not successful".to_string()),
         ),
     }
 }

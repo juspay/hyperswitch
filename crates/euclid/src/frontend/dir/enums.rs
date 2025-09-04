@@ -76,6 +76,7 @@ pub enum PayLaterType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
+    Bluecode,
     GooglePay,
     AmazonPay,
     Skrill,
@@ -246,6 +247,7 @@ pub enum BankTransferType {
 pub enum GiftCardType {
     PaySafeCard,
     Givex,
+    BhnCardNetwork,
 }
 
 #[derive(

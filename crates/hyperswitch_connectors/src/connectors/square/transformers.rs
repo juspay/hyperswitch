@@ -105,8 +105,10 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
     fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
         let (_item, wallet_data) = value;
         match wallet_data {
-            WalletData::ApplePay(_)
+            WalletData::AmazonPay(_)
+            | WalletData::ApplePay(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)

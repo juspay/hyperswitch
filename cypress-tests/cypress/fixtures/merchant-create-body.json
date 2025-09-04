@@ -9,7 +9,7 @@
     "secondary_contact_person": "John Test2",
     "secondary_email": "JohnTest2@test.com",
     "secondary_phone": "cillum do dolor id",
-    "website": "www.example.com",
+    "website": "https://www.example.com",
     "about_business": "Online Retail with a wide selection of organic products for North America",
     "address": {
       "line1": "1467",
@@ -18,10 +18,11 @@
       "city": "San Francisco",
       "state": "California",
       "zip": "94122",
-      "country": "US"
+      "country": "US",
+      "first_name": "john",
+      "last_name": "Doe"
     }
   },
-  "return_url": "https://example.com",
   "webhook_details": {
     "webhook_version": "1.0.1",
     "webhook_username": "ekart_retail",
@@ -30,6 +31,7 @@
     "payment_succeeded_enabled": true,
     "payment_failed_enabled": true
   },
+  "return_url": "https://example.com",
   "sub_merchants_enabled": false,
   "metadata": {
     "city": "NY",

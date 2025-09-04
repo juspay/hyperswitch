@@ -31,7 +31,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, ApplePayDecrypt, PaymentsCaptureRequestData, RouterData as OtherRouterData,
+        self, PaymentsCaptureRequestData, RouterData as OtherRouterData,
         WalletData as OtherWalletData,
     },
 };
@@ -108,9 +108,11 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -214,7 +216,7 @@ pub enum PaymentSource {
 
 #[derive(Debug, Serialize)]
 pub struct ApplePayPredecrypt {
-    token: Secret<String>,
+    token: cards::CardNumber,
     #[serde(rename = "type")]
     decrypt_type: String,
     token_type: String,
@@ -340,8 +342,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             }))
                         }
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let exp_month = decrypt_data.get_expiry_month()?;
-                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year()?;
+                            let exp_month = decrypt_data.get_expiry_month().change_context(
+                                errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "expiration_month",
+                                },
+                            )?;
+                            let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
                             Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                                 ApplePayPredecrypt {
                                     token: decrypt_data.application_primary_account_number,
@@ -365,9 +371,11 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -714,6 +722,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             None
@@ -769,6 +778,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             None

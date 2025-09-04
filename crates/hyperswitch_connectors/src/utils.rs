@@ -50,16 +50,16 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -232,7 +232,7 @@ pub struct GooglePayWalletData {
     pub pm_type: String,
     pub description: String,
     pub info: GooglePayPaymentMethodInfo,
-    pub tokenization_data: GpayTokenizationData,
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -248,27 +248,35 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct GpayTokenizationData {
-    #[serde(rename = "type")]
-    pub token_type: String,
-    pub token: Secret<String>,
-}
+impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
+    type Error = common_utils::errors::ValidationError;
 
-impl From<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: payment_method_data::GooglePayWalletData) -> Self {
-        Self {
+    fn try_from(data: payment_method_data::GooglePayWalletData) -> Result<Self, Self::Error> {
+        let tokenization_data = match data.tokenization_data {
+            common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => {
+                common_types::payments::GpayTokenizationData::Encrypted(
+                    common_types::payments::GpayEcryptedTokenizationData {
+                        token_type: encrypted_data.token_type,
+                        token: encrypted_data.token,
+                    },
+                )
+            }
+            common_types::payments::GpayTokenizationData::Decrypted(_) => {
+                return Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Expected encrypted tokenization data, got decrypted".to_string(),
+                });
+            }
+        };
+
+        Ok(Self {
             pm_type: data.pm_type,
             description: data.description,
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
             },
-            tokenization_data: GpayTokenizationData {
-                token_type: data.tokenization_data.token_type,
-                token: Secret::new(data.tokenization_data.token),
-            },
-        }
+            tokenization_data,
+        })
     }
 }
 pub(crate) fn get_amount_as_f64(
@@ -356,6 +364,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -436,6 +445,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Authorizing
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
         | AttemptStatus::VoidInitiated
         | AttemptStatus::CaptureInitiated
         | AttemptStatus::AutoRefunded
@@ -446,7 +456,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
-        | AttemptStatus::IntegrityFailure => false,
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::PartiallyAuthorized => false,
     }
 }
 
@@ -488,6 +499,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
@@ -500,6 +512,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -508,7 +521,15 @@ pub trait RouterData {
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
+
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_city(&self) -> Result<String, Error>;
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error>;
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
@@ -523,6 +544,7 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -601,6 +623,15 @@ impl<Flow, Request, Response> RouterData
         })
     }
 
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
+        })
+    }
+
     fn get_optional_shipping_city(&self) -> Option<String> {
         self.address.get_shipping().and_then(|shipping_address| {
             shipping_address
@@ -648,6 +679,13 @@ impl<Flow, Request, Response> RouterData
             .get_shipping()
             .and_then(|shipping_address| shipping_address.clone().phone)
             .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
+    }
+
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
@@ -988,6 +1026,38 @@ impl<Flow, Request, Response> RouterData
             .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_full_name()
+            .ok_or_else(missing_field_err(
+                "shipping.address.first_name or shipping.address.last_name",
+            ))
+    }
+
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_line1()
+            .ok_or_else(missing_field_err("shipping.address.line1"))
+    }
+
+    fn get_required_shipping_city(&self) -> Result<String, Error> {
+        self.get_optional_shipping_city()
+            .ok_or_else(missing_field_err("shipping.address.city"))
+    }
+
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_state()
+            .ok_or_else(missing_field_err("shipping.address.state"))
+    }
+
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_zip()
+            .ok_or_else(missing_field_err("shipping.address.zip"))
+    }
+
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_phone_number_without_country_code()
+            .ok_or_else(missing_field_err("shipping.phone.number"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api_models::payouts::PayoutMethodData, Error> {
         self.payout_method_data
@@ -999,6 +1069,14 @@ impl<Flow, Request, Response> RouterData
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
+        self.l2_l3_data.clone()
+    }
+
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_id.clone()
     }
 }
 
@@ -1012,40 +1090,6 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
             .id
             .clone()
             .ok_or_else(missing_field_err("request.id"))
-    }
-}
-pub trait ApplePayDecrypt {
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
-        ))
-    }
-
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(format!(
-            "20{}",
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        )))
-    }
-
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        ))
     }
 }
 
@@ -1544,6 +1588,9 @@ impl AddressDetailsData for AddressDetails {
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
             )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
             _ => Ok(state.clone()),
         }
     }
@@ -1677,13 +1724,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -1702,6 +1757,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
     fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -1823,6 +1879,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.ip_address);
+
+        let val = ip_address.ok_or_else(missing_field_err("browser_info.ip_address"))?;
+
+        Ok(Secret::new(val.to_string()))
     }
     fn get_optional_user_agent(&self) -> Option<String> {
         self.browser_info
@@ -2139,6 +2205,7 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -2186,6 +2253,10 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -5449,6 +5520,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Skrill,
     Paysera,
@@ -5462,6 +5534,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -5517,6 +5590,7 @@ pub enum PaymentMethodDataType {
     PermataBankTransfer,
     BcaBankTransfer,
     BniVaBankTransfer,
+    BhnCardNetwork,
     BriVaBankTransfer,
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
@@ -5585,6 +5659,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
@@ -5592,6 +5667,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -5752,6 +5828,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                payment_method_data::GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork,
             },
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
@@ -5765,18 +5842,42 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         }
     }
 }
+pub trait GooglePay {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl GooglePay for payment_method_data::GooglePayWalletData {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error> {
+        let encrypted_data = self
+            .tokenization_data
+            .get_encrypted_google_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Google Pay".to_string(),
+            })?;
+
+        Ok(Secret::new(encrypted_data.token.clone()))
+    }
+}
 pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePay for payment_method_data::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let apple_pay_encrypted_data = self
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
         let token = Secret::new(
-            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
-                errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                },
-            )?)
+            String::from_utf8(
+                BASE64_ENGINE
+                    .decode(apple_pay_encrypted_data)
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
+            )
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
@@ -5796,7 +5897,7 @@ pub trait WalletData {
 impl WalletData for payment_method_data::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
@@ -6216,6 +6317,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
+        payment_channel: None,
+        enable_partial_authorization: data.request.enable_partial_authorization,
     }
 }
 
@@ -6275,6 +6378,8 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+        l2_l3_data: data.l2_l3_data.clone(),
+        minor_amount_capturable: data.minor_amount_capturable,
     }
 }
 
@@ -6306,6 +6411,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
             | AttemptStatus::AutoRefunded
@@ -6315,7 +6421,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
             | AttemptStatus::Charged
-            | AttemptStatus::IntegrityFailure => Some(true),
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::PartiallyAuthorized => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
@@ -6574,6 +6681,11 @@ impl SplitPaymentData for SetupMandateRequestData {
         None
     }
 }
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
 
 pub struct XmlSerializer;
 impl XmlSerializer {
@@ -6613,5 +6725,18 @@ impl XmlSerializer {
             .attach_printable("Failed to serialize the XML body")?;
 
         Ok(xml_bytes)
+    }
+}
+
+pub fn deserialize_zero_minor_amount_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<MinorUnit>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    match amount {
+        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        _ => Ok(amount),
     }
 }

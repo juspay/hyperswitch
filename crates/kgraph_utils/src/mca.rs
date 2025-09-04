@@ -40,6 +40,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(PayLaterType = AfterpayClearpay))
         }
         api_enums::PaymentMethodType::GooglePay => Ok(dirval!(WalletType = GooglePay)),
+        api_enums::PaymentMethodType::Bluecode => Ok(dirval!(WalletType = Bluecode)),
         api_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
         api_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
         api_enums::PaymentMethodType::CryptoCurrency => Ok(dirval!(CryptoType = CryptoCurrency)),
@@ -151,6 +152,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Seicomart => Ok(dirval!(VoucherType = Seicomart)),
         api_enums::PaymentMethodType::PayEasy => Ok(dirval!(VoucherType = PayEasy)),
         api_enums::PaymentMethodType::Givex => Ok(dirval!(GiftCardType = Givex)),
+        api_enums::PaymentMethodType::BhnCardNetwork => Ok(dirval!(GiftCardType = BhnCardNetwork)),
         api_enums::PaymentMethodType::Benefit => Ok(dirval!(CardRedirectType = Benefit)),
         api_enums::PaymentMethodType::Knet => Ok(dirval!(CardRedirectType = Knet)),
         api_enums::PaymentMethodType::OpenBankingUk => {

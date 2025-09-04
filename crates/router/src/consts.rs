@@ -274,6 +274,10 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
+/// Default payment attempt id
+pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
+    "irrelevant_connector_request_reference_id";
+
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
@@ -322,3 +326,6 @@ pub const UCS_AUTH_BODY_KEY: &str = "body-key";
 
 /// Header value indicating that header-key-based authentication is used.
 pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
+
+/// Header value indicating that currency-auth-key-based authentication is used.
+pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";

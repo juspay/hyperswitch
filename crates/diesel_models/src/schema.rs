@@ -31,6 +31,7 @@ diesel::table! {
         #[max_length = 32]
         updated_by -> Varchar,
         email -> Nullable<Bytea>,
+        origin_zip -> Nullable<Bytea>,
     }
 }
 
@@ -137,6 +138,10 @@ diesel::table! {
         email -> Nullable<Bytea>,
         #[max_length = 128]
         profile_acquirer_id -> Nullable<Varchar>,
+        challenge_code -> Nullable<Varchar>,
+        challenge_cancel -> Nullable<Varchar>,
+        challenge_code_reason -> Nullable<Varchar>,
+        message_extension -> Nullable<Jsonb>,
     }
 }
 
@@ -247,6 +252,7 @@ diesel::table! {
         merchant_category_code -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
+        dispute_polling_interval -> Nullable<Int4>,
     }
 }
 
@@ -366,6 +372,7 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         version -> ApiVersion,
+        tax_registration_id -> Nullable<Bytea>,
     }
 }
 
@@ -595,6 +602,9 @@ diesel::table! {
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
         clear_pan_possible -> Bool,
+        feature_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        feature -> Nullable<Varchar>,
     }
 }
 
@@ -971,6 +981,8 @@ diesel::table! {
         routing_approach -> Nullable<RoutingApproach>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_id -> Nullable<Varchar>,
     }
 }
 
@@ -1066,6 +1078,14 @@ diesel::table! {
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
         is_payment_id_from_merchant -> Nullable<Bool>,
+        #[max_length = 64]
+        payment_channel -> Nullable<Varchar>,
+        tax_status -> Nullable<Varchar>,
+        discount_amount -> Nullable<Int8>,
+        shipping_amount_tax -> Nullable<Int8>,
+        duty_amount -> Nullable<Int8>,
+        order_date -> Nullable<Timestamp>,
+        enable_partial_authorization -> Nullable<Bool>,
     }
 }
 
@@ -1449,6 +1469,36 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    subscription (id) {
+        id -> Int4,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 128]
+        status -> Varchar,
+        #[max_length = 128]
+        billing_processor -> Nullable<Varchar>,
+        #[max_length = 128]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        mca_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        client_secret -> Nullable<Varchar>,
+        #[max_length = 128]
+        connector_subscription_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     themes (theme_id) {
         #[max_length = 64]
         theme_id -> Varchar,
@@ -1630,6 +1680,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    subscription,
     themes,
     unified_translations,
     user_authentication_methods,
