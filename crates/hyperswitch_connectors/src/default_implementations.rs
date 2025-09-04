@@ -8506,8 +8506,8 @@ default_imp_for_customer_create!(
     connectors::Globepay,
     connectors::Gocardless,
     connectors::Gpayments,
-    connectors::Helcim,
     connectors::Hipay,
+    connectors::Helcim,
     connectors::HyperswitchVault,
     connectors::Hyperwallet,
     connectors::Iatapay,
@@ -8530,14 +8530,12 @@ default_imp_for_customer_create!(
     connectors::Opennode,
     connectors::Payeezy,
     connectors::Payload,
-    connectors::Payme,
-    connectors::Payone,
-    connectors::Paypal,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -8560,10 +8558,10 @@ default_imp_for_customer_create!(
     connectors::Sift,
     connectors::Silverflow,
     connectors::Signifyd,
-    connectors::Stripe,
-    connectors::Stripebilling,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Square,
+    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
@@ -8673,6 +8671,7 @@ default_imp_for_subscriptions!(
     connectors::Payu,
     connectors::Phonepe,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Powertranz,
     connectors::Prophetpay,
     connectors::Mifinity,
@@ -8718,7 +8717,7 @@ default_imp_for_subscriptions!(
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
-);
+        );
 
 #[cfg(feature = "v1")]
 default_imp_for_customer_create!();

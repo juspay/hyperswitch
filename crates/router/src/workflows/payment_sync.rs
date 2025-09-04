@@ -126,7 +126,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 &state.into(),
                 &payment_data.payment_intent.merchant_id,
                 &mca_id,
-                key_store,
+                &key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

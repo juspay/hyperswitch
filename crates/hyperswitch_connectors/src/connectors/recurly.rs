@@ -145,7 +145,7 @@ impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Rec
 impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recurly {}
 
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
-impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl api::subscriptions_v2::CustomerCreateV2 for Recurly {}
 
 impl 
     ConnectorIntegrationV2<
