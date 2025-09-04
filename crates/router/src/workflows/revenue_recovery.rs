@@ -372,8 +372,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_issuer: card_issuer_str,
         invoice_start_time: Some(start_time_proto),
         retry_count: Some(
-            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
-                .into(),
+            token_with_retry_info.total_30_day_retries.into()
         ),
         merchant_id,
         invoice_amount,
@@ -513,6 +512,45 @@ pub struct ScheduledToken {
     pub schedule_time: time::PrimitiveDateTime,
 }
 
+
+#[cfg(feature = "v2")]
+pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
+    let now_utc = time::OffsetDateTime::now_utc();
+    let scheduled_time_with_buffer = scheduled_time + time::Duration::minutes(5);
+
+    let scheduled_offset_dt = scheduled_time_with_buffer.assume_utc();
+    let difference = scheduled_offset_dt - now_utc;
+
+    difference.whole_seconds()
+}
+
+#[cfg(feature = "v2")]
+pub async fn update_token_expiry_based_on_schedule_time(
+    state: &SessionState,
+    connector_customer_id: &str,
+    delayed_schedule_time: Option<time::PrimitiveDateTime>
+) -> CustomResult<(), errors::ProcessTrackerError> {
+
+    let token_expiry = delayed_schedule_time.map(calculate_difference_in_seconds);
+
+    match token_expiry {
+        None => logger::info!("Found token expiry time as None"),
+        Some(expiry_time) => {
+            RedisTokenManager::update_connector_customer_lock_ttl(
+                state,
+                connector_customer_id,
+                expiry_time,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::ERedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
@@ -552,6 +590,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     }
     let delayed_schedule_time =
         scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
+
+    update_token_expiry_based_on_schedule_time(
+        state,
+        connector_customer_id,
+        delayed_schedule_time
+    )
+    .await;
 
     Ok(delayed_schedule_time)
 }

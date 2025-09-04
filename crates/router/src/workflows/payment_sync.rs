@@ -6,7 +6,8 @@ use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
-
+#[cfg(feature = "revenue_recovery")]
+use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
     consts,
     core::{
@@ -303,6 +304,54 @@ pub async fn retry_sync_task(
     }
 }
 
+/// Schedule the task for retry and upate redis token expiry time
+///
+/// Returns bool which indicates whether this was the last retry or not
+#[cfg(feature = "revenue_recovery")]
+pub async fn recovery_retry_sync_task(
+    state: &SessionState,
+    connector_customer_id: Option<String>,
+    connector: String,
+    merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+
+    let db = &*state.store;
+    let schedule_time =
+        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+            match connector_customer_id {
+                Some(connector_customer_id) => {
+                    match update_token_expiry_based_on_schedule_time(
+                        state,
+                        &connector_customer_id,
+                        Some(s_time)
+                    )
+                    .await {
+                        Ok(_) => {}, 
+                        Err(e) => {
+                            logger::error!(
+                                error = ?e,
+                                connector_customer_id = %connector_customer_id,
+                                "Failed to update the token expiry time in redis"
+                            );
+                        }
+                    };
+                }
+                None => logger::warn!("No connector customer id found in payment intent feature metadata"),
+            }
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

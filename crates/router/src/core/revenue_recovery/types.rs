@@ -806,17 +806,14 @@ impl Action {
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-                    let is_hard_decline =
-                        revenue_recovery::check_hard_decline(state, &payment_attempt)
-                            .await
-                            .ok();
 
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     &None,
-                    &is_hard_decline,
+                    // Since this is succeeded, 'hard_decine' will be false.
+                    &Some(false),
                     used_token.as_deref(),
                 )
                 .await;
@@ -900,13 +897,18 @@ impl Action {
         logger::info!("Entering psync_response_handler");
 
         let db = &*state.store;
+        
+        let connector_customer_id= payment_intent.feature_metadata.as_ref()
+        .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref()).map(|rr| rr.billing_connector_payment_details.connector_customer_id.clone());
+
         match self {
             Self::SyncPayment(payment_attempt) => {
                 //  get a schedule time for psync
                 // and retry the process if there is a schedule time
                 // if None mark the pt status as Retries Exceeded and finish the task
-                payment_sync::retry_sync_task(
-                    db,
+                payment_sync::recovery_retry_sync_task(
+                    state,
+                    connector_customer_id,
                     revenue_recovery_metadata.connector.to_string(),
                     revenue_recovery_payment_data
                         .merchant_account

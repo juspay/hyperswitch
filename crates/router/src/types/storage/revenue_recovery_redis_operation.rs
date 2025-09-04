@@ -61,6 +61,8 @@ pub struct PaymentProcessorTokenWithRetryInfo {
     pub retry_wait_time_hours: i64,
     /// Number of retries remaining in the 30-day rolling window
     pub monthly_retry_remaining: i32,
+    // Current total retry count in 30-day window
+    pub total_30_day_retries: i32,
 }
 
 /// Redis-based token management struct
@@ -105,6 +107,41 @@ impl RedisTokenManager {
             payment_id = payment_id.get_string_repr(),
             lock_acquired = %result,
             "Connector customer lock attempt"
+        );
+
+        Ok(result)
+    }
+    #[instrument(skip_all)]
+    pub async fn update_connector_customer_lock_ttl(
+        state: &SessionState,
+        connector_customer_id: &str,
+        exp_in_seconds: i64,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::StorageError::RedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+
+        let lock_key = format!("customer:{connector_customer_id}:status");
+
+        let result: bool = match redis_conn
+            .set_expiry(&lock_key.into(), exp_in_seconds)
+            .await
+        {
+            Ok(_) => true,
+            Err(error) => {
+                tracing::error!(operation = "update_lock_ttl", err = ?error);
+                false
+            }
+        };
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            new_ttl_in_seconds = exp_in_seconds,
+            ttl_updated = %result,
+            "Connector customer lock TTL update with new expiry time"
         );
 
         Ok(result)
@@ -321,6 +358,7 @@ impl RedisTokenManager {
                 token_status: payment_processor_token_status.clone(),
                 retry_wait_time_hours,
                 monthly_retry_remaining,
+                total_30_day_retries: retry_info.total_30_day_retries,
             };
 
             result.insert(payment_processor_token_id.clone(), token_with_retry_info);
