@@ -806,7 +806,6 @@ impl Action {
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
@@ -897,9 +896,16 @@ impl Action {
         logger::info!("Entering psync_response_handler");
 
         let db = &*state.store;
-        
-        let connector_customer_id= payment_intent.feature_metadata.as_ref()
-        .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref()).map(|rr| rr.billing_connector_payment_details.connector_customer_id.clone());
+
+        let connector_customer_id = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rr| {
+                rr.billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            });
 
         match self {
             Self::SyncPayment(payment_attempt) => {

@@ -117,12 +117,13 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         exp_in_seconds: i64,
     ) -> CustomResult<bool, errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let lock_key = format!("customer:{connector_customer_id}:status");
 

@@ -6,6 +6,7 @@ use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
+
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
@@ -315,7 +316,6 @@ pub async fn recovery_retry_sync_task(
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
-
     let db = &*state.store;
     let schedule_time =
         get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
@@ -327,10 +327,11 @@ pub async fn recovery_retry_sync_task(
                     match update_token_expiry_based_on_schedule_time(
                         state,
                         &connector_customer_id,
-                        Some(s_time)
+                        Some(s_time),
                     )
-                    .await {
-                        Ok(_) => {}, 
+                    .await
+                    {
+                        Ok(_) => {}
                         Err(e) => {
                             logger::error!(
                                 error = ?e,
@@ -340,7 +341,9 @@ pub async fn recovery_retry_sync_task(
                         }
                     };
                 }
-                None => logger::warn!("No connector customer id found in payment intent feature metadata"),
+                None => logger::warn!(
+                    "No connector customer id found in payment intent feature metadata"
+                ),
             }
             Ok(false)
         }

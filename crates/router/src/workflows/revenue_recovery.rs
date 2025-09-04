@@ -371,9 +371,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: Some(start_time_proto),
-        retry_count: Some(
-            token_with_retry_info.total_30_day_retries.into()
-        ),
+        retry_count: Some(token_with_retry_info.total_30_day_retries.into()),
         merchant_id,
         invoice_amount,
         invoice_currency,
@@ -512,7 +510,6 @@ pub struct ScheduledToken {
     pub schedule_time: time::PrimitiveDateTime,
 }
 
-
 #[cfg(feature = "v2")]
 pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
     let now_utc = time::OffsetDateTime::now_utc();
@@ -528,9 +525,8 @@ pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) 
 pub async fn update_token_expiry_based_on_schedule_time(
     state: &SessionState,
     connector_customer_id: &str,
-    delayed_schedule_time: Option<time::PrimitiveDateTime>
+    delayed_schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-
     let token_expiry = delayed_schedule_time.map(calculate_difference_in_seconds);
 
     match token_expiry {
@@ -591,12 +587,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     let delayed_schedule_time =
         scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
-    update_token_expiry_based_on_schedule_time(
-        state,
-        connector_customer_id,
-        delayed_schedule_time
-    )
-    .await;
+    update_token_expiry_based_on_schedule_time(state, connector_customer_id, delayed_schedule_time)
+        .await;
 
     Ok(delayed_schedule_time)
 }
