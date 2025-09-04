@@ -3382,7 +3382,9 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
-            network_details: payment_attempt.network_details.into(),
+            network_details: payment_attempt
+                .network_details
+                .map(NetworkDetails::foreign_from),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3680,9 +3682,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
-            network_details:Some(NetworkDetails{
-                network_advice_code:pa.network_details.network_advice_code
-            })
+            network_details: pa.network_details.map(NetworkDetails::foreign_from),
         }
     }
 }
