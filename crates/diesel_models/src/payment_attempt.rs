@@ -35,7 +35,9 @@ impl ConnectorMandateReferenceId {
     }
 }
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
-#[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize,diesel::AsExpression)]
+#[derive(
+    Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct NetworkDetails {
     pub network_advice_code: Option<String>,
@@ -103,6 +105,7 @@ pub struct PaymentAttempt {
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_details: Option<NetworkDetails>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -125,7 +128,6 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
-    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -320,6 +322,7 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_details: Option<NetworkDetails>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
@@ -360,7 +363,6 @@ pub struct PaymentAttemptNew {
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
-    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -903,7 +905,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
-    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1012,6 +1013,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message: network_error_message.or(source.network_error_message),
             connector_request_reference_id: connector_request_reference_id
                 .or(source.connector_request_reference_id),
+            network_details: source.network_details,
         }
     }
 }
