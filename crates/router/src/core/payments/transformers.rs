@@ -25,9 +25,9 @@ use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_r
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-#[cfg(feature = "v2")]
-use masking::PeekInterface;
 use masking::{ExposeInterface, Maskable, Secret};
+#[cfg(feature = "v2")]
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
@@ -994,7 +994,6 @@ pub async fn construct_router_data_for_cancel<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsCancelRouterData> {
-    use masking::ExposeOptionInterface;
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
@@ -1008,12 +1007,12 @@ pub async fn construct_router_data_for_cancel<'a>(
         .attach_printable(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
-    let payment_intent = payment_data.payment_intent;
+    let payment_intent = payment_data.get_payment_intent();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
-    let attempt = &payment_data.payment_attempt;
+    let attempt = payment_data.get_payment_attempt();
     let connector_request_reference_id = payment_data
         .payment_attempt
         .connector_request_reference_id
