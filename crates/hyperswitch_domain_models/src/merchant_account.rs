@@ -612,6 +612,28 @@ impl super::behaviour::Conversion for MerchantAccount {
         Ok(diesel_models::MerchantAccount::from(setter))
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "MerchantAccount ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
@@ -673,8 +695,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting merchant data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "merchant data".to_string(),
         })
     }
 
@@ -741,6 +763,33 @@ impl super::behaviour::Conversion for MerchantAccount {
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
+    }
+
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.get_id() != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "MerchantAccount ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            keymanager::Identifier::User(_) | keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
+        }
     }
 
     async fn convert_back(
@@ -821,8 +870,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting merchant data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "merchant data".to_string(),
         })
     }
 
