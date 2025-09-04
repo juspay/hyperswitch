@@ -3476,6 +3476,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
         }))
     }
 
@@ -3972,6 +3973,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
+                is_manual_retry_enabled: self.is_manual_retry_enabled,
             },
         )))
     }

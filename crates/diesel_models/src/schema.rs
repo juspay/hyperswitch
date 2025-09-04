@@ -253,6 +253,7 @@ diesel::table! {
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
+        is_manual_retry_enabled -> Nullable<Bool>,
     }
 }
 

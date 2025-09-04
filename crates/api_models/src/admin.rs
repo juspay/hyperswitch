@@ -2196,6 +2196,9 @@ pub struct ProfileCreate {
     /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2538,6 +2541,9 @@ pub struct ProfileResponse {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2878,6 +2884,9 @@ pub struct ProfileUpdate {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
