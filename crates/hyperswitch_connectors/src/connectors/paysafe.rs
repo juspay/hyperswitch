@@ -166,7 +166,7 @@ impl ConnectorCommon for Paysafe {
             (Some(detail), Some(field)) => Some(format!("{detail}, {field}")),
             (Some(detail), None) => Some(detail),
             (None, Some(field)) => Some(field),
-            (None, None) => None,
+            (None, None) => Some(response.error.message.clone()),
         };
 
         Ok(ErrorResponse {

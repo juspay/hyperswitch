@@ -205,21 +205,6 @@ pub struct PaysafeMeta {
     pub payment_handle_token: Secret<String>,
 }
 
-impl From<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
-    fn from(item: PaysafePaymentHandleStatus) -> Self {
-        match item {
-            PaysafePaymentHandleStatus::Completed => Self::Charged,
-            PaysafePaymentHandleStatus::Failed | PaysafePaymentHandleStatus::Expired => {
-                Self::Failure
-            }
-            PaysafePaymentHandleStatus::Processing | PaysafePaymentHandleStatus::Payable => {
-                Self::Pending
-            }
-            PaysafePaymentHandleStatus::Initiated => Self::AuthenticationPending,
-        }
-    }
-}
-
 impl<F>
     TryFrom<
         ResponseRouterData<
@@ -240,7 +225,6 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
             preprocessing_id: Some(
                 item.response
                     .payment_handle_token
@@ -400,9 +384,9 @@ pub fn get_paysafe_payment_status(
         PaysafePaymentStatus::Failed => common_enums::AttemptStatus::Failure,
         PaysafePaymentStatus::Pending
         | PaysafePaymentStatus::Processing
-        | PaysafePaymentStatus::Received => common_enums::AttemptStatus::Pending,
+        | PaysafePaymentStatus::Received
+        | PaysafePaymentStatus::Held => common_enums::AttemptStatus::Pending,
         PaysafePaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
-        PaysafePaymentStatus::Held => common_enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -511,7 +495,7 @@ impl From<PaysafeSettlementStatus> for common_enums::AttemptStatus {
             | PaysafeSettlementStatus::Received => Self::Charged,
             PaysafeSettlementStatus::Failed | PaysafeSettlementStatus::Expired => Self::Failure,
             PaysafeSettlementStatus::Cancelled => Self::Voided,
-            PaysafeSettlementStatus::Initiated => Self::AuthenticationPending,
+            PaysafeSettlementStatus::Initiated => Self::Pending,
         }
     }
 }
