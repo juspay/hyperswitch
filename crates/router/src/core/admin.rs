@@ -3476,6 +3476,10 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 
@@ -3964,7 +3968,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge, //
+                force_3ds_challenge: self.force_3ds_challenge,
                 is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -3972,6 +3976,11 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
+
             },
         )))
     }

@@ -78,6 +78,8 @@ pub struct Profile {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -136,6 +138,8 @@ pub struct ProfileNew {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -194,6 +198,8 @@ pub struct ProfileUpdateInternal {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -249,6 +255,8 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             dispute_polling_interval,
+            is_external_vault_enabled,
+            external_vault_connector_details,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -335,7 +343,12 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
+            external_vault_connector_details: external_vault_connector_details
+                .or(source.external_vault_connector_details),
         }
+    
     }
 }
 

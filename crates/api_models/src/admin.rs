@@ -2196,6 +2196,12 @@ pub struct ProfileCreate {
     /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[nutype::nutype(
@@ -2538,6 +2544,12 @@ pub struct ProfileResponse {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2878,6 +2890,12 @@ pub struct ProfileUpdate {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

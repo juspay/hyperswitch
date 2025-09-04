@@ -253,6 +253,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1177,6 +1179,8 @@ diesel::table! {
         #[max_length = 64]
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
     }
 }
 

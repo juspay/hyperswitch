@@ -37,11 +37,11 @@ use crate::{
     type_encryption::{crypto_operation, CryptoOperation},
 };
 
-#[cfg(feature = "v2")]
+// #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct VaultId(String);
 
-#[cfg(any(feature = "v2", feature = "tokenization_v2"))]
+// #[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 impl VaultId {
     pub fn get_string_repr(&self) -> &String {
         &self.0
@@ -88,6 +88,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
+    pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
 }
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
@@ -298,6 +299,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            external_vault_source: self.external_vault_source,
         })
     }
 
@@ -385,6 +387,8 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                external_vault_source: item.external_vault_source,
+
             })
         }
         .await
@@ -433,6 +437,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            external_vault_source: self.external_vault_source,
         })
     }
 }
@@ -1127,6 +1132,7 @@ mod tests {
             network_token_requestor_reference_id: None,
             network_token_locker_id: None,
             network_token_payment_method_data: None,
+            external_vault_source: None,
         };
         payment_method.clone()
     }

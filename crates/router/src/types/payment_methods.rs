@@ -45,17 +45,29 @@ pub struct VaultFingerprintResponse {
 #[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
+    #[cfg(feature = "v2")]
     pub entity_id: id_type::GlobalCustomerId,
+    #[cfg(not(feature = "v2"))]
+    pub entity_id: id_type::CustomerId,
+    #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
+    #[cfg(not(feature = "v2"))]
+    pub vault_id: String,
     pub data: D,
     pub ttl: i64,
 }
 
-#[cfg(feature = "v2")]
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
+    #[cfg(feature = "v2")]
     pub entity_id: Option<id_type::GlobalCustomerId>,
+    #[cfg(not(feature = "v2"))]
+    pub entity_id: Option<id_type::CustomerId>,
+    #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
+    #[cfg(not(feature = "v2"))]
+    pub vault_id: String,
     pub fingerprint_id: Option<String>,
 }
 
