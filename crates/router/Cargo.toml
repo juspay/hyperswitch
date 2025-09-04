@@ -127,7 +127,7 @@ currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 events = { version = "0.1.0", path = "../events" }
-external_services = { version = "0.1.0", path = "../external_services" }
+external_services = { version = "0.1.0", path = "../external_services", features = ["superposition"] }
 hyperswitch_connectors = { version = "0.1.0", path = "../hyperswitch_connectors", default-features = false }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

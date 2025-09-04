@@ -135,6 +135,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub config_service: Arc<dyn external_services::config_service::ConfigServiceInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -255,6 +256,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub config_service: Arc<dyn external_services::config_service::ConfigServiceInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -421,6 +423,11 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
+            let config_service = Arc::new(
+                external_services::config_service::ConfigService::new(conf.config_service.clone())
+                    .await
+                    .expect("Failed to create config service"),
+            );
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -443,6 +450,7 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
+                config_service,
             }
         })
         .await
@@ -539,6 +547,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            config_service: self.config_service.clone(),
         })
     }
 

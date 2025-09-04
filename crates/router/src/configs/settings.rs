@@ -167,6 +167,7 @@ pub struct Settings<S: SecretState> {
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
+    pub config_service: external_services::config_service::ConfigServiceConfig,
     pub proxy_status_mapping: ProxyStatusMapping,
 }
 

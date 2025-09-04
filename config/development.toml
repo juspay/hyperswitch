@@ -1,3 +1,13 @@
+[config_service]
+config_service_backend = "enhanced"
+
+[config_service.superposition]
+enabled = true
+endpoint = "http://host.docker.internal:8080"
+token = "123456"
+org_id = "localorg"
+workspace_id = "dev"
+
 [log.file]
 enabled = false
 

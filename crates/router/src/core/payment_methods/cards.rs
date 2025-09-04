@@ -4127,19 +4127,16 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
+    let requires_cvv = state.config_service
+        .get_config_bool(
+            "cvv_enabled",
+            Some(external_services::config_service::ConfigContext::new()
+                .with("merchant_id", merchant_context.get_merchant_account().get_id().get_string_repr())),
+            true, // default value
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch requires_cvv config")?;
-
-    let requires_cvv = is_requires_cvv.config != "false";
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(

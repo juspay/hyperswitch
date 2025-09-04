@@ -3,6 +3,16 @@ port = 8080
 host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
+[config_service]
+config_service_backend = "enhanced"
+
+[config_service.superposition]
+enabled = true
+endpoint = "http://host.docker.internal:8080"
+token = "123456"
+org_id = "localorg"
+workspace_id = "dev"
+
 [log.file]
 enabled = false # Whether you want to store log in log files.
 path = "logs"   # Where to store log files.
@@ -1221,7 +1231,7 @@ max_retry_count_for_thirty_day = 20
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
 initial_timestamp_in_seconds = 3600        # number of seconds added to start time for Decider service of Revenue Recovery
-job_schedule_buffer_time_in_seconds = 3600  # time in seconds to be added in schedule time as a buffer 
+job_schedule_buffer_time_in_seconds = 3600  # time in seconds to be added in schedule time as a buffer
 reopen_workflow_buffer_time_in_seconds = 60  # time in seconds to be added in scheduling for calculate workflow
 
 [clone_connector_allowlist]
