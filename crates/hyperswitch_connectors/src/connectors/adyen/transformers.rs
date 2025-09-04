@@ -1415,7 +1415,7 @@ impl FromStr for AdyenRefundRequestReason {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "FRAUD" => Ok(Self::FRAUD),
-            "CUSTOMER REQUEST" => Ok(Self::CUSTOMERREQUEST),
+            "CUSTOMER REQUEST" | "CUSTOMERREQUEST" => Ok(Self::CUSTOMERREQUEST),
             "RETURN" => Ok(Self::RETURN),
             "DUPLICATE" => Ok(Self::DUPLICATE),
             "OTHER" => Ok(Self::OTHER),
@@ -1780,10 +1780,12 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
                         balance_pm,
                     )))
                 }
-                GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Balance".to_string(),
-                    connector: "adyen".to_string(),
-                }),
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
             },
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Balance".to_string(),
@@ -1802,7 +1804,13 @@ impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
     fn from(item: &PaymentsAuthorizeRouterData) -> Self {
         match item.request.off_session {
             Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
+            _ => match item.request.payment_channel {
+                Some(common_enums::PaymentChannel::Ecommerce)
+                | None
+                | Some(common_enums::PaymentChannel::Other(_)) => Self::Ecommerce,
+                Some(common_enums::PaymentChannel::MailOrder)
+                | Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Moto,
+            },
         }
     }
 }
@@ -2130,6 +2138,10 @@ impl TryFrom<&GiftCardData> for AdyenPaymentMethod<'_> {
                 };
                 Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
             }
+            GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -2352,6 +2364,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPay(_)
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
@@ -3954,6 +3967,7 @@ pub fn get_adyen_response(
                     .clone()
                     .or(data.merchant_advice_code.clone())
             }),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4029,6 +4043,7 @@ pub fn get_webhook_response(
             network_advice_code: None,
             network_decline_code: response.refusal_code_raw.clone(),
             network_error_message: response.refusal_reason_raw.clone(),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4103,6 +4118,7 @@ pub fn get_redirection_response(
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.refusal_reason_raw.clone()),
+            connector_metadata: None,
         })
     } else {
         None
@@ -4182,6 +4198,7 @@ pub fn get_present_to_shopper_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4250,6 +4267,7 @@ pub fn get_qr_code_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     } else {
         None
@@ -4319,6 +4337,7 @@ pub fn get_redirection_error_response(
             .additional_data
             .as_ref()
             .and_then(|data| data.refusal_reason_raw.clone()),
+        connector_metadata: None,
     });
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -4494,6 +4513,8 @@ pub fn get_present_to_shopper_metadata(
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
+                entry_date: None,
+                digitable_line: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -5866,6 +5887,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for AcceptDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5907,6 +5929,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for SubmitEvidenceRouterData 
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })
@@ -5950,6 +5973,7 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for DefendDisputeRouterData {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..data.clone()
             })

@@ -200,6 +200,7 @@ pub struct LocalBankTransferAdditionalData {
 pub enum GiftCardAdditionalData {
     Givex(Box<GivexGiftCardAdditionalData>),
     PaySafeCard {},
+    BhnCardNetwork {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

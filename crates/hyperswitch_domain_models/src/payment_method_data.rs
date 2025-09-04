@@ -46,6 +46,12 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum ExternalVaultPaymentMethodData {
+    Card(Box<ExternalVaultCard>),
+    VaultToken(VaultToken),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplePayFlow {
     Simplified(api_models::payments::PaymentProcessingDetails),
@@ -131,6 +137,30 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct ExternalVaultCard {
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Secret<String>,
+    pub bin_number: Option<String>,
+    pub last_four: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct VaultToken {
+    pub card_cvc: Secret<String>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -251,6 +281,7 @@ pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
     AliPayHkRedirect(AliPayHkRedirection),
+    AmazonPay(AmazonPayWalletData),
     AmazonPayRedirect(Box<AmazonPayRedirect>),
     BluecodeRedirect {},
     Paysera(Box<PayseraData>),
@@ -500,6 +531,11 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
+#[derive(Eq, PartialEq, Clone, Default, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AmazonPayWalletData {
+    pub checkout_session_id: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum RealTimePaymentData {
     DuitNow {},
@@ -626,6 +662,22 @@ pub enum VoucherData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// The bank number associated with the boleto
+    pub bank_number: Option<Secret<String>>,
+    /// The type of document (e.g., CPF, CNPJ)
+    pub document_type: Option<common_enums::DocumentKind>,
+    /// The percentage of fine applied for late payment
+    pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
+    pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
+    pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
+    pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
+    pub messages: Option<Vec<String>>,
+    /// The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -642,6 +694,7 @@ pub struct JCSVoucherData {}
 pub enum GiftCardData {
     Givex(GiftCardDetails),
     PaySafeCard {},
+    BhnCardNetwork(BHNGiftCardDetails),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -651,6 +704,19 @@ pub struct GiftCardDetails {
     pub number: Secret<String>,
     /// The card verification code.
     pub cvc: Secret<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct BHNGiftCardDetails {
+    /// The gift card or account number
+    pub account_number: Secret<String>,
+    /// The security PIN for gift cards requiring it
+    pub pin: Option<Secret<String>>,
+    /// The CVV2 code for Open Loop/VPLN products
+    pub cvv2: Option<Secret<String>>,
+    /// The expiration date in MMYYYY format for Open Loop/VPLN products
+    pub expiration_date: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
@@ -828,6 +894,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_holder_name,
                 co_badged_card_data: None,
             })),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
         }
     }
 }
@@ -886,6 +958,67 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     }
 }
 
+impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
+    fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
+        match api_model_payment_method_data {
+            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+                Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
+            }
+            api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
+                Self::VaultToken(VaultToken::from(vault_data))
+            }
+        }
+    }
+}
+impl From<api_models::payments::ProxyCardData> for ExternalVaultCard {
+    fn from(value: api_models::payments::ProxyCardData) -> Self {
+        let api_models::payments::ProxyCardData {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_cvc,
+            bin_number,
+            last_four,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc,
+            bin_number,
+            last_four,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: None,
+        }
+    }
+}
+impl From<api_models::payments::VaultToken> for VaultToken {
+    fn from(value: api_models::payments::VaultToken) -> Self {
+        let api_models::payments::VaultToken {
+            card_cvc,
+            card_holder_name,
+        } = value;
+
+        Self {
+            card_cvc,
+            card_holder_name,
+        }
+    }
+}
 impl
     From<(
         api_models::payments::Card,
@@ -979,6 +1112,26 @@ impl From<Card> for payment_methods::CardDetail {
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<ExternalVaultCard> for payment_methods::ProxyCardDetails {
+    fn from(card: ExternalVaultCard) -> Self {
+        Self {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
+            nick_name: card.nick_name,
+            card_issuing_country: card.card_issuing_country,
+            card_network: card.card_network,
+            card_issuer: card.card_issuer,
+            card_type: card.card_type,
+            card_cvc: Some(card.card_cvc),
+            bin_number: card.bin_number,
+            last_four: card.last_four,
+        }
+    }
+}
+
 impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     fn from(value: api_models::payments::CardRedirectData) -> Self {
         match value {
@@ -1010,6 +1163,9 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::AliPayHkRedirect(_) => {
                 Self::AliPayHkRedirect(AliPayHkRedirection {})
+            }
+            api_models::payments::WalletData::AmazonPay(amazon_pay_data) => {
+                Self::AmazonPay(AmazonPayWalletData::from(amazon_pay_data))
             }
             api_models::payments::WalletData::AmazonPayRedirect(_) => {
                 Self::AmazonPayRedirect(Box::new(AmazonPayRedirect {}))
@@ -1126,6 +1282,14 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
                 pm_type: value.payment_method.pm_type,
             },
             transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+
+impl From<api_models::payments::AmazonPayWalletData> for AmazonPayWalletData {
+    fn from(value: api_models::payments::AmazonPayWalletData) -> Self {
+        Self {
+            checkout_session_id: value.checkout_session_id,
         }
     }
 }
@@ -1335,6 +1499,14 @@ impl From<api_models::payments::VoucherData> for VoucherData {
             api_models::payments::VoucherData::Boleto(boleto_data) => {
                 Self::Boleto(Box::new(BoletoVoucherData {
                     social_security_number: boleto_data.social_security_number,
+                    bank_number: boleto_data.bank_number,
+                    document_type: boleto_data.document_type,
+                    fine_percentage: boleto_data.fine_percentage,
+                    fine_quantity_days: boleto_data.fine_quantity_days,
+                    interest_percentage: boleto_data.interest_percentage,
+                    write_off_quantity_days: boleto_data.write_off_quantity_days,
+                    messages: boleto_data.messages,
+                    due_date: boleto_data.due_date,
                 }))
             }
             api_models::payments::VoucherData::Alfamart(_) => {
@@ -1364,6 +1536,14 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
     fn from(value: Box<BoletoVoucherData>) -> Self {
         Self::new(api_models::payments::BoletoVoucherData {
             social_security_number: value.social_security_number,
+            bank_number: value.bank_number,
+            document_type: value.document_type,
+            fine_percentage: value.fine_percentage,
+            fine_quantity_days: value.fine_quantity_days,
+            interest_percentage: value.interest_percentage,
+            write_off_quantity_days: value.write_off_quantity_days,
+            messages: value.messages,
+            due_date: value.due_date,
         })
     }
 }
@@ -1428,6 +1608,14 @@ impl From<api_models::payments::GiftCardData> for GiftCardData {
                 cvc: details.cvc,
             }),
             api_models::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+            api_models::payments::GiftCardData::BhnCardNetwork(details) => {
+                Self::BhnCardNetwork(BHNGiftCardDetails {
+                    account_number: details.account_number,
+                    pin: details.pin,
+                    cvv2: details.cvv2,
+                    expiration_date: details.expiration_date,
+                })
+            }
         }
     }
 }
@@ -1451,6 +1639,7 @@ impl From<GiftCardData> for payment_additional_types::GiftCardAdditionalData {
                 },
             )),
             GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+            GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork {},
         }
     }
 }
@@ -1853,6 +2042,7 @@ impl GetPaymentMethodType for WalletData {
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
             Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
+            Self::AmazonPay(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::ApplePay
             }
@@ -2021,6 +2211,7 @@ impl GetPaymentMethodType for GiftCardData {
         match self {
             Self::Givex(_) => api_enums::PaymentMethodType::Givex,
             Self::PaySafeCard {} => api_enums::PaymentMethodType::PaySafeCard,
+            Self::BhnCardNetwork(_) => api_enums::PaymentMethodType::BhnCardNetwork,
         }
     }
 }

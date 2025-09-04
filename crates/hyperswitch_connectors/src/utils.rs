@@ -50,16 +50,16 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-        ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -364,6 +364,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -498,6 +499,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
@@ -519,7 +521,15 @@ pub trait RouterData {
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
+
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_city(&self) -> Result<String, Error>;
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error>;
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
@@ -534,6 +544,7 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -668,6 +679,13 @@ impl<Flow, Request, Response> RouterData
             .get_shipping()
             .and_then(|shipping_address| shipping_address.clone().phone)
             .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
+    }
+
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
@@ -1008,6 +1026,38 @@ impl<Flow, Request, Response> RouterData
             .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_full_name()
+            .ok_or_else(missing_field_err(
+                "shipping.address.first_name or shipping.address.last_name",
+            ))
+    }
+
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_line1()
+            .ok_or_else(missing_field_err("shipping.address.line1"))
+    }
+
+    fn get_required_shipping_city(&self) -> Result<String, Error> {
+        self.get_optional_shipping_city()
+            .ok_or_else(missing_field_err("shipping.address.city"))
+    }
+
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_state()
+            .ok_or_else(missing_field_err("shipping.address.state"))
+    }
+
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_zip()
+            .ok_or_else(missing_field_err("shipping.address.zip"))
+    }
+
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_phone_number_without_country_code()
+            .ok_or_else(missing_field_err("shipping.phone.number"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api_models::payouts::PayoutMethodData, Error> {
         self.payout_method_data
@@ -1019,6 +1069,14 @@ impl<Flow, Request, Response> RouterData
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
+        self.l2_l3_data.clone()
+    }
+
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_id.clone()
     }
 }
 
@@ -1529,6 +1587,9 @@ impl AddressDetailsData for AddressDetails {
             api_models::enums::CountryAlpha2::GB => Ok(Secret::new(
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
             )),
             _ => Ok(state.clone()),
         }
@@ -2144,6 +2205,7 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -2191,6 +2253,10 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -5454,6 +5520,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Skrill,
     Paysera,
@@ -5523,6 +5590,7 @@ pub enum PaymentMethodDataType {
     PermataBankTransfer,
     BcaBankTransfer,
     BniVaBankTransfer,
+    BhnCardNetwork,
     BriVaBankTransfer,
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
@@ -5591,6 +5659,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
@@ -5759,6 +5828,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                payment_method_data::GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork,
             },
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
@@ -6611,6 +6681,11 @@ impl SplitPaymentData for SetupMandateRequestData {
         None
     }
 }
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
 
 pub struct XmlSerializer;
 impl XmlSerializer {
@@ -6650,5 +6725,18 @@ impl XmlSerializer {
             .attach_printable("Failed to serialize the XML body")?;
 
         Ok(xml_bytes)
+    }
+}
+
+pub fn deserialize_zero_minor_amount_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<MinorUnit>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    match amount {
+        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        _ => Ok(amount),
     }
 }
