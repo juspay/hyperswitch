@@ -15,8 +15,10 @@ use common_utils::{
 };
 use diesel_models::{
     ephemeral_key,
-    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
-    payment_attempt::NetworkDetails as DieselNetworkDetails,
+    payment_attempt::{
+        ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+        NetworkDetails as DieselNetworkDetails,
+    },
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]

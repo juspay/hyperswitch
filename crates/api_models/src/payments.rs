@@ -2027,7 +2027,7 @@ impl Default for MandateType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq,ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema)]
 pub struct NetworkDetails {
     pub network_advice_code: Option<String>,
 }
@@ -5452,9 +5452,9 @@ pub struct PaymentsResponse {
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
 
-    /// Contains Network Response 
+    /// Contains Network Response
     #[schema(value_type = Option<NetworkDetails>)]
-    pub network_details: Option<NetworkDetails>
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v2")]
