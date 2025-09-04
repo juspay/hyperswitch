@@ -106,6 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + subscriptions::Subscriptions
 {
 }
 
@@ -128,7 +129,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + subscriptions::Subscriptions
     > Connector for T
 {
 }
