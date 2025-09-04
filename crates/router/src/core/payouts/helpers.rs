@@ -756,7 +756,7 @@ pub(super) async fn get_or_create_customer_details(
 }
 
 #[cfg(feature = "v1")]
-pub(super) async fn get_or_create_customer_details(
+pub async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_context: &domain::MerchantContext,

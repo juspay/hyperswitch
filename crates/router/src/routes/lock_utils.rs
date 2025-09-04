@@ -26,6 +26,7 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    Subscription,
     Blocklist,
     Forex,
     RustLockerMigration,
@@ -87,6 +88,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
+
+            Flow::CreateSubscription => Self::Subscription,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
