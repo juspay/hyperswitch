@@ -3,6 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -174,6 +175,29 @@ where
 
                         (connector_routing_data.connector_data, routing_decision)
                     };
+
+                    if payment_data
+                        .get_payment_intent()
+                        .off_session
+                        .unwrap_or(false)
+                    {
+                        let current_connector_routing_data =
+                            super::get_connector_data(&mut connector_routing_data)?;
+                        let payment_method_info = payment_data
+                            .get_payment_method_info()
+                            .get_required_value("payment_method_info")?
+                            .clone();
+                        let mandate_reference_id = payments::get_mandate_reference_id(
+                            current_connector_routing_data.action_type.clone(),
+                            current_connector_routing_data,
+                            payment_data,
+                            &payment_method_info,
+                        )?;
+                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id, //mandate_ref_id
+                        });
+                    }
 
                     router_data = do_retry(
                         &state.clone(),
