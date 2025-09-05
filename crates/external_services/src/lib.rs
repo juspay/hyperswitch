@@ -94,6 +94,8 @@ pub mod consts {
 
     /// Header key for sending the EXTERNAL VAULT METADATA in proxy payments
     pub(crate) const UCS_HEADER_EXTERNAL_VAULT_METADATA: &str = "x-external-vault-metadata";
+
+    pub(crate) const UCS_LINEAGE_IDS: &str = "x-lineage-ids";
 }
 
 /// Metrics for interactions with external systems.
