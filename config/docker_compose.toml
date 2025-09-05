@@ -1,3 +1,9 @@
+enabled = true
+endpoint = "http://host.docker.internal:8001"
+token = ""
+org_id = "localorg"
+workspace_id = "dev"
+
 [server]
 port = 8080
 host = "0.0.0.0"
