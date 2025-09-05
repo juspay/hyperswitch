@@ -3,10 +3,7 @@ port = 8080
 host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
-[config_service]
-config_service_backend = "enhanced"
-
-[config_service.superposition]
+[superposition]
 enabled = true
 endpoint = "http://host.docker.internal:8080"
 token = "123456"

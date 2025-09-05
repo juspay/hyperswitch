@@ -12,8 +12,8 @@ pub mod file_storage;
 #[cfg(feature = "hashicorp-vault")]
 pub mod hashicorp_vault;
 
-/// Configuration service with Superposition integration
-pub mod config_service;
+/// Dynamic configuration service using Superposition
+pub mod superposition;
 
 pub mod no_encryption;
 

@@ -5,6 +5,7 @@ use common_utils::errors::CustomResult;
 /// Context for configuration requests
 #[derive(Debug, Clone, Default)]
 pub struct ConfigContext {
+    /// Key-value pairs for configuration context
     pub values: HashMap<String, String>,
 }
 
@@ -21,29 +22,30 @@ impl ConfigContext {
     }
 }
 
-/// Errors that can occur in the config service
+/// Errors that can occur in the superposition service
 #[derive(Debug, thiserror::Error)]
-pub enum ConfigServiceError {
+pub enum SuperpositionError {
+    /// Error from the Superposition client
     #[error("Superposition client error: {0}")]
-    SuperpositionError(String),
-    #[error("Database error: {0}")]
-    DatabaseError(String),
+    ClientError(String),
+    /// Error during serialization/deserialization
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
 }
 
-/// Interface for configuration service
+/// Interface for superposition service
 #[async_trait::async_trait]
-pub trait ConfigServiceInterface: Send + Sync {
+pub trait SuperpositionInterface: Send + Sync {
     /// Get a string configuration value
     async fn get_config_string(
         &self,
         key: &str,
         context: Option<ConfigContext>,
         default_value: String,
-    ) -> CustomResult<String, ConfigServiceError>;
+    ) -> CustomResult<String, SuperpositionError>;
 
     /// Get a boolean configuration value
     async fn get_config_bool(
@@ -51,7 +53,7 @@ pub trait ConfigServiceInterface: Send + Sync {
         key: &str,
         context: Option<ConfigContext>,
         default_value: bool,
-    ) -> CustomResult<bool, ConfigServiceError>;
+    ) -> CustomResult<bool, SuperpositionError>;
 
     /// Get an integer configuration value
     async fn get_config_int(
@@ -59,7 +61,7 @@ pub trait ConfigServiceInterface: Send + Sync {
         key: &str,
         context: Option<ConfigContext>,
         default_value: i64,
-    ) -> CustomResult<i64, ConfigServiceError>;
+    ) -> CustomResult<i64, SuperpositionError>;
 
 }
 

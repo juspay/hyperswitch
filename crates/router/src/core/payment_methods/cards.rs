@@ -4127,10 +4127,10 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = state.config_service
+    let requires_cvv = state.superposition_service
         .get_config_bool(
             "cvv_enabled",
-            Some(external_services::config_service::ConfigContext::new()
+            Some(external_services::superposition::ConfigContext::new()
                 .with("merchant_id", merchant_context.get_merchant_account().get_id().get_string_repr())),
             true, // default value
         )

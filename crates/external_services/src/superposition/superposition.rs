@@ -1,18 +1,23 @@
 use masking::{ExposeInterface, Secret};
 
-use super::interface::{ConfigContext, ConfigServiceError};
+use super::interface::{ConfigContext, SuperpositionError};
 
 /// Configuration for Superposition integration
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct SuperpositionConfig {
+pub struct SuperpositionClientConfig {
+    /// Whether Superposition is enabled
     pub enabled: bool,
+    /// Superposition API endpoint
     pub endpoint: String,
+    /// Authentication token for Superposition
     pub token: Secret<String>,
+    /// Organization ID in Superposition
     pub org_id: String,
+    /// Workspace ID in Superposition
     pub workspace_id: String,
 }
 
-impl Default for SuperpositionConfig {
+impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
             enabled: false,
@@ -32,11 +37,18 @@ pub struct SuperpositionClient {
     _phantom: std::marker::PhantomData<()>,
 }
 
+impl std::fmt::Debug for SuperpositionClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SuperpositionClient")
+            .finish_non_exhaustive()
+    }
+}
+
 impl SuperpositionClient {
     /// Create a new Superposition client
     pub async fn new(
-        config: SuperpositionConfig,
-    ) -> Result<Self, ConfigServiceError> {
+        config: SuperpositionClientConfig,
+    ) -> Result<Self, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
             // Initialize OpenFeature client with Superposition provider
@@ -79,7 +91,7 @@ impl SuperpositionClient {
         #[cfg(not(feature = "superposition"))]
         {
             let _ = config; // Suppress unused variable warning
-            Err(ConfigServiceError::InvalidConfiguration(
+            Err(SuperpositionError::InvalidConfiguration(
                 "Superposition feature is not enabled".to_string(),
             ))
         }
@@ -90,7 +102,7 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-    ) -> Result<String, ConfigServiceError> {
+    ) -> Result<String, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
             use open_feature::{EvaluationContext, EvaluationContextFieldValue};
@@ -111,7 +123,7 @@ impl SuperpositionClient {
                 .get_string_value(key, Some(&evaluation_context), None)
                 .await
                 .map_err(|e| {
-                    ConfigServiceError::SuperpositionError(format!(
+                    SuperpositionError::ClientError(format!(
                         "Failed to get string value for key '{}': {:?}",
                         key, e
                     ))
@@ -121,7 +133,7 @@ impl SuperpositionClient {
         #[cfg(not(feature = "superposition"))]
         {
             let _ = (key, context); // Suppress unused variable warnings
-            Err(ConfigServiceError::InvalidConfiguration(
+            Err(SuperpositionError::InvalidConfiguration(
                 "Superposition feature is not enabled".to_string(),
             ))
         }
@@ -132,7 +144,7 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-    ) -> Result<bool, ConfigServiceError> {
+    ) -> Result<bool, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
             use open_feature::{EvaluationContext, EvaluationContextFieldValue};
@@ -174,7 +186,7 @@ impl SuperpositionClient {
             }
 
             result.map_err(|e| {
-                ConfigServiceError::SuperpositionError(format!(
+                SuperpositionError::ClientError(format!(
                     "Failed to get bool value for key '{}': {:?}",
                     key, e
                 ))
@@ -184,7 +196,7 @@ impl SuperpositionClient {
         #[cfg(not(feature = "superposition"))]
         {
             let _ = (key, context); // Suppress unused variable warnings
-            Err(ConfigServiceError::InvalidConfiguration(
+            Err(SuperpositionError::InvalidConfiguration(
                 "Superposition feature is not enabled".to_string(),
             ))
         }
@@ -195,7 +207,7 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&ConfigContext>,
-    ) -> Result<i64, ConfigServiceError> {
+    ) -> Result<i64, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
             use open_feature::{EvaluationContext, EvaluationContextFieldValue};
@@ -216,7 +228,7 @@ impl SuperpositionClient {
                 .get_int_value(key, Some(&evaluation_context), None)
                 .await
                 .map_err(|e| {
-                    ConfigServiceError::SuperpositionError(format!(
+                    SuperpositionError::ClientError(format!(
                         "Failed to get int value for key '{}': {:?}",
                         key, e
                     ))
@@ -226,7 +238,7 @@ impl SuperpositionClient {
         #[cfg(not(feature = "superposition"))]
         {
             let _ = (key, context); // Suppress unused variable warnings
-            Err(ConfigServiceError::InvalidConfiguration(
+            Err(SuperpositionError::InvalidConfiguration(
                 "Superposition feature is not enabled".to_string(),
             ))
         }
@@ -234,21 +246,22 @@ impl SuperpositionClient {
 }
 
 /// Validation for configuration
-impl SuperpositionConfig {
-    pub fn validate(&self) -> Result<(), ConfigServiceError> {
+impl SuperpositionClientConfig {
+    /// Validate the Superposition configuration
+    pub fn validate(&self) -> Result<(), SuperpositionError> {
         if self.enabled {
             if self.endpoint.is_empty() {
-                return Err(ConfigServiceError::InvalidConfiguration(
+                return Err(SuperpositionError::InvalidConfiguration(
                     "Superposition endpoint cannot be empty".to_string(),
                 ));
             }
             if self.org_id.is_empty() {
-                return Err(ConfigServiceError::InvalidConfiguration(
+                return Err(SuperpositionError::InvalidConfiguration(
                     "Superposition org_id cannot be empty".to_string(),
                 ));
             }
             if self.workspace_id.is_empty() {
-                return Err(ConfigServiceError::InvalidConfiguration(
+                return Err(SuperpositionError::InvalidConfiguration(
                     "Superposition workspace_id cannot be empty".to_string(),
                 ));
             }
