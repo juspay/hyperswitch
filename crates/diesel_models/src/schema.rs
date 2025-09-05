@@ -983,6 +983,7 @@ diesel::table! {
         connector_request_reference_id -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_id -> Nullable<Varchar>,
+        network_details -> Nullable<Jsonb>,
     }
 }
 

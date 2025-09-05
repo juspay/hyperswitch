@@ -18,7 +18,7 @@ use time::PrimitiveDateTime;
 use crate::{
     enums::{MandateDataType, MandateDetails},
     schema::payment_attempt,
-    ConnectorMandateReferenceId, PaymentAttemptNew,
+    ConnectorMandateReferenceId, NetworkDetails, PaymentAttemptNew,
 };
 
 // #[cfg(feature = "v2")]
@@ -219,6 +219,7 @@ pub struct PaymentAttemptBatchNew {
     pub routing_approach: Option<common_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -307,6 +308,7 @@ impl PaymentAttemptBatchNew {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_details: self.network_details,
         }
     }
 }
