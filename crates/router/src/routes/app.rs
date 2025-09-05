@@ -733,6 +733,10 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
+                )
+                .service(
+                    web::resource("/check-gift-card-balance")
+                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 ),
         );
 
