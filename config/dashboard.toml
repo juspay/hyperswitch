@@ -9,7 +9,7 @@ sidebar_secondary_text_color= "#525866"
 sidebar_border_color= "#ECEFF3"
 
 [default.endpoints]
-api_url="http://localhost:8081" # The backend hyperswitch API server for making payments
+api_url="http://localhost:8080" # The backend hyperswitch API server for making payments
 sdk_url="http://localhost:9050/HyperLoader.js" # SDK distribution url used for loading the SDK in control center
 hypersense_url=""
 logo_url=""

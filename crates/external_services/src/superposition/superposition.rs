@@ -73,21 +73,21 @@ impl SuperpositionClient {
             let provider = SuperpositionProvider::new(provider_options);
 
             router_env::logger::info!(
-                "🔄 SUPERPOSITION_CLIENT: Created provider, initializing OpenFeature API..."
+                "SUPERPOSITION_CLIENT: Created provider, initializing OpenFeature API..."
             );
 
             // Initialize OpenFeature API and set provider
             let mut api = open_feature::OpenFeature::singleton_mut().await;
             api.set_provider(provider).await;
 
-            router_env::logger::info!("🔄 SUPERPOSITION_CLIENT: Provider set, creating client and waiting for initialization...");
+            router_env::logger::info!("SUPERPOSITION_CLIENT: Provider set, creating client and waiting for initialization...");
 
             // Create client and wait for initialization (as per Superposition examples)
             let client = api.create_client();
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
             router_env::logger::info!(
-                "🎉 SUPERPOSITION_CLIENT: Client created and initialized successfully!"
+                "SUPERPOSITION_CLIENT: Client created and initialized successfully!"
             );
 
             Ok(Self { client })
@@ -111,8 +111,6 @@ impl SuperpositionClient {
         #[cfg(feature = "superposition")]
         {
             use std::collections::HashMap;
-
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
 
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {
@@ -156,8 +154,6 @@ impl SuperpositionClient {
         {
             use std::collections::HashMap;
 
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
-
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {
                     ctx.values
@@ -170,34 +166,10 @@ impl SuperpositionClient {
                 targeting_key: None,
             };
 
-            router_env::logger::info!(
-                "🔍 SUPERPOSITION_CLIENT: Making bool request for key '{}' with context: {:?}, evaluation_context: {:?}",
-                key, context, evaluation_context
-            );
-
-            let result = self
-                .client
+            self.client
                 .get_bool_value(key, Some(&evaluation_context), None)
-                .await;
-
-            match &result {
-                Ok(value) => {
-                    router_env::logger::info!(
-                        "✅ SUPERPOSITION_CLIENT: Received bool response for key '{}': {}",
-                        key,
-                        value
-                    );
-                }
-                Err(e) => {
-                    router_env::logger::info!(
-                        "❌ SUPERPOSITION_CLIENT: Error response for key '{}': {:?}",
-                        key,
-                        e
-                    );
-                }
-            }
-
-            result.map_err(|e| {
+                .await
+                .map_err(|e| {
                 SuperpositionError::ClientError(format!(
                     "Failed to get bool value for key '{}': {:?}",
                     key, e
@@ -223,8 +195,6 @@ impl SuperpositionClient {
         #[cfg(feature = "superposition")]
         {
             use std::collections::HashMap;
-
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
 
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {

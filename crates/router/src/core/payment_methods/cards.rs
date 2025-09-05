@@ -4,6 +4,12 @@ use std::{
     str::FromStr,
 };
 
+/// Configuration key constants
+mod config_keys {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+}
+
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
@@ -4130,7 +4136,7 @@ pub async fn list_customer_payment_method(
     let requires_cvv = state
         .superposition_service
         .get_config_bool(
-            "cvv_enabled",
+            config_keys::REQUIRES_CVV,
             Some(
                 external_services::superposition::ConfigContext::new().with(
                     "merchant_id",
