@@ -14,7 +14,7 @@ impl ConfigContext {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Add a key-value pair to the context
     pub fn with(mut self, key: &str, value: &str) -> Self {
         self.values.insert(key.to_string(), value.to_string());
@@ -62,6 +62,4 @@ pub trait SuperpositionInterface: Send + Sync {
         context: Option<ConfigContext>,
         default_value: i64,
     ) -> CustomResult<i64, SuperpositionError>;
-
 }
-

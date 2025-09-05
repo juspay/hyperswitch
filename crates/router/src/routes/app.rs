@@ -424,9 +424,11 @@ impl AppState {
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
             let superposition_service = Arc::new(
-                external_services::superposition::SuperpositionService::new(conf.superposition.clone())
-                    .await
-                    .expect("Failed to create superposition service"),
+                external_services::superposition::SuperpositionService::new(
+                    conf.superposition.clone(),
+                )
+                .await
+                .expect("Failed to create superposition service"),
             );
             Self {
                 flow_name: String::from("default"),

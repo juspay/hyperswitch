@@ -1,6 +1,6 @@
 //! Superposition integration for dynamic configuration management
 //!
-//! This module provides a simple interface for retrieving configuration values 
+//! This module provides a simple interface for retrieving configuration values
 //! with automatic fallback logic:
 //! 1. Superposition (dynamic config) - if enabled and available
 //! 2. Default values - reliable fallback
@@ -17,5 +17,5 @@ pub mod superposition;
 
 // Re-export commonly used types
 pub use interface::{ConfigContext, SuperpositionError, SuperpositionInterface};
-pub use service::{SuperpositionService, SuperpositionConfig};
+pub use service::{SuperpositionConfig, SuperpositionService};
 pub use superposition::{SuperpositionClient, SuperpositionClientConfig};

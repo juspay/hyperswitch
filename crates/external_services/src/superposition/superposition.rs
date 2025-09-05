@@ -46,14 +46,15 @@ impl std::fmt::Debug for SuperpositionClient {
 
 impl SuperpositionClient {
     /// Create a new Superposition client
-    pub async fn new(
-        config: SuperpositionClientConfig,
-    ) -> Result<Self, SuperpositionError> {
+    pub async fn new(config: SuperpositionClientConfig) -> Result<Self, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
             // Initialize OpenFeature client with Superposition provider
-            use superposition_provider::{SuperpositionProvider, SuperpositionProviderOptions, RefreshStrategy, PollingStrategy};
-            
+            use superposition_provider::{
+                PollingStrategy, RefreshStrategy, SuperpositionProvider,
+                SuperpositionProviderOptions,
+            };
+
             let provider_options = SuperpositionProviderOptions {
                 endpoint: config.endpoint.clone(),
                 token: config.token.expose(),
@@ -67,27 +68,31 @@ impl SuperpositionClient {
                 }),
                 experimentation_options: None,
             };
-            
+
             // Create provider and set up OpenFeature
             let provider = SuperpositionProvider::new(provider_options);
-            
-            router_env::logger::info!("🔄 SUPERPOSITION_CLIENT: Created provider, initializing OpenFeature API...");
-            
+
+            router_env::logger::info!(
+                "🔄 SUPERPOSITION_CLIENT: Created provider, initializing OpenFeature API..."
+            );
+
             // Initialize OpenFeature API and set provider
             let mut api = open_feature::OpenFeature::singleton_mut().await;
             api.set_provider(provider).await;
-            
+
             router_env::logger::info!("🔄 SUPERPOSITION_CLIENT: Provider set, creating client and waiting for initialization...");
-            
+
             // Create client and wait for initialization (as per Superposition examples)
             let client = api.create_client();
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            
-            router_env::logger::info!("🎉 SUPERPOSITION_CLIENT: Client created and initialized successfully!");
-            
+
+            router_env::logger::info!(
+                "🎉 SUPERPOSITION_CLIENT: Client created and initialized successfully!"
+            );
+
             Ok(Self { client })
         }
-        
+
         #[cfg(not(feature = "superposition"))]
         {
             let _ = config; // Suppress unused variable warning
@@ -105,14 +110,16 @@ impl SuperpositionClient {
     ) -> Result<String, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
             use std::collections::HashMap;
-            
+
+            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
+
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {
-                    ctx.values.iter().map(|(k, v)| {
-                        (k.clone(), EvaluationContextFieldValue::String(v.clone()))
-                    }).collect()
+                    ctx.values
+                        .iter()
+                        .map(|(k, v)| (k.clone(), EvaluationContextFieldValue::String(v.clone())))
+                        .collect()
                 } else {
                     HashMap::new()
                 },
@@ -147,14 +154,16 @@ impl SuperpositionClient {
     ) -> Result<bool, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
             use std::collections::HashMap;
-            
+
+            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
+
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {
-                    ctx.values.iter().map(|(k, v)| {
-                        (k.clone(), EvaluationContextFieldValue::String(v.clone()))
-                    }).collect()
+                    ctx.values
+                        .iter()
+                        .map(|(k, v)| (k.clone(), EvaluationContextFieldValue::String(v.clone())))
+                        .collect()
                 } else {
                     HashMap::new()
                 },
@@ -166,7 +175,8 @@ impl SuperpositionClient {
                 key, context, evaluation_context
             );
 
-            let result = self.client
+            let result = self
+                .client
                 .get_bool_value(key, Some(&evaluation_context), None)
                 .await;
 
@@ -174,13 +184,15 @@ impl SuperpositionClient {
                 Ok(value) => {
                     router_env::logger::info!(
                         "✅ SUPERPOSITION_CLIENT: Received bool response for key '{}': {}",
-                        key, value
+                        key,
+                        value
                     );
                 }
                 Err(e) => {
                     router_env::logger::info!(
                         "❌ SUPERPOSITION_CLIENT: Error response for key '{}': {:?}",
-                        key, e
+                        key,
+                        e
                     );
                 }
             }
@@ -210,14 +222,16 @@ impl SuperpositionClient {
     ) -> Result<i64, SuperpositionError> {
         #[cfg(feature = "superposition")]
         {
-            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
             use std::collections::HashMap;
-            
+
+            use open_feature::{EvaluationContext, EvaluationContextFieldValue};
+
             let evaluation_context = EvaluationContext {
                 custom_fields: if let Some(ctx) = context {
-                    ctx.values.iter().map(|(k, v)| {
-                        (k.clone(), EvaluationContextFieldValue::String(v.clone()))
-                    }).collect()
+                    ctx.values
+                        .iter()
+                        .map(|(k, v)| (k.clone(), EvaluationContextFieldValue::String(v.clone())))
+                        .collect()
                 } else {
                     HashMap::new()
                 },
