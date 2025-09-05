@@ -170,11 +170,11 @@ impl SuperpositionClient {
                 .get_bool_value(key, Some(&evaluation_context), None)
                 .await
                 .map_err(|e| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to get bool value for key '{}': {:?}",
-                    key, e
-                ))
-            })
+                    SuperpositionError::ClientError(format!(
+                        "Failed to get bool value for key '{}': {:?}",
+                        key, e
+                    ))
+                })
         }
 
         #[cfg(not(feature = "superposition"))]
