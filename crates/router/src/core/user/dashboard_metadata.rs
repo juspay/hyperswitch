@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
@@ -523,19 +523,25 @@ async fn insert_metadata(
             let hubspot_body = state
                 .crm_client
                 .make_body(CrmPayload {
-                    legal_business_name: data.legal_business_name,
-                    business_label: data.business_label,
+                    legal_business_name: data.legal_business_name.map(|s| s.into_inner()),
+                    business_label: data.business_label.map(|s| s.into_inner()),
                     business_location: data.business_location,
-                    display_name: data.display_name,
-                    poc_email: data.poc_email,
-                    business_type: data.business_type,
-                    business_identifier: data.business_identifier,
-                    business_website: data.business_website,
-                    poc_name: data.poc_name,
-                    poc_contact: data.poc_contact,
-                    comments: data.comments,
+                    display_name: data.display_name.map(|s| s.into_inner()),
+                    poc_email: data
+                        .poc_email
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    business_type: data.business_type.map(|s| s.into_inner()),
+                    business_identifier: data.business_identifier.map(|s| s.into_inner()),
+                    business_website: data.business_website.map(|s| s.into_inner()),
+                    poc_name: data
+                        .poc_name
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    poc_contact: data
+                        .poc_contact
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    comments: data.comments.map(|s| s.into_inner()),
                     is_completed: data.is_completed,
-                    business_country_name: data.business_country_name,
+                    business_country_name: data.business_country_name.map(|s| s.into_inner()),
                 })
                 .await;
             let base_url = user_utils::get_base_url(state);
