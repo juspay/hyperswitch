@@ -21,18 +21,19 @@ use hyperswitch_domain_models::{
         UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
+    router_flow_types::subscriptions::CreateCustomer as CreateCustomerFlow,
+    router_flow_types::subscriptions::SubscriptionCreate,
+    router_request_types::subscriptions as subscriptions_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    router_response_types::subscriptions as subscriptions_response_types,
+};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     types as recovery_router_data_types,
-};
-use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::SubscriptionCreate,
-    router_data_v2::flow_common_types as recovery_flow_common_types,
-    router_request_types::subscriptions as subscriptions_request_types,
-    router_response_types::subscriptions as subscriptions_response_types,
-    router_response_types::revenue_recovery as recovery_response_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;
@@ -151,7 +152,7 @@ impl
     > for Recurly
 {
 }
-impl 
+impl
     ConnectorIntegrationV2<
         SubscriptionCreate,
         recovery_flow_common_types::SubscriptionCreateData,
@@ -166,6 +167,19 @@ impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recurly {}
+
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::CustomerCreateV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        CreateCustomerFlow,
+        recovery_flow_common_types::CreateCustomerData,
+        subscriptions_request_types::CreateCustomerRequest,
+        subscriptions_response_types::CreateCustomerResponse,
+    > for Recurly
+{
+}
 
 impl ConnectorCommon for Recurly {
     fn id(&self) -> &'static str {

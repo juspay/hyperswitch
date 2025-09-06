@@ -1,18 +1,14 @@
 #[cfg(feature = "v1")]
-use crate::core::payments::helpers::{
-    perform_billing_processor_record_back,
-};
+use crate::core::payments::helpers::perform_billing_processor_record_back;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
-
 
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
-
 
 use crate::{
     consts,
@@ -50,6 +46,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
         state: &'a SessionState,
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
+        use common_utils::id_type::MerchantConnectorAccountId;
+
+        use crate::core::payments::helpers::MerchantConnectorAccountType;
+
         let db: &dyn StorageInterface = &*state.store;
         let tracking_data: api::PaymentsRetrieveRequest = process
             .tracking_data
@@ -113,6 +113,51 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             enums::AttemptStatus::CaptureFailed,
             enums::AttemptStatus::Failure,
         ];
+
+        //         let mca_id = common_utils::id_type::MerchantConnectorAccountId::wrap("Some_id".to_string())
+        //             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        //                 id: "Some_id".to_string(),
+        //             })?;
+
+        //         let billing_processor_mca = db
+        //             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        //                 &state.into(),
+        //                 &payment_data.payment_intent.merchant_id,
+        //                 &mca_id,
+        //                 &key_store,
+        //             )
+        //             .await
+        //             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        //                 id: mca_id.get_string_repr().to_string(),
+        //             })?;
+
+        //         // Record back to billing processor
+
+        //         let auth_type =
+        //             MerchantConnectorAccountType::DbVal(Box::new(billing_processor_mca.clone()))
+        //                 .get_connector_account_details()
+        //                 .parse_value("ConnectorAuthType")
+        //                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        //         let connector = &billing_processor_mca.connector_name;
+
+        //         let connector_data = api::ConnectorData::get_connector_by_name(
+        //             &state.conf.connectors,
+        //             &billing_processor_mca.connector_name,
+        //             api::GetToken::Connector,
+        //             Some(billing_processor_mca.get_id()),
+        //         )
+        //         .change_context(errors::ApiErrorResponse::InternalServerError)
+        //         .attach_printable(
+        //             "invalid connector name received in billing merchant connector account",
+        //         )?;
+
+        //         let connector_integration_for_create_customer: services::BoxedCreateCustomerConnectorIntegrationInterface<
+        //     hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        //     hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        //     hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        // > = connector_data.connector.get_connector_integration();
+
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
                 state

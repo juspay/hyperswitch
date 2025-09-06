@@ -10,10 +10,10 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
-            BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
-            ExternalVaultProxyFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
-            RefundFlowData, RevenueRecoveryRecordBackData, SubscriptionCreateData, UasFlowData, VaultConnectorFlowData,
-            WebhookSourceVerifyData,
+            BillingConnectorPaymentsSyncFlowData, CreateCustomerData, DisputesFlowData,
+            ExternalAuthenticationFlowData, ExternalVaultProxyFlowData, FilesFlowData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
+            SubscriptionCreateData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -798,9 +798,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     }
 }
 
-impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
-    for SubscriptionCreateData
-{
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for SubscriptionCreateData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
     ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
@@ -837,6 +835,42 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     }
 }
 
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for CreateCustomerData {
+    fn from_old_router_data(
+        old_router_data: &RouterData<T, Req, Resp>,
+    ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let resource_common_data = Self {};
+        Ok(RouterDataV2 {
+            flow: std::marker::PhantomData,
+            tenant_id: old_router_data.tenant_id.clone(),
+            resource_common_data,
+            connector_auth_type: old_router_data.connector_auth_type.clone(),
+            request: old_router_data.request.clone(),
+            response: old_router_data.response.clone(),
+        })
+    }
+
+    fn to_old_router_data(
+        new_router_data: RouterDataV2<T, Self, Req, Resp>,
+    ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
+    where
+        Self: Sized,
+    {
+        let router_data = get_default_router_data(
+            new_router_data.tenant_id.clone(),
+            "subscription_customer_create",
+            new_router_data.request,
+            new_router_data.response,
+        );
+        Ok(RouterData {
+            connector_auth_type: new_router_data.connector_auth_type.clone(),
+            ..router_data
+        })
+    }
+}
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(

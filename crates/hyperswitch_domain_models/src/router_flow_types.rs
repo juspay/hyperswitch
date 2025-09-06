@@ -4,6 +4,7 @@ pub mod dispute;
 pub mod files;
 pub mod fraud_check;
 pub mod mandate_revoke;
+pub mod subscriptions;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;

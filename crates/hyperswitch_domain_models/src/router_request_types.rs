@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
 pub mod subscriptions;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};

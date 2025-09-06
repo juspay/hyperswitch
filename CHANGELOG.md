@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.03.0
+
+### Features
+
+- **core:** Update payment methods api ([#9075](https://github.com/juspay/hyperswitch/pull/9075)) ([`6451136`](https://github.com/juspay/hyperswitch/commit/645113654a15525b4bb33ecc8427a7faa71c89ed))
+- **cypress:** Cypress test for ucs ([#8967](https://github.com/juspay/hyperswitch/pull/8967)) ([`7ad5cd5`](https://github.com/juspay/hyperswitch/commit/7ad5cd5531eee612d72c938f324c08682359a313))
+- **ucs:** Add event logging for UCS operations ([#9058](https://github.com/juspay/hyperswitch/pull/9058)) ([`10cf161`](https://github.com/juspay/hyperswitch/commit/10cf161d14810cc9c6320933909e9cd3bfdc41ca))
+
+### Bug Fixes
+
+- **connector:** [NETCETERA] Add fix for netcetera authentication response ([#9077](https://github.com/juspay/hyperswitch/pull/9077)) ([`e2d72be`](https://github.com/juspay/hyperswitch/commit/e2d72bef7dc07540ee4d54bfc79b934bc303dca7))
+- **metadata:** Fix nordea metadata again ([#9126](https://github.com/juspay/hyperswitch/pull/9126)) ([`a0900d9`](https://github.com/juspay/hyperswitch/commit/a0900d994b80818934341e7c88de767836dcaf44))
+- Disable UCS PSync call for Cashtocode ([#9093](https://github.com/juspay/hyperswitch/pull/9093)) ([`7c6e5f6`](https://github.com/juspay/hyperswitch/commit/7c6e5f6ed050bc9739bafbaf7b7170b4234ea5b4))
+
+**Full Changelog:** [`2025.09.02.0...2025.09.03.0`](https://github.com/juspay/hyperswitch/compare/2025.09.02.0...2025.09.03.0)
+
+- - -
+
 ## 2025.09.02.0
 
 ### Features

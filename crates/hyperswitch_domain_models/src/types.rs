@@ -4,20 +4,24 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, Authorize,
-        AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
-        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
-        ExternalVaultProxy, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
-        PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack,
+        subscriptions::CreateCustomer, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
+        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
+        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::{SubscriptionsRecordBackRequest, SubscriptionCreateRequest},
+        subscriptions::{
+            BillingAddress, CreateCustomerRequest, SubscriptionCreateRequest,
+            SubscriptionsRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -38,7 +42,9 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        subscriptions::SubscriptionCreateResponse,
+        subscriptions::{
+            BillingAddressResponse, CreateCustomerResponse, SubscriptionCreateResponse,
+        },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
@@ -47,7 +53,7 @@ use crate::{
 pub use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 
 #[cfg(feature = "v1")]
-use crate::router_flow_types::subscriptions::{SubscriptionRecordBack, SubscriptionCreate};
+use crate::router_flow_types::subscriptions::{SubscriptionCreate, SubscriptionRecordBack};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -124,6 +130,8 @@ pub type RevenueRecoveryRecordBackRouterData = RouterData<
     RevenueRecoveryRecordBackRequest,
     RevenueRecoveryRecordBackResponse,
 >;
+pub type CreateCustomerRouterData =
+    RouterData<CreateCustomer, CreateCustomerRequest, CreateCustomerResponse>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
@@ -185,8 +193,5 @@ pub type SubscriptionRecordBackRouterData = RouterData<
 >;
 
 #[cfg(feature = "v1")]
-pub type SubscriptionCreateRouterData = RouterData<
-    SubscriptionCreate,
-    SubscriptionCreateRequest,
-    SubscriptionCreateResponse,
->;
+pub type SubscriptionCreateRouterData =
+    RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;

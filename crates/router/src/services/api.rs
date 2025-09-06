@@ -129,6 +129,9 @@ pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
 
 pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
+pub type BoxedCreateCustomerConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::CreateCustomerData, Req, Res>;
+
 /// Handle UCS webhook response processing
 fn handle_ucs_response<T, Req, Resp>(
     router_data: types::RouterData<T, Req, Resp>,
