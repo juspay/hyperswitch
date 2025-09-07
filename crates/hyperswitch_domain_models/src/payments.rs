@@ -460,6 +460,8 @@ pub struct PaymentIntent {
     pub updated_by: String,
     /// Denotes whether merchant requested for incremental authorization to be enabled for this payment.
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
+    /// Denotes whether merchant requested for split payments to be enabled for this payment
+    pub split_txns_enabled: storage_enums::SplitTxnsEnabled,
     /// Denotes the number of authorizations that have been made for the payment.
     pub authorization_count: Option<i32>,
     /// Denotes the client secret expiry for the payment. This is the time at which the client secret will expire.
@@ -657,6 +659,7 @@ impl PaymentIntent {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .unwrap_or_default(),
+            split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,
@@ -720,6 +723,8 @@ impl PaymentIntent {
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        card_info: api_models::payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -751,9 +756,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token,
+            processor_payment_method_token: payment_processor_token.to_string(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -774,23 +777,7 @@ impl PaymentIntent {
             invoice_billing_started_at_time: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
-            card_info: api_models::payments::AdditionalCardInfo {
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                last4: None,
-                card_isin: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-                is_regulated: None,
-                signature_network: None,
-            },
+            card_info: card_info.clone(),
         })
     }
 

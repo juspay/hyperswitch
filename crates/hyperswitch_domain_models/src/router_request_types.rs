@@ -305,6 +305,38 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
         })
     }
 }
+
+impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: data.amount,
+            minor_amount: data.minor_amount,
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: false,
+            split_payments: None,
+            metadata: data.metadata,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+        })
+    }
+}
 impl
     TryFrom<
         &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
@@ -515,7 +547,8 @@ pub struct PaymentsPreProcessingData {
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
 }
@@ -546,6 +579,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             enrolled_for_3ds: data.enrolled_for_3ds,
             split_payments: data.split_payments,
             metadata: data.metadata.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -576,6 +611,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             split_payments: None,
             enrolled_for_3ds: true,
             metadata: data.connector_meta.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -1169,6 +1206,9 @@ pub struct PaymentsSessionData {
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
     pub customer_name: Option<Secret<String>>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1215,6 +1255,8 @@ pub struct SetupMandateRequestData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,

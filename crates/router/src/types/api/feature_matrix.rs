@@ -31,27 +31,27 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
-                // enums::Connector::Amazonpay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
-                // }
+                enums::Connector::Amazonpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay::new())))
+                }
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
                 enums::Connector::Authipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Authipay::new())))
                 }
-                enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
-                }
+                enums::Connector::Authorizedotnet => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Authorizedotnet::new(),
+                ))),
                 enums::Connector::Bambora => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new())))
                 }
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
-                enums::Connector::Bankofamerica => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
-                }
+                enums::Connector::Bankofamerica => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Bankofamerica::new(),
+                ))),
                 enums::Connector::Barclaycard => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard::new())))
                 }

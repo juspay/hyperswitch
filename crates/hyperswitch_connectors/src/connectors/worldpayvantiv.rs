@@ -1648,6 +1648,26 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
             },
         );
 
+        #[cfg(feature = "v2")]
+        worldpayvantiv_supported_payment_methods.add(
+            common_enums::PaymentMethod::Card,
+            common_enums::PaymentMethodType::Card,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::Supported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
         worldpayvantiv_supported_payment_methods.add(
             common_enums::PaymentMethod::Wallet,
             common_enums::PaymentMethodType::ApplePay,
