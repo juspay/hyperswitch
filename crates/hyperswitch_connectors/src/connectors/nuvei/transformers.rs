@@ -385,12 +385,12 @@ pub enum NuveiItemType {
 impl From<Option<enums::ProductType>> for NuveiItemType {
     fn from(value: Option<enums::ProductType>) -> Self {
         match value {
-            Some(enums::ProductType::Digital) => NuveiItemType::Digital,
-            Some(enums::ProductType::Physical) => NuveiItemType::Physical,
+            Some(enums::ProductType::Digital) => Self::Digital,
+            Some(enums::ProductType::Physical) => Self::Physical,
             Some(enums::ProductType::Ride)
             | Some(enums::ProductType::Travel)
-            | Some(enums::ProductType::Accommodation) => NuveiItemType::ShippingFee,
-            _ => NuveiItemType::Physical,
+            | Some(enums::ProductType::Accommodation) => Self::ShippingFee,
+            _ => Self::Physical,
         }
     }
 }
@@ -1472,7 +1472,7 @@ fn get_l2_l3_items(
                 // Map each order to a Result<NuveiItem>
                 let results: Vec<Result<NuveiItem, error_stack::Report<errors::ConnectorError>>> =
                     order_details_list
-                        .into_iter()
+                        .iter()
                         .map(|order| {
                             let discount = order
                                 .unit_discount_amount
