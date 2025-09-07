@@ -382,6 +382,18 @@ pub enum NuveiItemType {
     #[serde(rename = "Sales_tax")]
     SalesTax,
 }
+impl From<Option<enums::ProductType>> for NuveiItemType {
+    fn from(value: Option<enums::ProductType>) -> Self {
+        match value {
+            Some(enums::ProductType::Digital) => NuveiItemType::Digital,
+            Some(enums::ProductType::Physical) => NuveiItemType::Physical,
+            Some(enums::ProductType::Ride)
+            | Some(enums::ProductType::Travel)
+            | Some(enums::ProductType::Accommodation) => NuveiItemType::ShippingFee,
+            _ => NuveiItemType::Physical,
+        }
+    }
+}
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
@@ -1476,16 +1488,7 @@ fn get_l2_l3_items(
                                 .transpose()?;
                             Ok(NuveiItem {
                                 name: order.product_name.clone(),
-                                item_type: match order.product_type {
-                                    Some(enums::ProductType::Digital) => NuveiItemType::Digital,
-                                    Some(enums::ProductType::Physical) => NuveiItemType::Physical,
-                                    Some(enums::ProductType::Ride)
-                                    | Some(enums::ProductType::Travel)
-                                    | Some(enums::ProductType::Accommodation) => {
-                                        NuveiItemType::ShippingFee
-                                    }
-                                    _ => NuveiItemType::Physical,
-                                },
+                                item_type: order.product_type.clone().into(),
                                 price: convert_amount(
                                     NUVEI_AMOUNT_CONVERTOR,
                                     order.amount,
@@ -1514,6 +1517,36 @@ fn get_l2_l3_items(
                 }
                 Ok(Some(items))
             })
+    })
+}
+
+fn get_amount_details(
+    l2_l3_data: &Option<L2L3Data>,
+    currency: enums::Currency,
+) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
+    l2_l3_data.as_ref().map_or(Ok(None), |data| {
+        let total_tax = data
+            .order_tax_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_shipping = data
+            .shipping_cost
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_discount = data
+            .discount_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_handling = data
+            .duty_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        Ok(Some(NuveiAmountDetails {
+            total_tax,
+            total_shipping,
+            total_handling,
+            total_discount,
+        }))
     })
 }
 
