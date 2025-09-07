@@ -37,7 +37,9 @@ use crate::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation, transformers::GenerateResponse},
         revenue_recovery::{self as revenue_recovery_core, pcr, perform_calculate_workflow},
-        webhooks::{create_event_and_trigger_outgoing_webhook, recovery_incoming as recovery_incoming_flow},
+        webhooks::{
+            create_event_and_trigger_outgoing_webhook, recovery_incoming as recovery_incoming_flow,
+        },
     },
     db::StorageInterface,
     logger,
@@ -429,7 +431,7 @@ impl Action {
                     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                         payment_intent,
                     );
-                
+
                 let event_class = common_enums::EventClass::Payments;
                 // handle proxy api's response
                 match response {
@@ -482,11 +484,18 @@ impl Action {
                                 &connector_customer_id,
                             )
                             .await;
-                            
+
                             let event_status = common_enums::EventType::PaymentSucceeded;
 
-                            let payments_response  =  
-                                payment_data.clone().generate_response(state, None, None, None, &merchant_context,profile, None);
+                            let payments_response = payment_data.clone().generate_response(
+                                state,
+                                None,
+                                None,
+                                None,
+                                &merchant_context,
+                                profile,
+                                None,
+                            );
 
                             let event_status = common_enums::EventType::PaymentSucceeded;
 

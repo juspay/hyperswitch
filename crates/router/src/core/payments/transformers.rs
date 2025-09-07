@@ -2294,7 +2294,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
-        connector_response_data: Option<common_types::domain::ConnectorResponseData>,       
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
         let payment_attempt = self.payment_attempt;
@@ -2406,7 +2406,10 @@ where
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
-            feature_metadata: payment_intent.feature_metadata.clone().map(|feature_metadata| feature_metadata.convert_back()),
+            feature_metadata: payment_intent
+                .feature_metadata
+                .clone()
+                .map(|feature_metadata| feature_metadata.convert_back()),
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
