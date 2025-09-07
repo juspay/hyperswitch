@@ -967,8 +967,8 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 }
             });
         Ok(Self {
-            shipping_address: shipping.or(unified_payment_method_billing.clone()),
-            billing_address: billing.or(unified_payment_method_billing),
+            shipping_address: shipping,
+            billing_address: unified_payment_method_billing.or(billing),
         })
     }
 }
@@ -1220,6 +1220,7 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
 }
 
 /// Webhook transform data structure containing UCS response information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,
@@ -1231,16 +1232,8 @@ pub struct WebhookTransformData {
 pub fn transform_ucs_webhook_response(
     response: PaymentServiceTransformResponse,
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type = match response.event_type {
-        0 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
-        1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
-        2 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
-        3 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
-        4 => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
-        5 => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
-        6 => api_models::webhooks::IncomingWebhookEvent::MandateRevoked,
-        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
-    };
+    let event_type =
+        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
     Ok(WebhookTransformData {
         event_type,

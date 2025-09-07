@@ -66,7 +66,7 @@ pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub confirmation_timestamp: Option<String>,
     pub network_authorization_code: Option<String>,
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
@@ -526,7 +526,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
             checkout_event_status: item.router_data.request.checkout_event_status.clone(),
             confirmation_status: item.router_data.request.confirmation_status.clone(),
             confirmation_reason: item.router_data.request.confirmation_reason.clone(),
-            confirmation_timestamp: item.router_data.request.confirmation_timestamp,
+            confirmation_timestamp: item.router_data.request.confirmation_timestamp.clone(),
             network_authorization_code: item.router_data.request.network_authorization_code.clone(),
             network_transaction_identifier: item
                 .router_data

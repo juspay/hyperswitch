@@ -154,8 +154,6 @@ pub trait UnifiedAuthenticationService {
     #[allow(clippy::too_many_arguments)]
     async fn confirmation(
         _state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
         _authentication_id: Option<&common_utils::id_type::AuthenticationId>,
         _currency: Option<common_enums::Currency>,
         _status: common_enums::AttemptStatus,
