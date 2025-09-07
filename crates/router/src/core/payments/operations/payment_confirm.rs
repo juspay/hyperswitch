@@ -326,7 +326,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     let attempt_type = helpers::get_attempt_type(
                         &payment_intent,
                         &payment_attempt,
-                        request,
+                        business_profile.is_manual_retry_enabled,
                         "confirm",
                     )?;
 
