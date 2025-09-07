@@ -6113,6 +6113,11 @@ pub struct PaymentsResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
 
+    /// Time when the payment was created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
