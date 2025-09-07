@@ -11131,6 +11131,7 @@
           "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
+          "payment_scheduled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -20022,7 +20023,8 @@
           "status",
           "amount",
           "customer_id",
-          "created"
+          "created",
+          "modified_at"
         ],
         "properties": {
           "id": {
@@ -20052,6 +20054,12 @@
             "nullable": true
           },
           "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
             "type": "string",
             "format": "date-time",
             "description": "Time when the payment was created",
