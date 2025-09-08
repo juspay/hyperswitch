@@ -17,4 +17,3 @@ pub struct BillingAddress {
     pub zip: String,
     pub country: String,
 }
-

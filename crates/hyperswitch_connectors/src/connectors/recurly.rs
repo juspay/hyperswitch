@@ -9,14 +9,22 @@ use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::UasFlowData,
-    router_flow_types::unified_authentication_service::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    router_data_v2::{flow_common_types as customer_flow_common_types, UasFlowData},
+    router_flow_types::{
+        subscriptions::CreateCustomer as CreateCustomerFlow,
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
     },
-    router_request_types::unified_authentication_service::{
-        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+    router_request_types::{
+        subscriptions as customer_request_types,
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
     },
+    router_response_types::subscriptions as customer_response_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -25,12 +33,6 @@ use hyperswitch_domain_models::{
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
-};
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types as customer_flow_common_types,
-    router_flow_types::subscriptions::CreateCustomer as CreateCustomerFlow,
-    router_request_types::subscriptions as customer_request_types,
-    router_response_types::subscriptions as customer_response_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;

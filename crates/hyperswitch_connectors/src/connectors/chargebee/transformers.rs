@@ -15,8 +15,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse,
-        PaymentsResponseData, RefundsResponseData,
+        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
+        RefundsResponseData,
     },
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
@@ -807,9 +807,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCusto
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: &ChargebeeRouterData<
-            &hyperswitch_domain_models::types::CreateCustomerRouterData,
-        >,
+        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCustomerRouterData>,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
 
@@ -826,22 +824,10 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCusto
                 .billing_address
                 .as_ref()
                 .map(|addr| addr.last_name.clone()),
-            billing_address_line1: req
-                .billing_address
-                .as_ref()
-                .map(|addr| addr.line1.clone()),
-            billing_address_city: req
-                .billing_address
-                .as_ref()
-                .map(|addr| addr.city.clone()),
-            billing_address_state: req
-                .billing_address
-                .as_ref()
-                .map(|addr| addr.state.clone()),
-            billing_address_zip: req
-                .billing_address
-                .as_ref()
-                .map(|addr| addr.zip.clone()),
+            billing_address_line1: req.billing_address.as_ref().map(|addr| addr.line1.clone()),
+            billing_address_city: req.billing_address.as_ref().map(|addr| addr.city.clone()),
+            billing_address_state: req.billing_address.as_ref().map(|addr| addr.state.clone()),
+            billing_address_zip: req.billing_address.as_ref().map(|addr| addr.zip.clone()),
             billing_address_country: req
                 .billing_address
                 .as_ref()
@@ -878,14 +864,15 @@ pub struct ChargebeeBillingAddress {
 }
 
 #[cfg(feature = "v1")]
-impl TryFrom<
-    ResponseRouterData<
-        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
-        ChargebeeCustomerCreateResponse,
-        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
-    >,
-> for hyperswitch_domain_models::types::CreateCustomerRouterData
+impl
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            ChargebeeCustomerCreateResponse,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    > for hyperswitch_domain_models::types::CreateCustomerRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 

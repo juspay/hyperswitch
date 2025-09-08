@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData,},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -668,7 +668,8 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl ConnectorIntegration<
+impl
+    ConnectorIntegration<
         hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
         hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
         hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
@@ -717,9 +718,7 @@ impl ConnectorIntegration<
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::CreateCustomerType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&types::CreateCustomerType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::CreateCustomerType::get_headers(
                     self, req, connectors,
@@ -853,8 +852,6 @@ impl
         todo!()
     }
 }
-
-
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Chargebee {

@@ -125,7 +125,6 @@ pub type RevenueRecoveryRecordBackRouterData = RouterData<
 pub type CreateCustomerRouterData =
     RouterData<CreateCustomer, CreateCustomerRequest, CreateCustomerResponse>;
 
-
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
 
