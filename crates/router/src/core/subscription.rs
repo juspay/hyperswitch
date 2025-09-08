@@ -17,6 +17,7 @@ use common_utils::{events::ApiEventMetric, generate_id_with_default_len, id_type
 use diesel_models::subscription::{SubscriptionNew, SubscriptionUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use masking::ExposeInterface;
 use payment_methods::helpers::StorageErrorExt;
 use std::{num::NonZeroI64, str::FromStr};
 use utils::{get_customer_details_from_request, get_or_create_customer};
@@ -162,6 +163,93 @@ pub async fn confirm_subscription(
             "cannot find connector params for this connector {connector_name} in this flow",
         ))?;
 
+    let connector_integration_for_create_customer: service_api::BoxedCreateCustomerConnectorIntegrationInterface<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        > = connector_data.connector.get_connector_integration();
+
+    let customer_req =
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest {
+            customer_id: subscription.customer_id.get_string_repr().to_string(),
+            email: request
+                .customer
+                .as_ref()
+                .and_then(|c| c.email.clone())
+                .map(|email| email.expose())
+                .map(|email| email.expose())
+                .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Email is required to create customer".to_string(),
+                })?,
+            first_name: request
+                .customer
+                .as_ref()
+                .and_then(|c| c.name.clone())
+                .map(|name| name.expose())
+                .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Name is required to create customer".to_string(),
+                })?,
+            last_name: request
+                .customer
+                .as_ref()
+                .and_then(|c| c.name.clone())
+                .map(|name| name.expose())
+                .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Name is required to create customer".to_string(),
+                })?, // Split name into first and last name if needed
+            billing_address: None,
+            locale: None,
+        };
+
+    let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+        payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            billing_processor_mca.clone(),
+        ))
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let router_data = payments_core::helpers::create_subscription_router_data::<
+        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+    >(
+        &state,
+        subscription.merchant_id.to_owned(),
+        Some(subscription.customer_id.to_owned()),
+        connector_name.clone(),
+        auth_type.clone(),
+        customer_req,
+        None,
+    )?;
+
+    let response = service_api::execute_connector_processing_step::<
+        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        _,
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+    >(
+        &state,
+        connector_integration_for_create_customer,
+        &router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while handling response of subscription_create")?;
+
+    let customer_create_connector_resp = response.response.map_err(|err| {
+        crate::logger::error!(?err);
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+
+    crate::logger::debug!(
+        "customer_create_connector_resp: {:?}",
+        customer_create_connector_resp
+    );
+
     let connector_integration: service_api::BoxedSubscriptionConnectorIntegrationInterface<
         hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
         hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
@@ -194,13 +282,6 @@ pub async fn confirm_subscription(
         };
 
     logger::debug!("conn_request_customer: {:?}", conn_request.customer_id);
-
-    let auth_type = payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
-        billing_processor_mca.clone(),
-    ))
-    .get_connector_account_details()
-    .parse_value("ConnectorAuthType")
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let router_data = payments_core::helpers::create_subscription_router_data::<
         hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,

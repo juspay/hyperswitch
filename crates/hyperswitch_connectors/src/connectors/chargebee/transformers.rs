@@ -1135,6 +1135,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargebeeCustomerResponse, T, CreateCus
 
 #[derive(Debug, Serialize)]
 pub struct ChargebeeCustomerCreateRequest {
+    #[serde(rename = "id")]
+    pub customer_id: String,
     #[serde(rename = "first_name")]
     pub first_name: String,
     #[serde(rename = "last_name")]
@@ -1171,6 +1173,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCusto
         let req = &item.router_data.request;
 
         Ok(Self {
+            customer_id: req.customer_id.clone(),
             first_name: req.first_name.clone(),
             last_name: req.last_name.clone(),
             email: req.email.clone(),

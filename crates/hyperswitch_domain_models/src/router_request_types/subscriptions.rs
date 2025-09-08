@@ -31,6 +31,7 @@ pub struct SubscriptionCreateRequest {
 }
 #[derive(Debug, Clone)]
 pub struct CreateCustomerRequest {
+    pub customer_id: String,
     pub first_name: String,
     pub last_name: String,
     pub email: String,
