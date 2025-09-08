@@ -56,7 +56,8 @@ pub enum SubscriptionStatus {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Invoice {
     pub id: String,
-    pub total: u64,
+    pub total_amount: u64,
+    pub currency: common_enums::Currency,
 }
 
 impl Subscription {
@@ -70,10 +71,11 @@ impl Subscription {
 }
 
 impl Invoice {
-    pub fn new(id: impl Into<String>, total: u64) -> Self {
+    pub fn new(id: impl Into<String>, total_amount: u64, currency: common_enums::Currency) -> Self {
         Self {
             id: id.into(),
-            total,
+            total_amount,
+            currency
         }
     }
 }
