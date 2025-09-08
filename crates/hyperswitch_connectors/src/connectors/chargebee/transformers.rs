@@ -15,8 +15,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
-        RefundsResponseData,
+        revenue_recovery::RevenueRecoveryRecordBackResponse,
+        subscriptions::{self, GetSubscriptionPlanPricesResponse},
+        PaymentsResponseData, RefundsResponseData,
     },
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
@@ -769,6 +770,106 @@ impl
             response: Ok(RevenueRecoveryRecordBackResponse {
                 merchant_reference_id,
             }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeGetPlanPricesResponse {
+    pub list: Vec<ChargebeeGetPlanPriceList>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeGetPlanPriceList {
+    pub item_price: ChargebeePlanPriceItem,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeePlanPriceItem {
+    pub id: String,
+    pub name: String,
+    pub currency_code: String,
+    pub free_quantity: i64,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    pub deleted: bool,
+    pub item_id: Option<String>,
+    pub period: i64,
+    pub period_unit: ChargebeePeriodUnit,
+    pub trial_period: Option<i64>,
+    pub trial_period_unit: ChargebeeTrialPeriodUnit,
+    pub price: MinorUnit,
+    pub pricing_model: ChargebeePricingModel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChargebeePricingModel {
+    FlatFee,
+    PerUnit,
+    Tiered,
+    Volume,
+    Stairstep,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChargebeePeriodUnit {
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChargebeeTrialPeriodUnit {
+    Day,
+    Month,
+}
+
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<F, ChargebeeGetPlanPricesResponse, T, GetSubscriptionPlanPricesResponse>,
+    > for RouterData<F, T, GetSubscriptionPlanPricesResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            ChargebeeGetPlanPricesResponse,
+            T,
+            GetSubscriptionPlanPricesResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let plan_prices = item
+            .response
+            .list
+            .into_iter()
+            .map(|prices| {
+                subscriptions::SubscriptionPlanPrices {
+                    price_id: prices.item_price.id,
+                    plan_id: prices.item_price.item_id,
+                    amount: prices.item_price.price,
+                    currency: <common_enums::Currency as std::str::FromStr>::from_str(
+                        &prices.item_price.currency_code,
+                    )
+                    .unwrap_or(common_enums::Currency::USD), // defaulting to USD if parsing fails
+                    interval: match prices.item_price.period_unit {
+                        ChargebeePeriodUnit::Day => subscriptions::PeriodUnit::Day,
+                        ChargebeePeriodUnit::Week => subscriptions::PeriodUnit::Week,
+                        ChargebeePeriodUnit::Month => subscriptions::PeriodUnit::Month,
+                        ChargebeePeriodUnit::Year => subscriptions::PeriodUnit::Year,
+                    },
+                    interval_count: prices.item_price.period,
+                    trial_period: prices.item_price.trial_period,
+                    trial_period_unit: match prices.item_price.trial_period_unit {
+                        ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
+                        ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
+                    },
+                }
+            })
+            .collect();
+        Ok(Self {
+            response: Ok(GetSubscriptionPlanPricesResponse { list: plan_prices }),
             ..item.data
         })
     }
