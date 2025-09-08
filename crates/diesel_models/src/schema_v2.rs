@@ -248,6 +248,7 @@ diesel::table! {
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
+        is_manual_retry_enabled -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -1404,8 +1405,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    subscription (id) {
-        id -> Int4,
+    subscription (subscription_id, merchant_id) {
         #[max_length = 128]
         subscription_id -> Varchar,
         #[max_length = 128]
@@ -1415,7 +1415,7 @@ diesel::table! {
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
         #[max_length = 128]
-        mca_id -> Nullable<Varchar>,
+        merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1427,6 +1427,8 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Varchar,
     }
 }
 
