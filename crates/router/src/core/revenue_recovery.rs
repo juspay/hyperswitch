@@ -17,7 +17,10 @@ use hyperswitch_domain_models::{
 use scheduler::errors as sch_errors;
 
 use crate::{
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payments::transformers::GenerateResponse,
+    },
     db::StorageInterface,
     logger,
     routes::{app::ReqState, metrics, SessionState},
@@ -417,7 +420,7 @@ pub async fn perform_payments_sync(
     )
     .await?;
 
-    let payment_attempt = psync_data.payment_attempt;
+    let payment_attempt = psync_data.clone().payment_attempt;
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()
@@ -426,6 +429,7 @@ pub async fn perform_payments_sync(
         .convert_back();
     let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
         payment_attempt.status.foreign_into();
+
     Box::pin(
         pcr_status.update_pt_status_based_on_attempt_status_for_payments_sync(
             state,
@@ -436,6 +440,7 @@ pub async fn perform_payments_sync(
             revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
+            &psync_data,
         ),
     )
     .await?;

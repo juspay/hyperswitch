@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
-        PaymentIntent, PaymentIntentData,
+        PaymentIntent, PaymentIntentData, PaymentStatusData,
     },
     router_data_v2::{self, flow_common_types},
     router_flow_types,
@@ -112,6 +112,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        psync_response: &PaymentStatusData<router_flow_types::PSync>,
     ) -> Result<(), errors::ProcessTrackerError> {
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
@@ -138,6 +139,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
 
         let retry_count = process_tracker.retry_count;
+        let event_class = common_enums::EventClass::Payments;
 
         match self {
             Self::Succeeded => {
@@ -181,6 +183,33 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     &connector_customer_id,
                 )
                 .await;
+
+                let payments_response = psync_response.clone().generate_response(
+                    state,
+                    None,
+                    None,
+                    None,
+                    &merchant_context,
+                    profile,
+                    None,
+                );
+
+                if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((
+                    response,
+                    _headers,
+                ))) = payments_response
+                {
+                    send_outgoing_webhook_based_on_revenue_recovery_status(
+                        state,
+                        event_class,
+                        event_status,
+                        payment_intent,
+                        &merchant_context,
+                        profile,
+                        response,
+                    )
+                    .await?
+                };
 
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
@@ -497,24 +526,17 @@ impl Action {
                                 None,
                             );
 
-                            let event_status = common_enums::EventType::PaymentSucceeded;
-
                             if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
-                                // create event and trigger outgoing webhook
-                                    let outgoing_webhook_content = api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
-                                    create_event_and_trigger_outgoing_webhook(
-                                        state.clone(),
-                                        profile.clone(),
-                                        merchant_context.get_merchant_key_store(),
-                                        event_status,
-                                        event_class,
-                                        payment_data.payment_intent.get_id().get_string_repr().to_string(),
-                                        enums::EventObjectType::PaymentDetails,
-                                        outgoing_webhook_content,
-                                        payment_data.payment_intent.created_at
-                                    )
-                                    .await.change_context(errors::RecoveryError::InvalidTask)
-                                    .attach_printable("Failed to send out going webhook")?;
+                                send_outgoing_webhook_based_on_revenue_recovery_status(
+                                    state,
+                                    event_class,
+                                    event_status,
+                                    payment_intent,
+                                    &merchant_context,
+                                    profile,
+                                    response,
+                                )
+                                .await?
                             };
 
                             Ok(Self::SuccessfulPayment(
@@ -1506,4 +1528,33 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
     logger::info!("Used token in the payment attempt : {:?}", used_token);
 
     used_token
+}
+
+pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
+    state: &SessionState,
+    event_class: common_enums::EventClass,
+    event_status: common_enums::EventType,
+    payment_intent: &PaymentIntent,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+    response: api_models::payments::PaymentsResponse,
+) -> RecoveryResult<()> {
+    let outgoing_webhook_content =
+        api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
+    create_event_and_trigger_outgoing_webhook(
+        state.clone(),
+        profile.clone(),
+        merchant_context.get_merchant_key_store(),
+        event_status,
+        event_class,
+        payment_intent.get_id().get_string_repr().to_string(),
+        enums::EventObjectType::PaymentDetails,
+        outgoing_webhook_content,
+        payment_intent.created_at,
+    )
+    .await
+    .change_context(errors::RecoveryError::InvalidTask)
+    .attach_printable("Failed to send out going webhook")?;
+
+    Ok(())
 }

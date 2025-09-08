@@ -1536,6 +1536,7 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                #[cfg(feature = "v2")]
                 EventType::PaymentScheduled,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
@@ -1592,6 +1593,7 @@ pub enum EventType {
     PaymentPartiallyAuthorized,
     PaymentCaptured,
     PaymentExpired,
+    #[cfg(feature = "v2")]
     PaymentScheduled,
     ActionRequired,
     RefundSucceeded,
