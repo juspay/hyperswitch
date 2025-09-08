@@ -75,7 +75,7 @@ impl Invoice {
         Self {
             id: id.into(),
             total_amount,
-            currency
+            currency,
         }
     }
 }
