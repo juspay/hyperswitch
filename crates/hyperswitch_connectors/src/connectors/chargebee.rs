@@ -44,8 +44,15 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, subscriptions_v2::GetSubscriptionPlanPricesV2, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation
-    }, configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, errors, events::connector_api_logs::ConnectorEvent, types::{self, Response}, webhooks
+        self, subscriptions_v2::GetSubscriptionPlanPricesV2, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+    },
+    configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks,
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
