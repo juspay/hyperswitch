@@ -1392,25 +1392,3 @@ pub struct AciWebhookNotification {
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ChallengeIndicator {
-    #[serde(rename = "01")]
-    NoPreference,
-    #[serde(rename = "02")]
-    NoChallengeRequested,
-    #[serde(rename = "03")]
-    ChallengeRequestedRequestorPreference,
-    #[serde(rename = "04")]
-    ChallengeRequestedMandate,
-    #[serde(rename = "05")]
-    NoChallengeRequestedRiskAnalysis,
-    #[serde(rename = "06")]
-    NoChallengeRequestedDataShareOnly,
-    #[serde(rename = "07")]
-    NoChallengeRequestedSCAAlreadyPerformed,
-    #[serde(rename = "08")]
-    NoChallengeRequestedWhitelistExemption,
-    #[serde(rename = "09")]
-    ChallengeRequestedWhitelistPrompt,
-}
