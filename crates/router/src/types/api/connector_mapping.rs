@@ -99,7 +99,7 @@ impl ConnectorData {
             merchant_connector_id: connector_id,
         })
     }
-
+    #[cfg(feature = "v1")]
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
         connector: String,

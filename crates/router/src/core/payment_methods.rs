@@ -39,8 +39,6 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_methods::VaultId;
 use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -63,17 +61,14 @@ use crate::{
     configs::settings,
     core::{
         payment_methods::transformers as pm_transforms, payments as payments_core,
-        tokenization as tokenization_core, utils as core_utils,
+        tokenization as tokenization_core,
     },
-    db::errors::ConnectorErrorExt,
-    headers, logger,
+    headers,
     routes::{self, payment_methods as pm_routes},
-    services::{connector_integration_interface::RouterDataConversion, encryption},
+    services::encryption,
     types::{
-        self,
-        api::{self, payment_methods::PaymentMethodCreateExt},
+        api::PaymentMethodCreateExt,
         domain::types as domain_types,
-        payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
         Tokenizable,
@@ -911,6 +906,7 @@ pub async fn create_payment_method_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use common_utils::ext_traits::ValueExt;
 
+
     req.validate()?;
 
     let db = &*state.store;
@@ -1701,7 +1697,7 @@ pub async fn generate_token_data_response(
     state: &SessionState,
     request: payment_methods::GetTokenDataRequest,
     profile: domain::Profile,
-    payment_method: &domain_payment_methods::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
 ) -> RouterResult<api::TokenDataResponse> {
     let token_details = match request.token_type {
         common_enums::TokenDataType::NetworkToken => {
@@ -2041,9 +2037,9 @@ pub async fn get_external_vault_token(
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     payment_token: String,
-    vault_token: payment_method_data::VaultToken,
+    vault_token: domain::VaultToken,
     payment_method_type: &storage_enums::PaymentMethod,
-) -> CustomResult<payment_method_data::ExternalVaultPaymentMethodData, errors::ApiErrorResponse> {
+) -> CustomResult<domain::ExternalVaultPaymentMethodData, errors::ApiErrorResponse> {
     let db = &*state.store;
 
     let pm_token_data =
@@ -2101,11 +2097,11 @@ pub async fn get_external_vault_token(
 fn convert_from_saved_payment_method_data(
     vault_additional_data: payment_methods::PaymentMethodsData,
     external_vault_token_data: payment_methods::ExternalVaultTokenData,
-    vault_token: payment_method_data::VaultToken,
-) -> RouterResult<payment_method_data::ExternalVaultPaymentMethodData> {
+    vault_token: domain::VaultToken,
+) -> RouterResult<domain::ExternalVaultPaymentMethodData> {
     match vault_additional_data {
         payment_methods::PaymentMethodsData::Card(card_details) => {
-            Ok(payment_method_data::ExternalVaultPaymentMethodData::Card(
+            Ok(domain::ExternalVaultPaymentMethodData::Card(
                 Box::new(domain::ExternalVaultCard {
                     card_number: external_vault_token_data.tokenized_card_number,
                     card_exp_month: card_details.expiry_month.ok_or(
@@ -2200,13 +2196,13 @@ pub async fn create_pm_additional_data_update(
         .map(
             |payment_method_vaulting_data| match payment_method_vaulting_data {
                 domain::PaymentMethodVaultingData::Card(card) => {
-                    payment_method_data::PaymentMethodsData::Card(
-                        payment_method_data::CardDetailsPaymentMethod::from(card.clone()),
+                    domain::PaymentMethodsData::Card(
+                        domain::CardDetailsPaymentMethod::from(card.clone()),
                     )
                 }
                 domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                    payment_method_data::PaymentMethodsData::NetworkToken(
-                        payment_method_data::NetworkTokenDetailsPaymentMethod::from(
+                    domain::PaymentMethodsData::NetworkToken(
+                        domain::NetworkTokenDetailsPaymentMethod::from(
                             network_token.clone(),
                         ),
                     )
@@ -2363,6 +2359,7 @@ pub async fn vault_payment_method_external(
     get_vault_response_for_insert_payment_method_data(router_data_resp)
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method_external_v1(
     state: &SessionState,
@@ -2427,7 +2424,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 fingerprint_id,
             } => {
                 #[cfg(feature = "v2")]
-                let vault_id = VaultId::generate(connector_vault_id);
+                let vault_id = domain::VaultId::generate(connector_vault_id);
                 #[cfg(not(feature = "v2"))]
                 let vault_id = connector_vault_id;
 
@@ -2763,7 +2760,7 @@ pub async fn retrieve_payment_method(
 
     let single_use_token_in_cache = get_single_use_token_from_store(
         &state.clone(),
-        payment_method_data::SingleUseTokenKey::store_key(&pm_id.clone()),
+        domain::SingleUseTokenKey::store_key(&pm_id.clone()),
     )
     .await
     .unwrap_or_default();
@@ -3748,7 +3745,7 @@ async fn create_single_use_tokenization_flow(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let payment_method_data_request = types::PaymentMethodTokenizationData {
-        payment_method_data: payment_method_data::PaymentMethodData::try_from(
+        payment_method_data: domain::PaymentMethodData::try_from(
             payment_method_create_request.payment_method_data.clone(),
         )
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
@@ -3855,12 +3852,12 @@ async fn create_single_use_tokenization_flow(
         }
     })?;
 
-    let value = payment_method_data::SingleUsePaymentMethodToken::get_single_use_token_from_payment_method_token(
+    let value = domain::SingleUsePaymentMethodToken::get_single_use_token_from_payment_method_token(
                                                        token_response.clone().into(),
                                                 connector_id.clone()
                                             );
 
-    let key = payment_method_data::SingleUseTokenKey::store_key(&payment_method.id);
+    let key = domain::SingleUseTokenKey::store_key(&payment_method.id);
 
     add_single_use_token_to_store(&state, key, value)
         .await
@@ -3873,8 +3870,8 @@ async fn create_single_use_tokenization_flow(
 #[cfg(feature = "v2")]
 async fn add_single_use_token_to_store(
     state: &SessionState,
-    key: payment_method_data::SingleUseTokenKey,
-    value: payment_method_data::SingleUsePaymentMethodToken,
+    key: domain::SingleUseTokenKey,
+    value: domain::SingleUsePaymentMethodToken,
 ) -> CustomResult<(), errors::StorageError> {
     let redis_connection = state
         .store
@@ -3883,7 +3880,7 @@ async fn add_single_use_token_to_store(
 
     redis_connection
         .serialize_and_set_key_with_expiry(
-            &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
+            &domain::SingleUseTokenKey::get_store_key(&key).into(),
             value,
             consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
         )
@@ -3896,16 +3893,16 @@ async fn add_single_use_token_to_store(
 #[cfg(feature = "v2")]
 async fn get_single_use_token_from_store(
     state: &SessionState,
-    key: payment_method_data::SingleUseTokenKey,
-) -> CustomResult<Option<payment_method_data::SingleUsePaymentMethodToken>, errors::StorageError> {
+    key: domain::SingleUseTokenKey,
+) -> CustomResult<Option<domain::SingleUsePaymentMethodToken>, errors::StorageError> {
     let redis_connection = state
         .store
         .get_redis_conn()
         .map_err(Into::<errors::StorageError>::into)?;
 
     redis_connection
-        .get_and_deserialize_key::<Option<payment_method_data::SingleUsePaymentMethodToken>>(
-            &payment_method_data::SingleUseTokenKey::get_store_key(&key).into(),
+        .get_and_deserialize_key::<Option<domain::SingleUsePaymentMethodToken>>(
+            &domain::SingleUseTokenKey::get_store_key(&key).into(),
             "SingleUsePaymentMethodToken",
         )
         .await

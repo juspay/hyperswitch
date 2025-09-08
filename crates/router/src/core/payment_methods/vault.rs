@@ -9,31 +9,31 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData,
-    router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
-    types::VaultRouterData,
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow,
 };
-#[cfg(feature = "v1")]
-use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
+};
+
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
-#[cfg(feature = "v1")]
-use crate::core::errors::ConnectorErrorExt;
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
     consts,
     core::{
-        errors::{self, CustomResult, RouterResult},
-        utils as core_utils,
+        errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
+        payments, utils as core_utils,
     },
     db, logger,
     routes::{self, metrics},
+    services::{self, connector_integration_interface::RouterDataConversion},
     types::{
-        api, domain,
+        self, api, domain,
         storage::{self, enums},
     },
     utils::StringExt,
@@ -41,15 +41,12 @@ use crate::{
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        errors::ConnectorErrorExt,
         errors::StorageErrorExt,
         payment_methods::{transformers as pm_transforms, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
-    headers,
-    services::{self, connector_integration_interface::RouterDataConversion},
-    settings,
-    types::{self, payment_methods as pm_types},
+    headers, settings,
+    types::payment_methods as pm_types,
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
 };
 
@@ -1881,6 +1878,7 @@ pub async fn delete_payment_method_data_from_vault(
     }
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_external_v1(
     state: &routes::SessionState,
@@ -1900,7 +1898,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     )
     .await?;
 
-    let old_router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::VaultConnectorFlowData::to_old_router_data(router_data)
+    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault retrieve api call",
@@ -1917,17 +1915,17 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: crate::services::BoxedVaultConnectorIntegrationInterface<
+    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
         hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
-        crate::types::VaultRequestData,
-        crate::types::VaultResponseData,
+        types::VaultRequestData,
+        types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data_resp = crate::services::execute_connector_processing_step(
+    let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
         &old_router_data,
-        crate::core::payments::CallConnectorAction::Trigger,
+        payments::CallConnectorAction::Trigger,
         None,
         None,
     )
@@ -1938,16 +1936,16 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
 }
 
 pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
-    router_data: hyperswitch_domain_models::types::VaultRouterData<F>,
+    router_data: VaultRouterData<F>,
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
     match router_data.response {
         Ok(response) => match response {
-            crate::types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
+            types::VaultResponseData::ExternalVaultRetrieveResponse { vault_data } => {
                 Ok(vault_data)
             }
-            crate::types::VaultResponseData::ExternalVaultInsertResponse { .. }
-            | crate::types::VaultResponseData::ExternalVaultDeleteResponse { .. }
-            | crate::types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
+            types::VaultResponseData::ExternalVaultInsertResponse { .. }
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }

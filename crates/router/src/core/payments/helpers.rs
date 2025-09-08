@@ -2230,7 +2230,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 .and_then(|vault_data| vault_data.get_card_vault_data())
                 .map(Ok)
                 .async_unwrap_or_else(|| async {
-                    fetch_card_details_from_locker(
+                    Box::pin(fetch_card_details_from_locker(
                         state,
                         customer_id,
                         &payment_intent.merchant_id,
@@ -2240,8 +2240,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         business_profile.is_external_vault_enabled.unwrap_or(false),
                         payment_method_info,
                         merchant_key_store,
-                        business_profile.get_id(),
-                    )
+                    ))
                     .await
                 })
                 .await?;
@@ -2285,7 +2284,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                             .and_then(|vault_data| vault_data.get_card_vault_data())
                             .map(Ok)
                             .async_unwrap_or_else(|| async {
-                                fetch_card_details_from_locker(
+                                Box::pin(fetch_card_details_from_locker(
                                     state,
                                     customer_id,
                                     &payment_intent.merchant_id,
@@ -2295,9 +2294,9 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     business_profile.is_external_vault_enabled.unwrap_or(false),
                                     payment_method_info,
                                     merchant_key_store,
-                                    business_profile.get_id(),
-                                )
+                                ))
                                 .await
+
                             })
                             .await?,
                     ))
@@ -2364,7 +2363,9 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
         .attach_printable("failed to fetch card information from the permanent locker")?,
     ))
 }
+
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn fetch_card_details_from_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
@@ -2375,7 +2376,6 @@ pub async fn fetch_card_details_from_locker(
     is_external_vault_enabled: bool,
     payment_method_info: domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    _profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Card> {
     if is_external_vault_enabled
         && payment_method_info

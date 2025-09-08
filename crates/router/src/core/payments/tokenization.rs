@@ -38,7 +38,7 @@ use crate::{
             cards::{create_encrypted_data, PmCards},
             network_tokenization,
         },
-        payments::{self, helpers as payments_core},
+        payments,
     },
     logger,
     routes::{metrics, SessionState},
@@ -83,33 +83,27 @@ async fn save_in_locker_or_external_vault(
                         // card_cvc: None, // CVC is not stored in vault
                     },
                 );
-            let profile_id = business_profile.get_id();
             let external_vault_mca_id = business_profile
                 .external_vault_connector_details
                 .clone()
                 .map(|connector_details| connector_details.vault_connector_id.clone())
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("mca_id not present for external vault")?;
-            let merchant_connector_account = helpers::get_merchant_connector_account(
-                state,
-                merchant_context.get_merchant_account().get_id(),
-                None,
-                merchant_context.get_merchant_key_store(),
-                profile_id,
-                "vgs",
-                Some(&external_vault_mca_id),
-            )
-            .await
-            .attach_printable("Failed to fetch merchant connector account for external vault")?;
 
-            let merchant_connector_account_details = match merchant_connector_account {
-                helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account) => {
-                    *merchant_connector_account
-                }
-                helpers::MerchantConnectorAccountType::CacheVal(merchant_connector_details) => {
-                    return Err(errors::ApiErrorResponse::InternalServerError.into())
-                }
-            };
+            let key_manager_state = &state.into();
+
+    let merchant_connector_account_details = state.store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_context.get_merchant_account().get_id(),
+            &external_vault_mca_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: external_vault_mca_id.get_string_repr().to_string(),
+            },
+        )?;
 
             // Call vault_payment_method_external_v1
             let vault_response = vault_payment_method_external_v1(
