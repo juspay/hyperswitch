@@ -4424,10 +4424,7 @@ pub fn get_attempt_type(
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if matches!(
-                is_manual_retry_enabled,
-                Some(true)
-            ) {
+            if matches!(is_manual_retry_enabled, Some(true)) {
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((

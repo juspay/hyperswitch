@@ -829,6 +829,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
