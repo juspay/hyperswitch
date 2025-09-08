@@ -153,7 +153,6 @@ pub struct RevenueRecoveryRecordBackData;
 #[derive(Debug, Clone)]
 pub struct CreateCustomerData;
 
-
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,

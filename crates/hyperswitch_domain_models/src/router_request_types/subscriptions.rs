@@ -1,5 +1,7 @@
+use common_utils::id_type::CustomerId;
 #[derive(Debug, Clone)]
 pub struct CreateCustomerRequest {
+    pub customer_id: CustomerId,
     pub first_name: String,
     pub last_name: String,
     pub email: String,
@@ -17,4 +19,3 @@ pub struct BillingAddress {
     pub zip: String,
     pub country: String,
 }
-

@@ -9,7 +9,11 @@ use hyperswitch_domain_models::{
     router_data::{self, RouterData},
     router_data_v2::{
         flow_common_types::{
-            AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData, CreateCustomerData, DisputesFlowData, ExternalAuthenticationFlowData, ExternalVaultProxyFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData
+            AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
+            BillingConnectorPaymentsSyncFlowData, CreateCustomerData, DisputesFlowData,
+            ExternalAuthenticationFlowData, ExternalVaultProxyFlowData, FilesFlowData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RevenueRecoveryRecordBackData,
+            UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -794,9 +798,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     }
 }
 
-impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
-    for CreateCustomerData
-{
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for CreateCustomerData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
     ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>

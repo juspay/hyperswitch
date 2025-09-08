@@ -13,12 +13,10 @@ pub trait SubscriptionsV2: CustomerCreateV2 {}
 /// trait CustomersCreateV2
 pub trait CustomerCreateV2:
     ConnectorIntegrationV2<
-        CreateCustomer,
-        CreateCustomerData,
-        CreateCustomerRequest,
-        CreateCustomerResponse,
-    >
+    CreateCustomer,
+    CreateCustomerData,
+    CreateCustomerRequest,
+    CreateCustomerResponse,
+>
 {
 }
-
-
