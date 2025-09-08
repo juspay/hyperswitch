@@ -13,7 +13,7 @@ use common_utils::{
     id_type,
 };
 use diesel_models::{
-    enums, payment_intent, process_tracker::business_status, types as diesel_types,
+    enums, payment_intent, process_tracker::business_status, types as diesel_types
 };
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
@@ -207,6 +207,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         &merchant_context,
                         profile,
                         response,
+                        recovery_payment_attempt.attempt_id.get_string_repr().to_string()
                     )
                     .await?
                 };
@@ -267,14 +268,15 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 .await;
 
                 // Reopen calculate workflow on payment failure
-                reopen_calculate_workflow_on_payment_failure(
+                Box::pin(reopen_calculate_workflow_on_payment_failure(
                     state,
                     &process_tracker,
                     profile,
                     merchant_context,
                     payment_intent,
                     revenue_recovery_payment_data,
-                )
+                    psync_response.payment_attempt.get_id()
+                ))
                 .await?;
             }
             Self::Processing => {
@@ -402,6 +404,7 @@ impl Action {
         merchant_context: domain::MerchantContext,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &PaymentRevenueRecoveryMetadata,
+        latest_attempt_id : &id_type::GlobalAttemptId
     ) -> RecoveryResult<Self> {
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
@@ -535,6 +538,7 @@ impl Action {
                                     &merchant_context,
                                     profile,
                                     response,
+                                    payment_data.payment_attempt.id.get_string_repr().to_string()
                                 )
                                 .await?
                             };
@@ -600,15 +604,17 @@ impl Action {
                             )
                             .await;
 
+
                             // Reopen calculate workflow on payment failure
-                            reopen_calculate_workflow_on_payment_failure(
+                            Box::pin(reopen_calculate_workflow_on_payment_failure(
                                 state,
                                 process,
                                 profile,
                                 merchant_context,
                                 payment_intent,
                                 revenue_recovery_payment_data,
-                            )
+                                latest_attempt_id
+                            ))
                             .await?;
 
                             // Return terminal failure to finish the current execute workflow
@@ -920,14 +926,15 @@ impl Action {
                     .await;
 
                     // Reopen calculate workflow on payment failure
-                    reopen_calculate_workflow_on_payment_failure(
+                    Box::pin(reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,
                         profile,
                         merchant_context,
                         payment_intent,
                         revenue_recovery_payment_data,
-                    )
+                        payment_attempt.get_id()
+                    ))
                     .await?;
 
                     Ok(Self::TerminalFailure(payment_attempt.clone()))
@@ -1202,11 +1209,26 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
     merchant_context: domain::MerchantContext,
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    latest_attempt_id: &id_type::GlobalAttemptId
 ) -> RecoveryResult<()> {
     let db = &*state.store;
     let id = payment_intent.id.clone();
     let task = revenue_recovery_core::CALCULATE_WORKFLOW;
     let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+
+    let old_tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+        serde_json::from_value(process.tracking_data.clone())
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+
+    let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
+        payment_attempt_id: latest_attempt_id.clone(),
+        ..old_tracking_data
+    };
+
+    let tracking_data  = serde_json::to_value(new_tracking_data)
+        .change_context(errors::RecoveryError::ValueNotFound)
+        .attach_printable("Failed to serialize the tracking data for process tracker")?;
 
     // Construct the process tracker ID for CALCULATE_WORKFLOW
     let process_tracker_id = format!("{}_{}_{}", runner, task, id.get_string_repr());
@@ -1253,7 +1275,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 name: Some(task.to_string()),
                 retry_count: Some(new_retry_count),
                 schedule_time: Some(new_schedule_time),
-                tracking_data: Some(process.clone().tracking_data),
+                tracking_data: Some(tracking_data),
                 business_status: Some(String::from(business_status::PENDING)),
                 status: Some(common_enums::ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
@@ -1353,7 +1375,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 .attach_printable("Failed to deserialize the tracking data from process tracker")?;
 
             // Call the existing perform_calculate_workflow function
-            perform_calculate_workflow(
+            Box::pin(perform_calculate_workflow(
                 state,
                 process,
                 profile,
@@ -1361,7 +1383,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 &tracking_data,
                 revenue_recovery_payment_data,
                 payment_intent,
-            )
+            ))
             .await
             .change_context(errors::RecoveryError::ProcessTrackerFailure)
             .attach_printable("Failed to perform calculate workflow")?;
@@ -1538,6 +1560,7 @@ pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
     response: api_models::payments::PaymentsResponse,
+    payment_attempt_id: String
 ) -> RecoveryResult<()> {
     let outgoing_webhook_content =
         api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
@@ -1547,7 +1570,7 @@ pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
         merchant_context.get_merchant_key_store(),
         event_status,
         event_class,
-        payment_intent.get_id().get_string_repr().to_string(),
+        payment_attempt_id,
         enums::EventObjectType::PaymentDetails,
         outgoing_webhook_content,
         payment_intent.created_at,

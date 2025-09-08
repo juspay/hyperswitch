@@ -19,11 +19,12 @@ use scheduler::errors as sch_errors;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payments::transformers::GenerateResponse,
+        payments::transformers::GenerateResponse, revenue_recovery::types::send_outgoing_webhook_based_on_revenue_recovery_status,
+        webhooks::get_trackers_response_for_payment_get_operation
     },
     db::StorageInterface,
     logger,
-    routes::{app::ReqState, metrics, SessionState},
+    routes::{SessionState, app::ReqState, metrics},
     services::ApplicationResponse,
     types::{
         domain,
@@ -223,7 +224,7 @@ pub async fn perform_execute_payment(
             .await;
 
             match record_attempt {
-                Ok(_) => {
+                Ok(record_attempt_response) => {
                     let action = Box::pin(types::Action::execute_payment(
                         state,
                         revenue_recovery_payment_data.merchant_account.get_id(),
@@ -233,6 +234,7 @@ pub async fn perform_execute_payment(
                         merchant_context,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
+                        &record_attempt_response.id
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
@@ -461,6 +463,11 @@ pub async fn perform_calculate_workflow(
     let merchant_id = revenue_recovery_payment_data.merchant_account.get_id();
     let profile_id = revenue_recovery_payment_data.profile.get_id();
     let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
+    let key_manager_state = &state.into();
+
+    let event_class = common_enums::EventClass::Payments;
+
+    let mut event_type = common_enums::EventType::PaymentScheduled;
 
     logger::info!(
         process_id = %process.id,
@@ -514,6 +521,7 @@ pub async fn perform_calculate_workflow(
         }
     };
 
+
     match best_time_to_schedule {
         Some(scheduled_time) => {
             logger::info!(
@@ -550,6 +558,7 @@ pub async fn perform_calculate_workflow(
                     );
                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                 })?;
+            
 
             logger::info!(
                 process_id = %process.id,
@@ -654,6 +663,8 @@ pub async fn perform_calculate_workflow(
                                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                                 })?;
 
+                            event_type = common_enums::EventType::PaymentFailed;
+
                             logger::info!(
                                 process_id = %process.id,
                                 connector_customer_id = %connector_customer_id,
@@ -665,6 +676,37 @@ pub async fn perform_calculate_workflow(
             }
         }
     }
+
+    let payment_id = &api_models::payments::PaymentIdType::PaymentAttemptId(tracking_data.payment_attempt_id.get_string_repr().to_string());
+
+    let get_tracker_response = get_trackers_response_for_payment_get_operation::<hyperswitch_domain_models::router_flow_types::PaymentGetIntent>(
+        db,
+        payment_id,
+        profile_id,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account().storage_scheme
+    )
+    .await
+    .change_context(errors::RecoveryError::ValueNotFound)
+    .attach_printable("Cannot construct payment status data to trigger outgoing webhook")?;
+
+    let payments_response = get_tracker_response.payment_data.clone().generate_response(state, None, None, None, &merchant_context, profile, None).change_context(errors::RecoveryError::PaymentsResponseGenerationFailed);
+
+    if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+        send_outgoing_webhook_based_on_revenue_recovery_status(
+            state,
+            event_class,
+            event_type,
+            payment_intent,
+            &merchant_context,
+            profile,
+            response,
+            tracking_data.payment_attempt_id.get_string_repr().to_string()
+        )
+        .await?
+    };
+
     Ok(())
 }
 
