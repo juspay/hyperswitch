@@ -10,6 +10,7 @@ use common_utils::{
     request::Method,
     types::FloatMajorUnit,
 };
+use regex::Regex;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData, WalletData},
@@ -601,6 +602,13 @@ pub struct AuthorizedotnetCustomerResponse {
     pub messages: ResponseMessages,
 }
 
+fn extract_customer_id(text: &str) -> Option<String> {
+    let re = Regex::new(r"ID (\d+)").ok()?; 
+    re.captures(text)
+        .and_then(|caps| caps.get(1)) 
+        .map(|m| m.as_str().to_string()) 
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -625,6 +633,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
             },
             ResultCode::Error => {
                 let error_message = item.response.messages.message.first();
+                if let Some(connector_customer_id) = error_message.and_then(|error| extract_customer_id(&error.text)) {
+                        Ok(Self {
+                            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                                connector_customer_id,
+                            }),
+                            ..item.data
+                        })
+                } else {
                 let error_code = error_message.map(|error| error.code.clone());
                 let error_code = error_code
                     .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
@@ -654,6 +670,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     ..item.data
                 })
             }
+        }
         }
     }
 }
@@ -993,14 +1010,7 @@ impl
 
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
+            customer: None,
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
@@ -1054,23 +1064,16 @@ impl
             None
         };
 
-        let customer = if !item
-            .router_data
-            .request
-            .is_customer_initiated_mandate_payment()
-        {
-            item.router_data.customer_id.clone().and_then(|customer| {
-                let customer_id = customer.get_string_repr().to_string();
-                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                if customer_id.len() <= MAX_ID_LENGTH {
-                    Some(CustomerDetails {
-                        id: customer_id.clone(),
-                        email: item.router_data.request.get_optional_email(),
-                    })
-                } else {
-                    None
-                }
+        let customer = if !item.router_data.request.is_customer_initiated_mandate_payment() {
+            item.router_data.customer_id.as_ref().and_then(|customer| {
+                let customer_id = customer.get_string_repr();
+                // The payment ID is included in the customer details because the connector requires unique customer information
+                // with a length of fewer than 20 characters when creating a mandate.
+                // If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
+                    id: customer_id.to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
             })
         } else {
             None
