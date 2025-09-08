@@ -94,7 +94,10 @@ pub mod core {
                 .use_rustls_tls()
                 .build()
                 .map_err(|e| {
-                    logger::error!("Failed to construct client with certificate and certificate key: {}", e);
+                    logger::error!(
+                        "Failed to construct client with certificate and certificate key: {}",
+                        e
+                    );
                     error_stack::Report::new(InjectorError::HttpRequestFailed)
                 });
         }
@@ -103,19 +106,15 @@ pub mod core {
         if let Some(ca_pem) = ca_certificate {
             logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
-            let cert = reqwest::Certificate::from_pem(pem.as_bytes())
-                .map_err(|e| {
-                    logger::error!("Failed to parse CA certificate PEM block: {}", e);
-                    error_stack::Report::new(InjectorError::HttpRequestFailed)
-                })?;
+            let cert = reqwest::Certificate::from_pem(pem.as_bytes()).map_err(|e| {
+                logger::error!("Failed to parse CA certificate PEM block: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
             let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
-            return client_builder
-                .use_rustls_tls()
-                .build()
-                .map_err(|e| {
-                    logger::error!("Failed to construct client with CA certificate: {}", e);
-                    error_stack::Report::new(InjectorError::HttpRequestFailed)
-                });
+            return client_builder.use_rustls_tls().build().map_err(|e| {
+                logger::error!("Failed to construct client with CA certificate: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            });
         }
 
         // Case 3: Default client (no certs)
@@ -124,13 +123,15 @@ pub mod core {
     }
 
     /// Helper functions from external_services
-    fn get_client_builder(proxy_config: &Proxy) -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
+    fn get_client_builder(
+        proxy_config: &Proxy,
+    ) -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
         let mut client_builder = reqwest::Client::builder();
-        
+
         // Configure proxy if provided
         if let Some(proxy_url) = &proxy_config.https_url {
             logger::debug!("Configuring HTTPS proxy");
-            
+
             let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
                 logger::error!("Failed to configure HTTPS proxy: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
@@ -152,14 +153,14 @@ pub mod core {
         Ok(client_builder)
     }
 
-    fn get_base_client(proxy_config: &Proxy) -> error_stack::Result<reqwest::Client, InjectorError> {
+    fn get_base_client(
+        proxy_config: &Proxy,
+    ) -> error_stack::Result<reqwest::Client, InjectorError> {
         let client_builder = get_client_builder(proxy_config)?;
-        client_builder
-            .build()
-            .map_err(|e| {
-                logger::error!("Failed to build default HTTP client: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })
+        client_builder.build().map_err(|e| {
+            logger::error!("Failed to build default HTTP client: {}", e);
+            error_stack::Report::new(InjectorError::HttpRequestFailed)
+        })
     }
 
     fn create_identity_from_certificate_and_key(
@@ -168,33 +169,33 @@ pub mod core {
     ) -> error_stack::Result<reqwest::Identity, InjectorError> {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
-        
+
         logger::debug!(
             cert_length = cert_str.len(),
             key_length = key_str.len(),
             "Creating identity from certificate and key"
         );
-        
+
         let combined_pem = format!("{cert_str}\n{key_str}");
-        reqwest::Identity::from_pem(combined_pem.as_bytes())
-            .map_err(|e| {
-                logger::error!("Failed to create identity from certificate and key: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })
+        reqwest::Identity::from_pem(combined_pem.as_bytes()).map_err(|e| {
+            logger::error!("Failed to create identity from certificate and key: {}", e);
+            error_stack::Report::new(InjectorError::HttpRequestFailed)
+        })
     }
 
-    fn create_certificate(encoded_certificate: masking::Secret<String>) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
+    fn create_certificate(
+        encoded_certificate: masking::Secret<String>,
+    ) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
         let cert_str = encoded_certificate.expose();
         logger::debug!(
             cert_length = cert_str.len(),
             "Creating certificate from PEM"
         );
-        
-        let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
-            .map_err(|e| {
-                logger::error!("Failed to create certificate from PEM: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+
+        let cert = reqwest::Certificate::from_pem(cert_str.as_bytes()).map_err(|e| {
+            logger::error!("Failed to create certificate from PEM: {}", e);
+            error_stack::Report::new(InjectorError::HttpRequestFailed)
+        })?;
         Ok(vec![cert])
     }
 
@@ -207,12 +208,12 @@ pub mod core {
             logger::debug!("Copying CA certificate from connection config to request");
             request.ca_certificate = Some(ca_cert.clone());
         }
-        
+
         if let Some(client_cert) = &config.client_cert {
             logger::debug!("Copying client certificate from connection config to request");
             request.certificate = Some(client_cert.clone());
         }
-        
+
         if let Some(client_key) = &config.client_key {
             logger::debug!("Copying client key from connection config to request");
             request.certificate_key = Some(client_key.clone());
@@ -286,7 +287,7 @@ pub mod core {
         let response = req_builder.send().await.map_err(|e| {
             let error_msg = e.to_string();
             logger::error!("HTTP request failed: {}", error_msg);
-            
+
             // Log specific error types for debugging
             if e.is_timeout() {
                 logger::error!("Request timed out");
@@ -300,10 +301,10 @@ pub mod core {
             if e.is_decode() {
                 logger::error!("Response decoding error");
             }
-            
+
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
-        
+
         logger::info!(
             status_code = response.status().as_u16(),
             "HTTP request completed successfully"
@@ -656,14 +657,14 @@ pub mod core {
             );
 
             let mut request = request_builder.build();
-            
+
             // Copy certificate data from connection config to request for reqwest client configuration
             copy_certificates_to_request(&mut request, config);
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_str = proxy_url.clone().expose();
                 logger::debug!("Using proxy URL from vault metadata");
-                
+
                 // Parse URL to determine scheme
                 let parsed_proxy_url = reqwest::Url::parse(&proxy_url_str).map_err(|e| {
                     logger::error!("Failed to parse proxy URL: {}", e);
@@ -671,14 +672,14 @@ pub mod core {
                         "Invalid proxy URL: {e}"
                     )))
                 })?;
-                
+
                 logger::debug!(
                     proxy_scheme = parsed_proxy_url.scheme(),
                     proxy_host = ?parsed_proxy_url.host(),
                     proxy_port = ?parsed_proxy_url.port(),
                     "Parsed proxy URL information"
                 );
-                
+
                 if parsed_proxy_url.scheme() == "https" {
                     logger::debug!("Using HTTPS proxy configuration");
                     Proxy {
@@ -706,9 +707,10 @@ pub mod core {
             let response = send_request(&proxy, request, None).await?;
 
             // Convert reqwest::Response to InjectorResponse using trait
-            response.into_injector_response().await.map_err(|e| {
-                error_stack::Report::new(e)
-            })
+            response
+                .into_injector_response()
+                .await
+                .map_err(|e| error_stack::Report::new(e))
         }
     }
 
@@ -799,11 +801,10 @@ pub use core::*;
 #[allow(clippy::unwrap_used)]
 mod tests {
     use std::collections::HashMap;
-    
+
     use router_env::logger;
 
     use crate::*;
-
 
     #[tokio::test]
     #[ignore = "Integration test that requires network access"]
@@ -878,7 +879,7 @@ mod tests {
             "Response should have successful status code: {}",
             response.status_code
         );
-        
+
         assert!(
             response.response.is_object() || response.response.is_string(),
             "Response data should be JSON object or string"
@@ -957,11 +958,11 @@ mod tests {
         // Verify the tokens were replaced correctly in the form data
         // httpbin.org returns the request data in the 'form' field
         let response_str = serde_json::to_string(&response.response).unwrap_or_default();
-        
+
         // Check that our test tokens were replaced with the actual values from vault data
         let tokens_replaced = response_str.contains("4242429789164242") && // card_number
                               response_str.contains("123") &&               // cvv  
-                              response_str.contains("12/25");               // expiry
+                              response_str.contains("12/25"); // expiry
 
         assert!(
             tokens_replaced,

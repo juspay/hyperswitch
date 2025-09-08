@@ -6,7 +6,6 @@ pub mod models {
     use masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
-    
     // Import vault metadata processing trait at top level
     use vault_metadata::VaultMetadataExtractorExt;
 
@@ -33,7 +32,6 @@ pub mod models {
         PATCH,
         DELETE,
     }
-
 
     /// Vault connectors supported by the injector for token management
     ///
@@ -117,14 +115,18 @@ pub mod models {
     #[async_trait]
     pub trait IntoInjectorResponse {
         /// Convert to InjectorResponse with proper error handling
-        async fn into_injector_response(self) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
+        async fn into_injector_response(
+            self,
+        ) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
     }
 
     #[async_trait]
     impl IntoInjectorResponse for reqwest::Response {
-        async fn into_injector_response(self) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
+        async fn into_injector_response(
+            self,
+        ) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
             let status_code = self.status().as_u16();
-            
+
             logger::info!(
                 status_code = status_code,
                 "Converting reqwest::Response to InjectorResponse"
@@ -184,7 +186,6 @@ pub mod models {
         }
     }
 
-
     impl InjectorRequest {
         /// Creates a new InjectorRequest
         #[allow(clippy::too_many_arguments)]
@@ -201,15 +202,20 @@ pub mod models {
         ) -> Self {
             let mut headers = headers.unwrap_or_default();
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
-            
+
             // Process vault metadata if present
-            if let Some(vault_header) = headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER) {
+            if let Some(vault_header) =
+                headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER)
+            {
                 let vault_header_value = vault_header.expose();
                 logger::info!(
                     vault_header_length = vault_header_value.len(),
                     "Processing vault metadata header in InjectorRequest::new"
                 );
-                let vault_applied = connection_config.extract_and_apply_vault_metadata_with_fallback_from_header(&vault_header_value);
+                let vault_applied = connection_config
+                    .extract_and_apply_vault_metadata_with_fallback_from_header(
+                        &vault_header_value,
+                    );
                 logger::info!(
                     vault_applied = vault_applied,
                     proxy_configured = connection_config.proxy_url.is_some(),
@@ -217,7 +223,7 @@ pub mod models {
                     "Vault metadata processing result in InjectorRequest::new"
                 );
             }
-            
+
             // Set fallback configurations
             connection_config.proxy_url = connection_config.proxy_url.or(proxy_url);
             connection_config.client_cert = connection_config.client_cert.or(client_cert);
@@ -235,10 +241,7 @@ pub mod models {
 
     impl ConnectionConfig {
         /// Creates a new ConnectionConfig from basic parameters
-        pub fn new(
-            endpoint: String,
-            http_method: HttpMethod,
-        ) -> Self {
+        pub fn new(endpoint: String, http_method: HttpMethod) -> Self {
             Self {
                 endpoint,
                 http_method,
@@ -257,19 +260,24 @@ pub mod models {
 
     /// External vault metadata processing module
     pub mod vault_metadata {
-        use super::*;
+        use base64::Engine;
         use masking::{ExposeInterface, Secret};
         use url::Url;
-        use base64::Engine;
 
-        const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+        use super::*;
+
+        const BASE64_ENGINE: base64::engine::GeneralPurpose =
+            base64::engine::general_purpose::STANDARD;
         pub const EXTERNAL_VAULT_METADATA_HEADER: &str = "x-external-vault-metadata";
 
         /// Trait for different vault metadata processors
         pub trait VaultMetadataProcessor: Send + Sync {
             /// Process vault metadata and return connection configuration updates
-            fn process_metadata(&self, connection_config: &mut ConnectionConfig) -> Result<(), VaultMetadataError>;
-            
+            fn process_metadata(
+                &self,
+                connection_config: &mut ConnectionConfig,
+            ) -> Result<(), VaultMetadataError>;
+
             /// Get the vault connector type
             fn vault_connector(&self) -> VaultConnectors;
         }
@@ -300,15 +308,16 @@ pub mod models {
             #[error("Certificate validation failed: {0}")]
             CertificateValidationFailed(String),
             #[error("Vault metadata processing failed for connector {connector}: {reason}")]
-            ProcessingFailed {
-                connector: String,
-                reason: String,
-            },
+            ProcessingFailed { connector: String, reason: String },
         }
 
         impl VaultMetadataError {
             /// Create a URL validation error with context
-            pub fn url_validation_failed(field: &str, url: &str, reason: impl Into<String>) -> Self {
+            pub fn url_validation_failed(
+                field: &str,
+                url: &str,
+                reason: impl Into<String>,
+            ) -> Self {
                 Self::UrlValidationFailed {
                     field: field.to_string(),
                     url: url.to_string(),
@@ -335,7 +344,10 @@ pub mod models {
         }
 
         impl VaultMetadataProcessor for VgsMetadata {
-            fn process_metadata(&self, connection_config: &mut ConnectionConfig) -> Result<(), VaultMetadataError> {
+            fn process_metadata(
+                &self,
+                connection_config: &mut ConnectionConfig,
+            ) -> Result<(), VaultMetadataError> {
                 logger::debug!(
                     proxy_url = %self.proxy_url,
                     proxy_url_scheme = self.proxy_url.scheme(),
@@ -343,29 +355,29 @@ pub mod models {
                     proxy_url_port = ?self.proxy_url.port(),
                     "Starting VGS metadata processing"
                 );
-                
+
                 // Validate and set proxy URL from VGS metadata
                 self.validate_proxy_url()?;
                 let proxy_url_str = self.proxy_url.as_str().to_string();
                 connection_config.proxy_url = Some(Secret::new(proxy_url_str.clone()));
-                
+
                 logger::info!(
                     original_proxy_url = %self.proxy_url,
                     processed_proxy_url = %proxy_url_str,
                     proxy_url_length = proxy_url_str.len(),
                     "Set proxy URL from VGS metadata"
                 );
-                
+
                 // Validate and decode certificate from VGS metadata
                 self.validate_certificate()?;
                 let cert_content = self.certificate.clone().expose();
-                
+
                 logger::debug!(
                     cert_length = cert_content.len(),
                     cert_starts_with_pem = cert_content.starts_with("-----BEGIN"),
                     "Processing certificate from VGS metadata"
                 );
-                
+
                 // Check if certificate is base64 encoded and decode if necessary
                 let decoded_cert = if cert_content.starts_with("-----BEGIN") {
                     logger::debug!("Certificate already in PEM format, using as-is");
@@ -375,9 +387,9 @@ pub mod models {
                     match BASE64_ENGINE.decode(&cert_content) {
                         Ok(decoded_bytes) => {
                             let decoded_string = String::from_utf8(decoded_bytes).map_err(|e| {
-                                VaultMetadataError::CertificateValidationFailed(
-                                    format!("Certificate is not valid UTF-8 after base64 decoding: {e}")
-                                )
+                                VaultMetadataError::CertificateValidationFailed(format!(
+                                    "Certificate is not valid UTF-8 after base64 decoding: {e}"
+                                ))
                             })?;
                             logger::debug!(
                                 decoded_cert_length = decoded_string.len(),
@@ -391,15 +403,15 @@ pub mod models {
                                 cert_length = cert_content.len(),
                                 "Failed to decode base64 certificate"
                             );
-                            return Err(VaultMetadataError::CertificateValidationFailed(
-                                format!("Failed to decode base64 certificate: {e}")
-                            ));
+                            return Err(VaultMetadataError::CertificateValidationFailed(format!(
+                                "Failed to decode base64 certificate: {e}"
+                            )));
                         }
                     }
                 };
-                
+
                 connection_config.ca_cert = Some(Secret::new(decoded_cert.clone()));
-                
+
                 logger::info!(
                     proxy_url = %self.proxy_url,
                     proxy_url_as_str = self.proxy_url.as_str(),
@@ -408,7 +420,7 @@ pub mod models {
                     ca_cert_length = decoded_cert.len(),
                     "Successfully applied VGS vault metadata to connection config"
                 );
-                
+
                 Ok(())
             }
 
@@ -421,13 +433,13 @@ pub mod models {
             /// Validate the proxy URL
             fn validate_proxy_url(&self) -> Result<(), VaultMetadataError> {
                 let url_str = self.proxy_url.as_str();
-                
+
                 // Check if URL has HTTPS scheme for security
                 if self.proxy_url.scheme() != "https" {
                     return Err(VaultMetadataError::url_validation_failed(
                         "proxy_url",
                         url_str,
-                        "VGS proxy URL must use HTTPS scheme for security"
+                        "VGS proxy URL must use HTTPS scheme for security",
                     ));
                 }
 
@@ -436,7 +448,7 @@ pub mod models {
                     return Err(VaultMetadataError::url_validation_failed(
                         "proxy_url",
                         url_str,
-                        "Proxy URL must have a valid host"
+                        "Proxy URL must have a valid host",
                     ));
                 }
 
@@ -454,11 +466,11 @@ pub mod models {
             /// Validate the certificate format and content
             fn validate_certificate(&self) -> Result<(), VaultMetadataError> {
                 let cert_content = self.certificate.clone().expose();
-                
+
                 // Only check that certificate is not empty - let the HTTP client handle the rest
                 if cert_content.trim().is_empty() {
                     return Err(VaultMetadataError::CertificateValidationFailed(
-                        "Certificate content is empty".to_string()
+                        "Certificate content is empty".to_string(),
                     ));
                 }
 
@@ -468,7 +480,10 @@ pub mod models {
         }
 
         impl VaultMetadataProcessor for ExternalVaultProxyMetadata {
-            fn process_metadata(&self, connection_config: &mut ConnectionConfig) -> Result<(), VaultMetadataError> {
+            fn process_metadata(
+                &self,
+                connection_config: &mut ConnectionConfig,
+            ) -> Result<(), VaultMetadataError> {
                 match self {
                     Self::VgsMetadata(vgs_metadata) => {
                         vgs_metadata.process_metadata(connection_config)
@@ -488,7 +503,9 @@ pub mod models {
 
         impl VaultMetadataFactory {
             /// Create a vault metadata processor from base64 encoded header value with comprehensive validation
-            pub fn from_base64_header(base64_value: &str) -> Result<Box<dyn VaultMetadataProcessor>, VaultMetadataError> {
+            pub fn from_base64_header(
+                base64_value: &str,
+            ) -> Result<Box<dyn VaultMetadataProcessor>, VaultMetadataError> {
                 // Validate input
                 if base64_value.trim().is_empty() {
                     return Err(VaultMetadataError::EmptyOrMalformedHeader);
@@ -501,19 +518,18 @@ pub mod models {
                 );
 
                 // Decode base64 with detailed error context
-                let decoded_bytes = BASE64_ENGINE
-                    .decode(base64_value.trim())
-                    .map_err(|e| {
-                        logger::error!(
-                            error = %e,
-                            header_length = base64_value.len(),
-                            "Failed to decode base64 vault metadata header"
-                        );
-                        VaultMetadataError::Base64DecodingFailed(format!(
-                            "Invalid base64 encoding: {}. Header length: {}",
-                            e, base64_value.len()
-                        ))
-                    })?;
+                let decoded_bytes = BASE64_ENGINE.decode(base64_value.trim()).map_err(|e| {
+                    logger::error!(
+                        error = %e,
+                        header_length = base64_value.len(),
+                        "Failed to decode base64 vault metadata header"
+                    );
+                    VaultMetadataError::Base64DecodingFailed(format!(
+                        "Invalid base64 encoding: {}. Header length: {}",
+                        e,
+                        base64_value.len()
+                    ))
+                })?;
 
                 // Validate decoded size
                 if decoded_bytes.is_empty() {
@@ -522,23 +538,24 @@ pub mod models {
 
                 if decoded_bytes.len() > 1_000_000 {
                     return Err(VaultMetadataError::JsonParsingFailed(
-                        "Decoded vault metadata is too large (>1MB)".to_string()
+                        "Decoded vault metadata is too large (>1MB)".to_string(),
                     ));
                 }
 
                 // Parse JSON with detailed error context
                 let metadata: ExternalVaultProxyMetadata = serde_json::from_slice(&decoded_bytes)
                     .map_err(|e| {
-                        logger::error!(
-                            error = %e,
-                            decoded_size = decoded_bytes.len(),
-                            "Failed to parse vault metadata JSON"
-                        );
-                        VaultMetadataError::JsonParsingFailed(format!(
-                            "Invalid JSON structure: {}. Size: {} bytes",
-                            e, decoded_bytes.len()
-                        ))
-                    })?;
+                    logger::error!(
+                        error = %e,
+                        decoded_size = decoded_bytes.len(),
+                        "Failed to parse vault metadata JSON"
+                    );
+                    VaultMetadataError::JsonParsingFailed(format!(
+                        "Invalid JSON structure: {}. Size: {} bytes",
+                        e,
+                        decoded_bytes.len()
+                    ))
+                })?;
 
                 logger::info!(
                     vault_connector = ?metadata.vault_connector(),
@@ -547,47 +564,53 @@ pub mod models {
 
                 Ok(Box::new(metadata))
             }
-
         }
 
         /// Trait for extracting vault metadata from various sources
         pub trait VaultMetadataExtractor {
             /// Extract vault metadata from headers and apply to connection config
-            fn extract_and_apply_vault_metadata(&mut self, headers: &HashMap<String, Secret<String>>) -> Result<(), VaultMetadataError>;
+            fn extract_and_apply_vault_metadata(
+                &mut self,
+                headers: &HashMap<String, Secret<String>>,
+            ) -> Result<(), VaultMetadataError>;
         }
 
         impl VaultMetadataExtractor for ConnectionConfig {
-            fn extract_and_apply_vault_metadata(&mut self, headers: &HashMap<String, Secret<String>>) -> Result<(), VaultMetadataError> {
+            fn extract_and_apply_vault_metadata(
+                &mut self,
+                headers: &HashMap<String, Secret<String>>,
+            ) -> Result<(), VaultMetadataError> {
                 if let Some(vault_metadata_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
                     logger::debug!(
                         header_length = vault_metadata_header.clone().expose().len(),
                         "Found vault metadata header, processing..."
                     );
-                    
-                    let processor = VaultMetadataFactory::from_base64_header(&vault_metadata_header.clone().expose())
-                        .map_err(|e| {
-                            logger::error!(
-                                error = %e,
-                                header_length = vault_metadata_header.clone().expose().len(),
-                                "Failed to create vault metadata processor from header"
-                            );
-                            e
-                        })?;
-                    
+
+                    let processor = VaultMetadataFactory::from_base64_header(
+                        &vault_metadata_header.clone().expose(),
+                    )
+                    .map_err(|e| {
+                        logger::error!(
+                            error = %e,
+                            header_length = vault_metadata_header.clone().expose().len(),
+                            "Failed to create vault metadata processor from header"
+                        );
+                        e
+                    })?;
+
                     logger::debug!(
                         vault_connector = ?processor.vault_connector(),
                         "Created vault metadata processor, applying to connection config..."
                     );
-                    
-                    processor.process_metadata(self)
-                        .map_err(|e| {
-                            logger::error!(
-                                error = %e,
-                                vault_connector = ?processor.vault_connector(),
-                                "Failed to apply vault metadata to connection config"
-                            );
-                            e
-                        })?;
+
+                    processor.process_metadata(self).map_err(|e| {
+                        logger::error!(
+                            error = %e,
+                            vault_connector = ?processor.vault_connector(),
+                            "Failed to apply vault metadata to connection config"
+                        );
+                        e
+                    })?;
 
                     logger::info!(
                         vault_connector = ?processor.vault_connector(),
@@ -604,20 +627,28 @@ pub mod models {
                 }
                 Ok(())
             }
-
         }
 
         /// Extended trait for graceful fallback handling
         pub trait VaultMetadataExtractorExt {
             /// Extract vault metadata with graceful fallback (doesn't fail the entire request)
-            fn extract_and_apply_vault_metadata_with_fallback(&mut self, headers: &HashMap<String, Secret<String>>) -> bool;
-            
+            fn extract_and_apply_vault_metadata_with_fallback(
+                &mut self,
+                headers: &HashMap<String, Secret<String>>,
+            ) -> bool;
+
             /// Extract vault metadata from a single header value with graceful fallback
-            fn extract_and_apply_vault_metadata_with_fallback_from_header(&mut self, header_value: &str) -> bool;
+            fn extract_and_apply_vault_metadata_with_fallback_from_header(
+                &mut self,
+                header_value: &str,
+            ) -> bool;
         }
 
         impl VaultMetadataExtractorExt for ConnectionConfig {
-            fn extract_and_apply_vault_metadata_with_fallback(&mut self, headers: &HashMap<String, Secret<String>>) -> bool {
+            fn extract_and_apply_vault_metadata_with_fallback(
+                &mut self,
+                headers: &HashMap<String, Secret<String>>,
+            ) -> bool {
                 match self.extract_and_apply_vault_metadata(headers) {
                     Ok(()) => {
                         logger::info!(
@@ -639,41 +670,59 @@ pub mod models {
                     }
                 }
             }
-            
-            fn extract_and_apply_vault_metadata_with_fallback_from_header(&mut self, header_value: &str) -> bool {
+
+            fn extract_and_apply_vault_metadata_with_fallback_from_header(
+                &mut self,
+                header_value: &str,
+            ) -> bool {
                 let mut temp_headers = HashMap::new();
-                temp_headers.insert(EXTERNAL_VAULT_METADATA_HEADER.to_string(), Secret::new(header_value.to_string()));
+                temp_headers.insert(
+                    EXTERNAL_VAULT_METADATA_HEADER.to_string(),
+                    Secret::new(header_value.to_string()),
+                );
                 self.extract_and_apply_vault_metadata_with_fallback(&temp_headers)
             }
         }
 
-
         #[cfg(test)]
         #[allow(clippy::expect_used)]
         mod tests {
-            use super::*;
             use base64::Engine;
             use common_utils::pii::SecretSerdeValue;
+
+            use super::*;
 
             #[test]
             fn test_vault_metadata_processing() {
                 // Create test VGS metadata with base64 encoded certificate
                 let vgs_metadata = VgsMetadata {
-                    proxy_url: "https://vgs-proxy.example.com:8443".parse().expect("Valid test URL"),
+                    proxy_url: "https://vgs-proxy.example.com:8443"
+                        .parse()
+                        .expect("Valid test URL"),
                     certificate: Secret::new("cert".to_string()),
                 };
 
                 let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
-                
+
                 // Serialize and base64 encode (as it would come from the header)
-                let metadata_json = serde_json::to_vec(&metadata).expect("Metadata serialization should succeed");
+                let metadata_json =
+                    serde_json::to_vec(&metadata).expect("Metadata serialization should succeed");
                 let base64_metadata = BASE64_ENGINE.encode(&metadata_json);
 
                 // Create headers with vault metadata
                 let mut headers = HashMap::new();
-                headers.insert("Content-Type".to_string(), Secret::new("application/json".to_string()));
-                headers.insert("Authorization".to_string(), Secret::new("Bearer token123".to_string()));
-                headers.insert(EXTERNAL_VAULT_METADATA_HEADER.to_string(), Secret::new(base64_metadata));
+                headers.insert(
+                    "Content-Type".to_string(),
+                    Secret::new("application/json".to_string()),
+                );
+                headers.insert(
+                    "Authorization".to_string(),
+                    Secret::new("Bearer token123".to_string()),
+                );
+                headers.insert(
+                    EXTERNAL_VAULT_METADATA_HEADER.to_string(),
+                    Secret::new(base64_metadata),
+                );
 
                 // Test the amazing automatic processing with the unified API!
                 let injector_request = InjectorRequest::new(
@@ -690,7 +739,7 @@ pub mod models {
                     Some(headers),
                     None, // No fallback proxy needed - vault metadata provides it
                     None, // No fallback client cert
-                    None, // No fallback client key  
+                    None, // No fallback client key
                     None, // No fallback CA cert
                 );
 
@@ -698,31 +747,50 @@ pub mod models {
                 assert!(injector_request.connection_config.proxy_url.is_some());
                 assert!(injector_request.connection_config.ca_cert.is_some());
                 assert_eq!(
-                    injector_request.connection_config.proxy_url.as_ref().expect("Proxy URL should be set").clone().expose(),
+                    injector_request
+                        .connection_config
+                        .proxy_url
+                        .as_ref()
+                        .expect("Proxy URL should be set")
+                        .clone()
+                        .expose(),
                     "https://vgs-proxy.example.com:8443/"
                 );
 
                 // Verify vault metadata header was removed from regular headers
-                assert!(!injector_request.connection_config.headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER));
-                
+                assert!(!injector_request
+                    .connection_config
+                    .headers
+                    .contains_key(EXTERNAL_VAULT_METADATA_HEADER));
+
                 // Verify other headers are preserved
-                assert!(injector_request.connection_config.headers.contains_key("Content-Type"));
-                assert!(injector_request.connection_config.headers.contains_key("Authorization"));
+                assert!(injector_request
+                    .connection_config
+                    .headers
+                    .contains_key("Content-Type"));
+                assert!(injector_request
+                    .connection_config
+                    .headers
+                    .contains_key("Authorization"));
             }
 
             #[test]
             fn test_vault_metadata_factory() {
                 let vgs_metadata = VgsMetadata {
-                    proxy_url: "https://vgs-proxy.example.com:8443".parse().expect("Valid test URL"),
+                    proxy_url: "https://vgs-proxy.example.com:8443"
+                        .parse()
+                        .expect("Valid test URL"),
                     certificate: Secret::new("cert".to_string()),
                 };
 
                 let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
-                let metadata_json = serde_json::to_vec(&metadata).expect("Metadata serialization should succeed");
+                let metadata_json =
+                    serde_json::to_vec(&metadata).expect("Metadata serialization should succeed");
                 let base64_metadata = BASE64_ENGINE.encode(&metadata_json);
 
                 // Test factory creation from base64
-                let processor = VaultMetadataFactory::from_base64_header(&base64_metadata).expect("Base64 decoding should succeed");
+                let processor = VaultMetadataFactory::from_base64_header(&base64_metadata)
+                    .expect("Base64 decoding should succeed");
                 assert_eq!(processor.vault_connector(), VaultConnectors::VGS);
 
                 // Test processor creation was successful
