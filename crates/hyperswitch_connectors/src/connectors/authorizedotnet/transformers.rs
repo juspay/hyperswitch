@@ -197,6 +197,8 @@ enum ProfileDetails {
 #[serde(rename_all = "camelCase")]
 pub struct CreateProfileDetails {
     create_profile: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_profile_id: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -666,8 +668,8 @@ impl<F, T>
         item: ResponseRouterData<F, AuthorizedotnetSetupMandateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_customer_id = item.data.get_connector_customer_id()?;
-        match item.response.messages.result_code {
-            ResultCode::Ok => Ok(Self {
+        if item.response.customer_profile_id.is_some() {
+            Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
@@ -692,8 +694,7 @@ impl<F, T>
                     charges: None,
                 }),
                 ..item.data
-            }),
-            ResultCode::Error => {
+            })} else {
                 let error_message = item.response.messages.message.first();
                 let error_code = error_message.map(|error| error.code.clone());
                 let error_code = error_code
@@ -723,7 +724,6 @@ impl<F, T>
                     status: enums::AttemptStatus::Failure,
                     ..item.data
                 })
-            }
         }
     }
 }
@@ -1034,21 +1034,40 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
+        let profile = if item.router_data.request.is_customer_initiated_mandate_payment() {
+            let connector_customer_id = Secret::new(item.router_data.connector_customer.clone().ok_or(
+                errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                    id: "connector_customer_id".to_string(),
+                },
+            )?);
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-            })),
-            Some(CustomerDetails {
-                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+                customer_profile_id: Some(connector_customer_id)
+            }))
+        } else {
+            None
+        };
+
+        let customer = if !item.router_data.request.is_customer_initiated_mandate_payment() {
+            item.router_data.customer_id.clone().and_then(
+                |customer| {
+                let customer_id = customer.get_string_repr().to_string(); 
+                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                    if customer_id.len() <= MAX_ID_LENGTH {
+                        Some(CustomerDetails {
+                            id: customer_id.clone(),
+                        email: item.router_data.request.get_optional_email(),
+                        })
+                    } else {
+                       None
+                    }
+                }
+            )}
+         else {
+            None
+        };
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -1121,6 +1140,8 @@ impl
         let (profile, customer) = (
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
+                customer_profile_id: None
+
             })),
             Some(CustomerDetails {
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
