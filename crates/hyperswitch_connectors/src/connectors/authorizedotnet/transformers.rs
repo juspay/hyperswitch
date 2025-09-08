@@ -1076,7 +1076,6 @@ impl
                 let customer_id = customer.get_string_repr();
                 // The payment ID is included in the customer details because the connector requires unique customer information
                 // with a length of fewer than 20 characters when creating a mandate.
-                // If the length exceeds 20 characters, a random alphanumeric string is used instead.
                 (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
                     id: customer_id.to_string(),
                     email: item.router_data.request.get_optional_email(),
@@ -1155,20 +1154,43 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = (
+        let profile = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            let connector_customer_id =
+                Secret::new(item.router_data.connector_customer.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "connector_customer_id".to_string(),
+                    },
+                )?);
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-                customer_profile_id: None,
-            })),
-            Some(CustomerDetails {
-                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
-                    item.router_data.payment_id.clone()
-                } else {
-                    get_random_string()
-                },
-                email: item.router_data.request.get_optional_email(),
-            }),
-        );
+                customer_profile_id: Some(connector_customer_id),
+            }))
+        } else {
+            None
+        };
+
+        let customer = if !item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            item.router_data.customer_id.as_ref().and_then(|customer| {
+                let customer_id = customer.get_string_repr();
+                // The payment ID is included in the customer details because the connector requires unique customer information
+                // with a length of fewer than 20 characters when creating a mandate.
+                (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
+                    id: customer_id.to_string(),
+                    email: item.router_data.request.get_optional_email(),
+                })
+            })
+        } else {
+            None
+        };
+        
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
