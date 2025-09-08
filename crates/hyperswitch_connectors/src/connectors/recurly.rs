@@ -26,6 +26,15 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
 };
+
+use hyperswitch_domain_models::{
+    router_flow_types::subscriptions::{SubscriptionCreate, SubscriptionRecordBack},
+    router_data_v2::flow_common_types as recovery_flow_common_types,
+    router_request_types::subscriptions as subscriptions_request_types,
+    router_response_types::subscriptions as subscriptions_response_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+};
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;
 use hyperswitch_interfaces::{
@@ -131,6 +140,27 @@ impl
 }
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsRecordBackV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionRecordBack,
+        recovery_flow_common_types::RevenueRecoveryRecordBackData,
+        subscriptions_request_types::SubscriptionsRecordBackRequest,
+        recovery_response_types::RevenueRecoveryRecordBackResponse,
+    > for Recurly
+{
+}
+impl 
+    ConnectorIntegrationV2<
+        SubscriptionCreate,
+        recovery_flow_common_types::SubscriptionCreateData,
+        subscriptions_request_types::SubscriptionCreateRequest,
+        subscriptions_response_types::SubscriptionCreateResponse,
+    > for Recurly
+{
+}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
