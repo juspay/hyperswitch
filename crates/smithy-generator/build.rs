@@ -312,7 +312,9 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
         // Generate empty function if no models found
         content.push_str("use smithy_core::SmithyModel;\n\n");
         content.push_str("pub fn discover_smithy_models() -> Vec<SmithyModel> {\n");
-        content.push_str("    router_env::logger::info!(\"No SmithyModel structs found in workspace\");\n");
+        content.push_str(
+            "    router_env::logger::info!(\"No SmithyModel structs found in workspace\");\n",
+        );
         content.push_str("    Vec::new()\n");
         content.push_str("}\n");
     }

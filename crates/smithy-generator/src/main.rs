@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use smithy_core::SmithyGenerator;
 use router_env::logger;
+use smithy_core::SmithyGenerator;
 
 // Include the auto-generated model registry
 include!(concat!(env!("OUT_DIR"), "/model_registry.rs"));
