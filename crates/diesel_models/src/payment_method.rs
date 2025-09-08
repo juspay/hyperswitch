@@ -906,7 +906,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .network_token_payment_method_data
                 .clone(),
             external_vault_source: payment_method_new.external_vault_source.clone(),
-            vault_type: payment_method_new.vault_type.clone(),
+            vault_type: payment_method_new.vault_type,
         }
     }
 }

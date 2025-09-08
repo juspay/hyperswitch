@@ -42,7 +42,6 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_methods::VaultId;
 use hyperswitch_domain_models::{
-    payment_method_data, payment_methods as domain_payment_methods,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow,
@@ -2370,8 +2369,7 @@ pub async fn vault_payment_method_external_v1(
     pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-) -> RouterResult<crate::types::payment_methods::AddVaultResponse> {
-    println!("In vault_payment_method_external_v1");
+) -> RouterResult<pm_types::AddVaultResponse> {
     let router_data = core_utils::construct_vault_router_data_for_ext_v1(
         state,
         merchant_account.get_id(),
@@ -2382,15 +2380,13 @@ pub async fn vault_payment_method_external_v1(
     )
     .await?;
 
-    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault insert api call",
         )?;
 
     let connector_name = merchant_connector_account.get_connector_name_as_string();
-    // .ok_or(errors::ApiErrorResponse::InternalServerError)
-    // .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
@@ -2407,8 +2403,6 @@ pub async fn vault_payment_method_external_v1(
         types::VaultResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    println!("Connector integration obtained");
-
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -2419,15 +2413,13 @@ pub async fn vault_payment_method_external_v1(
     )
     .await
     .to_vault_failed_response()?;
-    println!("Connector processing step executed");
-    println!("Router data response: {:?}", router_data_resp);
 
     get_vault_response_for_insert_payment_method_data(router_data_resp)
 }
 
 pub fn get_vault_response_for_insert_payment_method_data<F>(
     router_data: VaultRouterData<F>,
-) -> RouterResult<crate::types::payment_methods::AddVaultResponse> {
+) -> RouterResult<pm_types::AddVaultResponse> {
     match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultInsertResponse {

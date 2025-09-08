@@ -37,11 +37,9 @@ use crate::{
     type_encryption::{crypto_operation, CryptoOperation},
 };
 
-// #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct VaultId(String);
 
-// #[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 impl VaultId {
     pub fn get_string_repr(&self) -> &String {
         &self.0

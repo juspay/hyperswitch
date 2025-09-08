@@ -20,11 +20,16 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
+#[cfg(feature = "v1")]
+use crate::core::errors::ConnectorErrorExt;
 #[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
     consts,
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        utils as core_utils,
+    },
     db, logger,
     routes::{self, metrics},
     types::{
@@ -40,19 +45,12 @@ use crate::{
         errors::StorageErrorExt,
         payment_methods::{transformers as pm_transforms, utils},
         payments::{self as payments_core, helpers as payment_helpers},
-        utils as core_utils,
     },
     headers,
     services::{self, connector_integration_interface::RouterDataConversion},
     settings,
     types::{self, payment_methods as pm_types},
     utils::{ext_traits::OptionExt, ConnectorResponseExt},
-};
-#[cfg(feature = "v1")]
-use crate::{
-    core::{errors::ConnectorErrorExt, payments, utils as core_utils},
-    services, types,
-    utils::ConnectorResponseExt,
 };
 
 const VAULT_SERVICE_NAME: &str = "CARD";
@@ -1892,7 +1890,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
     let connector_vault_id = pm.locker_id.clone().map(|id| id.to_string());
 
-    let router_data = crate::core::utils::construct_vault_router_data_for_ext_v1(
+    let router_data = core_utils::construct_vault_router_data_for_ext_v1(
         state,
         merchant_id,
         &merchant_connector_account,
@@ -1954,8 +1952,11 @@ pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
                     .attach_printable("Invalid Vault Response"))
             }
         },
-        Err(_err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method")),
+        Err(err) => {
+            logger::error!("Failed to retrieve payment method: {:?}", err);
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method"))
+        }
     }
 }
 
