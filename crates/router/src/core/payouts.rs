@@ -29,7 +29,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -66,7 +66,7 @@ use crate::{
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
 pub struct PayoutData {
-    pub billing_address: Option<domain::Address>,
+    pub billing_address: Option<domain_models::address::Address>,
     pub business_profile: domain::Profile,
     pub customer_details: Option<domain::Customer>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
@@ -812,7 +812,7 @@ pub async fn payouts_list_core(
                     })
                     .ok()
                     .as_ref()
-                    .map(hyperswitch_domain_models::address::Address::from)
+                    .map(domain_models::address::Address::from)
                     .map(payment_enums::Address::from)
                 });
 
@@ -2537,10 +2537,7 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-    let billing = billing_address
-        .as_ref()
-        .map(hyperswitch_domain_models::address::Address::from)
-        .map(From::from);
+    let billing = billing_address.map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
         state,
@@ -2672,29 +2669,17 @@ pub async fn payout_create_db_entries(
         _ => None,
     };
 
-    // We have to do this because the function that is being used to create / get address is from payments
-    // which expects a payment_id
-    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-        payout_id.get_string_repr().to_string(),
-    ))
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "payout_id contains invalid data".to_string(),
-    })
-    .attach_printable("Error converting payout_id to PaymentId type")?;
-
-    // Get or create address
-    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+    // Get or create billing address
+    let (billing_address, address_id) = helpers::resolve_billing_address_for_payout(
         state,
         req.billing.as_ref(),
         None,
-        merchant_id,
+        payment_method.as_ref(),
+        merchant_context,
         customer_id.as_ref(),
-        merchant_context.get_merchant_key_store(),
-        &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        payout_id,
     )
     .await?;
-    let address_id = billing_address.to_owned().map(|address| address.address_id);
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
@@ -2931,7 +2916,8 @@ pub async fn make_payout_data(
         &payout_id_as_payment_id_type,
         merchant_context.get_merchant_account().storage_scheme,
     )
-    .await?;
+    .await?
+    .map(|addr| domain_models::address::Address::from(&addr));
 
     let payout_id = &payouts.payout_id;
 

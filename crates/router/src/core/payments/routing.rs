@@ -175,7 +175,8 @@ pub fn make_dsl_input_for_payouts(
         billing_country: payout_data
             .billing_address
             .as_ref()
-            .and_then(|bic| bic.country)
+            .and_then(|ba| ba.address.as_ref())
+            .and_then(|addr| addr.country)
             .map(api_enums::Country::from_alpha2),
         business_label: payout_data.payout_attempt.business_label.clone(),
         setup_future_usage: None,
