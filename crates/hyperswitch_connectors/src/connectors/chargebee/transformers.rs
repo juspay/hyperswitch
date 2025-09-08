@@ -1,4 +1,3 @@
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
 use common_enums::enums;
@@ -849,7 +848,7 @@ impl<F, T>
                     price_id: prices.item_price.id,
                     plan_id: prices.item_price.item_id,
                     amount: prices.item_price.price,
-                    currency: <common_enums::Currency as std::str::FromStr>::from_str(
+                    currency: <common_enums::Currency as FromStr>::from_str(
                         &prices.item_price.currency_code,
                     )
                     .unwrap_or(common_enums::Currency::USD), // defaulting to USD if parsing fails

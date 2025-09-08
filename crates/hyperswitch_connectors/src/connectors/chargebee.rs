@@ -42,20 +42,10 @@ use hyperswitch_domain_models::{
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "v2")]
-use hyperswitch_interfaces::api::subscriptions_v2::GetSubscriptionPlanPricesV2;
-#[cfg(feature = "v2")]
-use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
-    },
-    configs::Connectors,
-    errors,
-    events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
-    webhooks,
+        self, subscriptions_v2::GetSubscriptionPlanPricesV2, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation
+    }, configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, errors, events::connector_api_logs::ConnectorEvent, types::{self, Response}, webhooks
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
@@ -681,7 +671,7 @@ impl api::subscriptions::GetSubscriptionPlanPricesFlow for Chargebee {}
 fn get_chargebee_plan_prices_query_params(
     req: &GetSubscriptionPlanPricesRouterData,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let item_id = req.request.item_id.to_string();
+    let item_id = req.request.plan_price_id.to_string();
     let params = format!("?item_id[is]={item_id}");
     Ok(params)
 }
@@ -763,10 +753,8 @@ impl
     }
 }
 
-#[cfg(feature = "v2")]
 impl GetSubscriptionPlanPricesV2 for Chargebee {}
 
-#[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
         GetSubscriptionPlanPrices,
@@ -775,75 +763,7 @@ impl
         GetSubscriptionPlanPricesResponse,
     > for Chargebee
 {
-    fn get_headers(
-        &self,
-        _req: &RouterDataV2<
-            GetSubscriptionPlanPrices,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlanPricesData,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse,
-        >,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            GetSubscriptionPlanPrices,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlanPricesData,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse,
-        >,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        todo!()
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            GetSubscriptionPlanPrices,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlanPricesData,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse,
-        >,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn handle_response_v2(
-        &self,
-        _data: &RouterDataV2<
-            GetSubscriptionPlanPrices,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlanPricesData,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse,
-        >,
-        _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            GetSubscriptionPlanPrices,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlanPricesData,
-            GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlanPricesResponse,
-        >,
-        errors::ConnectorError,
-    >{
-        todo!()
-    }
-
-    fn get_error_response_v2(
-        &self,
-        _res: types::Response,
-        _event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
-    }
+    // TODO: implement functions when support enabled
 }
 
 #[async_trait::async_trait]
