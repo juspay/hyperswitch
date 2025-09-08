@@ -5,6 +5,9 @@ pub mod models {
     use masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
+    
+    // Import vault metadata processing trait at top level
+    use vault_metadata::VaultMetadataExtractorExt;
 
     // Enums for the injector - making it standalone
 
@@ -129,7 +132,6 @@ pub mod models {
             
             // Process vault metadata if present
             if let Some(vault_header) = headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER) {
-                use vault_metadata::VaultMetadataExtractorExt;
                 connection_config.extract_and_apply_vault_metadata_with_fallback_from_header(&vault_header.expose());
             }
             
@@ -154,8 +156,6 @@ pub mod models {
             endpoint: String,
             http_method: HttpMethod,
         ) -> Self {
-            use std::collections::HashMap;
-            
             Self {
                 endpoint,
                 http_method,
@@ -569,7 +569,6 @@ pub mod models {
         mod tests {
             use super::*;
             use base64::Engine;
-            use masking::ExposeInterface;
             use common_utils::pii::SecretSerdeValue;
 
             #[test]

@@ -855,8 +855,6 @@ mod tests {
     #[tokio::test]
     #[ignore = "Integration test that requires network access"]
     async fn test_injector_core_integration() {
-        use std::collections::HashMap;
-
         // Create test request
         let mut headers = HashMap::new();
         headers.insert(
@@ -936,8 +934,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_certificate_configuration() {
-        use std::collections::HashMap;
-
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
