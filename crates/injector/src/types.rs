@@ -2,7 +2,7 @@ pub mod models {
     use std::collections::HashMap;
 
     use common_utils::pii::SecretSerdeValue;
-    use masking::Secret;
+    use masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
@@ -111,14 +111,7 @@ pub mod models {
 
 
     impl InjectorRequest {
-        /// Creates a new InjectorRequest with intelligent processing
-        /// 
-        /// This single function handles everything:
-        /// - Automatically processes vault metadata from headers (graceful fallback)
-        /// - Applies vault configuration (proxy URL, certificates) when available
-        /// - Uses fallback configurations when vault metadata is not present or invalid
-        /// - Removes vault metadata headers from regular headers
-        /// - Supports all connection types (simple, vault-enabled, certificate-based)
+        /// Creates a new InjectorRequest
         #[allow(clippy::too_many_arguments)]
         pub fn new(
             endpoint: String,
@@ -131,58 +124,21 @@ pub mod models {
             client_key: Option<Secret<String>>,
             ca_cert: Option<Secret<String>>,
         ) -> Self {
-            let headers = headers.unwrap_or_default();
+            let mut headers = headers.unwrap_or_default();
+            let mut connection_config = ConnectionConfig::new(endpoint, http_method);
             
-            // Create base configuration
-            let mut connection_config = ConnectionConfig::new(endpoint.clone(), http_method);
-            
-            // Try to apply vault metadata with graceful fallback
-            logger::debug!(
-                header_count = headers.len(),
-                has_vault_metadata = headers.contains_key(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER),
-                "Processing injector request with headers"
-            );
-            let vault_applied = {
+            // Process vault metadata if present
+            if let Some(vault_header) = headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER) {
                 use vault_metadata::VaultMetadataExtractorExt;
-                connection_config.extract_and_apply_vault_metadata_with_fallback(&headers)
-            };
-            logger::debug!(
-                vault_applied = vault_applied,
-                proxy_url_set = connection_config.proxy_url.is_some(),
-                ca_cert_set = connection_config.ca_cert.is_some(),
-                "Vault metadata processing result"
-            );
-            
-            // Apply fallback configurations only if vault didn't provide them
-            if !vault_applied || connection_config.proxy_url.is_none() {
-                connection_config.proxy_url = proxy_url;
+                connection_config.extract_and_apply_vault_metadata_with_fallback_from_header(&vault_header.expose());
             }
             
-            if !vault_applied || connection_config.client_cert.is_none() {
-                connection_config.client_cert = client_cert;
-            }
-            
-            if !vault_applied || connection_config.client_key.is_none() {
-                connection_config.client_key = client_key;
-            }
-            
-            if !vault_applied || connection_config.ca_cert.is_none() {
-                connection_config.ca_cert = ca_cert;
-            }
-            
-            // Set headers (excluding vault metadata header)
-            let mut filtered_headers = headers;
-            filtered_headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER);
-            connection_config.headers = filtered_headers;
-
-            logger::debug!(
-                endpoint = %endpoint,
-                vault_configured = vault_applied,
-                has_proxy = connection_config.proxy_url.is_some(),
-                has_client_cert = connection_config.client_cert.is_some(),
-                has_ca_cert = connection_config.ca_cert.is_some(),
-                "Created injector request with unified processing"
-            );
+            // Set fallback configurations
+            connection_config.proxy_url = connection_config.proxy_url.or(proxy_url);
+            connection_config.client_cert = connection_config.client_cert.or(client_cert);
+            connection_config.client_key = connection_config.client_key.or(client_key);
+            connection_config.ca_cert = connection_config.ca_cert.or(ca_cert);
+            connection_config.headers = headers;
 
             Self {
                 token_data,
@@ -572,6 +528,9 @@ pub mod models {
         pub trait VaultMetadataExtractorExt {
             /// Extract vault metadata with graceful fallback (doesn't fail the entire request)
             fn extract_and_apply_vault_metadata_with_fallback(&mut self, headers: &HashMap<String, Secret<String>>) -> bool;
+            
+            /// Extract vault metadata from a single header value with graceful fallback
+            fn extract_and_apply_vault_metadata_with_fallback_from_header(&mut self, header_value: &str) -> bool;
         }
 
         impl VaultMetadataExtractorExt for ConnectionConfig {
@@ -586,9 +545,9 @@ pub mod models {
                         );
                         true
                     }
-                    Err(e) => {
+                    Err(error) => {
                         logger::warn!(
-                            error = %e,
+                            error = %error,
                             proxy_url_set = self.proxy_url.is_some(),
                             ca_cert_set = self.ca_cert.is_some(),
                             "Vault metadata processing failed, continuing without vault configuration"
@@ -596,6 +555,12 @@ pub mod models {
                         false
                     }
                 }
+            }
+            
+            fn extract_and_apply_vault_metadata_with_fallback_from_header(&mut self, header_value: &str) -> bool {
+                let mut temp_headers = HashMap::new();
+                temp_headers.insert(EXTERNAL_VAULT_METADATA_HEADER.to_string(), Secret::new(header_value.to_string()));
+                self.extract_and_apply_vault_metadata_with_fallback(&temp_headers)
             }
         }
 
@@ -612,7 +577,7 @@ pub mod models {
                 // Create test VGS metadata with base64 encoded certificate
                 let vgs_metadata = VgsMetadata {
                     proxy_url: "https://vgs-proxy.example.com:8443".parse().expect("Valid test URL"),
-                    certificate: Secret::new("LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQyVENDQXNHZ0F3SUJBZ0lIQU40R3MvTEdoekFOQmdrcWhraUc5dzBCQVEwRkFEQjVNU1F3SWdZRFZRUUQKREJzcUxuTmhibVJpYjNndWRtVnllV2R2YjJSd2NtOTRlUzVqYjIweElUQWZCZ05WQkFvTUdGWmxjbmtnUjI5dgpaQ0JUWldOMWNtbDBlU3dnU1c1akxqRXVNQ3dHQTFVRUN3d2xWbVZ5ZVNCSGIyOWtJRk5sWTNWeWFYUjVJQzBnClJXNW5hVzVsWlhKcGJtY2dWR1ZoYlRBZ0Z3MHhOakF5TURreU16VXpNelphR0E4eU1URTNNREV4TlRJek5UTXoKTmxvd2VURWtNQ0lHQTFVRUF3d2JLaTV6WVc1a1ltOTRMblpsY25sbmIyOWtjSEp2ZUhrdVkyOXRNU0V3SHdZRApWUVFLREJoV1pYSjVJRWR2YjJRZ1UyVmpkWEpwZEhrc0lFbHVZeTR4TGpBc0JnTlZCQXNNSlZabGNua2dSMjl2ClpDQlRaV04xY21sMGVTQXRJRVZ1WjJsdVpXVnlhVzVuSUZSbFlXMHdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUEKQTRJQkR3QXdnZ0VLQW9JQkFRREkzdWtIcHhJbERDdkZqcHFuNGdBa3JRVmRXbGwvdUkwS3Yzd2lyd1ozUXJwZwpCVmVYakluSityVjlyMG91QklvWThJZ1JMYWs1SHkvdFNlVjZuQVZIdjB0NDFCN1Z5b2VUQXNaWVNXVTExZGVSCkRCU0JYSFdIOXpLRXZYa2tQZHk5dGdIbnZMSXp1aTJINTlPUGxqVjd6M3NDTGd1Ukl2SUl3OGRqYVY5ejdGUm0KS1JzZm1ZSEtPQmxTTzRUbHBmWFFnN2pRNWRzNjVxOEZGR3ZUQjVxQWdMWFM4VzhwdmRrOGpjY211elFYRlVZKwpadEhnalRoZzdCSFdXVW4rN202aFE2aUhIQ2ozNFF1NjlGOG5MYW1kK0tKLy8xNGx1a2R5S3MzQU1yWXNGYWJ5CmsrVUdlbU0vczJxM0IrMzlCNllLYUhhbzBTUnpTSkM3cUR3YldQeTNBZ01CQUFHalpEQmlNQjBHQTFVZERnUVcKQkJSV2xJUnJFMnAyUDAxOFZUelRiNkJhZU9GaEF6QVBCZ05WSFJNQkFmOEVCVEFEQVFIL01Bc0dBMVVkRHdRRQpBd0lCdGpBakJnTlZIU1VFSERBYUJnZ3JCZ0VGQlFjREFRWUlLd1lCQlFVSEF3SUdCRlVkSlFBd0RRWUpLb1pJCmh2Y05BUUVOQlFBRGdnRUJBR1d4TEZscjBiOWxXa09MY1p0UjlJRFZ4REw5eitVUEZFazcwRDNOUGFxWGtvRS8KVE5OVWtYZ1M2K1ZCQTJHOG5pZ3EyWWo4cW9JTStrVFhQYjhUeld2K2xyY0xtK2krNEFTaEtWa25wQjE1Y0MxQwovTkpmeVlHUlc2NnMvdzdITlMyMFJtcmROK2JXUzBQQTRDVkxYZEd6VUpuMFBDc2ZzUys2QWNuN1JQQUUrMEE4CldCN0p6WFdpOHg5bU9Kd2lPaG9kcDRqNDFtdis1ZUhNMHJlTWg2eWN1WWJqcXVETnBpTm5zTHp0azZNR3NnQVAKNUM1OWRyUVdKVTQ3NzM4QmNmYkJ5dVNUWUZvZzZ6TllDbTdBQ3FidGl3dkZUd2puZU5lYk9oc09sYUVBSGp1cApkNFFCcVlWczdwemtoTk5wOW9VdnY0d0dmL0tKY3c1QjlFNlRwZms9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=".to_string()),
+                    certificate: Secret::new("cert".to_string()),
                 };
 
                 let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
@@ -666,7 +631,7 @@ pub mod models {
             fn test_vault_metadata_factory() {
                 let vgs_metadata = VgsMetadata {
                     proxy_url: "https://vgs-proxy.example.com:8443".parse().expect("Valid test URL"),
-                    certificate: Secret::new("LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQyVENDQXNHZ0F3SUJBZ0lIQU40R3MvTEdoekFOQmdrcWhraUc5dzBCQVEwRkFEQjVNU1F3SWdZRFZRUUQKREJzcUxuTmhibVJpYjNndWRtVnllV2R2YjJSd2NtOTRlUzVqYjIweElUQWZCZ05WQkFvTUdGWmxjbmtnUjI5dgpaQ0JUWldOMWNtbDBlU3dnU1c1akxqRXVNQ3dHQTFVRUN3d2xWbVZ5ZVNCSGIyOWtJRk5sWTNWeWFYUjVJQzBnClJXNW5hVzVsWlhKcGJtY2dWR1ZoYlRBZ0Z3MHhOakF5TURreU16VXpNelphR0E4eU1URTNNREV4TlRJek5UTXoKTmxvd2VURWtNQ0lHQTFVRUF3d2JLaTV6WVc1a1ltOTRMblpsY25sbmIyOWtjSEp2ZUhrdVkyOXRNU0V3SHdZRApWUVFLREJoV1pYSjVJRWR2YjJRZ1UyVmpkWEpwZEhrc0lFbHVZeTR4TGpBc0JnTlZCQXNNSlZabGNua2dSMjl2ClpDQlRaV04xY21sMGVTQXRJRVZ1WjJsdVpXVnlhVzVuSUZSbFlXMHdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUEKQTRJQkR3QXdnZ0VLQW9JQkFRREkzdWtIcHhJbERDdkZqcHFuNGdBa3JRVmRXbGwvdUkwS3Yzd2lyd1ozUXJwZwpCVmVYakluSityVjlyMG91QklvWThJZ1JMYWs1SHkvdFNlVjZuQVZIdjB0NDFCN1Z5b2VUQXNaWVNXVTExZGVSCkRCU0JYSFdIOXpLRXZYa2tQZHk5dGdIbnZMSXp1aTJINTlPUGxqVjd6M3NDTGd1Ukl2SUl3OGRqYVY5ejdGUm0KS1JzZm1ZSEtPQmxTTzRUbHBmWFFnN2pRNWRzNjVxOEZGR3ZUQjVxQWdMWFM4VzhwdmRrOGpjY211elFYRlVZKwpadEhnalRoZzdCSFdXVW4rN202aFE2aUhIQ2ozNFF1NjlGOG5MYW1kK0tKLy8xNGx1a2R5S3MzQU1yWXNGYWJ5CmsrVUdlbU0vczJxM0IrMzlCNllLYUhhbzBTUnpTSkM3cUR3YldQeTNBZ01CQUFHalpEQmlNQjBHQTFVZERnUVcKQkJSV2xJUnJFMnAyUDAxOFZUelRiNkJhZU9GaEF6QVBCZ05WSFJNQkFmOEVCVEFEQVFIL01Bc0dBMVVkRHdRRQpBd0lCdGpBakJnTlZIU1VFSERBYUJnZ3JCZ0VGQlFjREFRWUlLd1lCQlFVSEF3SUdCRlVkSlFBd0RRWUpLb1pJCmh2Y05BUUVOQlFBRGdnRUJBR1d4TEZscjBiOWxXa09MY1p0UjlJRFZ4REw5eitVUEZFazcwRDNOUGFxWGtvRS8KVE5OVWtYZ1M2K1ZCQTJHOG5pZ3EyWWo4cW9JTStrVFhQYjhUeld2K2xyY0xtK2krNEFTaEtWa25wQjE1Y0MxQwovTkpmeVlHUlc2NnMvdzdITlMyMFJtcmROK2JXUzBQQTRDVkxYZEd6VUpuMFBDc2ZzUys2QWNuN1JQQUUrMEE4CldCN0p6WFdpOHg5bU9Kd2lPaG9kcDRqNDFtdis1ZUhNMHJlTWg2eWN1WWJqcXVETnBpTm5zTHp0azZNR3NnQVAKNUM1OWRyUVdKVTQ3NzM4QmNmYkJ5dVNUWUZvZzZ6TllDbTdBQ3FidGl3dkZUd2puZU5lYk9oc09sYUVBSGp1cApkNFFCcVlWczdwemtoTk5wOW9VdnY0d0dmL0tKY3c1QjlFNlRwZms9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=".to_string()),
+                    certificate: Secret::new("cert".to_string()),
                 };
 
                 let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
