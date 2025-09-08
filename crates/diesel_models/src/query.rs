@@ -39,6 +39,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod unified_translations;

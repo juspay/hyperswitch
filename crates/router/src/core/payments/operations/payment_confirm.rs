@@ -662,6 +662,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_method_type = Option::<api_models::enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         payment_attempt.payment_method_type = payment_method_type
