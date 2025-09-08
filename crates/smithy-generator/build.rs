@@ -78,8 +78,20 @@ fn scan_rust_file(file_path: &Path, crate_name: &str, module_path: &str, models:
         let re = Regex::new(r"(?ms)^#\[derive\(([^)]*(?:\([^)]*\))*[^)]*)\)\]\s*(?:(?:#\[[^\]]*\]\s*)|(?://[^\r\n]*\s*)|(?:///[^\r\n]*\s*)|(?:/\*.*?\*/\s*))*(?:pub\s+)?(?:struct|enum)\s+([A-Z][A-Za-z0-9_]*)\s*[<\{\(]").unwrap();
 
         for captures in re.captures_iter(&content) {
-            let derive_content = &captures[1];
-            let item_name = &captures[2];
+            let derive_content = match captures.get(1) {
+                Some(capture) => capture.as_str(),
+                None => {
+                    println!("cargo:warning=Missing derive content in regex capture for {}", file_path.display());
+                    continue;
+                }
+            };
+            let item_name = match captures.get(2) {
+                Some(capture) => capture.as_str(),
+                None => {
+                    println!("cargo:warning=Missing item name in regex capture for {}", file_path.display());
+                    continue;
+                }
+            };
 
             // Check if "SmithyModel" is present in the derive macro's content.
             if derive_content.contains("SmithyModel") {

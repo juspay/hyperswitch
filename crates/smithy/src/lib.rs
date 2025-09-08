@@ -27,7 +27,7 @@ fn generate_smithy_impl(input: &DeriveInput) -> syn::Result<TokenStream2> {
         }
         syn::Data::Enum(data_enum) => generate_enum_impl(name, &namespace, data_enum, &input.attrs),
         _ => {
-            return Err(syn::Error::new_spanned(
+            Err(syn::Error::new_spanned(
                 input,
                 "SmithyModel can only be derived for structs and enums",
             ))
@@ -68,7 +68,15 @@ fn generate_struct_impl(
                 value_type
             };
 
-            let inner_type_ident = syn::parse_str::<syn::Type>(inner_type).unwrap();
+            let inner_type_ident = match syn::parse_str::<syn::Type>(inner_type) {
+                Ok(ident) => ident,
+                Err(e) => {
+                    return syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        format!("Failed to parse inner type '{}' for flattened field: {}", inner_type, e)
+                    ).to_compile_error();
+                }
+            };
             // For flattened fields, we merge the fields from the inner type
             // but we don't add the field itself to the structure
             quote! {
@@ -153,7 +161,15 @@ fn generate_struct_impl(
 
             quote! {
                 {
-                    let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes).unwrap();
+                    let (target_type, new_shapes) = match smithy_core::types::resolve_type_and_generate_shapes(#value_type, &mut shapes) {
+                        Ok((target_type, new_shapes)) => (target_type, new_shapes),
+                        Err(err) => {
+                            return Err(syn::Error::new(
+                                proc_macro2::Span::call_site(),
+                                format!("Failed to resolve type '{}' for field '{}': {}", #value_type, #field_name, err)
+                            ));
+                        }
+                    };
                     shapes.extend(new_shapes);
                     members.insert(#field_name.to_string(), smithy_core::SmithyMember {
                         target: target_type,
@@ -290,14 +306,25 @@ fn generate_enum_impl(
                     return None;
                 } else if variant.fields.len() == 1 {
                     // Single field - reference the type directly instead of creating a wrapper
-                    let field = &variant.fields[0];
+                    let field = match variant.fields.get(0) {
+                        Some(field) => field,
+                        None => return None, // Skip this variant if no field exists
+                    };
                     let field_value_type = &field.value_type;
                     if field_value_type.is_empty() {
                         return None;
                     }
                     quote! {
                         {
-                            let (target_type, new_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                            let (target_type, new_shapes) = match smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes) {
+                                Ok((target_type, new_shapes)) => (target_type, new_shapes),
+                                Err(err) => {
+                                    return Err(syn::Error::new(
+                                        proc_macro2::Span::call_site(),
+                                        format!("Failed to resolve type '{}' for enum variant '{}': {}", #field_value_type, #variant_name, err)
+                                    ));
+                                }
+                            };
                             shapes.extend(new_shapes);
                             target_type
                         }
@@ -364,7 +391,15 @@ fn generate_enum_impl(
 
                         quote! {
                             {
-                                let (field_target, field_shapes) = smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes).unwrap();
+                                let (field_target, field_shapes) = match smithy_core::types::resolve_type_and_generate_shapes(#field_value_type, &mut shapes) {
+                                    Ok((field_target, field_shapes)) => (field_target, field_shapes),
+                                    Err(err) => {
+                                        return Err(syn::Error::new(
+                                            proc_macro2::Span::call_site(),
+                                            format!("Failed to resolve type '{}' for field '{}' in enum variant '{}': {}", #field_value_type, #field_name, #variant_name, err)
+                                        ));
+                                    }
+                                };
                                 shapes.extend(field_shapes);
                                 inline_members.insert(#field_name.to_string(), smithy_core::SmithyMember {
                                     target: field_target,
@@ -447,18 +482,14 @@ fn extract_namespace_and_mixin(attrs: &[Attribute]) -> syn::Result<(String, bool
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("namespace") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                namespace = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            namespace = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("mixin") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Bool(lit_bool) = lit {
-                                mixin = lit_bool.value;
-                            }
+                        if let Ok(Lit::Bool(lit_bool)) = value.parse::<Lit>() {
+                            mixin = lit_bool.value;
                         }
                     }
                 }
@@ -480,7 +511,15 @@ fn extract_fields(fields: &Fields) -> syn::Result<Vec<SmithyField>> {
     match fields {
         Fields::Named(fields_named) => {
             for field in &fields_named.named {
-                let field_name = field.ident.as_ref().unwrap().to_string();
+                let field_name = match field.ident.as_ref() {
+                    Some(ident) => ident.to_string(),
+                    None => {
+                        return Err(syn::Error::new_spanned(
+                            field,
+                            "Field must have an identifier (anonymous fields are not supported)",
+                        ));
+                    }
+                };
                 let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
                 let serde_attrs = parse_serde_attributes(&field.attrs)?;
 
@@ -526,7 +565,15 @@ fn extract_enum_variants(
             Fields::Named(fields_named) => {
                 let mut variant_fields = Vec::new();
                 for field in &fields_named.named {
-                    let field_name = field.ident.as_ref().unwrap().to_string();
+                    let field_name = match field.ident.as_ref() {
+                        Some(ident) => ident.to_string(),
+                        None => {
+                            return Err(syn::Error::new_spanned(
+                                field,
+                                "Enum variant field must have an identifier (anonymous fields are not supported)",
+                            ));
+                        }
+                    };
                     let field_attrs = parse_smithy_field_attributes(&field.attrs)?;
 
                     if let Some(value_type) = field_attrs.value_type {
@@ -632,10 +679,8 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
             let parse_result = attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("rename_all") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                serde_enum_attributes.rename_all = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.rename_all = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("tag") {
@@ -720,7 +765,8 @@ fn to_snake_case(input: &str) -> String {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
         }
-        result.push(ch.to_lowercase().next().unwrap());
+        // Use next().unwrap_or(ch) as a safe fallback
+        result.push(ch.to_lowercase().next().unwrap_or(ch));
     }
 
     result
@@ -732,7 +778,7 @@ fn to_camel_case(input: &str) -> String {
 
     // First character should be lowercase
     if let Some(ch) = chars.next() {
-        result.push(ch.to_lowercase().next().unwrap());
+        result.push(ch.to_lowercase().next().unwrap_or(ch));
     }
 
     // Rest of the characters remain the same
@@ -752,7 +798,7 @@ fn to_kebab_case(input: &str) -> String {
             // Add hyphen before uppercase letters (except the first character)
             result.push('-');
         }
-        result.push(ch.to_lowercase().next().unwrap());
+        result.push(ch.to_lowercase().next().unwrap_or(ch));
     }
 
     result
@@ -767,7 +813,7 @@ fn to_screaming_snake_case(input: &str) -> String {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
         }
-        result.push(ch.to_uppercase().next().unwrap());
+        result.push(ch.to_uppercase().next().unwrap_or(ch));
     }
 
     result
@@ -781,60 +827,52 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("value_type") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes.value_type = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes.value_type = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("pattern") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes
-                                    .constraints
-                                    .push(SmithyConstraint::Pattern(lit_str.value()));
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes
+                                .constraints
+                                .push(SmithyConstraint::Pattern(lit_str.value()));
                         }
                     }
                 } else if meta.path.is_ident("range") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                let range_str = lit_str.value();
-                                match parse_range(&range_str) {
-                                    Ok((min, max)) => {
-                                        field_attributes
-                                            .constraints
-                                            .push(SmithyConstraint::Range(min, max));
-                                    }
-                                    Err(e) => {
-                                        return Err(syn::Error::new_spanned(
-                                            &meta.path,
-                                            format!("Invalid range: {}", e),
-                                        ));
-                                    }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            let range_str = lit_str.value();
+                            match parse_range(&range_str) {
+                                Ok((min, max)) => {
+                                    field_attributes
+                                        .constraints
+                                        .push(SmithyConstraint::Range(min, max));
+                                }
+                                Err(e) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &meta.path,
+                                        format!("Invalid range: {}", e),
+                                    ));
                                 }
                             }
                         }
                     }
                 } else if meta.path.is_ident("length") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                let length_str = lit_str.value();
-                                match parse_length(&length_str) {
-                                    Ok((min, max)) => {
-                                        field_attributes
-                                            .constraints
-                                            .push(SmithyConstraint::Length(min, max));
-                                    }
-                                    Err(e) => {
-                                        return Err(syn::Error::new_spanned(
-                                            &meta.path,
-                                            format!("Invalid length: {}", e),
-                                        ));
-                                    }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            let length_str = lit_str.value();
+                            match parse_length(&length_str) {
+                                Ok((min, max)) => {
+                                    field_attributes
+                                        .constraints
+                                        .push(SmithyConstraint::Length(min, max));
+                                }
+                                Err(e) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &meta.path,
+                                        format!("Invalid length: {}", e),
+                                    ));
                                 }
                             }
                         }
@@ -849,12 +887,10 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
                         .push(SmithyConstraint::HttpLabel);
                 } else if meta.path.is_ident("http_query") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes
-                                    .constraints
-                                    .push(SmithyConstraint::HttpQuery(lit_str.value()));
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes
+                                .constraints
+                                .push(SmithyConstraint::HttpQuery(lit_str.value()));
                         }
                     }
                 }
@@ -916,23 +952,29 @@ fn parse_range(range_str: &str) -> Result<(Option<i64>, Option<i64>), String> {
                 "Invalid range format: must be 'min..=max', '..=max', or 'min..='".to_string(),
             );
         }
-        let min = if parts[0].is_empty() {
-            None
+        let min = if let Some(part) = parts.get(0) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid range min: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[0]
-                    .parse()
-                    .map_err(|_| format!("Invalid range min: '{}'", parts[0]))?,
-            )
+            return Err("Invalid range format: missing minimum value".to_string());
         };
-        let max = if parts[1].is_empty() {
-            None
+        let max = if let Some(part) = parts.get(1) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid range max: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[1]
-                    .parse()
-                    .map_err(|_| format!("Invalid range max: '{}'", parts[1]))?,
-            )
+            return Err("Invalid range format: missing maximum value".to_string());
         };
         Ok((min, max))
     } else if range_str.contains("..") {
@@ -942,24 +984,30 @@ fn parse_range(range_str: &str) -> Result<(Option<i64>, Option<i64>), String> {
                 "Invalid range format: must be 'min..max', '..max', or 'min..'".to_string(),
             );
         }
-        let min = if parts[0].is_empty() {
-            None
+        let min = if let Some(part) = parts.get(0) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid range min: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[0]
-                    .parse()
-                    .map_err(|_| format!("Invalid range min: '{}'", parts[0]))?,
-            )
+            return Err("Invalid range format: missing minimum value".to_string());
         };
-        let max = if parts[1].is_empty() {
-            None
+        let max = if let Some(part) = parts.get(1) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse::<i64>()
+                        .map_err(|_| format!("Invalid range max: '{}'", part))?
+                        - 1,
+                )
+            }
         } else {
-            Some(
-                parts[1]
-                    .parse::<i64>()
-                    .map_err(|_| format!("Invalid range max: '{}'", parts[1]))?
-                    - 1,
-            )
+            return Err("Invalid range format: missing maximum value".to_string());
         };
         Ok((min, max))
     } else {
@@ -975,23 +1023,29 @@ fn parse_length(length_str: &str) -> Result<(Option<u64>, Option<u64>), String> 
                 "Invalid length format: must be 'min..=max', '..=max', or 'min..='".to_string(),
             );
         }
-        let min = if parts[0].is_empty() {
-            None
+        let min = if let Some(part) = parts.get(0) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid length min: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[0]
-                    .parse()
-                    .map_err(|_| format!("Invalid length min: '{}'", parts[0]))?,
-            )
+            return Err("Invalid length format: missing minimum value".to_string());
         };
-        let max = if parts[1].is_empty() {
-            None
+        let max = if let Some(part) = parts.get(1) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid length max: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[1]
-                    .parse()
-                    .map_err(|_| format!("Invalid length max: '{}'", parts[1]))?,
-            )
+            return Err("Invalid length format: missing maximum value".to_string());
         };
         Ok((min, max))
     } else if length_str.contains("..") {
@@ -1001,24 +1055,30 @@ fn parse_length(length_str: &str) -> Result<(Option<u64>, Option<u64>), String> 
                 "Invalid length format: must be 'min..max', '..max', or 'min..'".to_string(),
             );
         }
-        let min = if parts[0].is_empty() {
-            None
+        let min = if let Some(part) = parts.get(0) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse()
+                        .map_err(|_| format!("Invalid length min: '{}'", part))?,
+                )
+            }
         } else {
-            Some(
-                parts[0]
-                    .parse()
-                    .map_err(|_| format!("Invalid length min: '{}'", parts[0]))?,
-            )
+            return Err("Invalid length format: missing minimum value".to_string());
         };
-        let max = if parts[1].is_empty() {
-            None
+        let max = if let Some(part) = parts.get(1) {
+            if part.is_empty() {
+                None
+            } else {
+                Some(
+                    part.parse::<u64>()
+                        .map_err(|_| format!("Invalid length max: '{}'", part))?
+                        - 1,
+                )
+            }
         } else {
-            Some(
-                parts[1]
-                    .parse::<u64>()
-                    .map_err(|_| format!("Invalid length max: '{}'", parts[1]))?
-                    - 1,
-            )
+            return Err("Invalid length format: missing maximum value".to_string());
         };
         Ok((min, max))
     } else {

@@ -272,7 +272,13 @@ fn extract_generic_inner_type<'a>(full_type: &'a str, wrapper: &str) -> Result<&
         return Err(format!("Empty {} type: {}", wrapper, full_type));
     }
 
-    Ok(full_type[start_idx..end_idx].trim())
+    if start_idx >= full_type.len() || end_idx > full_type.len() {
+        return Err(format!("Invalid index bounds for {} type: {}", wrapper, full_type));
+    }
+
+    Ok(full_type.get(start_idx..end_idx)
+        .ok_or_else(|| format!("Failed to extract inner type from {}: {}", wrapper, full_type))?
+        .trim())
 }
 
 fn parse_map_types(inner_types: &str) -> Result<(&str, &str), String> {
@@ -293,8 +299,12 @@ fn parse_map_types(inner_types: &str) -> Result<(&str, &str), String> {
     }
 
     if let Some(pos) = comma_pos {
-        let key_type = inner_types[..pos].trim();
-        let value_type = inner_types[pos + 1..].trim();
+        let key_type = inner_types.get(..pos)
+            .ok_or_else(|| format!("Invalid key type bounds in map: {}", inner_types))?
+            .trim();
+        let value_type = inner_types.get(pos + 1..)
+            .ok_or_else(|| format!("Invalid value type bounds in map: {}", inner_types))?
+            .trim();
 
         if key_type.is_empty() || value_type.is_empty() {
             return Err(format!("Invalid map type format: {}", inner_types));

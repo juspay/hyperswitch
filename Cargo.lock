@@ -7917,6 +7917,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "smithy-generator"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "common_enums",
+ "common_types",
+ "regex",
+ "smithy-core",
+]
+
+[[package]]
 name = "snap"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

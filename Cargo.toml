@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-exclude = ["crates/smithy-generator"]
 package.edition = "2021"
 package.rust-version = "1.80.0"
 package.license = "Apache-2.0"
