@@ -79,7 +79,7 @@ use crate::{
     consts,
     core::{
         errors::{ProcessTrackerError, RouterResult},
-        payments::helpers as payment_helpers,
+        payments::{self as payments_core,  helpers as payment_helpers},
         utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
@@ -2404,7 +2404,7 @@ pub async fn vault_payment_method_external_v1(
         state,
         connector_integration,
         &old_router_data,
-        crate::core::payments::CallConnectorAction::Trigger,
+        payments_core::CallConnectorAction::Trigger,
         None,
         None,
     )
