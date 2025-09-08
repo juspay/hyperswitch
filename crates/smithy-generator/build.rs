@@ -4,13 +4,9 @@ use std::{fs, path::Path};
 
 use regex::Regex;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=../");
-
-    if let Err(e) = run_build() {
-        eprintln!("Error: Build script failed: {}", e);
-        std::process::exit(1);
-    }
+    run_build()
 }
 
 fn run_build() -> Result<(), Box<dyn std::error::Error>> {
