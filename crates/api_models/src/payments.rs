@@ -3816,73 +3816,108 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
+    /// The wallet data for Ali Pay HK redirect
+    #[schema(title = "AliPayHkRedirect")]
+    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Ali Pay QrCode
+    #[schema(title = "AliPayQr")]
     AliPayQr(Box<AliPayQr>),
     /// The wallet data for Ali Pay redirect
+    #[schema(title = "AliPayRedirect")]
     AliPayRedirect(AliPayRedirection),
-    /// The wallet data for Ali Pay HK redirect
-    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Amazon Pay
+    #[schema(title = "AmazonPay")]
     AmazonPay(AmazonPayWalletData),
     /// The wallet data for Amazon Pay redirect
+    #[schema(title = "AmazonPayRedirect")]
     AmazonPayRedirect(AmazonPayRedirectData),
-    /// The wallet data for Bluecode QR Code Redirect
-    BluecodeRedirect {},
-    /// The wallet data for Skrill
-    Skrill(SkrillData),
-    /// The wallet data for Paysera
-    Paysera(PayseraData),
-    /// The wallet data for Momo redirect
-    MomoRedirect(MomoRedirection),
-    /// The wallet data for KakaoPay redirect
-    KakaoPayRedirect(KakaoPayRedirection),
-    /// The wallet data for GoPay redirect
-    GoPayRedirect(GoPayRedirection),
-    /// The wallet data for Gcash redirect
-    GcashRedirect(GcashRedirection),
     /// The wallet data for Apple pay
+    #[schema(title = "ApplePay")]
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
+    #[schema(title = "ApplePayRedirect")]
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
+    #[schema(title = "ApplePayThirdPartySdk")]
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// The wallet data for Bluecode QR Code Redirect
+    #[schema(title = "BluecodeRedirect")]
+    BluecodeRedirect {},
+    /// The wallet data for Cashapp Qr
+    #[schema(title = "CashappQr")]
+    CashappQr(Box<CashappQr>),
     /// Wallet data for DANA redirect flow
+    #[schema(title = "DanaRedirect")]
     DanaRedirect {},
+    /// The wallet data for Gcash redirect
+    #[schema(title = "GcashRedirect")]
+    GcashRedirect(GcashRedirection),
+    /// The wallet data for GoPay redirect
+    #[schema(title = "GoPayRedirect")]
+    GoPayRedirect(GoPayRedirection),
     /// The wallet data for Google pay
+    #[schema(title = "GooglePay")]
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
+    #[schema(title = "GooglePayRedirect")]
     GooglePayRedirect(Box<GooglePayRedirectData>),
     /// Wallet data for Google pay third party sdk flow
+    #[schema(title = "GooglePayThirdPartySdk")]
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
+    /// The wallet data for KakaoPay redirect
+    #[schema(title = "KakaoPayRedirect")]
+    KakaoPayRedirect(KakaoPayRedirection),
+    /// Wallet data for MbWay redirect flow
+    #[schema(title = "MbWayRedirect")]
     MbWayRedirect(Box<MbWayRedirection>),
+    // The wallet data for Mifinity Ewallet
+    #[schema(title = "Mifinity")]
+    Mifinity(MifinityData),
     /// The wallet data for MobilePay redirect
+    #[schema(title = "MobilePayRedirect")]
     MobilePayRedirect(Box<MobilePayRedirection>),
+    /// The wallet data for Momo redirect
+    #[schema(title = "MomoRedirect")]
+    MomoRedirect(MomoRedirection),
     /// This is for paypal redirection
+    #[schema(title = "PaypalRedirect")]
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
+    #[schema(title = "PaypalSdk")]
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Paysera
+    #[schema(title = "Paysera")]
+    Paysera(PayseraData),
     /// The wallet data for Paze
+    #[schema(title = "Paze")]
     Paze(PazeWalletData),
+    // The wallet data for RevolutPay
+    #[schema(title = "RevolutPay")]
+    RevolutPay(RevolutPayData),
     /// The wallet data for Samsung Pay
+    #[schema(title = "SamsungPay")]
     SamsungPay(Box<SamsungPayWalletData>),
+    /// The wallet data for Skrill
+    #[schema(title = "Skrill")]
+    Skrill(SkrillData),
+    // The wallet data for Swish
+    #[schema(title = "SwishQr")]
+    SwishQr(SwishQrData),
+    /// The wallet data for Touch n Go Redirection
+    #[schema(title = "TouchNGoRedirect")]
+    TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// Wallet data for Twint Redirection
+    #[schema(title = "TwintRedirect")]
     TwintRedirect {},
     /// Wallet data for Vipps Redirection
+    #[schema(title = "VippsRedirect")]
     VippsRedirect {},
-    /// The wallet data for Touch n Go Redirection
-    TouchNGoRedirect(Box<TouchNGoRedirection>),
-    /// The wallet data for WeChat Pay Redirection
-    WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay Display QrCode
+    #[schema(title = "WeChatPayQr")]
     WeChatPayQr(Box<WeChatPayQr>),
-    /// The wallet data for Cashapp Qr
-    CashappQr(Box<CashappQr>),
-    // The wallet data for Swish
-    SwishQr(SwishQrData),
-    // The wallet data for Mifinity Ewallet
-    Mifinity(MifinityData),
-    // The wallet data for RevolutPay
-    RevolutPay(RevolutPayData),
+    /// The wallet data for WeChat Pay Redirection
+    #[schema(title = "WeChatPayRedirect")]
+    WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
