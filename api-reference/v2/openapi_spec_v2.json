@@ -23606,6 +23606,14 @@
           }
         }
       },
+      "RevenueRecoveryAlgorithmType": {
+        "type": "string",
+        "enum": [
+          "monitoring",
+          "smart",
+          "cascading"
+        ]
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
