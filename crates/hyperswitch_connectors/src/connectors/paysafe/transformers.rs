@@ -11,12 +11,13 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        PaymentsAuthorizeData, PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, PaymentsSyncData,
+        ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -24,11 +25,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as _,
-    },
+    connectors::paysafe, types::{RefundsResponseRouterData, ResponseRouterData}, utils::{
+        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _
+    }
 };
 
 pub struct PaysafeRouterData<T> {
@@ -61,18 +60,67 @@ impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDs {
+    pub merchant_url: String,
+    pub device_channel: DeviceChannel,
+    pub message_category: ThreeDsMessageCategory,
+    pub authentication_purpose: ThreeDsAuthenticationPurpose,
+    pub requestor_challenge_preference: ThreeDsChallengePreference,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DeviceChannel {
+    Browser,
+    #[serde(rename = "UPPERCASE")]
+    ThreeRi,
+    Sdk,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDsMessageCategory {
+    Payment,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDsAuthenticationPurpose {
+    PaymentTransaction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDsChallengePreference {
+    ChallengeMandated,
+    NoPreference,
+    NoChallengeRequested,
+    ChallengeRequested,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentHandleRequest {
     pub merchant_ref_num: String,
     pub amount: MinorUnit,
     pub settle_with_auth: bool,
-    pub card: PaysafeCard,
+    #[serde(flatten)]
+    pub payment_method: PaysafePaymentMethod,
     pub currency_code: enums::Currency,
     pub payment_type: PaysafePaymentType,
     pub transaction_type: TransactionType,
     pub return_links: Vec<ReturnLink>,
     pub account_id: Secret<String>,
+    pub three_ds: Option<ThreeDs>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum PaysafePaymentMethod {
+    Card { card: PaysafeCard },
 }
 
 #[derive(Debug, Serialize)]
@@ -134,12 +182,15 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     },
                     holder_name: item.router_data.get_optional_billing_full_name(),
                 };
+
+                let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
                 let account_id = metadata.account_id;
 
                 let amount = item.amount;
                 let payment_type = PaysafePaymentType::Card;
                 let transaction_type = TransactionType::Payment;
-                let redirect_url = item.router_data.request.get_router_return_url()?;
+                // let redirect_url = item.router_data.request.get_router_return_url()?;
+                let redirect_url = "https://example.com".to_string(); // Temporary fix until we have return_url in the request
                 let return_links = vec![
                     ReturnLink {
                         rel: LinkType::Default,
@@ -170,12 +221,13 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                         item.router_data.request.capture_method,
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
-                    card,
+                    payment_method,
                     currency_code: item.router_data.request.get_currency()?,
                     payment_type,
                     transaction_type,
                     return_links,
                     account_id,
+                    three_ds: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -192,6 +244,13 @@ pub struct PaysafePaymentHandleResponse {
     pub merchant_ref_num: String,
     pub payment_handle_token: Secret<String>,
     pub status: PaysafePaymentHandleStatus,
+    pub links: Option<Vec<PaymentLink>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymentLink {
+    pub rel: String,
+    pub href: String,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
@@ -287,6 +346,54 @@ impl<F>
     }
 }
 
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaysafePaymentHandleResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaysafePaymentHandleResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let url = match item.response.links.as_ref().and_then(|links| links.get(0)) {
+            Some(link) => link.href.clone(),
+            None => return Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        };
+        let redirection_data = Some(RedirectForm::Form {
+            endpoint: url,
+            method: Method::Get,
+            form_fields: Default::default(),
+        });
+        let connector_metadata = serde_json::json!(PaysafeMeta {
+            payment_handle_token: item.response.payment_handle_token.clone(),
+        });
+        Ok(Self {
+            status: common_enums::AttemptStatus::AuthenticationPending,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsRequest {
@@ -298,7 +405,7 @@ pub struct PaysafePaymentsRequest {
     pub customer_ip: Option<Secret<String, IpAddress>>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCard {
     pub card_num: CardNumber,
@@ -319,12 +426,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
     fn try_from(
         item: &PaysafeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Paysafe",
-            })?
-        };
         let payment_handle_token = Secret::new(item.router_data.get_preprocessing_id()?);
         let amount = item.amount;
         let customer_ip = Some(
@@ -341,6 +442,159 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             settle_with_auth: item.router_data.request.is_auto_capture()?,
             currency_code: item.router_data.request.currency,
             customer_ip,
+        })
+    }
+}
+
+impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentHandleRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaysafeRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let metadata: PaysafeConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
+        let account_id = metadata.account_id;
+
+        let redirect_url = item.router_data.request.get_complete_authorize_url()?;
+        // let redirect_url = "https://example.com".to_string(); // Temporary fix until we have return_url in the request
+        let return_links = vec![
+            ReturnLink {
+                rel: LinkType::Default,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCompleted,
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnFailed,
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCancelled,
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                method: Method::Get.to_string(),
+            },
+        ];
+        let amount = item.amount;
+        let currency_code = item.router_data.request.currency;
+        let settle_with_auth = matches!(
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+        let transaction_type = TransactionType::Payment;
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => {
+                let card = PaysafeCard {
+                    card_num: req_card.card_number.clone(),
+                    card_expiry: PaysafeCardExpiry {
+                        month: req_card.card_exp_month.clone(),
+                        year: req_card.get_expiry_year_4_digit(),
+                    },
+                    cvv: if req_card.card_cvc.clone().expose().is_empty() {
+                        None
+                    } else {
+                        Some(req_card.card_cvc.clone())
+                    },
+                    holder_name: item.router_data.get_optional_billing_full_name(),
+                };
+                let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
+                let payment_type = PaysafePaymentType::Card;
+
+                let three_ds = Some(ThreeDs {
+                    merchant_url: item.router_data.request.get_router_return_url()?,
+                    device_channel: DeviceChannel::Browser,
+                    message_category: ThreeDsMessageCategory::Payment,
+                    authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
+                    requestor_challenge_preference: ThreeDsChallengePreference::NoPreference,
+                });
+
+                Ok(Self {
+                    merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
+                    amount,
+                    settle_with_auth,
+                    payment_method,
+                    currency_code,
+                    payment_type,
+                    transaction_type,
+                    return_links,
+                    account_id,
+                    three_ds,
+                })
+            }
+            
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))?,
+        }
+    }
+}
+
+impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for PaysafePaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let paysafe_meta: PaysafeMeta = to_connector_meta(item.router_data.request.connector_meta.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "connector_metadata",
+            })?;
+            let payment_handle_token = paysafe_meta.payment_handle_token;
+        let amount = item.amount;
+        let customer_ip = Some(
+            item.router_data
+                .request
+                .get_browser_info()?
+                .get_ip_address()?,
+        );
+
+        Ok(Self {
+            merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
+            payment_handle_token,
+            amount,
+            settle_with_auth: item.router_data.request.is_auto_capture()?,
+            currency_code: item.router_data.request.currency,
+            customer_ip,
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<F, PaysafePaymentsResponse, CompleteAuthorizeData, PaymentsResponseData>,
+    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaysafePaymentsResponse,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: get_paysafe_payment_status(
+                item.response.status,
+                item.data.request.capture_method,
+            ),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
         })
     }
 }
@@ -700,6 +954,6 @@ pub struct Error {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FieldError {
-    pub field: String,
+    pub field: Option<String>,
     pub error: String,
 }

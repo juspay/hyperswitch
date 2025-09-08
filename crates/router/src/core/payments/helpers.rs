@@ -1255,7 +1255,7 @@ pub fn create_webhook_url(
 }
 
 pub fn create_complete_authorize_url(
-    router_base_url: &String,
+    _router_base_url: &String,
     payment_attempt: &PaymentAttempt,
     connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
@@ -1265,7 +1265,7 @@ pub fn create_complete_authorize_url(
     });
     format!(
         "{}/payments/{}/{}/redirect/complete/{}{}",
-        router_base_url,
+        "https://e13a99583c9f.ngrok-free.app",
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name,
