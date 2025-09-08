@@ -84,11 +84,6 @@ pub fn validate_domain_against_allowed_domains(
 }
 
 /// checks whether the input string contains potential XSS or SQL injection attack vectors
-///
-/// # Panics
-///
-/// This function may panic if the regex patterns fail to compile, though this should not happen
-/// with the hardcoded patterns used.
 pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
     let decoded = urlencoding::decode(input).unwrap_or_else(|_| input.into());
     // Check for suspicious percent-encoded patterns
