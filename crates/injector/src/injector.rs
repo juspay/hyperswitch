@@ -175,7 +175,7 @@ pub mod core {
             "Creating identity from certificate and key"
         );
         
-        let combined_pem = format!("{}\n{}", cert_str, key_str);
+        let combined_pem = format!("{cert_str}\n{key_str}");
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .map_err(|e| {
                 logger::error!("Failed to create identity from certificate and key: {}", e);
@@ -798,9 +798,10 @@ pub use core::*;
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use std::collections::HashMap;
+    
     use router_env::logger;
 
-    use super::core::*;
     use crate::*;
 
 
