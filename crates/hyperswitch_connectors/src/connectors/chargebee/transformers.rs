@@ -814,7 +814,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCusto
         let req = &item.router_data.request;
 
         Ok(Self {
-            customer_id: req.customer_id.clone(),
+            customer_id: req.customer_id.get_string_repr().to_string(),
             first_name: req.first_name.clone(),
             last_name: req.last_name.clone(),
             email: req.email.clone(),
