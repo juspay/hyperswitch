@@ -12,6 +12,10 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_data_v2::flow_common_types::{
+    RevenueRecoveryRecordBackData, SubscriptionCreateData,
+};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -21,10 +25,6 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_data_v2::flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData};
-#[cfg(feature = "v2")]
-use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -48,6 +48,8 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
