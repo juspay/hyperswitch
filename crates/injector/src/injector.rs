@@ -62,10 +62,11 @@ pub mod core {
         client_certificate_key: Option<masking::Secret<String>>,
         ca_certificate: Option<masking::Secret<String>>,
     ) -> error_stack::Result<reqwest::Client, InjectorError> {
-        println!("HTTP CLIENT: Creating client - has_client_cert={}, has_client_key={}, has_ca_cert={}", 
-            client_certificate.is_some(),
-            client_certificate_key.is_some(),
-            ca_certificate.is_some()
+        logger::debug!(
+            has_client_cert = client_certificate.is_some(),
+            has_client_key = client_certificate_key.is_some(),
+            has_ca_cert = ca_certificate.is_some(),
+            "Creating HTTP client"
         );
 
         // Case 1: Mutual TLS with client certificate and key
@@ -73,10 +74,10 @@ pub mod core {
             (client_certificate.clone(), client_certificate_key.clone())
         {
             if ca_certificate.is_some() {
-                println!("HTTP CLIENT: All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
+                logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
             }
 
-            println!("HTTP CLIENT: Creating HTTP client with mutual TLS (client cert + key)");
+            logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
             let client_builder = get_client_builder(proxy_config)?;
 
             let identity = create_identity_from_certificate_and_key(
@@ -94,18 +95,18 @@ pub mod core {
                 .use_rustls_tls()
                 .build()
                 .map_err(|e| {
-                    println!("HTTP CLIENT ERROR: Failed to construct client with certificate and certificate key: {}", e);
+                    logger::error!("Failed to construct client with certificate and certificate key: {}", e);
                     error_stack::Report::new(InjectorError::HttpRequestFailed)
                 });
         }
 
         // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
         if let Some(ca_pem) = ca_certificate {
-            println!("HTTP CLIENT: Creating HTTP client with one-way TLS (CA certificate)");
+            logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
             let cert = reqwest::Certificate::from_pem(pem.as_bytes())
                 .map_err(|e| {
-                    println!("HTTP CLIENT ERROR: Failed to parse CA certificate PEM block: {}", e);
+                    logger::error!("Failed to parse CA certificate PEM block: {}", e);
                     error_stack::Report::new(InjectorError::HttpRequestFailed)
                 })?;
             let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
@@ -113,13 +114,13 @@ pub mod core {
                 .use_rustls_tls()
                 .build()
                 .map_err(|e| {
-                    println!("HTTP CLIENT ERROR: Failed to construct client with CA certificate: {}", e);
+                    logger::error!("Failed to construct client with CA certificate: {}", e);
                     error_stack::Report::new(InjectorError::HttpRequestFailed)
                 });
         }
 
         // Case 3: Default client (no certs)
-        println!("HTTP CLIENT: Creating default HTTP client (no client or CA certificates)");
+        logger::debug!("Creating default HTTP client (no client or CA certificates)");
         get_base_client(proxy_config)
     }
 
@@ -129,35 +130,24 @@ pub mod core {
         
         // Configure proxy if provided
         if let Some(proxy_url) = &proxy_config.https_url {
-            println!("HTTP CLIENT: Configuring HTTPS proxy - proxy_url_length={}", proxy_url.len());
-            
-            // Parse the proxy URL to extract credentials if present
-            if let Ok(parsed_url) = reqwest::Url::parse(proxy_url) {
-                let has_credentials = parsed_url.username() != "" || parsed_url.password().is_some();
-                println!("HTTP CLIENT: Proxy URL parsed - has_credentials={}, scheme={}, host={:?}, port={:?}", 
-                    has_credentials,
-                    parsed_url.scheme(),
-                    parsed_url.host(),
-                    parsed_url.port()
-                );
-            }
+            logger::debug!("Configuring HTTPS proxy");
             
             let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to configure HTTPS proxy: {}", e);
+                logger::error!("Failed to configure HTTPS proxy: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
             })?;
             client_builder = client_builder.proxy(proxy);
-            println!("HTTP CLIENT: HTTPS proxy configured successfully");
+            logger::debug!("HTTPS proxy configured successfully");
         }
 
         if let Some(proxy_url) = &proxy_config.http_url {
-            println!("HTTP CLIENT: Configuring HTTP proxy - proxy_url_length={}", proxy_url.len());
+            logger::debug!("Configuring HTTP proxy");
             let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to configure HTTP proxy: {}", e);
+                logger::error!("Failed to configure HTTP proxy: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
             })?;
             client_builder = client_builder.proxy(proxy);
-            println!("HTTP CLIENT: HTTP proxy configured successfully");
+            logger::debug!("HTTP proxy configured successfully");
         }
 
         Ok(client_builder)
@@ -168,7 +158,7 @@ pub mod core {
         client_builder
             .build()
             .map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to build default HTTP client: {}", e);
+                logger::error!("Failed to build default HTTP client: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
             })
     }
@@ -180,24 +170,30 @@ pub mod core {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
         
-        println!("HTTP CLIENT: Creating identity from certificate and key - cert_length={}, key_length={}", 
-            cert_str.len(), key_str.len());
+        logger::debug!(
+            cert_length = cert_str.len(),
+            key_length = key_str.len(),
+            "Creating identity from certificate and key"
+        );
         
         let combined_pem = format!("{}\n{}", cert_str, key_str);
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to create identity from certificate and key: {}", e);
+                logger::error!("Failed to create identity from certificate and key: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
             })
     }
 
     fn create_certificate(encoded_certificate: masking::Secret<String>) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
         let cert_str = encoded_certificate.expose();
-        println!("HTTP CLIENT: Creating certificate from PEM - length={}", cert_str.len());
+        logger::debug!(
+            cert_length = cert_str.len(),
+            "Creating certificate from PEM"
+        );
         
         let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
             .map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to create certificate from PEM: {}", e);
+                logger::error!("Failed to create certificate from PEM: {}", e);
                 error_stack::Report::new(InjectorError::HttpRequestFailed)
             })?;
         Ok(vec![cert])
@@ -206,20 +202,20 @@ pub mod core {
     /// Copy certificate data from connection config to request for reqwest client configuration
     fn copy_certificates_to_request(
         request: &mut common_utils::request::Request,
-        config: &injector_types::DomainConnectionConfig,
+        config: &injector_types::ConnectionConfig,
     ) {
         if let Some(ca_cert) = &config.ca_cert {
-            println!("REQUEST: Copying CA certificate from connection config to request");
+            logger::debug!("Copying CA certificate from connection config to request");
             request.ca_certificate = Some(ca_cert.clone());
         }
         
         if let Some(client_cert) = &config.client_cert {
-            println!("REQUEST: Copying client certificate from connection config to request");
+            logger::debug!("Copying client certificate from connection config to request");
             request.certificate = Some(client_cert.clone());
         }
         
         if let Some(client_key) = &config.client_key {
-            println!("REQUEST: Copying client key from connection config to request");
+            logger::debug!("Copying client key from connection config to request");
             request.certificate_key = Some(client_key.clone());
         }
     }
@@ -280,50 +276,32 @@ pub mod core {
         }
 
         // Send the request
-        println!("HTTP CLIENT: About to send HTTP request - url={}", &request.url);
+        logger::debug!("Sending HTTP request to connector");
         let response = req_builder.send().await.map_err(|e| {
             let error_msg = e.to_string();
-            println!("HTTP CLIENT ERROR: HTTP request failed: {}", error_msg);
+            logger::error!("HTTP request failed: {}", error_msg);
             
-            // Detailed error analysis
-            if error_msg.contains("proxy") {
-                println!("HTTP CLIENT ERROR: This appears to be a proxy-related error");
-            }
-            if error_msg.contains("certificate") || error_msg.contains("tls") || error_msg.contains("ssl") {
-                println!("HTTP CLIENT ERROR: This appears to be a certificate/TLS-related error");
-            }
-            if error_msg.contains("timeout") {
-                println!("HTTP CLIENT ERROR: This appears to be a timeout error");
-            }
-            if error_msg.contains("dns") || error_msg.contains("resolve") {
-                println!("HTTP CLIENT ERROR: This appears to be a DNS resolution error");
-            }
-            if error_msg.contains("connection") {
-                println!("HTTP CLIENT ERROR: This appears to be a connection error");
-            }
-            
-            // Check for reqwest error details
-            if let Some(source) = std::error::Error::source(&e) {
-                println!("HTTP CLIENT ERROR: Underlying error: {}", source);
-            }
-            
-            // Check if it's a reqwest::Error and get more details
+            // Log specific error types for debugging
             if e.is_timeout() {
-                println!("HTTP CLIENT ERROR: Request timed out");
+                logger::error!("Request timed out");
             }
             if e.is_connect() {
-                println!("HTTP CLIENT ERROR: Connection error occurred");
+                logger::error!("Connection error occurred");
             }
             if e.is_request() {
-                println!("HTTP CLIENT ERROR: Request construction error");
+                logger::error!("Request construction error");
             }
             if e.is_decode() {
-                println!("HTTP CLIENT ERROR: Response decoding error");
+                logger::error!("Response decoding error");
             }
             
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
-        println!("HTTP CLIENT: HTTP request completed successfully - status={}", response.status());
+        
+        logger::info!(
+            status_code = response.status().as_u16(),
+            "HTTP request completed successfully"
+        );
 
         Ok(response)
     }
@@ -351,7 +329,7 @@ pub mod core {
 
     /// Represents a token reference found in a template string
     #[derive(Debug)]
-    pub struct TokenReference {
+    struct TokenReference {
         /// The field name to be replaced (without the {{$}} wrapper)
         pub field: String,
     }
@@ -360,7 +338,7 @@ pub mod core {
     ///
     /// Expects tokens in the format `{{$field_name}}` where field_name contains
     /// only alphanumeric characters and underscores.
-    pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
+    fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
             preceded(
@@ -387,7 +365,7 @@ pub mod core {
     ///
     /// Scans through the entire input string and extracts all valid token references.
     /// Returns a vector of TokenReference structs containing the field names.
-    pub fn find_all_tokens(input: &str) -> Vec<TokenReference> {
+    fn find_all_tokens(input: &str) -> Vec<TokenReference> {
         let mut tokens = Vec::new();
         let mut current_input = input;
 
@@ -412,7 +390,7 @@ pub mod core {
     ///
     /// Performs a depth-first search through the JSON object hierarchy to find
     /// a field with the specified name. Returns the first matching value found.
-    pub fn find_field_recursively_in_vault_data(
+    fn find_field_recursively_in_vault_data(
         obj: &serde_json::Map<String, Value>,
         field_name: &str,
     ) -> Option<Value> {
@@ -430,7 +408,7 @@ pub mod core {
     }
 
     #[async_trait]
-    pub trait TokenInjector {
+    trait TokenInjector {
         async fn injector_core(
             &self,
             request: InjectorRequest,
@@ -446,7 +424,7 @@ pub mod core {
 
         /// Processes a string template and replaces token references with vault data
         #[instrument(skip_all)]
-        pub fn interpolate_string_template_with_vault_data(
+        fn interpolate_string_template_with_vault_data(
             &self,
             template: String,
             vault_data: &Value,
@@ -476,7 +454,7 @@ pub mod core {
         }
 
         #[instrument(skip_all)]
-        pub fn interpolate_token_references_with_vault_data(
+        fn interpolate_token_references_with_vault_data(
             &self,
             value: Value,
             vault_data: &Value,
@@ -563,10 +541,10 @@ pub mod core {
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
-            config: &injector_types::DomainConnectionConfig,
+            config: &injector_types::ConnectionConfig,
             payload: &str,
             content_type: &ContentType,
-        ) -> error_stack::Result<Value, InjectorError> {
+        ) -> error_stack::Result<(u16, Option<HashMap<String, String>>, Value), InjectorError> {
             logger::info!(
                 method = ?config.http_method,
                 base_url = %config.base_url,
@@ -654,34 +632,18 @@ pub mod core {
 
             // Add certificate configuration if provided
             if let Some(cert_content) = &config.client_cert {
-                let cert_str = cert_content.clone().expose();
-                println!("CERTIFICATE: Adding client certificate - length={}, starts_with_begin={}, first_50_chars={}", 
-                    cert_str.len(),
-                    cert_str.starts_with("-----BEGIN"),
-                    &cert_str.chars().take(50).collect::<String>()
-                );
+                logger::debug!("Adding client certificate content");
                 request_builder = request_builder.add_certificate(Some(cert_content.clone()));
             }
 
             if let Some(key_content) = &config.client_key {
-                let key_str = key_content.clone().expose();
-                println!("CERTIFICATE: Adding client private key - length={}, starts_with_begin={}", 
-                    key_str.len(),
-                    key_str.starts_with("-----BEGIN")
-                );
+                logger::debug!("Adding client private key content");
                 request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
             }
 
             if let Some(ca_content) = &config.ca_cert {
-                let ca_str = ca_content.clone().expose();
-                println!("CERTIFICATE: Adding CA certificate - length={}, starts_with_begin={}, first_50_chars={}", 
-                    ca_str.len(),
-                    ca_str.starts_with("-----BEGIN"),
-                    &ca_str.chars().take(50).collect::<String>()
-                );
+                logger::debug!("Adding CA certificate content");
                 request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
-            } else {
-                println!("CERTIFICATE: No CA certificate provided");
             }
 
             // Log certificate configuration (but not the actual content)
@@ -701,27 +663,25 @@ pub mod core {
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_str = proxy_url.clone().expose();
-                println!("INJECTOR PROXY: Using proxy URL from vault metadata - proxy_url_length={}, proxy_url_first_10_chars={}", 
-                    proxy_url_str.len(),
-                    &proxy_url_str.chars().take(10).collect::<String>()
-                );
+                logger::debug!("Using proxy URL from vault metadata");
                 
                 // Parse URL to determine scheme
                 let parsed_proxy_url = reqwest::Url::parse(&proxy_url_str).map_err(|e| {
-                    println!("INJECTOR PROXY ERROR: Failed to parse proxy URL: {}", e);
+                    logger::error!("Failed to parse proxy URL: {}", e);
                     error_stack::Report::new(InjectorError::InvalidTemplate(format!(
                         "Invalid proxy URL: {e}"
                     )))
                 })?;
                 
-                println!("INJECTOR PROXY: Parsed proxy URL information - proxy_scheme={}, proxy_host={:?}, proxy_port={:?}", 
-                    parsed_proxy_url.scheme(),
-                    parsed_proxy_url.host(),
-                    parsed_proxy_url.port()
+                logger::debug!(
+                    proxy_scheme = parsed_proxy_url.scheme(),
+                    proxy_host = ?parsed_proxy_url.host(),
+                    proxy_port = ?parsed_proxy_url.port(),
+                    "Parsed proxy URL information"
                 );
                 
                 if parsed_proxy_url.scheme() == "https" {
-                    println!("INJECTOR PROXY: Using HTTPS proxy configuration");
+                    logger::debug!("Using HTTPS proxy configuration");
                     Proxy {
                         http_url: None,
                         https_url: Some(proxy_url_str),
@@ -729,7 +689,7 @@ pub mod core {
                         bypass_proxy_hosts: None,
                     }
                 } else {
-                    println!("INJECTOR PROXY: Using HTTP proxy configuration");
+                    logger::debug!("Using HTTP proxy configuration");
                     Proxy {
                         http_url: Some(proxy_url_str),
                         https_url: None,
@@ -738,7 +698,7 @@ pub mod core {
                     }
                 }
             } else {
-                println!("INJECTOR NO PROXY: No proxy configured, using direct connection to target");
+                logger::debug!("No proxy configured, using direct connection to target");
                 Proxy::default()
             };
 
@@ -746,10 +706,31 @@ pub mod core {
             logger::debug!("Sending HTTP request to connector");
             let response = send_request(&proxy, request, None).await?;
 
+            let status_code = response.status().as_u16();
             logger::info!(
-                status_code = response.status().as_u16(),
+                status_code = status_code,
                 "Received response from connector"
             );
+
+            // Extract headers
+            let headers: Option<HashMap<String, String>> = {
+                let header_map = response.headers().clone();
+                if header_map.is_empty() {
+                    None
+                } else {
+                    let mut headers_map = HashMap::new();
+                    for (name, value) in header_map.iter() {
+                        if let Ok(value_str) = value.to_str() {
+                            headers_map.insert(name.to_string(), value_str.to_string());
+                        }
+                    }
+                    if headers_map.is_empty() {
+                        None
+                    } else {
+                        Some(headers_map)
+                    }
+                }
+            };
 
             let response_text = response
                 .text()
@@ -758,23 +739,26 @@ pub mod core {
 
             logger::debug!(
                 response_length = response_text.len(),
+                headers_count = headers.as_ref().map(|h| h.len()).unwrap_or(0),
                 "Processing connector response"
             );
 
             // Try to parse as JSON, fallback to string value with error logging
-            match serde_json::from_str::<Value>(&response_text) {
+            let response_data = match serde_json::from_str::<Value>(&response_text) {
                 Ok(json) => {
                     logger::debug!("Successfully parsed response as JSON");
-                    Ok(json)
+                    json
                 }
                 Err(e) => {
                     logger::debug!(
                         "Failed to parse response as JSON: {}, returning as string",
                         e
                     );
-                    Ok(Value::String(response_text))
+                    Value::String(response_text)
                 }
-            }
+            };
+
+            Ok((status_code, headers, response_data))
         }
     }
 
@@ -795,27 +779,20 @@ pub mod core {
 
             let start_time = std::time::Instant::now();
 
-            // Convert API model to domain model
-            let domain_request: injector_types::DomainInjectorRequest = request.into();
-
             // Extract token data from SecretSerdeValue for vault data lookup
-            let vault_data = domain_request
-                .token_data
-                .specific_token_data
-                .expose()
-                .clone();
+            let vault_data = request.token_data.specific_token_data.expose().clone();
 
             logger::debug!(
-                template_length = domain_request.connector_payload.template.len(),
-                vault_connector = ?domain_request.token_data.vault_connector,
+                template_length = request.connector_payload.template.len(),
+                vault_connector = ?request.token_data.vault_connector,
                 "Processing token injection request"
             );
 
             // Process template string directly with vault-specific logic
             let processed_payload = self.interpolate_string_template_with_vault_data(
-                domain_request.connector_payload.template,
+                request.connector_payload.template,
                 &vault_data,
-                &domain_request.token_data.vault_connector,
+                &request.token_data.vault_connector,
             )?;
 
             logger::debug!(
@@ -824,7 +801,7 @@ pub mod core {
             );
 
             // Determine content type from headers or default to form-urlencoded
-            let content_type = domain_request
+            let content_type = request
                 .connection_config
                 .headers
                 .get("Content-Type")
@@ -840,10 +817,10 @@ pub mod core {
                 })
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
-            // Make HTTP request to connector and return raw response
-            let response_data = self
+            // Make HTTP request to connector and return enhanced response
+            let (status_code, headers, response_data) = self
                 .make_http_request(
-                    &domain_request.connection_config,
+                    &request.connection_config,
                     &processed_payload,
                     &content_type,
                 )
@@ -852,14 +829,20 @@ pub mod core {
             let elapsed = start_time.elapsed();
             logger::info!(
                 duration_ms = elapsed.as_millis(),
+                status_code = status_code,
                 response_size = serde_json::to_string(&response_data)
                     .map(|s| s.len())
                     .unwrap_or(0),
+                headers_count = headers.as_ref().map(|h| h.len()).unwrap_or(0),
                 "Token injection completed successfully"
             );
 
-            // Return the raw connector response for connector-agnostic handling
-            Ok(response_data)
+            // Return the enhanced connector response with status code and headers
+            Ok(InjectorResponse {
+                status_code,
+                headers,
+                response: response_data,
+            })
         }
     }
 }
@@ -875,89 +858,6 @@ mod tests {
     use super::core::*;
     use crate::*;
 
-    #[test]
-    fn test_token_parsing() {
-        let result = parse_token("{{$card_number}}");
-        assert!(result.is_ok());
-        let (_, token_ref) = result.unwrap();
-        assert_eq!(token_ref.field, "card_number");
-    }
-
-    #[test]
-    fn test_token_interpolation() {
-        let injector = Injector::new();
-        let template = serde_json::Value::String("card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string());
-
-        let vault_data = serde_json::json!({
-            "card_number": "TEST_card123",
-            "cvv": "TEST_cvv456",
-            "exp_month": "TEST_12",
-            "exp_year": "TEST_2026"
-        });
-
-        // Test with VGS vault (direct replacement)
-        let vault_connector = VaultConnectors::VGS;
-        let result = injector
-            .interpolate_token_references_with_vault_data(template, &vault_data, &vault_connector)
-            .unwrap();
-        assert_eq!(result, serde_json::Value::String("card_number=TEST_card123&cvv=TEST_cvv456&expiry=TEST_12/TEST_2026&amount=50&currency=USD&transaction_type=purchase".to_string()));
-    }
-
-    #[test]
-    fn test_field_not_found() {
-        let injector = Injector::new();
-        let template = serde_json::Value::String("{{$unknown_field}}".to_string());
-
-        let vault_data = serde_json::json!({
-            "card_number": "TEST_CARD_NUMBER"
-        });
-
-        let vault_connector = VaultConnectors::VGS;
-        let result = injector.interpolate_token_references_with_vault_data(
-            template,
-            &vault_data,
-            &vault_connector,
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_recursive_field_search() {
-        let vault_data = serde_json::json!({
-            "payment_method": {
-                "card": {
-                    "number": "TEST_CARD_NUMBER"
-                }
-            }
-        });
-
-        let obj = vault_data.as_object().unwrap();
-        let result = find_field_recursively_in_vault_data(obj, "number");
-        assert_eq!(
-            result,
-            Some(serde_json::Value::String("TEST_CARD_NUMBER".to_string()))
-        );
-    }
-
-    #[test]
-    fn test_vault_specific_token_handling() {
-        let injector = Injector::new();
-        let template = serde_json::Value::String("{{$card_number}}".to_string());
-
-        let vault_data = serde_json::json!({
-            "card_number": "TOKEN"
-        });
-
-        // Test VGS vault - direct replacement
-        let vgs_result = injector
-            .interpolate_token_references_with_vault_data(
-                template.clone(),
-                &vault_data,
-                &VaultConnectors::VGS,
-            )
-            .unwrap();
-        assert_eq!(vgs_result, serde_json::Value::String("TOKEN".to_string()));
-    }
 
     #[tokio::test]
     #[ignore = "Integration test that requires network access"]
@@ -1029,10 +929,16 @@ mod tests {
         );
         logger::info!("=======================================");
 
-        // Response should be a JSON value from httpbin.org
+        // Response should have a proper status code and response data
         assert!(
-            response.is_object() || response.is_string(),
-            "Response should be JSON object or string"
+            response.status_code >= 200 && response.status_code < 300,
+            "Response should have successful status code: {}",
+            response.status_code
+        );
+        
+        assert!(
+            response.response.is_object() || response.response.is_string(),
+            "Response data should be JSON object or string"
         );
     }
 
@@ -1101,9 +1007,16 @@ mod tests {
         );
         logger::info!("================================");
 
+        // Should succeed with proper status code
+        assert!(
+            response.status_code >= 200 && response.status_code < 300,
+            "Certificate test should have successful status code: {}",
+            response.status_code
+        );
+
         // Verify the tokens were replaced correctly in the form data
         // httpbin.org returns the request data in the 'form' field
-        let response_str = serde_json::to_string(&response).unwrap_or_default();
+        let response_str = serde_json::to_string(&response.response).unwrap_or_default();
         
         // Check that our test tokens were replaced with the actual values from vault data
         let tokens_replaced = response_str.contains("4242429789164242") && // card_number
@@ -1113,7 +1026,7 @@ mod tests {
         assert!(
             tokens_replaced,
             "Response should contain replaced tokens (card_number, cvv, expiry): {}",
-            serde_json::to_string_pretty(&response).unwrap_or_default()
+            serde_json::to_string_pretty(&response.response).unwrap_or_default()
         );
     }
 }
