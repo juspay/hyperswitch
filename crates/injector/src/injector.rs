@@ -55,76 +55,152 @@ pub mod core {
         }
     }
 
-    /// Configure certificates for the reqwest client (adapted from external_services create_client)
-    fn configure_client_certificates(
-        mut client_builder: reqwest::ClientBuilder,
-        request: &common_utils::request::Request,
-    ) -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
-        let has_client_cert = request.certificate.is_some();
-        let has_client_key = request.certificate_key.is_some();
-        let has_ca_cert = request.ca_certificate.is_some();
-        
-        println!("HTTP CLIENT: Certificate configuration - has_client_cert={}, has_client_key={}, has_ca_cert={}", 
-            has_client_cert, has_client_key, has_ca_cert
+    /// Create HTTP client using the proven external_services create_client logic
+    fn create_client(
+        proxy_config: &Proxy,
+        client_certificate: Option<masking::Secret<String>>,
+        client_certificate_key: Option<masking::Secret<String>>,
+        ca_certificate: Option<masking::Secret<String>>,
+    ) -> error_stack::Result<reqwest::Client, InjectorError> {
+        println!("HTTP CLIENT: Creating client - has_client_cert={}, has_client_key={}, has_ca_cert={}", 
+            client_certificate.is_some(),
+            client_certificate_key.is_some(),
+            ca_certificate.is_some()
         );
 
         // Case 1: Mutual TLS with client certificate and key
-        if let (Some(client_cert), Some(client_key)) = (&request.certificate, &request.certificate_key) {
-            println!("HTTP CLIENT: Configuring mutual TLS with client certificate and key");
-            
-            let client_cert_str = client_cert.clone().expose();
-            let client_key_str = client_key.clone().expose();
-            
-            println!("HTTP CLIENT: Client cert length={}, starts_with_begin={}", 
-                client_cert_str.len(),
-                client_cert_str.starts_with("-----BEGIN")
-            );
-            
-            // Create identity from certificate and key
-            match reqwest::Identity::from_pem(&format!("{}\n{}", client_cert_str, client_key_str).into_bytes()) {
-                Ok(identity) => {
-                    client_builder = client_builder.identity(identity);
-                    println!("HTTP CLIENT: Client certificate identity configured successfully");
-                }
-                Err(e) => {
-                    println!("HTTP CLIENT ERROR: Failed to create identity from client cert and key: {}", e);
-                }
+        if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
+            (client_certificate.clone(), client_certificate_key.clone())
+        {
+            if ca_certificate.is_some() {
+                println!("HTTP CLIENT: All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
             }
-            
-            // Add client certificate as root certificate as well
-            match reqwest::Certificate::from_pem(client_cert_str.as_bytes()) {
-                Ok(cert) => {
-                    client_builder = client_builder.add_root_certificate(cert);
-                    println!("HTTP CLIENT: Client certificate added as root certificate");
-                }
-                Err(e) => {
-                    println!("HTTP CLIENT ERROR: Failed to add client certificate as root: {}", e);
-                }
-            }
+
+            println!("HTTP CLIENT: Creating HTTP client with mutual TLS (client cert + key)");
+            let client_builder = get_client_builder(proxy_config)?;
+
+            let identity = create_identity_from_certificate_and_key(
+                encoded_certificate.clone(),
+                encoded_certificate_key,
+            )?;
+            let certificate_list = create_certificate(encoded_certificate)?;
+            let client_builder = certificate_list
+                .into_iter()
+                .fold(client_builder, |client_builder, certificate| {
+                    client_builder.add_root_certificate(certificate)
+                });
+            return client_builder
+                .identity(identity)
+                .use_rustls_tls()
+                .build()
+                .map_err(|e| {
+                    println!("HTTP CLIENT ERROR: Failed to construct client with certificate and certificate key: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                });
         }
-        // Case 2: Only CA certificate (for proxy verification)
-        else if let Some(ca_cert) = &request.ca_certificate {
-            let ca_cert_str = ca_cert.clone().expose();
-            println!("HTTP CLIENT: Configuring CA certificate only - length={}, starts_with_begin={}", 
-                ca_cert_str.len(),
-                ca_cert_str.starts_with("-----BEGIN")
-            );
+
+        // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+        if let Some(ca_pem) = ca_certificate {
+            println!("HTTP CLIENT: Creating HTTP client with one-way TLS (CA certificate)");
+            let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
+            let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+                .map_err(|e| {
+                    println!("HTTP CLIENT ERROR: Failed to parse CA certificate PEM block: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                })?;
+            let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
+            return client_builder
+                .use_rustls_tls()
+                .build()
+                .map_err(|e| {
+                    println!("HTTP CLIENT ERROR: Failed to construct client with CA certificate: {}", e);
+                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                });
+        }
+
+        // Case 3: Default client (no certs)
+        println!("HTTP CLIENT: Creating default HTTP client (no client or CA certificates)");
+        get_base_client(proxy_config)
+    }
+
+    /// Helper functions from external_services
+    fn get_client_builder(proxy_config: &Proxy) -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
+        let mut client_builder = reqwest::Client::builder();
+        
+        // Configure proxy if provided
+        if let Some(proxy_url) = &proxy_config.https_url {
+            println!("HTTP CLIENT: Configuring HTTPS proxy - proxy_url_length={}", proxy_url.len());
             
-            // Parse the CA certificate for reqwest client
-            match reqwest::Certificate::from_pem(ca_cert_str.as_bytes()) {
-                Ok(cert) => {
-                    client_builder = client_builder.add_root_certificate(cert);
-                    println!("HTTP CLIENT: CA certificate successfully added to reqwest client");
-                }
-                Err(e) => {
-                    println!("HTTP CLIENT ERROR: Failed to parse CA certificate for reqwest: {}", e);
-                }
+            // Parse the proxy URL to extract credentials if present
+            if let Ok(parsed_url) = reqwest::Url::parse(proxy_url) {
+                let has_credentials = parsed_url.username() != "" || parsed_url.password().is_some();
+                println!("HTTP CLIENT: Proxy URL parsed - has_credentials={}, scheme={}, host={:?}, port={:?}", 
+                    has_credentials,
+                    parsed_url.scheme(),
+                    parsed_url.host(),
+                    parsed_url.port()
+                );
             }
-        } else {
-            println!("HTTP CLIENT: No certificates configured for reqwest client");
+            
+            let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
+                println!("HTTP CLIENT ERROR: Failed to configure HTTPS proxy: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
+            client_builder = client_builder.proxy(proxy);
+            println!("HTTP CLIENT: HTTPS proxy configured successfully");
+        }
+
+        if let Some(proxy_url) = &proxy_config.http_url {
+            println!("HTTP CLIENT: Configuring HTTP proxy - proxy_url_length={}", proxy_url.len());
+            let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
+                println!("HTTP CLIENT ERROR: Failed to configure HTTP proxy: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
+            client_builder = client_builder.proxy(proxy);
+            println!("HTTP CLIENT: HTTP proxy configured successfully");
         }
 
         Ok(client_builder)
+    }
+
+    fn get_base_client(proxy_config: &Proxy) -> error_stack::Result<reqwest::Client, InjectorError> {
+        let client_builder = get_client_builder(proxy_config)?;
+        client_builder
+            .build()
+            .map_err(|e| {
+                println!("HTTP CLIENT ERROR: Failed to build default HTTP client: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })
+    }
+
+    fn create_identity_from_certificate_and_key(
+        encoded_certificate: masking::Secret<String>,
+        encoded_certificate_key: masking::Secret<String>,
+    ) -> error_stack::Result<reqwest::Identity, InjectorError> {
+        let cert_str = encoded_certificate.expose();
+        let key_str = encoded_certificate_key.expose();
+        
+        println!("HTTP CLIENT: Creating identity from certificate and key - cert_length={}, key_length={}", 
+            cert_str.len(), key_str.len());
+        
+        let combined_pem = format!("{}\n{}", cert_str, key_str);
+        reqwest::Identity::from_pem(combined_pem.as_bytes())
+            .map_err(|e| {
+                println!("HTTP CLIENT ERROR: Failed to create identity from certificate and key: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })
+    }
+
+    fn create_certificate(encoded_certificate: masking::Secret<String>) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
+        let cert_str = encoded_certificate.expose();
+        println!("HTTP CLIENT: Creating certificate from PEM - length={}", cert_str.len());
+        
+        let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
+            .map_err(|e| {
+                println!("HTTP CLIENT ERROR: Failed to create certificate from PEM: {}", e);
+                error_stack::Report::new(InjectorError::HttpRequestFailed)
+            })?;
+        Ok(vec![cert])
     }
 
     /// Copy certificate data from connection config to request for reqwest client configuration
@@ -148,8 +224,7 @@ pub mod core {
         }
     }
 
-    /// Simplified HTTP client for injector (copied from external_services to make injector standalone)
-    /// This is a minimal implementation that covers the essential functionality needed by injector
+    /// Simplified HTTP client for injector using the proven external_services create_client logic
     #[instrument(skip_all)]
     pub async fn send_request(
         client_proxy: &Proxy,
@@ -158,39 +233,13 @@ pub mod core {
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
         logger::info!("Making HTTP request using standalone injector HTTP client");
 
-        // Create reqwest client with proxy configuration
-        let mut client_builder = reqwest::Client::builder();
-        println!("HTTP CLIENT: Creating reqwest client builder");
-
-        // Configure proxy if provided
-        if let Some(proxy_url) = &client_proxy.https_url {
-            println!("HTTP CLIENT: Configuring HTTPS proxy - proxy_url_length={}", proxy_url.len());
-            let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to configure HTTPS proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
-            client_builder = client_builder.proxy(proxy);
-            println!("HTTP CLIENT: HTTPS proxy configured successfully");
-        }
-
-        if let Some(proxy_url) = &client_proxy.http_url {
-            println!("HTTP CLIENT: Configuring HTTP proxy - proxy_url_length={}", proxy_url.len());
-            let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
-                println!("HTTP CLIENT ERROR: Failed to configure HTTP proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
-            client_builder = client_builder.proxy(proxy);
-            println!("HTTP CLIENT: HTTP proxy configured successfully");
-        }
-
-        // Configure certificates for the reqwest client
-        client_builder = configure_client_certificates(client_builder, &request)?;
-
-        let client = client_builder.build().map_err(|e| {
-            println!("HTTP CLIENT ERROR: Failed to build HTTP client: {}", e);
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
-        })?;
-        println!("HTTP CLIENT: HTTP client built successfully");
+        // Create reqwest client using the proven create_client function
+        let client = create_client(
+            client_proxy,
+            request.certificate.clone(),
+            request.certificate_key.clone(),
+            request.ca_certificate.clone(),
+        )?;
 
         // Build the request
         let method = match request.method {
@@ -233,17 +282,45 @@ pub mod core {
         // Send the request
         println!("HTTP CLIENT: About to send HTTP request - url={}", &request.url);
         let response = req_builder.send().await.map_err(|e| {
-            println!("HTTP CLIENT ERROR: HTTP request failed: {}", e);
-            // Check if it's a proxy-related error
-            if e.to_string().contains("proxy") {
+            let error_msg = e.to_string();
+            println!("HTTP CLIENT ERROR: HTTP request failed: {}", error_msg);
+            
+            // Detailed error analysis
+            if error_msg.contains("proxy") {
                 println!("HTTP CLIENT ERROR: This appears to be a proxy-related error");
             }
-            if e.to_string().contains("certificate") || e.to_string().contains("tls") || e.to_string().contains("ssl") {
+            if error_msg.contains("certificate") || error_msg.contains("tls") || error_msg.contains("ssl") {
                 println!("HTTP CLIENT ERROR: This appears to be a certificate/TLS-related error");
             }
-            if e.to_string().contains("timeout") {
+            if error_msg.contains("timeout") {
                 println!("HTTP CLIENT ERROR: This appears to be a timeout error");
             }
+            if error_msg.contains("dns") || error_msg.contains("resolve") {
+                println!("HTTP CLIENT ERROR: This appears to be a DNS resolution error");
+            }
+            if error_msg.contains("connection") {
+                println!("HTTP CLIENT ERROR: This appears to be a connection error");
+            }
+            
+            // Check for reqwest error details
+            if let Some(source) = std::error::Error::source(&e) {
+                println!("HTTP CLIENT ERROR: Underlying error: {}", source);
+            }
+            
+            // Check if it's a reqwest::Error and get more details
+            if e.is_timeout() {
+                println!("HTTP CLIENT ERROR: Request timed out");
+            }
+            if e.is_connect() {
+                println!("HTTP CLIENT ERROR: Connection error occurred");
+            }
+            if e.is_request() {
+                println!("HTTP CLIENT ERROR: Request construction error");
+            }
+            if e.is_decode() {
+                println!("HTTP CLIENT ERROR: Response decoding error");
+            }
+            
             error_stack::Report::new(InjectorError::HttpRequestFailed)
         })?;
         println!("HTTP CLIENT: HTTP request completed successfully - status={}", response.status());
