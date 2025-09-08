@@ -2077,6 +2077,7 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn get_optional_connector_transaction_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2099,6 +2100,13 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             )
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+
+    fn get_optional_connector_transaction_id(&self) -> Option<String> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
+            _ => None,
         }
     }
 }
