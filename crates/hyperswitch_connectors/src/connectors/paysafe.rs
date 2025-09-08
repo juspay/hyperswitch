@@ -54,7 +54,10 @@ use transformers as paysafe;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsSyncRequestData, RefundsRequestData as OtherRefundsRequestData, RouterData as _},
+    utils::{
+        self, PaymentsSyncRequestData, RefundsRequestData as OtherRefundsRequestData,
+        RouterData as _,
+    },
 };
 
 #[derive(Clone)]

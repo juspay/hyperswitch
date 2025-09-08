@@ -25,9 +25,12 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connectors::paysafe, types::{RefundsResponseRouterData, ResponseRouterData}, utils::{
-        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _
-    }
+    connectors::paysafe,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+    },
 };
 
 pub struct PaysafeRouterData<T> {
@@ -273,8 +276,9 @@ impl tryFrom<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
             }
             // We get an `Initiated` status, with a redirection link from the connector, which indicates that further action is required by the customer,
             PaysafePaymentHandleStatus::Initiated => Ok(Self::AuthenticationPending),
-            | PaysafePaymentHandleStatus::Payable
-            | PaysafePaymentHandleStatus::Processing => Ok(Self::Pending),
+            PaysafePaymentHandleStatus::Payable | PaysafePaymentHandleStatus::Processing => {
+                Ok(Self::Pending)
+            }
         }
     }
 }
@@ -482,17 +486,23 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             },
             ReturnLink {
                 rel: LinkType::OnCompleted,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
+                    .to_string()
+                    .clone(),
                 method: Method::Get.to_string(),
             },
             ReturnLink {
                 rel: LinkType::OnFailed,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
+                    .to_string()
+                    .clone(),
                 method: Method::Get.to_string(),
             },
             ReturnLink {
                 rel: LinkType::OnCancelled,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531".to_string().clone(),
+                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
+                    .to_string()
+                    .clone(),
                 method: Method::Get.to_string(),
             },
         ];
@@ -554,11 +564,13 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
     fn try_from(
         item: &PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let paysafe_meta: PaysafeMeta = to_connector_meta(item.router_data.request.connector_meta.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "connector_metadata",
-            })?;
-            let payment_handle_token = paysafe_meta.payment_handle_token;
+        let paysafe_meta: PaysafeMeta = to_connector_meta(
+            item.router_data.request.connector_meta.clone(),
+        )
+        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+            config: "connector_metadata",
+        })?;
+        let payment_handle_token = paysafe_meta.payment_handle_token;
         let amount = item.amount;
         let customer_ip = Some(
             item.router_data
@@ -707,19 +719,12 @@ pub struct PaysafeSettlementResponse {
     pub status: PaysafeSettlementStatus,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, PaymentsResponseData>>
+    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            PaysafeSyncResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let payment_handle = match item.response {
             PaysafeSyncResponse::Payments(sync_response) => sync_response
