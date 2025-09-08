@@ -694,36 +694,37 @@ impl<F, T>
                     charges: None,
                 }),
                 ..item.data
-            })} else {
-                let error_message = item.response.messages.message.first();
-                let error_code = error_message.map(|error| error.code.clone());
-                let error_code = error_code
-                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
-                let error_reason = item
-                    .response
-                    .messages
-                    .message
-                    .iter()
-                    .map(|error: &ResponseMessage| error.text.clone())
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                let response = Err(ErrorResponse {
-                    code: error_code,
-                    message: item.response.messages.result_code.to_string(),
-                    reason: Some(error_reason),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                });
-                Ok(Self {
-                    response,
-                    status: enums::AttemptStatus::Failure,
-                    ..item.data
-                })
+            })
+        } else {
+            let error_message = item.response.messages.message.first();
+            let error_code = error_message.map(|error| error.code.clone());
+            let error_code = error_code
+                .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string());
+            let error_reason = item
+                .response
+                .messages
+                .message
+                .iter()
+                .map(|error: &ResponseMessage| error.text.clone())
+                .collect::<Vec<String>>()
+                .join(" ");
+            let response = Err(ErrorResponse {
+                code: error_code,
+                message: item.response.messages.result_code.to_string(),
+                reason: Some(error_reason),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+            Ok(Self {
+                response,
+                status: enums::AttemptStatus::Failure,
+                ..item.data
+            })
         }
     }
 }
@@ -1034,37 +1035,44 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let profile = if item.router_data.request.is_customer_initiated_mandate_payment() {
-            let connector_customer_id = Secret::new(item.router_data.connector_customer.clone().ok_or(
-                errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                    id: "connector_customer_id".to_string(),
-                },
-            )?);
+        let profile = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            let connector_customer_id =
+                Secret::new(item.router_data.connector_customer.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "connector_customer_id".to_string(),
+                    },
+                )?);
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-                customer_profile_id: Some(connector_customer_id)
+                customer_profile_id: Some(connector_customer_id),
             }))
         } else {
             None
         };
 
-        let customer = if !item.router_data.request.is_customer_initiated_mandate_payment() {
-            item.router_data.customer_id.clone().and_then(
-                |customer| {
-                let customer_id = customer.get_string_repr().to_string(); 
-                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                    if customer_id.len() <= MAX_ID_LENGTH {
-                        Some(CustomerDetails {
-                            id: customer_id.clone(),
+        let customer = if !item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            item.router_data.customer_id.clone().and_then(|customer| {
+                let customer_id = customer.get_string_repr().to_string();
+                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                if customer_id.len() <= MAX_ID_LENGTH {
+                    Some(CustomerDetails {
+                        id: customer_id.clone(),
                         email: item.router_data.request.get_optional_email(),
-                        })
-                    } else {
-                       None
-                    }
+                    })
+                } else {
+                    None
                 }
-            )}
-         else {
+            })
+        } else {
             None
         };
 
@@ -1140,8 +1148,7 @@ impl
         let (profile, customer) = (
             Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
                 create_profile: true,
-                customer_profile_id: None
-
+                customer_profile_id: None,
             })),
             Some(CustomerDetails {
                 id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
