@@ -12,11 +12,6 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_data_v2::{
-    flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData},
-    RouterDataV2,
-};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -28,6 +23,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -49,14 +45,13 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "v2")]
-use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -96,13 +91,10 @@ impl api::subscriptions::Subscriptions for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
-#[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
 
-#[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionCreate for Chargebee {}
 
-#[cfg(feature = "v1")]
 impl
     ConnectorIntegration<
         SubscriptionRecordBack,
@@ -205,7 +197,6 @@ impl
     }
 }
 
-#[cfg(feature = "v1")]
 impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>
     for Chargebee
 {
@@ -301,7 +292,7 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
         self.build_error_response(res, event_builder)
     }
 }
-#[cfg(feature = "v2")]
+
 impl
     ConnectorIntegrationV2<
         SubscriptionRecordBack,
@@ -310,89 +301,8 @@ impl
         RevenueRecoveryRecordBackResponse,
     > for Chargebee
 {
-    fn get_headers(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        todo!()
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn handle_response_v2(
-        &self,
-        _data: &RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-        _event_builder: Option<&mut ConnectorEvent>,
-        _res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            SubscriptionRecordBack,
-            RevenueRecoveryRecordBackData,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
-        >,
-        errors::ConnectorError,
-    > {
-        todo!()
-    }
-
-    fn get_error_response_v2(
-        &self,
-        _res: Response,
-        _event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
-    }
+    // Not Implemented (R)
 }
-#[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
         SubscriptionCreate,
@@ -401,87 +311,7 @@ impl
         SubscriptionCreateResponse,
     > for Chargebee
 {
-    fn get_headers(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        todo!()
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        todo!()
-    }
-
-    fn handle_response_v2(
-        &self,
-        _data: &RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-        _event_builder: Option<&mut ConnectorEvent>,
-        _res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            SubscriptionCreate,
-            SubscriptionCreateData,
-            SubscriptionCreateRequest,
-            SubscriptionCreateResponse,
-        >,
-        errors::ConnectorError,
-    > {
-        todo!()
-    }
-
-    fn get_error_response_v2(
-        &self,
-        _res: Response,
-        _event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
-    }
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
