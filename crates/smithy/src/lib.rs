@@ -26,12 +26,10 @@ fn generate_smithy_impl(input: &DeriveInput) -> syn::Result<TokenStream2> {
             generate_struct_impl(name, &namespace, data_struct, &input.attrs, is_mixin)
         }
         syn::Data::Enum(data_enum) => generate_enum_impl(name, &namespace, data_enum, &input.attrs),
-        _ => {
-            Err(syn::Error::new_spanned(
-                input,
-                "SmithyModel can only be derived for structs and enums",
-            ))
-        }
+        _ => Err(syn::Error::new_spanned(
+            input,
+            "SmithyModel can only be derived for structs and enums",
+        )),
     }
 }
 

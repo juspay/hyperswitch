@@ -1,6 +1,7 @@
 // crates/smithy-generator/main.rs
 
 use std::path::Path;
+
 use smithy_core::SmithyGenerator;
 
 // Include the auto-generated model registry
@@ -10,11 +11,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut generator = SmithyGenerator::new();
 
     println!("Discovering Smithy models from workspace...");
-    
+
     // Automatically discover and add all models
     let models = discover_smithy_models();
     println!("Found {} Smithy models", models.len());
-    
+
     if models.is_empty() {
         println!("No SmithyModel structs found. Make sure your structs:");
         println!("  1. Derive SmithyModel: #[derive(SmithyModel)]");
@@ -22,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  3. Have the correct smithy attributes");
         return Ok(());
     }
-    
+
     for model in models {
         println!("  Processing namespace: {}", model.namespace);
         let shape_names: Vec<_> = model.shapes.keys().collect();
@@ -42,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n✅ Smithy models generated successfully!");
     println!("Files written to: {}", absolute_output_dir.display());
-    
+
     // List generated files
     if let Ok(entries) = std::fs::read_dir(output_dir) {
         println!("\nGenerated files:");
@@ -52,6 +53,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }
