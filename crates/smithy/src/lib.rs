@@ -304,7 +304,7 @@ fn generate_enum_impl(
                     return None;
                 } else if variant.fields.len() == 1 {
                     // Single field - reference the type directly instead of creating a wrapper
-                    let field = match variant.fields.get(0) {
+                    let field = match variant.fields.first() {
                         Some(field) => field,
                         None => return None, // Skip this variant if no field exists
                     };
@@ -756,9 +756,9 @@ fn transform_variant_name(name: &str, rename_all: Option<&str>) -> String {
 
 fn to_snake_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch.is_uppercase() && !result.is_empty() {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
@@ -789,9 +789,9 @@ fn to_camel_case(input: &str) -> String {
 
 fn to_kebab_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch.is_uppercase() && !result.is_empty() {
             // Add hyphen before uppercase letters (except the first character)
             result.push('-');
@@ -804,9 +804,9 @@ fn to_kebab_case(input: &str) -> String {
 
 fn to_screaming_snake_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
 
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch.is_uppercase() && !result.is_empty() {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
@@ -902,16 +902,14 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
         .constraints
         .iter()
         .any(|c| matches!(c, SmithyConstraint::HttpLabel))
-    {
-        if !field_attributes
+        && !field_attributes
             .constraints
             .iter()
             .any(|c| matches!(c, SmithyConstraint::Required))
-        {
-            field_attributes
-                .constraints
-                .push(SmithyConstraint::Required);
-        }
+    {
+        field_attributes
+            .constraints
+            .push(SmithyConstraint::Required);
     }
 
     Ok(field_attributes)
@@ -922,15 +920,12 @@ fn extract_documentation(attrs: &[Attribute]) -> Option<String> {
 
     for attr in attrs {
         if attr.path().is_ident("doc") {
-            match &attr.meta {
-                Meta::NameValue(meta_name_value) => {
-                    if let syn::Expr::Lit(expr_lit) = &meta_name_value.value {
-                        if let Lit::Str(lit_str) = &expr_lit.lit {
-                            docs.push(lit_str.value().trim().to_string());
-                        }
+            if let Meta::NameValue(meta_name_value) = &attr.meta {
+                if let syn::Expr::Lit(expr_lit) = &meta_name_value.value {
+                    if let Lit::Str(lit_str) = &expr_lit.lit {
+                        docs.push(lit_str.value().trim().to_string());
                     }
                 }
-                _ => {}
             }
         }
     }
@@ -950,7 +945,7 @@ fn parse_range(range_str: &str) -> Result<(Option<i64>, Option<i64>), String> {
                 "Invalid range format: must be 'min..=max', '..=max', or 'min..='".to_string(),
             );
         }
-        let min = if let Some(part) = parts.get(0) {
+        let min = if let Some(part) = parts.first() {
             if part.is_empty() {
                 None
             } else {
@@ -982,7 +977,7 @@ fn parse_range(range_str: &str) -> Result<(Option<i64>, Option<i64>), String> {
                 "Invalid range format: must be 'min..max', '..max', or 'min..'".to_string(),
             );
         }
-        let min = if let Some(part) = parts.get(0) {
+        let min = if let Some(part) = parts.first() {
             if part.is_empty() {
                 None
             } else {
@@ -1021,7 +1016,7 @@ fn parse_length(length_str: &str) -> Result<(Option<u64>, Option<u64>), String> 
                 "Invalid length format: must be 'min..=max', '..=max', or 'min..='".to_string(),
             );
         }
-        let min = if let Some(part) = parts.get(0) {
+        let min = if let Some(part) = parts.first() {
             if part.is_empty() {
                 None
             } else {
@@ -1053,7 +1048,7 @@ fn parse_length(length_str: &str) -> Result<(Option<u64>, Option<u64>), String> 
                 "Invalid length format: must be 'min..max', '..max', or 'min..'".to_string(),
             );
         }
-        let min = if let Some(part) = parts.get(0) {
+        let min = if let Some(part) = parts.first() {
             if part.is_empty() {
                 None
             } else {
