@@ -776,11 +776,11 @@ impl
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeListPlansResponse {
-    pub list: Vec<ChargebeeItemWrapper>,
+    pub list: Vec<ChargebeeItemList>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChargebeeItemWrapper {
+pub struct ChargebeeItemList {
     pub item: ChargebeeItem,
 }
 
@@ -810,11 +810,11 @@ impl<F, T>
             .response
             .list
             .into_iter()
-            .map(|wrapper| {
+            .map(|plan| {
                 hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionPlans {
-                    subscription_provider_plan_id: wrapper.item.id,
-                    name: wrapper.item.name,
-                    description: wrapper.item.description,
+                    subscription_provider_plan_id: plan.item.id,
+                    name: plan.item.name,
+                    description: plan.item.description,
                 }
             })
             .collect();
