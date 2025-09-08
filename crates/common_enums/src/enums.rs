@@ -8863,5 +8863,4 @@ pub enum VaultType {
     Internal,
     /// Indicates that the payment method is stored in external vault.
     External,
-
 }

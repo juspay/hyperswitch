@@ -2377,7 +2377,12 @@ pub async fn fetch_card_details_from_locker(
     merchant_key_store: &domain::MerchantKeyStore,
     _profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Card> {
-    if is_external_vault_enabled && payment_method_info.vault_type.unwrap_or(enums::VaultType::Internal) == enums::VaultType::External {
+    if is_external_vault_enabled
+        && payment_method_info
+            .vault_type
+            .unwrap_or(enums::VaultType::Internal)
+            == enums::VaultType::External
+    {
         fetch_card_details_from_external_vault(
             state,
             merchant_id,
