@@ -224,7 +224,7 @@ pub struct GooglePayPredecrypt {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     eci: Option<String>,
-    cryptogram: Secret<String>,
+    cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -353,12 +353,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
                                     field_name: "payment_method_data.card.card_exp_year",
                                 })?;
-                            let cryptogram = google_pay_decrypted_data
+                            let cryptogram = Some(google_pay_decrypted_data
                                 .cryptogram
                                 .clone()
                                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                                     field_name: "cryptogram",
-                                })?;
+                                })?);
                             Ok(PaymentSource::GooglePayPredecrypt(Box::new(
                                 GooglePayPredecrypt {
                                     _type: "network_token".to_string(),

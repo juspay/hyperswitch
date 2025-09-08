@@ -6906,15 +6906,17 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     payment_method_token: Option<&PaymentMethodToken>,
     google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
 ) -> bool {
-    match (payment_method_type, payment_method_token) {
-        (
-            Some(storage::enums::PaymentMethodType::GooglePay),
-            Some(PaymentMethodToken::GooglePayDecrypt(..)),
-        ) => !matches!(
+    if let (
+        Some(storage::enums::PaymentMethodType::GooglePay),
+        Some(PaymentMethodToken::GooglePayDecrypt(..)),
+    ) = (payment_method_type, payment_method_token)
+    {
+        matches!(
             google_pay_pre_decrypt_flow_filter,
-            Some(GooglePayPreDecryptFlow::NetworkTokenization)
-        ),
-        _ => true,
+            Some(GooglePayPreDecryptFlow::ConnectorTokenization)
+        )
+    } else {
+        true
     }
 }
 
