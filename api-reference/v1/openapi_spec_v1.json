@@ -28808,6 +28808,11 @@
             "example": 2,
             "nullable": true,
             "minimum": 0
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
           }
         }
       },
