@@ -1186,7 +1186,7 @@ impl
         } else {
             None
         };
-        
+
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
