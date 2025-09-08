@@ -12,6 +12,13 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_data_v2::{
+    flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData},
+    RouterDataV2,
+};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
@@ -25,18 +32,25 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        subscriptions::{SubscriptionCreate, SubscriptionRecordBack},
     },
     router_request_types::{
+        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        subscriptions::SubscriptionCreateResponse, ConnectorInfo, PaymentsResponseData,
+        RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -88,13 +102,12 @@ impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
 #[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionCreate for Chargebee {}
 
-
 #[cfg(feature = "v1")]
 impl
     ConnectorIntegration<
-        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-        hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        SubscriptionRecordBack,
+        SubscriptionsRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
     > for Chargebee
 {
     fn get_headers(
@@ -109,16 +122,13 @@ impl
         req: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // let metadata: chargebee::ChargebeeMetadata =
-        //     utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("$", "hyperswitch-juspay-test"); // have to fix this
-        let invoice_id = req
-            .request
-            .merchant_reference_id
-            .to_string();
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+        let invoice_id = req.request.merchant_reference_id.to_string();
         Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
     }
 
@@ -169,7 +179,10 @@ impl
         data: &hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<hyperswitch_domain_models::types::SubscriptionRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        hyperswitch_domain_models::types::SubscriptionRecordBackRouterData,
+        errors::ConnectorError,
+    > {
         let response: chargebee::ChargebeeRecordbackResponse = res
             .response
             .parse_struct("chargebee ChargebeeRecordbackResponse")
@@ -189,16 +202,12 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
-    }          
+    }
 }
 
 #[cfg(feature = "v1")]
-impl
-    ConnectorIntegration<
-        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
-    > for Chargebee
+impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>
+    for Chargebee
 {
     fn get_headers(
         &self,
@@ -213,12 +222,16 @@ impl
         req: &hyperswitch_domain_models::types::SubscriptionCreateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("$", "hyperswitch-juspay-test"); // have to fix this
+            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
         let customer_id = &req.request.customer_id;
-        Ok(format!("{url}v2/customers/{customer_id}/subscription_for_items"))
+        Ok(format!(
+            "{url}v2/customers/{customer_id}/subscription_for_items"
+        ))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -263,7 +276,10 @@ impl
         data: &hyperswitch_domain_models::types::SubscriptionCreateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<hyperswitch_domain_models::types::SubscriptionCreateRouterData, errors::ConnectorError> {
+    ) -> CustomResult<
+        hyperswitch_domain_models::types::SubscriptionCreateRouterData,
+        errors::ConnectorError,
+    > {
         let response: chargebee::ChargebeeSubscriptionCreateResponse = res
             .response
             .parse_struct("chargebee ChargebeeSubscriptionCreateResponse")
@@ -288,19 +304,19 @@ impl
 #[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
-        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-        hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-        hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+        SubscriptionRecordBack,
+        RevenueRecoveryRecordBackData,
+        SubscriptionsRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
     > for Chargebee
 {
     fn get_headers(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         todo!()
@@ -309,10 +325,10 @@ impl
     fn get_url(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<String, errors::ConnectorError> {
         todo!()
@@ -325,10 +341,10 @@ impl
     fn get_request_body(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
         todo!()
@@ -337,10 +353,10 @@ impl
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         todo!()
@@ -349,19 +365,19 @@ impl
     fn handle_response_v2(
         &self,
         _data: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
+        _res: Response,
     ) -> CustomResult<
         RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+            SubscriptionRecordBack,
+            RevenueRecoveryRecordBackData,
+            SubscriptionsRecordBackRequest,
+            RevenueRecoveryRecordBackResponse,
         >,
         errors::ConnectorError,
     > {
@@ -370,7 +386,7 @@ impl
 
     fn get_error_response_v2(
         &self,
-        _res: types::Response,
+        _res: Response,
         _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         todo!()
@@ -379,19 +395,19 @@ impl
 #[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
-        hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-        hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-        hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-        hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+        SubscriptionCreate,
+        SubscriptionCreateData,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
     > for Chargebee
 {
     fn get_headers(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         todo!()
@@ -400,10 +416,10 @@ impl
     fn get_url(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
     ) -> CustomResult<String, errors::ConnectorError> {
         todo!()
@@ -416,10 +432,10 @@ impl
     fn get_request_body(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
     ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
         todo!()
@@ -428,10 +444,10 @@ impl
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         todo!()
@@ -440,19 +456,19 @@ impl
     fn handle_response_v2(
         &self,
         _data: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
+        _res: Response,
     ) -> CustomResult<
         RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData,
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
-            hyperswitch_domain_models::router_response_types::revenue_recovery::SubscriptionCreateResponse,
+            SubscriptionCreate,
+            SubscriptionCreateData,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
         >,
         errors::ConnectorError,
     > {
@@ -461,7 +477,7 @@ impl
 
     fn get_error_response_v2(
         &self,
-        _res: types::Response,
+        _res: Response,
         _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         todo!()

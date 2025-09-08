@@ -1,5 +1,5 @@
-use common_enums::enums;
 use api_models::payments::Address;
+use common_enums::enums;
 
 use crate::connector_endpoints;
 

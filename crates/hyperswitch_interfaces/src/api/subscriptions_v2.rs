@@ -1,10 +1,6 @@
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::{
-        RevenueRecoveryRecordBackData, SubscriptionCreateData,
-    },
-    router_flow_types::{
-        SubscriptionCreate, SubscriptionRecordBack,
-    },
+    router_data_v2::flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData},
+    router_flow_types::{SubscriptionCreate, SubscriptionRecordBack},
     router_request_types::subscriptions::{
         SubscriptionCreateRequest, SubscriptionsRecordBackRequest,
     },

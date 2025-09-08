@@ -13,8 +13,10 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
         RecoveryRecordBack,
     },
-    router_request_types::subscriptions::SubscriptionsRecordBackRequest,
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_request_types::{
+        revenue_recovery::RevenueRecoveryRecordBackRequest,
+        subscriptions::SubscriptionsRecordBackRequest, ResponseId,
+    },
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
@@ -22,7 +24,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{Secret, ExposeInterface};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -61,21 +63,43 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
         item: &ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        
+
         // Get the first subscription item (assuming at least one exists)
-        let first_item = req.subscription_items.first()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "subscription_items",
-            })?;
+        let first_item =
+            req.subscription_items
+                .first()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "subscription_items",
+                })?;
 
         Ok(Self {
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: req.billing_address.address.as_ref().and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
-            billing_address_city: req.billing_address.address.as_ref().and_then(|addr| addr.city.clone()),
-            billing_address_state: req.billing_address.address.as_ref().and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
-            billing_address_zip: req.billing_address.address.as_ref().and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
-            billing_address_country: req.billing_address.address.as_ref().and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_line1: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+            billing_address_city: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.city.clone()),
+            billing_address_state: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+            billing_address_zip: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+            billing_address_country: req
+                .billing_address
+                .address
+                .as_ref()
+                .and_then(|addr| addr.country.map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
         })
     }

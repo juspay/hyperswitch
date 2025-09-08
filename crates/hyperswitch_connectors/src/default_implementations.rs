@@ -10,16 +10,6 @@ use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-
-use hyperswitch_domain_models::router_flow_types::{
-    SubscriptionRecordBack as SubscriptionRecordBackFlow,
-    SubscriptionCreate as SubscriptionCreateFlow,
-};
-use hyperswitch_domain_models::router_request_types::subscriptions::{SubscriptionCreateRequest,SubscriptionsRecordBackRequest};
-use hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
-
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
@@ -29,6 +19,8 @@ use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
     RevenueRecoveryRecordBackRequest,
 };
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
@@ -53,9 +45,12 @@ use hyperswitch_domain_models::{
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+        SubscriptionCreate as SubscriptionCreateFlow,
+        SubscriptionRecordBack as SubscriptionRecordBackFlow,
     },
     router_request_types::{
         authentication,
+        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -72,11 +67,11 @@ use hyperswitch_domain_models::{
         UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        subscriptions::SubscriptionCreateResponse, AcceptDisputeResponse,
+        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, MandateRevokeResponseData, PaymentsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, TaxCalculationResponseData,
+        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -134,7 +129,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{Subscriptions,SubscriptionRecordBack,SubscriptionCreate},
+        subscriptions::{SubscriptionCreate, SubscriptionRecordBack, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6358,7 +6353,6 @@ macro_rules! default_imp_for_subscriptions {
     };
 }
 
-
 default_imp_for_subscriptions!(
     connectors::Vgs,
     connectors::Aci,
@@ -8599,7 +8593,6 @@ impl<const T: u8>
 {
 }
 
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> SubscriptionRecordBack for connectors::DummyConnector<T> {}
 
@@ -8625,7 +8618,6 @@ impl<const T: u8>
     > for connectors::DummyConnector<T>
 {
 }
-
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}

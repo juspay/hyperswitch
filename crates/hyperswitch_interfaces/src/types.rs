@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::{SubscriptionsRecordBackRequest, SubscriptionCreateRequest},
+        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -288,7 +288,6 @@ pub type SubscriptionCreateType = dyn ConnectorIntegration<
     hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
 >;
 
-
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
 pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSync,
@@ -344,7 +343,6 @@ pub type SubscriptionCreateTypeV2 = dyn ConnectorIntegrationV2<
     SubscriptionCreateRequest,
     hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
 >;
-
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
 pub type ExternalVaultInsertType =
