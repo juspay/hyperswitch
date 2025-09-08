@@ -605,8 +605,8 @@ pub struct AuthorizedotnetCustomerResponse {
 fn extract_customer_id(text: &str) -> Option<String> {
     let re = Regex::new(r"ID (\d+)").ok()?;
     re.captures(text)
-        .and_then(|caps| caps.get(1))
-        .map(|m| m.as_str().to_string())
+        .and_then(|captures| captures.get(1)) 
+        .map(|capture_match| capture_match.as_str().to_string()) 
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, PaymentsResponseData>>
