@@ -573,7 +573,7 @@ impl BizEmailProd {
                 .unwrap_or_default(),
             poc_email: data
                 .poc_email
-                .map(|s| Secret::new(s.peek().clone().into_inner()))
+                .map(|s| Secret::new(s.peek().clone()))
                 .unwrap_or_default(),
             legal_business_name: data
                 .legal_business_name

@@ -96,7 +96,7 @@ pub struct ProdIntent {
     pub business_label: Option<SafeString>,
     pub business_location: Option<CountryAlpha2>,
     pub display_name: Option<SafeString>,
-    pub poc_email: Option<Secret<SafeString>>,
+    pub poc_email: Option<pii::Email>,
     pub business_type: Option<SafeString>,
     pub business_identifier: Option<SafeString>,
     pub business_website: Option<SafeString>,

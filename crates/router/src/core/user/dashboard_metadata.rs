@@ -1,9 +1,6 @@
-use std::str::FromStr;
-
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
-use common_utils::pii;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -456,11 +453,6 @@ async fn insert_metadata(
             metadata
         }
         types::MetaData::ProdIntent(data) => {
-            if let Some(poc_email) = &data.poc_email {
-                let inner_poc_email = poc_email.peek().as_str();
-                pii::Email::from_str(inner_poc_email)
-                    .change_context(UserErrors::EmailParsingError)?;
-            }
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
@@ -527,9 +519,7 @@ async fn insert_metadata(
                     business_label: data.business_label.map(|s| s.into_inner()),
                     business_location: data.business_location,
                     display_name: data.display_name.map(|s| s.into_inner()),
-                    poc_email: data
-                        .poc_email
-                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    poc_email: data.poc_email.map(|s| Secret::new(s.peek().clone())),
                     business_type: data.business_type.map(|s| s.into_inner()),
                     business_identifier: data.business_identifier.map(|s| s.into_inner()),
                     business_website: data.business_website.map(|s| s.into_inner()),
