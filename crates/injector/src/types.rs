@@ -1,6 +1,7 @@
 pub mod models {
     use std::collections::HashMap;
 
+    use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
     use masking::{ExposeInterface, Secret};
     use router_env::logger;
@@ -112,6 +113,77 @@ pub mod models {
         pub response: serde_json::Value,
     }
 
+    /// Trait for converting HTTP responses to InjectorResponse
+    #[async_trait]
+    pub trait IntoInjectorResponse {
+        /// Convert to InjectorResponse with proper error handling
+        async fn into_injector_response(self) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
+    }
+
+    #[async_trait]
+    impl IntoInjectorResponse for reqwest::Response {
+        async fn into_injector_response(self) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
+            let status_code = self.status().as_u16();
+            
+            logger::info!(
+                status_code = status_code,
+                "Converting reqwest::Response to InjectorResponse"
+            );
+
+            // Extract headers
+            let headers: Option<HashMap<String, String>> = {
+                let header_map = self.headers().clone();
+                if header_map.is_empty() {
+                    None
+                } else {
+                    let mut headers_map = HashMap::new();
+                    for (name, value) in header_map.iter() {
+                        if let Ok(value_str) = value.to_str() {
+                            headers_map.insert(name.to_string(), value_str.to_string());
+                        }
+                    }
+                    if headers_map.is_empty() {
+                        None
+                    } else {
+                        Some(headers_map)
+                    }
+                }
+            };
+
+            let response_text = self
+                .text()
+                .await
+                .map_err(|_| crate::injector::core::InjectorError::HttpRequestFailed)?;
+
+            logger::debug!(
+                response_length = response_text.len(),
+                headers_count = headers.as_ref().map(|h| h.len()).unwrap_or(0),
+                "Processing connector response"
+            );
+
+            // Try to parse as JSON, fallback to string value with error logging
+            let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
+                Ok(json) => {
+                    logger::debug!("Successfully parsed response as JSON");
+                    json
+                }
+                Err(e) => {
+                    logger::debug!(
+                        "Failed to parse response as JSON: {}, returning as string",
+                        e
+                    );
+                    serde_json::Value::String(response_text)
+                }
+            };
+
+            Ok(InjectorResponse {
+                status_code,
+                headers,
+                response: response_data,
+            })
+        }
+    }
+
 
     impl InjectorRequest {
         /// Creates a new InjectorRequest
@@ -132,7 +204,18 @@ pub mod models {
             
             // Process vault metadata if present
             if let Some(vault_header) = headers.remove(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER) {
-                connection_config.extract_and_apply_vault_metadata_with_fallback_from_header(&vault_header.expose());
+                let vault_header_value = vault_header.expose();
+                logger::info!(
+                    vault_header_length = vault_header_value.len(),
+                    "Processing vault metadata header in InjectorRequest::new"
+                );
+                let vault_applied = connection_config.extract_and_apply_vault_metadata_with_fallback_from_header(&vault_header_value);
+                logger::info!(
+                    vault_applied = vault_applied,
+                    proxy_configured = connection_config.proxy_url.is_some(),
+                    ca_cert_configured = connection_config.ca_cert.is_some(),
+                    "Vault metadata processing result in InjectorRequest::new"
+                );
             }
             
             // Set fallback configurations

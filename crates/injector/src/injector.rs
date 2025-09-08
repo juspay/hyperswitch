@@ -3,7 +3,6 @@ pub mod core {
 
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
-    use error_stack::ResultExt;
     use masking::{self, ExposeInterface};
     use nom::{
         bytes::complete::{tag, take_while1},
@@ -16,7 +15,7 @@ pub mod core {
     use thiserror::Error;
 
     use crate as injector_types;
-    use crate::{ContentType, InjectorRequest, InjectorResponse};
+    use crate::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
 
     impl From<injector_types::HttpMethod> for Method {
         fn from(method: injector_types::HttpMethod) -> Self {
@@ -227,7 +226,14 @@ pub mod core {
         request: common_utils::request::Request,
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
-        logger::info!("Making HTTP request using standalone injector HTTP client");
+        logger::info!(
+            proxy_url = ?client_proxy,
+            has_client_cert = request.certificate.is_some(),
+            has_client_key = request.certificate_key.is_some(),
+            has_ca_cert = request.ca_certificate.is_some(),
+            request_url = %request.url,
+            "Making HTTP request using standalone injector HTTP client with configuration"
+        );
 
         // Create reqwest client using the proven create_client function
         let client = create_client(
@@ -544,7 +550,7 @@ pub mod core {
             config: &injector_types::ConnectionConfig,
             payload: &str,
             content_type: &ContentType,
-        ) -> error_stack::Result<(u16, Option<HashMap<String, String>>, Value), InjectorError> {
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
             logger::info!(
                 method = ?config.http_method,
                 endpoint = %config.endpoint,
@@ -699,59 +705,10 @@ pub mod core {
             logger::debug!("Sending HTTP request to connector");
             let response = send_request(&proxy, request, None).await?;
 
-            let status_code = response.status().as_u16();
-            logger::info!(
-                status_code = status_code,
-                "Received response from connector"
-            );
-
-            // Extract headers
-            let headers: Option<HashMap<String, String>> = {
-                let header_map = response.headers().clone();
-                if header_map.is_empty() {
-                    None
-                } else {
-                    let mut headers_map = HashMap::new();
-                    for (name, value) in header_map.iter() {
-                        if let Ok(value_str) = value.to_str() {
-                            headers_map.insert(name.to_string(), value_str.to_string());
-                        }
-                    }
-                    if headers_map.is_empty() {
-                        None
-                    } else {
-                        Some(headers_map)
-                    }
-                }
-            };
-
-            let response_text = response
-                .text()
-                .await
-                .change_context(InjectorError::HttpRequestFailed)?;
-
-            logger::debug!(
-                response_length = response_text.len(),
-                headers_count = headers.as_ref().map(|h| h.len()).unwrap_or(0),
-                "Processing connector response"
-            );
-
-            // Try to parse as JSON, fallback to string value with error logging
-            let response_data = match serde_json::from_str::<Value>(&response_text) {
-                Ok(json) => {
-                    logger::debug!("Successfully parsed response as JSON");
-                    json
-                }
-                Err(e) => {
-                    logger::debug!(
-                        "Failed to parse response as JSON: {}, returning as string",
-                        e
-                    );
-                    Value::String(response_text)
-                }
-            };
-
-            Ok((status_code, headers, response_data))
+            // Convert reqwest::Response to InjectorResponse using trait
+            response.into_injector_response().await.map_err(|e| {
+                error_stack::Report::new(e)
+            })
         }
     }
 
@@ -811,7 +768,7 @@ pub mod core {
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
             // Make HTTP request to connector and return enhanced response
-            let (status_code, headers, response_data) = self
+            let response = self
                 .make_http_request(
                     &request.connection_config,
                     &processed_payload,
@@ -822,20 +779,15 @@ pub mod core {
             let elapsed = start_time.elapsed();
             logger::info!(
                 duration_ms = elapsed.as_millis(),
-                status_code = status_code,
-                response_size = serde_json::to_string(&response_data)
+                status_code = response.status_code,
+                response_size = serde_json::to_string(&response.response)
                     .map(|s| s.len())
                     .unwrap_or(0),
-                headers_count = headers.as_ref().map(|h| h.len()).unwrap_or(0),
+                headers_count = response.headers.as_ref().map(|h| h.len()).unwrap_or(0),
                 "Token injection completed successfully"
             );
 
-            // Return the enhanced connector response with status code and headers
-            Ok(InjectorResponse {
-                status_code,
-                headers,
-                response: response_data,
-            })
+            Ok(response)
         }
     }
 }
