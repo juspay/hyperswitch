@@ -7,16 +7,13 @@ use regex::Regex;
 fn main() {
     println!("cargo:rerun-if-changed=../");
 
-    let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
-        .map(|dir| {
-            Path::new(&dir)
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_path_buf()
-        })
-        .unwrap();
+    if let Err(e) = run_build() {
+        panic!("Build script failed: {}", e);
+    }
+}
+
+fn run_build() -> Result<(), Box<dyn std::error::Error>> {
+    let workspace_root = get_workspace_root()?;
 
     println!(
         "cargo:warning=Scanning workspace root: {}",
@@ -31,7 +28,13 @@ fn main() {
         for entry in entries.flatten() {
             if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
                 let crate_path = entry.path();
-                let crate_name = crate_path.file_name().unwrap().to_string_lossy();
+                let crate_name = match crate_path.file_name() {
+                    Some(name) => name.to_string_lossy(),
+                    None => {
+                        println!("cargo:warning=Skipping crate with invalid path: {}", crate_path.display());
+                        continue;
+                    }
+                };
 
                 // Skip the smithy crate itself to avoid self-dependency
                 if crate_name == "smithy"
@@ -42,7 +45,9 @@ fn main() {
                 }
 
                 println!("cargo:warning=Scanning crate: {}", crate_name);
-                scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models);
+                if let Err(e) = scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models) {
+                    println!("cargo:warning=Failed to scan crate {}: {}", crate_name, e);
+                }
             }
         }
     }
@@ -59,20 +64,38 @@ fn main() {
     }
 
     // Generate the registry file
-    generate_model_registry(&smithy_models);
+    generate_model_registry(&smithy_models)?;
+    
+    Ok(())
+}
+
+fn get_workspace_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .map_err(|_| "CARGO_MANIFEST_DIR environment variable not set")?;
+    
+    let manifest_path = Path::new(&manifest_dir);
+    
+    let parent1 = manifest_path.parent()
+        .ok_or("Cannot get parent directory of CARGO_MANIFEST_DIR")?;
+    
+    let workspace_root = parent1.parent()
+        .ok_or("Cannot get workspace root directory")?;
+    
+    Ok(workspace_root.to_path_buf())
 }
 
 fn scan_crate_for_smithy_models(
     crate_path: &Path,
     crate_name: &str,
     models: &mut Vec<SmithyModelInfo>,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     let src_path = crate_path.join("src");
     if !src_path.exists() {
-        return;
+        return Ok(());
     }
 
-    scan_directory(&src_path, crate_name, "", models);
+    scan_directory(&src_path, crate_name, "", models)?;
+    Ok(())
 }
 
 fn scan_directory(
@@ -80,23 +103,32 @@ fn scan_directory(
     crate_name: &str,
     module_path: &str,
     models: &mut Vec<SmithyModelInfo>,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                let dir_name = path.file_name().unwrap().to_string_lossy();
+                let dir_name = match path.file_name() {
+                    Some(name) => name.to_string_lossy(),
+                    None => {
+                        println!("cargo:warning=Skipping directory with invalid name: {}", path.display());
+                        continue;
+                    }
+                };
                 let new_module_path = if module_path.is_empty() {
                     dir_name.to_string()
                 } else {
                     format!("{}::{}", module_path, dir_name)
                 };
-                scan_directory(&path, crate_name, &new_module_path, models);
+                scan_directory(&path, crate_name, &new_module_path, models)?;
             } else if path.extension().map(|ext| ext == "rs").unwrap_or(false) {
-                scan_rust_file(&path, crate_name, module_path, models);
+                if let Err(e) = scan_rust_file(&path, crate_name, module_path, models) {
+                    println!("cargo:warning=Failed to scan Rust file {}: {}", path.display(), e);
+                }
             }
         }
     }
+    Ok(())
 }
 
 fn scan_rust_file(
@@ -104,11 +136,12 @@ fn scan_rust_file(
     crate_name: &str,
     module_path: &str,
     models: &mut Vec<SmithyModelInfo>,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     if let Ok(content) = fs::read_to_string(file_path) {
         // Enhanced regex that handles comments, doc comments, and multiple attributes
         // between derive and struct/enum declarations
-        let re = Regex::new(r"(?ms)^#\[derive\(([^)]*(?:\([^)]*\))*[^)]*)\)\]\s*(?:(?:#\[[^\]]*\]\s*)|(?://[^\r\n]*\s*)|(?:///[^\r\n]*\s*)|(?:/\*.*?\*/\s*))*(?:pub\s+)?(?:struct|enum)\s+([A-Z][A-Za-z0-9_]*)\s*[<\{\(]").unwrap();
+        let re = Regex::new(r"(?ms)^#\[derive\(([^)]*(?:\([^)]*\))*[^)]*)\)\]\s*(?:(?:#\[[^\]]*\]\s*)|(?://[^\r\n]*\s*)|(?:///[^\r\n]*\s*)|(?:/\*.*?\*/\s*))*(?:pub\s+)?(?:struct|enum)\s+([A-Z][A-Za-z0-9_]*)\s*[<\{\(]")
+            .map_err(|e| format!("Failed to compile regex: {}", e))?;
 
         for captures in re.captures_iter(&content) {
             let derive_content = match captures.get(1) {
@@ -136,7 +169,7 @@ fn scan_rust_file(
             if derive_content.contains("SmithyModel") {
                 // Validate that the item name is a valid Rust identifier
                 if is_valid_rust_identifier(item_name) {
-                    let full_module_path = create_module_path(file_path, crate_name, module_path);
+                    let full_module_path = create_module_path(file_path, crate_name, module_path)?;
 
                     println!(
                         "cargo:warning=Found SmithyModel: {} in {}",
@@ -159,6 +192,7 @@ fn scan_rust_file(
             }
         }
     }
+    Ok(())
 }
 
 fn is_valid_rust_identifier(name: &str) -> bool {
@@ -167,7 +201,10 @@ fn is_valid_rust_identifier(name: &str) -> bool {
     }
 
     // Rust identifiers must start with a letter or underscore
-    let first_char = name.chars().next().unwrap();
+    let first_char = match name.chars().next() {
+        Some(ch) => ch,
+        None => return false, // This shouldn't happen since we checked is_empty above, but being safe
+    };
     if !first_char.is_ascii_alphabetic() && first_char != '_' {
         return false;
     }
@@ -189,12 +226,14 @@ fn is_valid_rust_identifier(name: &str) -> bool {
     name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-fn create_module_path(file_path: &Path, crate_name: &str, module_path: &str) -> String {
-    let file_name = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+fn create_module_path(file_path: &Path, crate_name: &str, module_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let file_name = file_path.file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("Cannot extract file name from path: {}", file_path.display()))?;
 
     let crate_name_normalized = crate_name.replace('-', "_");
 
-    if file_name == "lib" || file_name == "mod" {
+    let result = if file_name == "lib" || file_name == "mod" {
         if module_path.is_empty() {
             crate_name_normalized
         } else {
@@ -204,7 +243,9 @@ fn create_module_path(file_path: &Path, crate_name: &str, module_path: &str) -> 
         format!("{}::{}", crate_name_normalized, file_name)
     } else {
         format!("{}::{}::{}", crate_name_normalized, module_path, file_name)
-    }
+    };
+    
+    Ok(result)
 }
 
 #[derive(Debug)]
@@ -214,8 +255,9 @@ struct SmithyModelInfo {
     module_path: String,
 }
 
-fn generate_model_registry(models: &[SmithyModelInfo]) {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
+fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std::error::Error>> {
+    let out_dir = std::env::var("OUT_DIR")
+        .map_err(|_| "OUT_DIR environment variable not set")?;
     let registry_path = Path::new(&out_dir).join("model_registry.rs");
 
     let mut content = String::new();
@@ -255,9 +297,12 @@ fn generate_model_registry(models: &[SmithyModelInfo]) {
         content.push_str("}\n");
     }
 
-    fs::write(&registry_path, content).expect("Failed to write model registry");
+    fs::write(&registry_path, content)
+        .map_err(|e| format!("Failed to write model registry to {}: {}", registry_path.display(), e))?;
     println!(
         "cargo:warning=Generated model registry at: {}",
         registry_path.display()
     );
+    
+    Ok(())
 }
