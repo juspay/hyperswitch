@@ -57,7 +57,7 @@ impl<
             + api::UnifiedAuthenticationServiceV2
             + api::revenue_recovery_v2::RevenueRecoveryV2
             + api::ExternalVaultV2
-            + subscriptions_v2::SubscriptionsV2
+            + subscriptions_v2::SubscriptionsV2,
     > ConnectorV2 for T
 {
 }
