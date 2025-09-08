@@ -13,6 +13,7 @@ use hyperswitch_domain_models::{
     },
 };
 
+#[cfg(feature = "v1")]
 use super::{ConnectorCommon, ConnectorIntegration};
 
 #[cfg(feature = "v1")]
