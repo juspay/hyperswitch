@@ -2,8 +2,13 @@ use common_utils::{events::ApiEventMetric, pii};
 
 use crate::{
     customers::{CustomerRequest, CustomerResponse},
-    payments::CustomerDetailsResponse,
+    enums as api_enums,
+    payments::{
+        Address, CustomerDetails, CustomerDetailsResponse, PaymentMethodDataRequest,
+        PaymentsResponse,
+    },
 };
+use common_types::payments::CustomerAcceptance;
 
 pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 
@@ -106,3 +111,36 @@ pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResp
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentData {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_data: PaymentMethodDataRequest,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConfirmSubscriptionRequest {
+    pub client_secret: Option<String>,
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
+    pub coupon_code: Option<String>,
+    pub customer: Option<CustomerDetails>,
+    pub billing_address: Option<Address>,
+    pub payment_data: PaymentData,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionRequest {}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConfirmSubscriptionResponse {
+    pub subscription: Subscription,
+    pub payment: PaymentsResponse,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub invoice: Option<Invoice>,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionResponse {}
