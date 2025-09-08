@@ -8,7 +8,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../");
 
     if let Err(e) = run_build() {
-        panic!("Build script failed: {}", e);
+        eprintln!("Error: Build script failed: {}", e);
+        std::process::exit(1);
     }
 }
 
