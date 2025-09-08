@@ -31,7 +31,10 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
                 let crate_name = match crate_path.file_name() {
                     Some(name) => name.to_string_lossy(),
                     None => {
-                        println!("cargo:warning=Skipping crate with invalid path: {}", crate_path.display());
+                        println!(
+                            "cargo:warning=Skipping crate with invalid path: {}",
+                            crate_path.display()
+                        );
                         continue;
                     }
                 };
@@ -45,7 +48,9 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 println!("cargo:warning=Scanning crate: {}", crate_name);
-                if let Err(e) = scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models) {
+                if let Err(e) =
+                    scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models)
+                {
                     println!("cargo:warning=Failed to scan crate {}: {}", crate_name, e);
                 }
             }
@@ -65,22 +70,24 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
 
     // Generate the registry file
     generate_model_registry(&smithy_models)?;
-    
+
     Ok(())
 }
 
 fn get_workspace_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
         .map_err(|_| "CARGO_MANIFEST_DIR environment variable not set")?;
-    
+
     let manifest_path = Path::new(&manifest_dir);
-    
-    let parent1 = manifest_path.parent()
+
+    let parent1 = manifest_path
+        .parent()
         .ok_or("Cannot get parent directory of CARGO_MANIFEST_DIR")?;
-    
-    let workspace_root = parent1.parent()
+
+    let workspace_root = parent1
+        .parent()
         .ok_or("Cannot get workspace root directory")?;
-    
+
     Ok(workspace_root.to_path_buf())
 }
 
@@ -111,7 +118,10 @@ fn scan_directory(
                 let dir_name = match path.file_name() {
                     Some(name) => name.to_string_lossy(),
                     None => {
-                        println!("cargo:warning=Skipping directory with invalid name: {}", path.display());
+                        println!(
+                            "cargo:warning=Skipping directory with invalid name: {}",
+                            path.display()
+                        );
                         continue;
                     }
                 };
@@ -123,7 +133,11 @@ fn scan_directory(
                 scan_directory(&path, crate_name, &new_module_path, models)?;
             } else if path.extension().map(|ext| ext == "rs").unwrap_or(false) {
                 if let Err(e) = scan_rust_file(&path, crate_name, module_path, models) {
-                    println!("cargo:warning=Failed to scan Rust file {}: {}", path.display(), e);
+                    println!(
+                        "cargo:warning=Failed to scan Rust file {}: {}",
+                        path.display(),
+                        e
+                    );
                 }
             }
         }
@@ -226,10 +240,20 @@ fn is_valid_rust_identifier(name: &str) -> bool {
     name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-fn create_module_path(file_path: &Path, crate_name: &str, module_path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let file_name = file_path.file_stem()
+fn create_module_path(
+    file_path: &Path,
+    crate_name: &str,
+    module_path: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let file_name = file_path
+        .file_stem()
         .and_then(|s| s.to_str())
-        .ok_or_else(|| format!("Cannot extract file name from path: {}", file_path.display()))?;
+        .ok_or_else(|| {
+            format!(
+                "Cannot extract file name from path: {}",
+                file_path.display()
+            )
+        })?;
 
     let crate_name_normalized = crate_name.replace('-', "_");
 
@@ -244,7 +268,7 @@ fn create_module_path(file_path: &Path, crate_name: &str, module_path: &str) -> 
     } else {
         format!("{}::{}::{}", crate_name_normalized, module_path, file_name)
     };
-    
+
     Ok(result)
 }
 
@@ -256,8 +280,7 @@ struct SmithyModelInfo {
 }
 
 fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std::error::Error>> {
-    let out_dir = std::env::var("OUT_DIR")
-        .map_err(|_| "OUT_DIR environment variable not set")?;
+    let out_dir = std::env::var("OUT_DIR").map_err(|_| "OUT_DIR environment variable not set")?;
     let registry_path = Path::new(&out_dir).join("model_registry.rs");
 
     let mut content = String::new();
@@ -297,12 +320,17 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
         content.push_str("}\n");
     }
 
-    fs::write(&registry_path, content)
-        .map_err(|e| format!("Failed to write model registry to {}: {}", registry_path.display(), e))?;
+    fs::write(&registry_path, content).map_err(|e| {
+        format!(
+            "Failed to write model registry to {}: {}",
+            registry_path.display(),
+            e
+        )
+    })?;
     println!(
         "cargo:warning=Generated model registry at: {}",
         registry_path.display()
     );
-    
+
     Ok(())
 }
