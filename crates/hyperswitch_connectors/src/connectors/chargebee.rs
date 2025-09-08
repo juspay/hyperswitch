@@ -21,9 +21,12 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
     types::RevenueRecoveryRecordBackRouterData,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_data_v2::flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData};
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::flow_common_types::{RevenueRecoveryRecordBackData, SubscriptionCreateData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -51,7 +54,6 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -91,10 +93,13 @@ impl api::subscriptions::Subscriptions for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
+#[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionRecordBack for Chargebee {}
 
+#[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionCreate for Chargebee {}
 
+#[cfg(feature = "v1")]
 impl
     ConnectorIntegration<
         SubscriptionRecordBack,
@@ -197,6 +202,7 @@ impl
     }
 }
 
+#[cfg(feature = "v1")]
 impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>
     for Chargebee
 {
@@ -293,6 +299,7 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
     }
 }
 
+#[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
         SubscriptionRecordBack,
@@ -303,6 +310,7 @@ impl
 {
     // Not Implemented (R)
 }
+#[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
         SubscriptionCreate,
