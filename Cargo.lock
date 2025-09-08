@@ -7924,6 +7924,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "regex",
+ "router_env",
  "smithy-core",
 ]
 
