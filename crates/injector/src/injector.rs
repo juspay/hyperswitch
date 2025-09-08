@@ -491,16 +491,27 @@ pub mod core {
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_str = proxy_url.clone().expose();
-                logger::debug!("Using proxy: [REDACTED]");
+                println!("INJECTOR PROXY: Using proxy URL from vault metadata - proxy_url_length={}, proxy_url_first_10_chars={}", 
+                    proxy_url_str.len(),
+                    &proxy_url_str.chars().take(10).collect::<String>()
+                );
+                
                 // Parse URL to determine scheme
                 let parsed_proxy_url = reqwest::Url::parse(&proxy_url_str).map_err(|e| {
-                    logger::error!("Failed to parse proxy URL: {}", e);
+                    println!("INJECTOR PROXY ERROR: Failed to parse proxy URL: {}", e);
                     error_stack::Report::new(InjectorError::InvalidTemplate(format!(
                         "Invalid proxy URL: {e}"
                     )))
                 })?;
                 
+                println!("INJECTOR PROXY: Parsed proxy URL information - proxy_scheme={}, proxy_host={:?}, proxy_port={:?}", 
+                    parsed_proxy_url.scheme(),
+                    parsed_proxy_url.host(),
+                    parsed_proxy_url.port()
+                );
+                
                 if parsed_proxy_url.scheme() == "https" {
+                    println!("INJECTOR PROXY: Using HTTPS proxy configuration");
                     Proxy {
                         http_url: None,
                         https_url: Some(proxy_url_str),
@@ -508,6 +519,7 @@ pub mod core {
                         bypass_proxy_hosts: None,
                     }
                 } else {
+                    println!("INJECTOR PROXY: Using HTTP proxy configuration");
                     Proxy {
                         http_url: Some(proxy_url_str),
                         https_url: None,
@@ -516,7 +528,7 @@ pub mod core {
                     }
                 }
             } else {
-                logger::debug!("No proxy configured, using direct connection");
+                println!("INJECTOR NO PROXY: No proxy configured, using direct connection to target");
                 Proxy::default()
             };
 

@@ -414,30 +414,56 @@ pub mod models {
 
         impl VaultMetadataProcessor for VgsMetadata {
             fn process_metadata(&self, connection_config: &mut ConnectionConfig) -> Result<(), VaultMetadataError> {
+                println!("VGS DEBUG: Starting VGS metadata processing - proxy_url={}, scheme={}, host={:?}, port={:?}", 
+                    self.proxy_url,
+                    self.proxy_url.scheme(),
+                    self.proxy_url.host(),
+                    self.proxy_url.port()
+                );
+                
                 // Validate and set proxy URL from VGS metadata
                 self.validate_proxy_url()?;
-                // Use as_str() to preserve the original URL format without adding trailing slash
-                connection_config.proxy_url = Some(Secret::new(self.proxy_url.as_str().to_string()));
+                let proxy_url_str = self.proxy_url.as_str().to_string();
+                connection_config.proxy_url = Some(Secret::new(proxy_url_str.clone()));
+                
+                println!("VGS PROXY: Set proxy URL from VGS metadata - original_proxy_url={}, processed_proxy_url={}, proxy_url_length={}", 
+                    self.proxy_url,
+                    proxy_url_str,
+                    proxy_url_str.len()
+                );
                 
                 // Validate and decode certificate from VGS metadata
                 self.validate_certificate()?;
                 let cert_content = self.certificate.clone().expose();
                 
+                println!("VGS CERT: Processing certificate from VGS metadata - cert_length={}, cert_starts_with_pem={}", 
+                    cert_content.len(),
+                    cert_content.starts_with("-----BEGIN")
+                );
+                
                 // Check if certificate is base64 encoded and decode if necessary
                 let decoded_cert = if cert_content.starts_with("-----BEGIN") {
-                    // Already in PEM format
+                    println!("VGS CERT: Certificate already in PEM format, using as-is");
                     cert_content
                 } else {
-                    // Assume it's base64 encoded, decode it
+                    println!("VGS CERT: Certificate appears to be base64 encoded, decoding...");
                     match BASE64_ENGINE.decode(&cert_content) {
                         Ok(decoded_bytes) => {
-                            String::from_utf8(decoded_bytes).map_err(|e| {
+                            let decoded_string = String::from_utf8(decoded_bytes).map_err(|e| {
                                 VaultMetadataError::CertificateValidationFailed(
                                     format!("Certificate is not valid UTF-8 after base64 decoding: {e}")
                                 )
-                            })?
+                            })?;
+                            println!("VGS CERT: Successfully decoded base64 certificate - decoded_cert_length={}", 
+                                decoded_string.len()
+                            );
+                            decoded_string
                         }
                         Err(e) => {
+                            println!("VGS CERT ERROR: Failed to decode base64 certificate: {}, cert_length={}", 
+                                e,
+                                cert_content.len()
+                            );
                             return Err(VaultMetadataError::CertificateValidationFailed(
                                 format!("Failed to decode base64 certificate: {e}")
                             ));
@@ -445,12 +471,14 @@ pub mod models {
                     }
                 };
                 
-                connection_config.ca_cert = Some(Secret::new(decoded_cert));
+                connection_config.ca_cert = Some(Secret::new(decoded_cert.clone()));
                 
-                tracing::info!(
-                    proxy_url = %self.proxy_url,
-                    proxy_url_as_str = self.proxy_url.as_str(),
-                    "Successfully applied VGS vault metadata to connection config"
+                println!("VGS COMPLETE: Successfully applied VGS vault metadata to connection config - proxy_url={}, proxy_url_as_str={}, proxy_url_set={}, ca_cert_set={}, ca_cert_length={}", 
+                    self.proxy_url,
+                    self.proxy_url.as_str(),
+                    connection_config.proxy_url.is_some(),
+                    connection_config.ca_cert.is_some(),
+                    decoded_cert.len()
                 );
                 
                 Ok(())
@@ -637,33 +665,42 @@ pub mod models {
         impl VaultMetadataExtractor for ConnectionConfig {
             fn extract_and_apply_vault_metadata(&mut self, headers: &HashMap<String, Secret<String>>) -> Result<(), VaultMetadataError> {
                 if let Some(vault_metadata_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
-                    tracing::debug!("Found vault metadata header, processing...");
+                    println!("VAULT DEBUG: Found vault metadata header, processing... header_length={}", 
+                        vault_metadata_header.clone().expose().len()
+                    );
                     
                     let processor = VaultMetadataFactory::from_base64_header(&vault_metadata_header.clone().expose())
                         .map_err(|e| {
-                            tracing::error!(
-                                error = %e,
-                                "Failed to create vault metadata processor"
+                            println!("VAULT ERROR: Failed to create vault metadata processor from header: {}, header_length={}", 
+                                e,
+                                vault_metadata_header.clone().expose().len()
                             );
                             e
                         })?;
                     
+                    println!("VAULT DEBUG: Created vault metadata processor {:?}, applying to connection config...", 
+                        processor.vault_connector()
+                    );
+                    
                     processor.process_metadata(self)
                         .map_err(|e| {
-                            tracing::error!(
-                                error = %e,
-                                vault_connector = ?processor.vault_connector(),
-                                "Failed to apply vault metadata to connection config"
+                            println!("VAULT ERROR: Failed to apply vault metadata to connection config: {}, vault_connector={:?}", 
+                                e,
+                                processor.vault_connector()
                             );
                             e
                         })?;
 
-                    tracing::info!(
-                        vault_connector = ?processor.vault_connector(),
-                        "Successfully applied vault metadata to connection configuration"
+                    println!("VAULT SUCCESS: Successfully applied vault metadata to connection configuration - vault_connector={:?}, proxy_url_applied={}, ca_cert_applied={}, client_cert_applied={}", 
+                        processor.vault_connector(),
+                        self.proxy_url.is_some(),
+                        self.ca_cert.is_some(),
+                        self.client_cert.is_some()
                     );
                 } else {
-                    tracing::debug!("No vault metadata header found, skipping vault configuration");
+                    println!("VAULT DEBUG: No vault metadata header found, available_headers={:?}", 
+                        headers.keys().collect::<Vec<_>>()
+                    );
                 }
                 Ok(())
             }
@@ -678,15 +715,25 @@ pub mod models {
 
         impl VaultMetadataExtractorExt for ConnectionConfig {
             fn extract_and_apply_vault_metadata_with_fallback(&mut self, headers: &HashMap<String, Secret<String>>) -> bool {
+                println!("VAULT DEBUG: Starting vault metadata extraction with fallback, header_count={}, has_vault_metadata={}", 
+                    headers.len(), 
+                    headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER)
+                );
+                
                 match self.extract_and_apply_vault_metadata(headers) {
                     Ok(()) => {
-                        tracing::info!("Vault metadata processing completed successfully");
+                        println!("VAULT SUCCESS: Vault metadata processing completed successfully - proxy_url_set={}, ca_cert_set={}, client_cert_set={}", 
+                            self.proxy_url.is_some(),
+                            self.ca_cert.is_some(),
+                            self.client_cert.is_some()
+                        );
                         true
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            error = %e,
-                            "Vault metadata processing failed, continuing without vault configuration"
+                        println!("VAULT ERROR: Vault metadata processing failed: {}, proxy_url_set={}, ca_cert_set={}", 
+                            e,
+                            self.proxy_url.is_some(),
+                            self.ca_cert.is_some()
                         );
                         false
                     }
