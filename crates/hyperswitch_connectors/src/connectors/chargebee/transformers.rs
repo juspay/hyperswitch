@@ -16,7 +16,6 @@ use hyperswitch_domain_models::{
     router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse,
-        subscriptions::{BillingAddressResponse, CreateCustomerResponse},
         PaymentsResponseData, RefundsResponseData,
     },
     types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
@@ -774,85 +773,6 @@ impl
         })
     }
 }
-/*
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChargebeeCustomerResponse {
-    pub customer: ChargebeeCustomerData,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChargebeeCustomerData {
-    pub id: String,
-    pub first_name: String,
-    pub last_name: String,
-    pub email: String,
-    pub auto_collection: String,
-    pub net_term_days: i64,
-    pub allow_direct_debit: bool,
-    pub created_at: i64,
-    pub taxability: String,
-    pub updated_at: i64,
-    pub locale: Option<String>,
-    pub pii_cleared: String,
-    pub channel: String,
-    pub resource_version: i64,
-    pub deleted: bool,
-    pub object: String,
-    pub billing_address: Option<ChargebeeBillingAddress>,
-    pub card_status: String,
-    pub promotional_credits: i64,
-    pub refundable_credits: i64,
-    pub excess_payments: i64,
-    pub unbilled_charges: i64,
-    pub preferred_currency_code: Option<String>,
-    pub mrr: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChargebeeBillingAddress {
-    pub first_name: String,
-    pub last_name: String,
-    pub line1: String,
-    pub city: String,
-    pub state_code: Option<String>,
-    pub state: String,
-    pub country: String,
-    pub zip: String,
-    pub validation_status: String,
-    pub object: String,
-}
-impl<F, T> TryFrom<ResponseRouterData<F, ChargebeeCustomerResponse, T, CreateCustomerResponse>>
-    for RouterData<F, T, CreateCustomerResponse>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: ResponseRouterData<F, ChargebeeCustomerResponse, T, CreateCustomerResponse>,
-    ) -> Result<Self, Self::Error> {
-        let c = item.response.customer;
-
-        Ok(Self {
-            response: Ok(CreateCustomerResponse {
-                customer_id: c.id,
-                first_name: c.first_name,
-                last_name: c.last_name,
-                email: c.email,
-                locale: c.locale,
-                preferred_currency_code: c.preferred_currency_code,
-                billing_address: c.billing_address.map(|b| BillingAddressResponse {
-                    first_name: b.first_name,
-                    last_name: b.last_name,
-                    line1: b.line1,
-                    city: b.city,
-                    state: b.state,
-                    country: b.country,
-                    zip: b.zip,
-                }),
-            }),
-            ..item.data
-        })
-    }
-}*/
 
 #[derive(Debug, Serialize)]
 pub struct ChargebeeCustomerCreateRequest {

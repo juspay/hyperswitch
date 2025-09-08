@@ -15,6 +15,7 @@ pub trait CreateCustomer:
 }
 
 #[cfg(feature = "v1")]
+/// trait Subscriptions for V1
 pub trait Subscriptions: ConnectorCommon + CreateCustomer {}
 
 #[cfg(not(feature = "v1"))]
@@ -22,4 +23,5 @@ pub trait Subscriptions: ConnectorCommon + CreateCustomer {}
 pub trait CreateCustomer {}
 
 #[cfg(not(feature = "v1"))]
+/// trait Subscriptions (disabled when not V1)
 pub trait Subscriptions {}

@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
     types as recovery_router_data_types,
 };
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as customer_flow_common_types,
     router_flow_types::subscriptions::CreateCustomer as CreateCustomerFlow,
-    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_request_types::subscriptions as customer_request_types,
     router_response_types::subscriptions as customer_response_types,
 };
@@ -147,10 +147,10 @@ impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recu
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::CustomerCreateV2 for Recurly {}
 
-impl 
+impl
     ConnectorIntegrationV2<
         CreateCustomerFlow,
-        recovery_flow_common_types::CreateCustomerData,
+        customer_flow_common_types::CreateCustomerData,
         customer_request_types::CreateCustomerRequest,
         customer_response_types::CreateCustomerResponse,
     > for Recurly

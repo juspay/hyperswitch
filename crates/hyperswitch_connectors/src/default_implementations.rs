@@ -8447,9 +8447,9 @@ macro_rules! default_imp_for_customer_create {
     ($($path:ident::$connector:ident),*) => {
         $( impl  CreateCustomer for $path::$connector {}
             impl ConnectorIntegration<
-                hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
-                hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-                hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+                CreateCustomerFlow,
+                CreateCustomerRequest,
+                CreateCustomerResponse,
             > for $path::$connector {}
         )*
     };
