@@ -538,6 +538,6 @@ export const connectorDetails = {
           setup_future_usage: "off_session",
         },
       },
-    }
+    },
   },
 };
