@@ -106,7 +106,7 @@ pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
-pub type BoxedGetPlansConnectorIntegrationInterface<T, Req, Res> =
+pub type BoxedGetPlanPricesConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
