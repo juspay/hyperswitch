@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData,},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -78,6 +78,9 @@ impl api::Refund for Chargebee {}
 impl api::RefundExecute for Chargebee {}
 impl api::RefundSync for Chargebee {}
 impl api::PaymentToken for Chargebee {}
+
+#[cfg(feature = "v1")]
+impl api::subscriptions::CreateCustomer for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
@@ -663,6 +666,195 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+#[cfg(feature = "v1")]
+impl ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        req: &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let url = self
+            .base_url(connectors)
+            .to_string()
+            .replace("$", "hyperswitch-juspay-test"); // TODO: replace with metadata.site
+        Ok(format!("{url}v2/customers"))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = chargebee::ChargebeeRouterData::from((MinorUnit::new(0), req));
+        let connector_req =
+            chargebee::ChargebeeCustomerCreateRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::CreateCustomerType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::CreateCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::CreateCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &hyperswitch_domain_models::types::CreateCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        hyperswitch_domain_models::types::CreateCustomerRouterData,
+        errors::ConnectorError,
+    > {
+        let response: chargebee::ChargebeeCustomerCreateResponse = res
+            .response
+            .parse_struct("ChargebeeCustomerCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "v1"))]
+impl
+    ConnectorIntegrationV2<
+        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_url(
+        &self,
+        _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        todo!()
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn build_request_v2(
+        &self,
+        _req: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        todo!()
+    }
+
+    fn handle_response_v2(
+        &self,
+        _data: &RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
+            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        >,
+        errors::ConnectorError,
+    > {
+        todo!()
+    }
+
+    fn get_error_response_v2(
+        &self,
+        _res: Response,
+        _event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        todo!()
+    }
+}
+
+
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Chargebee {

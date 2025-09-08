@@ -22,6 +22,9 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+/// Subscriptions V2 API
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 
@@ -104,6 +107,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + subscriptions::Subscriptions
 {
 }
 
@@ -126,7 +130,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + subscriptions::Subscriptions,
     > Connector for T
 {
 }

@@ -28533,6 +28533,11 @@
             "description": "Time interval (in hours) for polling the connector to check dispute statuses",
             "example": 2,
             "nullable": true
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28858,6 +28863,11 @@
             "example": 2,
             "nullable": true,
             "minimum": 0
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
           }
         }
       },

@@ -106,6 +106,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             enums::AttemptStatus::CaptureFailed,
             enums::AttemptStatus::Failure,
         ];
+
         match &payment_data.payment_attempt.status {
             status if terminal_status.contains(status) => {
                 state

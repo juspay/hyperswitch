@@ -26,6 +26,12 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as recovery_response_types,
     types as recovery_router_data_types,
 };
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as customer_flow_common_types,
+    router_flow_types::subscriptions::CreateCustomer as CreateCustomerFlow,
+    router_request_types::subscriptions as customer_request_types,
+    router_response_types::subscriptions as customer_response_types,
+};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;
 use hyperswitch_interfaces::{
@@ -137,6 +143,19 @@ impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recurly {}
+
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::CustomerCreateV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        CreateCustomerFlow,
+        customer_flow_common_types::CreateCustomerData,
+        customer_request_types::CreateCustomerRequest,
+        customer_response_types::CreateCustomerResponse,
+    > for Recurly
+{
+}
 
 impl ConnectorCommon for Recurly {
     fn id(&self) -> &'static str {
