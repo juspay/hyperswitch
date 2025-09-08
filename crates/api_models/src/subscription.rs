@@ -10,6 +10,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CreateSubscriptionRequest {
     pub subscription_id: Option<String>,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
     pub mca_id: Option<String>,
@@ -29,6 +30,7 @@ impl CreateSubscriptionRequest {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CreateSubscriptionResponse {
     pub subscription: Subscription,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub client_secret: Option<String>,
     pub merchant_id: String,
     pub mca_id: Option<String>,
@@ -79,11 +81,13 @@ impl CreateSubscriptionResponse {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscription: Subscription,
+        profile_id: common_utils::id_type::ProfileId,
         merchant_id: impl Into<String>,
         mca_id: Option<String>,
     ) -> Self {
         Self {
             subscription,
+            profile_id,
             client_secret: None,
             merchant_id: merchant_id.into(),
             mca_id,

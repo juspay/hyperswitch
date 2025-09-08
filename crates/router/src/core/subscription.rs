@@ -27,6 +27,7 @@ pub async fn create_subscription(
     let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
     let mut response = CreateSubscriptionResponse::new(
         subscription_details,
+        request.profile_id.clone(),
         merchant_context
             .get_merchant_account()
             .get_id()
@@ -69,12 +70,22 @@ pub async fn create_subscription(
         SubscriptionStatus::Created.to_string(),
         None,
         None,
-        request.mca_id,
+        request
+            .mca_id
+            .map(|mca_id| {
+                common_utils::id_type::MerchantConnectorAccountId::wrap(mca_id).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid merchant_connector_account_id".to_string(),
+                    },
+                )
+            })
+            .transpose()?,
         None,
         None,
         merchant_context.get_merchant_account().get_id().clone(),
         customer_id,
         None,
+        request.profile_id,
     );
     response.client_secret = subscription.generate_and_set_client_secret();
     db.insert_subscription_entry(subscription)
