@@ -469,6 +469,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -482,10 +485,25 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -498,9 +516,28 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "succeeded",
         },
       },
     },
+    PaymentIntentOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    }
   },
 };
