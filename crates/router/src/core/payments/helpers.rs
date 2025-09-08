@@ -4499,7 +4499,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can set `is_manual_retry_enabled` to `true` in profile to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can enable `manual_retry` in profile to try this payment again", payment_intent.status)
                         }
                     ))
             }
