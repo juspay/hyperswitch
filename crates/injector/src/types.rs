@@ -63,10 +63,8 @@ pub mod models {
     /// Configuration for HTTP connection to the external connector
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct ConnectionConfig {
-        /// Base URL of the connector endpoint
-        pub base_url: String,
-        /// Path to append to the base URL for the specific endpoint
-        pub endpoint_path: String,
+        /// Complete URL endpoint for the connector (e.g., "https://api.stripe.com/v1/payment_intents")
+        pub endpoint: String,
         /// HTTP method to use for the request
         pub http_method: HttpMethod,
         /// HTTP headers to include in the request
@@ -123,8 +121,7 @@ pub mod models {
         /// - Supports all connection types (simple, vault-enabled, certificate-based)
         #[allow(clippy::too_many_arguments)]
         pub fn new(
-            base_url: String,
-            endpoint_path: String,
+            endpoint: String,
             http_method: HttpMethod,
             template: String,
             token_data: TokenData,
@@ -137,7 +134,7 @@ pub mod models {
             let headers = headers.unwrap_or_default();
             
             // Create base configuration
-            let mut connection_config = ConnectionConfig::new(base_url.clone(), endpoint_path.clone(), http_method);
+            let mut connection_config = ConnectionConfig::new(endpoint.clone(), http_method);
             
             // Try to apply vault metadata with graceful fallback
             logger::debug!(
@@ -179,8 +176,7 @@ pub mod models {
             connection_config.headers = filtered_headers;
 
             logger::debug!(
-                base_url = %base_url,
-                endpoint_path = %endpoint_path,
+                endpoint = %endpoint,
                 vault_configured = vault_applied,
                 has_proxy = connection_config.proxy_url.is_some(),
                 has_client_cert = connection_config.client_cert.is_some(),
@@ -199,15 +195,13 @@ pub mod models {
     impl ConnectionConfig {
         /// Creates a new ConnectionConfig from basic parameters
         pub fn new(
-            base_url: String,
-            endpoint_path: String,
+            endpoint: String,
             http_method: HttpMethod,
         ) -> Self {
             use std::collections::HashMap;
             
             Self {
-                base_url,
-                endpoint_path,
+                endpoint,
                 http_method,
                 headers: HashMap::new(),
                 proxy_url: None,
@@ -635,8 +629,7 @@ pub mod models {
 
                 // Test the amazing automatic processing with the unified API!
                 let injector_request = InjectorRequest::new(
-                    "https://api.example.com".to_string(),
-                    "/v1/payments".to_string(),
+                    "https://api.example.com/v1/payments".to_string(),
                     HttpMethod::POST,
                     "amount={{$amount}}&currency={{$currency}}".to_string(),
                     TokenData {

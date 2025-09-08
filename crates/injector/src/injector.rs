@@ -547,32 +547,25 @@ pub mod core {
         ) -> error_stack::Result<(u16, Option<HashMap<String, String>>, Value), InjectorError> {
             logger::info!(
                 method = ?config.http_method,
-                base_url = %config.base_url,
-                endpoint = %config.endpoint_path,
+                endpoint = %config.endpoint,
                 content_type = ?content_type,
                 payload_length = payload.len(),
                 headers_count = config.headers.len(),
                 "Making HTTP request to connector"
             );
             // Validate inputs first
-            if config.endpoint_path.is_empty() {
-                logger::error!("Endpoint path is empty");
+            if config.endpoint.is_empty() {
+                logger::error!("Endpoint URL is empty");
                 Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                    "Endpoint path cannot be empty".to_string(),
+                    "Endpoint URL cannot be empty".to_string(),
                 )))?;
             }
 
-            // Construct URL safely by joining base URL with endpoint path
-            let base_url = reqwest::Url::parse(&config.base_url).map_err(|e| {
-                logger::error!("Failed to parse base URL: {}", e);
+            // Parse and validate the complete endpoint URL
+            let url = reqwest::Url::parse(&config.endpoint).map_err(|e| {
+                logger::error!("Failed to parse endpoint URL: {}", e);
                 error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid base URL: {e}"
-                )))
-            })?;
-            let url = base_url.join(&config.endpoint_path).map_err(|e| {
-                logger::error!("Failed to join base URL with endpoint path: {}", e);
-                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid URL construction: {e}"
+                    "Invalid endpoint URL: {e}"
                 )))
             })?;
 
@@ -891,8 +884,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://api.stripe.com".parse().unwrap(),
-                endpoint_path: "/v1/payment_intents".to_string(),
+                endpoint: "https://api.stripe.com/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None, // Remove proxy that was causing issues
@@ -973,8 +965,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                base_url: "https://httpbin.org".parse().unwrap(),
-                endpoint_path: "/post".to_string(),
+                endpoint: "https://httpbin.org/post".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None, // Remove proxy to make test work reliably
