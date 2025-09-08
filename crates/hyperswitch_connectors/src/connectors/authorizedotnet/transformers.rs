@@ -1074,8 +1074,6 @@ impl
         {
             item.router_data.customer_id.as_ref().and_then(|customer| {
                 let customer_id = customer.get_string_repr();
-                // The payment ID is included in the customer details because the connector requires unique customer information
-                // with a length of fewer than 20 characters when creating a mandate.
                 (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
                     id: customer_id.to_string(),
                     email: item.router_data.request.get_optional_email(),
@@ -1180,8 +1178,6 @@ impl
         {
             item.router_data.customer_id.as_ref().and_then(|customer| {
                 let customer_id = customer.get_string_repr();
-                // The payment ID is included in the customer details because the connector requires unique customer information
-                // with a length of fewer than 20 characters when creating a mandate.
                 (customer_id.len() <= MAX_ID_LENGTH).then_some(CustomerDetails {
                     id: customer_id.to_string(),
                     email: item.router_data.request.get_optional_email(),
