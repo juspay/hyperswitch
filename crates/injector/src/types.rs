@@ -242,10 +242,21 @@ pub mod models {
             let mut connection_config = ConnectionConfig::new(base_url.clone(), endpoint_path.clone(), http_method);
             
             // Try to apply vault metadata with graceful fallback
+            tracing::debug!(
+                header_count = headers.len(),
+                has_vault_metadata = headers.contains_key(vault_metadata::EXTERNAL_VAULT_METADATA_HEADER),
+                "Processing injector request with headers"
+            );
             let vault_applied = {
                 use vault_metadata::VaultMetadataExtractorExt;
                 connection_config.extract_and_apply_vault_metadata_with_fallback(&headers)
             };
+            tracing::debug!(
+                vault_applied = vault_applied,
+                proxy_url_set = connection_config.proxy_url.is_some(),
+                ca_cert_set = connection_config.ca_cert.is_some(),
+                "Vault metadata processing result"
+            );
             
             // Apply fallback configurations only if vault didn't provide them
             if !vault_applied || connection_config.proxy_url.is_none() {
@@ -404,7 +415,8 @@ pub mod models {
             fn process_metadata(&self, connection_config: &mut ConnectionConfig) -> Result<(), VaultMetadataError> {
                 // Validate and set proxy URL from VGS metadata
                 self.validate_proxy_url()?;
-                connection_config.proxy_url = Some(Secret::new(self.proxy_url.to_string()));
+                // Use as_str() to preserve the original URL format without adding trailing slash
+                connection_config.proxy_url = Some(Secret::new(self.proxy_url.as_str().to_string()));
                 
                 // Validate and set CA certificate from VGS metadata
                 self.validate_certificate()?;
@@ -412,6 +424,7 @@ pub mod models {
                 
                 tracing::info!(
                     proxy_url = %self.proxy_url,
+                    proxy_url_as_str = self.proxy_url.as_str(),
                     "Successfully applied VGS vault metadata to connection config"
                 );
                 
@@ -731,7 +744,7 @@ pub mod models {
                 assert!(injector_request.connection_config.ca_cert.is_some());
                 assert_eq!(
                     injector_request.connection_config.proxy_url.as_ref().expect("Proxy URL should be set").clone().expose(),
-                    "https://vgs-proxy.example.com:8443/"
+                    "https://vgs-proxy.example.com:8443"
                 );
 
                 // Verify vault metadata header was removed from regular headers
