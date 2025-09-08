@@ -305,7 +305,7 @@ pub async fn retry_sync_task(
     }
 }
 
-/// Schedule the task for retry and upate redis token expiry time
+/// Schedule the task for retry and update redis token expiry time
 ///
 /// Returns bool which indicates whether this was the last retry or not
 #[cfg(feature = "v2")]

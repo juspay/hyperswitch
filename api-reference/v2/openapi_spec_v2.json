@@ -22450,6 +22450,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_retry_algorithm_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
