@@ -1206,7 +1206,6 @@ default_imp_for_complete_authorize!(
     connectors::Nordea,
     connectors::Novalnet,
     connectors::Nexinets,
-    connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
