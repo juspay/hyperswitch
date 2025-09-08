@@ -1268,6 +1268,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "g
 base_url = "http://localhost:8080"
 schema = "public"
 accounts_schema = "public"
+common_resources_schema = "public"
 redis_key_prefix = ""
 clickhouse_database = "default"
 
