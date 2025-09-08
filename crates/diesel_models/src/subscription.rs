@@ -15,7 +15,7 @@ pub struct SubscriptionNew {
     status: String,
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
-    mca_id: Option<String>,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     client_secret: Option<String>,
     connector_subscription_id: Option<String>,
     merchant_id: common_utils::id_type::MerchantId,
@@ -23,20 +23,19 @@ pub struct SubscriptionNew {
     metadata: Option<SecretSerdeValue>,
     created_at: time::PrimitiveDateTime,
     modified_at: time::PrimitiveDateTime,
+    profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize,
 )]
-#[diesel(table_name = subscription, primary_key(id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = subscription, primary_key(subscription_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Subscription {
-    #[serde(skip_serializing, skip_deserializing)]
-    pub id: i32,
     pub subscription_id: String,
     pub status: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mca_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub client_secret: Option<String>,
     pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -44,6 +43,7 @@ pub struct Subscription {
     pub metadata: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -61,12 +61,13 @@ impl SubscriptionNew {
         status: String,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
-        mca_id: Option<String>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         client_secret: Option<String>,
         connector_subscription_id: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         customer_id: common_utils::id_type::CustomerId,
         metadata: Option<SecretSerdeValue>,
+        profile_id: common_utils::id_type::ProfileId,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
@@ -74,7 +75,7 @@ impl SubscriptionNew {
             status,
             billing_processor,
             payment_method_id,
-            mca_id,
+            merchant_connector_id,
             client_secret,
             connector_subscription_id,
             merchant_id,
@@ -82,6 +83,7 @@ impl SubscriptionNew {
             metadata,
             created_at: now,
             modified_at: now,
+            profile_id,
         }
     }
 

@@ -2113,6 +2113,7 @@ pub struct NuveiPaymentsResponse {
     pub auth_code: Option<String>,
     pub custom_data: Option<String>,
     pub fraud_details: Option<FraudDetails>,
+    // NTID
     pub external_scheme_transaction_id: Option<Secret<String>>,
     pub session_token: Option<Secret<String>>,
     pub partial_approval: Option<NuveiPartialApproval>,
@@ -2420,7 +2421,10 @@ fn create_transaction_response(
         } else {
             None
         },
-        network_txn_id: None,
+        network_txn_id: response
+            .external_scheme_transaction_id
+            .as_ref()
+            .map(|ntid| ntid.clone().expose()),
         connector_response_reference_id: response.order_id.clone(),
         incremental_authorization_allowed: None,
         charges: None,
