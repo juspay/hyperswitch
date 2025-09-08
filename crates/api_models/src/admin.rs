@@ -2197,6 +2197,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -2544,6 +2547,9 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
 
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -2800,6 +2806,11 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
@@ -2883,6 +2894,9 @@ pub struct ProfileUpdate {
     /// Time interval (in hours) for polling the connector to check for new disputes
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]

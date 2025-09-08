@@ -1588,6 +1588,9 @@ impl AddressDetailsData for AddressDetails {
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
             )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
             _ => Ok(state.clone()),
         }
     }
