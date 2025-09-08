@@ -11131,7 +11131,6 @@
           "payment_partially_authorized",
           "payment_captured",
           "payment_expired",
-          "payment_scheduled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
