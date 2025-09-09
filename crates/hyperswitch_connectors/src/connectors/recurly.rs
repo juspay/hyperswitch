@@ -374,13 +374,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::InvoiceRecordBackRouterDataV2::try_from(
-            ResponseRouterDataV2 {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        )
+        recovery_router_data_types::InvoiceRecordBackRouterDataV2::try_from(ResponseRouterDataV2 {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response_v2(
