@@ -365,7 +365,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             )
         };
 
-        let (source_var, previous_payment_id, merchant_initiated, capture, payment_type) =
+        let (source_var, previous_payment_id, merchant_initiated, payment_type) =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ccard) => {
                     let a = PaymentSource::Card(CardSource {
@@ -375,7 +375,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         expiry_year: ccard.card_exp_year.clone(),
                         cvv: ccard.card_cvc,
                     });
-                    Ok((a, None, Some(false), capture, payment_type))
+                    Ok((a, None, Some(false), payment_type))
                 }
                 PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                     WalletData::GooglePay(_) => {
@@ -398,7 +398,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                 }
                             },
                         });
-                        Ok((p_source, None, Some(false), capture, payment_type))
+                        Ok((p_source, None, Some(false), payment_type))
                     }
                     WalletData::ApplePay(_) => {
                         let payment_method_token = item.router_data.get_payment_method_token()?;
@@ -408,7 +408,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     source_type: CheckoutSourceTypes::Token,
                                     token: apple_pay_payment_token,
                                 });
-                                Ok((p_source, None, Some(false), capture, payment_type))
+                                Ok((p_source, None, Some(false), payment_type))
                             }
                             PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                 let exp_month = decrypt_data.get_expiry_month().change_context(
@@ -430,7 +430,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                             .online_payment_cryptogram,
                                     },
                                 ));
-                                Ok((p_source, None, Some(false), capture, payment_type))
+                                Ok((p_source, None, Some(false), payment_type))
                             }
                             PaymentMethodToken::PazeDecrypt(_) => {
                                 Err(unimplemented_payment_method!("Paze", "Checkout"))?
@@ -455,7 +455,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             .get_connector_mandate_request_reference_id()?,
                     );
                     let p_type = CheckoutPaymentType::Recurring;
-                    Ok((mandate_source, previous_id, Some(true), true, p_type))
+                    Ok((mandate_source, previous_id, Some(true), p_type))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
