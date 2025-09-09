@@ -1,12 +1,12 @@
 [default.theme]
 primary_color="#006DF9"
 primary_hover_color="#005ED6"
-sidebar_primary="#FCFCFD"
-sidebar_secondary= "#FFFFFF"
-sidebar_hover_color= "#D9DDE5"
-sidebar_primary_text_color="#1C6DEA"
-sidebar_secondary_text_color= "#525866"
-sidebar_border_color= "#ECEFF3"
+sidebar_primary="#FCFCFD"     
+sidebar_secondary= "#FFFFFF"  
+sidebar_hover_color= "#D9DDE5"  
+sidebar_primary_text_color="#1C6DEA" 
+sidebar_secondary_text_color= "#525866" 
+sidebar_border_color= "#ECEFF3" 
 
 [default.endpoints]
 api_url="http://localhost:8080" # The backend hyperswitch API server for making payments
@@ -62,7 +62,7 @@ dev_click_to_pay=true
 dev_recon_v2_product=false
 dev_recovery_v2_product=false
 dev_vault_v2_product=false
-dev_intelligent_routing_v2=false
+dev_intelligent_routing_v2=false 
 dev_modularity_v2=false
 dev_alt_payment_methods=false
 dev_hypersense_v2_product=false
