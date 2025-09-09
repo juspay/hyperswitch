@@ -703,13 +703,11 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    // let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-    //     router_base_url,
-    //     attempt,
-    //     &merchant_context.get_merchant_account().publishable_key,
-    // ));
-
-    let complete_authorize_url = None;
+    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+        router_base_url,
+        attempt,
+        &merchant_context.get_merchant_account().publishable_key,
+    ));
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -773,7 +771,12 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
         router_return_url: Some(router_return_url),
         complete_authorize_url,
         connector_transaction_id: None,
-        redirect_response: None,
+        redirect_response: payment_data.redirect_response.map(|redirect| {
+            types::CompleteAuthorizeRedirectResponse {
+                params: redirect.param,
+                payload: redirect.json_payload,
+            }
+        }),
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -902,12 +905,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    // let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+    //     router_base_url,
+    //     attempt,
+    //     connector_id,
+    //     None,
+    // ));
+
+    let complete_authorize_url = None;
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -1147,13 +1152,14 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    // let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+    //     router_base_url,
+    //     attempt,
+    //     connector_id,
+    //     None,
+    // ));
 
+    let complete_authorize_url = None;
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
             merchant_connector_account,
@@ -1817,12 +1823,14 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    // let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+    //     router_base_url,
+    //     attempt,
+    //     connector_id,
+    //     None,
+    // ));
+
+    let complete_authorize_url = None;
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -4512,12 +4520,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone()
             .map(types::BrowserInformation::from);
 
-        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-            router_base_url,
-            attempt,
-            connector_name,
-            payment_data.creds_identifier.as_deref(),
-        ));
+        // let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+        //     router_base_url,
+        //     attempt,
+        //     connector_id,
+        //     None,
+        // ));
+
+        let complete_authorize_url = None;
 
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt

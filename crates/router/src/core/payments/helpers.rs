@@ -1254,6 +1254,7 @@ pub fn create_webhook_url(
     )
 }
 
+#[cfg(feature = "v1")]
 pub fn create_complete_authorize_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,
@@ -1270,6 +1271,24 @@ pub fn create_complete_authorize_url(
         payment_attempt.merchant_id.get_string_repr(),
         connector_name,
         creds_identifier
+    )
+}
+
+#[cfg(feature = "v2")]
+pub fn create_complete_authorize_url(
+    router_base_url: &String,
+    payment_attempt: &PaymentAttempt,
+    publishable_key: &String,
+) -> String {
+    // let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
+    //     format!("/{creds_identifier}")
+    // });
+    format!(
+        "{}/v2/payments/{}/continue-redirection?publishable_key={}&profile_id={}",
+        router_base_url,
+        payment_attempt.payment_id.get_string_repr(),
+        publishable_key,
+        payment_attempt.profile_id.get_string_repr(),
     )
 }
 

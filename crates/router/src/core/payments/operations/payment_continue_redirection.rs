@@ -312,59 +312,58 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsContinueRedirectionRequest, Payme
         business_profile: &domain::Profile,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        todo!()
-        // let (payment_method, payment_method_data) = match (
-        //     &payment_data.payment_attempt.payment_token,
-        //     &payment_data.payment_method_data,
-        //     &payment_data.payment_attempt.customer_acceptance,
-        // ) {
-        //     (Some(ppmt), _, _) => {
-        //         use crate::core::payment_methods;
+        let (payment_method, payment_method_data) = match (
+            &payment_data.payment_attempt.payment_token,
+            &payment_data.payment_method_data,
+            &payment_data.payment_attempt.customer_acceptance,
+        ) {
+            (Some(ppmt), _, _) => {
+                use crate::core::payment_methods;
 
-        //         let payment_token_data = payment_methods::get_card_data_from_redis(
-        //             state,
-        //             ppmt.to_owned(),
-        //             payment_data.payment_attempt.payment_method_type,
-        //         )
-        //         .await?;
+                let payment_token_data = payment_methods::get_card_data_from_redis(
+                    state,
+                    ppmt.to_owned(),
+                    payment_data.payment_attempt.payment_method_type,
+                )
+                .await?;
 
-        //         let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
-        //             state,
-        //             merchant_context.get_merchant_key_store(),
-        //             &payment_token_data,
-        //             &payment_data.payment_intent,
-        //             &payment_data.payment_attempt,
-        //             None,
-        //             // domain::CardToken::default(),
-        //             // customer,
-        //             // storage_scheme,
-        //             // mandate_id,
-        //             // payment_data.payment_method_info.clone(),
-        //             // business_profile,
-        //             // should_retry_with_pan,
-        //             // vault_data,
-        //         ))
-        //         .await;
+                let pm_data = Box::pin(payment_methods::retrieve_payment_method_with_token(
+                    state,
+                    merchant_context.get_merchant_key_store(),
+                    &payment_token_data,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    None,
+                    // domain::CardToken::default(),
+                    // customer,
+                    // storage_scheme,
+                    // mandate_id,
+                    // payment_data.payment_method_info.clone(),
+                    // business_profile,
+                    // should_retry_with_pan,
+                    // vault_data,
+                ))
+                .await;
 
-        //         let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
+                let payment_method_details = pm_data.attach_printable("in 'make_pm_data'")?;
 
-        //         // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
-        //         (
-        //             None::<domain::PaymentMethod>,
-        //             payment_method_details.payment_method_data,
-        //         )
-        //     }
-        //     _ => (None, None), // Pass payment_data unmodified for any other case
-        // };
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                (
+                    None::<domain::PaymentMethod>,
+                    payment_method_details.payment_method_data,
+                )
+            }
+            _ => (None, None), // Pass payment_data unmodified for any other case
+        };
 
-        // if let Some(pm_data) = payment_method_data {
-        //     payment_data.update_payment_method_data(pm_data);
-        // }
-        // if let Some(pm) = payment_method {
-        //     payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
-        // }
+        if let Some(pm_data) = payment_method_data {
+            payment_data.update_payment_method_data(pm_data);
+        }
+        if let Some(pm) = payment_method {
+            payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
+        }
 
-        // Ok(())
+        Ok(())
     }
     // #[instrument(skip_all)]
     // async fn guard_payment_against_blocklist<'a>(

@@ -2940,7 +2940,7 @@ where
 }
 
 fn friction_flow_required() -> bool {
-    true
+    false
 }
 
 async fn generate_response<F, R>(
@@ -4175,6 +4175,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             payment_data,
             profile,
             next_action: None,
+            status: None,
         })
     }
     fn generate_response(
@@ -4347,9 +4348,15 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         //     Some(connector_response_data),
         // )?;
 
-        let next_action = if let services::ApplicationResponse::JsonWithHeaders((resp, _)) = output
+        let next_action = if let services::ApplicationResponse::JsonWithHeaders((resp, _)) = &output
         {
-            resp.next_action
+            resp.next_action.clone()
+        } else {
+            None
+        };
+
+        let status = if let services::ApplicationResponse::JsonWithHeaders((resp, _)) = &output {
+            Some(resp.status)
         } else {
             None
         };
@@ -4358,6 +4365,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_data: payment_data.clone(),
             profile,
             next_action,
+            status,
         })
     }
 
@@ -4440,6 +4448,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         // ))
         // }
         let payment_intent = &payment_flow_response.payment_data.payment_intent;
+        let payment_intent_status = &payment_flow_response.status.unwrap();
         // let profile = &payment_flow_response.profile;
 
         // let return_url = payment_intent
@@ -4463,29 +4472,6 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         // )?;
         // let return_url_str = return_url.into_inner().to_string();
 
-        let startpay_url = payment_flow_response
-            .next_action
-            .clone()
-            .and_then(|next_action_data| match next_action_data {
-                api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => {
-                    Some(redirect_to_url)
-                }
-                // api_models::payments::NextActionData::RedirectInsidePopup{popup_url, ..} => Some(popup_url),
-                api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
-                api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                api_models::payments::NextActionData::QrCodeInformation { .. } => None,
-                api_models::payments::NextActionData::FetchQrCodeInformation { .. } => None,
-                api_models::payments::NextActionData::DisplayVoucherInformation { .. } => None,
-                api_models::payments::NextActionData::WaitScreenInformation { .. } => None,
-                api_models::payments::NextActionData::ThreeDsInvoke { .. } => None,
-                api_models::payments::NextActionData::InvokeSdkClient { .. } => None,
-                api_models::payments::NextActionData::CollectOtp { .. } => None,
-                api_models::payments::NextActionData::InvokeHiddenIframe { .. } => None,
-            })
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "did not receive redirect to url when status is requires customer action",
-            )?;
         // Ok(api::RedirectionResponse {
         //     // return_url: String::new(),
         //     // params: vec![],
@@ -4494,7 +4480,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         //     // headers: vec![],
         // })
 
-        match payment_intent.status {
+        match payment_intent_status {
             enums::IntentStatus::Succeeded => {
                 let profile = &payment_flow_response.profile;
 
@@ -4517,11 +4503,43 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 ))
             }
 
-            _ => Ok(services::ApplicationResponse::JsonForRedirection(
-                api::RedirectionResponse {
-                    return_url_with_query_params: startpay_url.as_str().to_owned(),
-                },
-            )),
+            _ => {
+                let startpay_url = payment_flow_response
+                    .next_action
+                    .clone()
+                    .and_then(|next_action_data| match next_action_data {
+                        api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+                            Some(redirect_to_url)
+                        }
+                        // api_models::payments::NextActionData::RedirectInsidePopup{popup_url, ..} => Some(popup_url),
+                        api_models::payments::NextActionData::DisplayBankTransferInformation {
+                            ..
+                        } => None,
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken {
+                            ..
+                        } => None,
+                        api_models::payments::NextActionData::QrCodeInformation { .. } => None,
+                        api_models::payments::NextActionData::FetchQrCodeInformation { .. } => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation {
+                            ..
+                        } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation { .. } => None,
+                        api_models::payments::NextActionData::ThreeDsInvoke { .. } => None,
+                        api_models::payments::NextActionData::InvokeSdkClient { .. } => None,
+                        api_models::payments::NextActionData::CollectOtp { .. } => None,
+                        api_models::payments::NextActionData::InvokeHiddenIframe { .. } => None,
+                    })
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "did not receive redirect to url when status is requires customer action",
+                    )?;
+
+                Ok(services::ApplicationResponse::JsonForRedirection(
+                    api::RedirectionResponse {
+                        return_url_with_query_params: startpay_url.as_str().to_owned(),
+                    },
+                ))
+            }
         }
     }
 }
