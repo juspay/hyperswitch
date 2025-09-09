@@ -415,16 +415,16 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         merchant_context: &domain::MerchantContext,
         payment_data: &mut PaymentConfirmData<F>,
     ) {
-        if let (true, Some(payment_method_id)) = (
+        if let (true, Some(payment_method)) = (
             payment_data.payment_attempt.customer_acceptance.is_some(),
-            payment_data.payment_attempt.payment_method_id.clone(),
+            payment_data.payment_method.as_ref(),
         ) {
             payment_methods::update_payment_method_status_internal(
                 state,
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
-                &payment_method_id,
+                payment_method.get_id(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));
@@ -542,6 +542,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
             authentication_type,
             connector_request_reference_id,
             connector_response_reference_id,
+            payment_token: None,
         };
 
         let updated_payment_intent = db

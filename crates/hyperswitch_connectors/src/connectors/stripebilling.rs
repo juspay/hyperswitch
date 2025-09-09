@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::collections::HashMap;
 
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -23,7 +24,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -911,4 +912,22 @@ fn get_signature_elements_from_header(
     Ok(header_hashmap)
 }
 
-impl ConnectorSpecifications for Stripebilling {}
+static STRIPEBILLING_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Stripebilling",
+    description: "Stripe Billing manages subscriptions, recurring payments, and invoicing. It supports trials, usage-based billing, coupons, and automated retries.",
+    connector_type: enums::HyperswitchConnectorCategory::RevenueGrowthManagementPlatform,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
+};
+
+static STRIPEBILLING_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
+    [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Stripebilling {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&STRIPEBILLING_CONNECTOR_INFO)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&STRIPEBILLING_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

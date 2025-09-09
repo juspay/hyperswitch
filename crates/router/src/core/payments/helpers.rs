@@ -2832,6 +2832,49 @@ pub async fn store_in_vault_and_generate_ppmt(
 }
 
 #[cfg(feature = "v2")]
+pub async fn store_in_vault_and_generate_ppmt(
+    state: &SessionState,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+    business_profile: Option<&domain::Profile>,
+) -> RouterResult<String> {
+    let router_token = vault::Vault::store_payment_method_data_in_locker(
+        state,
+        None,
+        payment_method_data,
+        payment_intent.customer_id.to_owned(),
+        payment_method,
+        merchant_key_store,
+    )
+    .await?;
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
+        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            payment_method,
+        ))
+    });
+
+    let intent_fulfillment_time = business_profile
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+
+    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+        key_for_hyperswitch_token
+            .insert(
+                intent_fulfillment_time,
+                storage::PaymentTokenData::temporary_generic(router_token),
+                state,
+            )
+            .await?;
+    };
+    Ok(parent_payment_method_token)
+}
+
+#[cfg(feature = "v2")]
 pub async fn store_payment_method_data_in_vault(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
@@ -6942,7 +6985,6 @@ pub enum UnifiedAuthenticationServiceFlow {
     ExternalAuthenticationPostAuthenticate {
         authentication_id: id_type::AuthenticationId,
     },
-    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6953,7 +6995,6 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
-    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6989,17 +7030,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    let should_do_uas_confirmation_call = payment_data
-                        .service_details
-                        .as_ref()
-                        .map(|details| details.is_network_confirmation_call_required())
-                        .unwrap_or(true);
-
-                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-                    } else {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
-                    }
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
                 } else {
                     None
                 }
