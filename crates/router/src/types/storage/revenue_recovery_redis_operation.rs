@@ -69,6 +69,19 @@ pub struct PaymentProcessorTokenWithRetryInfo {
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
+
+    fn get_connector_customer_lock_key(
+        connector_customer_id: &str,
+    ) -> String {
+        format!("customer:{connector_customer_id}:status")
+    }
+
+    fn get_connector_customer_tokens_key(
+        connector_customer_id: &str,
+    ) -> String {
+        format!("customer:{connector_customer_id}:tokens")
+    }
+
     /// Lock connector customer
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
@@ -84,7 +97,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
         let result: bool = match redis_conn
@@ -125,7 +138,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
         let result: bool = match redis_conn
             .set_expiry(&lock_key.into(), exp_in_seconds)
@@ -162,7 +175,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => {
@@ -196,7 +209,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         let get_hash_err =
             errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into());
@@ -247,7 +260,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         // allocate capacity up-front to avoid rehashing
         let mut serialized_payment_processor_tokens: HashMap<String, String> =

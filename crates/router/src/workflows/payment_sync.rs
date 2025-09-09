@@ -9,6 +9,8 @@ use scheduler::{
 
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
 use crate::{
     consts,
     core::{
@@ -319,32 +321,26 @@ pub async fn recovery_retry_sync_task(
     let db = &*state.store;
     let schedule_time =
         get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+
     match schedule_time {
         Some(s_time) => {
             db.as_scheduler().retry_process(pt, s_time).await?;
-            match connector_customer_id {
-                Some(connector_customer_id) => {
-                    match update_token_expiry_based_on_schedule_time(
-                        state,
-                        &connector_customer_id,
-                        Some(s_time),
-                    )
-                    .await
-                    {
-                        Ok(_) => {}
-                        Err(e) => {
+
+            connector_customer_id
+                .async_map(|id| async move {
+                    let _ = update_token_expiry_based_on_schedule_time(state, &id, Some(s_time))
+                        .await
+                        .map_err(|e| {
                             logger::error!(
                                 error = ?e,
-                                connector_customer_id = %connector_customer_id,
+                                connector_customer_id = %id,
                                 "Failed to update the token expiry time in redis"
                             );
-                        }
-                    };
-                }
-                None => logger::warn!(
-                    "No connector customer id found in payment intent feature metadata"
-                ),
-            }
+                            e
+                        });
+                })
+                .await;
+
             Ok(false)
         }
         None => {
@@ -355,6 +351,7 @@ pub async fn recovery_retry_sync_task(
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

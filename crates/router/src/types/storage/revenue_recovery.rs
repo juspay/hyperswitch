@@ -81,6 +81,7 @@ pub struct RecoveryTimestamp {
     pub job_schedule_buffer_time_in_seconds: i64,
     pub reopen_workflow_buffer_time_in_seconds: i64,
     pub max_random_schedule_delay_in_seconds: i64,
+    pub redis_ttl_buffer_in_seconds: i64,
 }
 
 impl Default for RecoveryTimestamp {
@@ -90,6 +91,7 @@ impl Default for RecoveryTimestamp {
             job_schedule_buffer_time_in_seconds: 15,
             reopen_workflow_buffer_time_in_seconds: 60,
             max_random_schedule_delay_in_seconds: 300,
+            redis_ttl_buffer_in_seconds: 300,
         }
     }
 }
