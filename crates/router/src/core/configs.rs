@@ -62,16 +62,22 @@ pub async fn get_config_bool(
 ) -> CustomResult<bool, errors::StorageError> {
     #[cfg(feature = "superposition")]
     if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client.get_bool_value(superposition_key, context).await {
+        if let Ok(value) = superposition_client
+            .get_bool_value(superposition_key, context)
+            .await
+        {
             return Ok(value);
         }
     }
 
-    let config = state.store
+    let config = state
+        .store
         .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
         .await?;
-    
-    config.config.parse::<bool>()
+
+    config
+        .config
+        .parse::<bool>()
         .change_context(errors::StorageError::DeserializationFailed)
 }
 
@@ -85,15 +91,19 @@ pub async fn get_config_string(
 ) -> CustomResult<String, errors::StorageError> {
     #[cfg(feature = "superposition")]
     if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client.get_string_value(superposition_key, context).await {
+        if let Ok(value) = superposition_client
+            .get_string_value(superposition_key, context)
+            .await
+        {
             return Ok(value);
         }
     }
 
-    let config = state.store
+    let config = state
+        .store
         .find_config_by_key_unwrap_or(db_key, Some(default_value))
         .await?;
-    
+
     Ok(config.config)
 }
 
@@ -107,15 +117,21 @@ pub async fn get_config_int(
 ) -> CustomResult<i64, errors::StorageError> {
     #[cfg(feature = "superposition")]
     if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client.get_int_value(superposition_key, context).await {
+        if let Ok(value) = superposition_client
+            .get_int_value(superposition_key, context)
+            .await
+        {
             return Ok(value);
         }
     }
 
-    let config = state.store
+    let config = state
+        .store
         .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
         .await?;
-    
-    config.config.parse::<i64>()
+
+    config
+        .config
+        .parse::<i64>()
         .change_context(errors::StorageError::DeserializationFailed)
 }

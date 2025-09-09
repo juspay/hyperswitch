@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
-use masking::{ExposeInterface, Secret};
 use error_stack::ResultExt;
+use masking::{ExposeInterface, Secret};
 use open_feature::{EvaluationContext, EvaluationContextFieldValue};
 use superposition_provider::{
-    EvaluationCacheOptions, PollingStrategy, RefreshStrategy, SuperpositionProvider, 
+    EvaluationCacheOptions, PollingStrategy, RefreshStrategy, SuperpositionProvider,
     SuperpositionProviderOptions,
 };
 
