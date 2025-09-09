@@ -165,6 +165,7 @@ impl ConnectorCommon for Razorpay {
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayError(error_response) => Ok(ErrorResponse {
@@ -177,6 +178,7 @@ impl ConnectorCommon for Razorpay {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
                         Ok(ErrorResponse {
@@ -189,6 +191,7 @@ impl ConnectorCommon for Razorpay {
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                 }
@@ -809,7 +812,8 @@ lazy_static! {
         display_name: "RAZORPAY",
         description:
             "Razorpay helps you accept online payments from customers across Desktop, Mobile web, Android & iOS. Additionally by using Razorpay Payment Links, you can collect payments across multiple channels like SMS, Email, Whatsapp, Chatbots & Messenger.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];

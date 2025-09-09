@@ -188,7 +188,19 @@ pub fn make_dsl_input_for_payouts(
         payment_method_type: payout_data
             .payout_method_data
             .as_ref()
-            .map(api_enums::PaymentMethodType::foreign_from),
+            .map(api_enums::PaymentMethodType::foreign_from)
+            .or_else(|| {
+                payout_data.payment_method.as_ref().and_then(|pm| {
+                    #[cfg(feature = "v1")]
+                    {
+                        pm.payment_method_type
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        pm.payment_method_subtype
+                    }
+                })
+            }),
         card_network: None,
     };
     Ok(dsl_inputs::BackendInput {
@@ -441,6 +453,7 @@ pub async fn perform_static_routing_v1(
     Vec<routing_types::RoutableConnectorChoice>,
     Option<common_enums::RoutingApproach>,
 )> {
+    logger::debug!("euclid_routing: performing routing for connector selection");
     let get_merchant_fallback_config = || async {
         #[cfg(feature = "v1")]
         return routing::helpers::get_merchant_default_config(
@@ -459,6 +472,7 @@ pub async fn perform_static_routing_v1(
         id
     } else {
         let fallback_config = get_merchant_fallback_config().await?;
+        logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
         return Ok((fallback_config, None));
     };
     let cached_algorithm = ensure_algorithm_cached_v1(
@@ -1038,6 +1052,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    logger::debug!("euclid_routing: performing eligibility");
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
@@ -1072,7 +1087,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         .iter()
         .map(|item| item.connector)
         .collect::<Vec<_>>();
-    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "List of final selected connectors for routing");
+    logger::debug!(final_selected_connectors_for_routing=?final_selected_connectors, "euclid_routing: List of final selected connectors for routing");
 
     Ok(final_selection)
 }

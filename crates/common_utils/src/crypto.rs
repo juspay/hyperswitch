@@ -1,17 +1,22 @@
 //! Utilities for cryptographic algorithms
 use std::ops::Deref;
 
+use base64::Engine;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use md5;
+use pem;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
-    hmac,
+    hmac, rand as ring_rand,
+    signature::{RsaKeyPair, RSA_PSS_SHA256},
 };
 #[cfg(feature = "logs")]
 use router_env::logger;
+use rsa::{pkcs8::DecodePublicKey, signature::Verifier};
 
 use crate::{
+    consts::BASE64_ENGINE,
     errors::{self, CustomResult},
     pii::{self, EncryptionStrategy},
 };
@@ -499,6 +504,52 @@ impl VerifySignature for Sha256 {
     }
 }
 
+/// Secure Hash Algorithm 256 with RSA public-key cryptosystem
+#[derive(Debug)]
+pub struct RsaSha256;
+
+impl VerifySignature for RsaSha256 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        // create verifying key
+        let decoded_public_key = BASE64_ENGINE
+            .decode(secret)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("base64 decoding failed")?;
+
+        let string_public_key = String::from_utf8(decoded_public_key)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("utf8 to string parsing failed")?;
+
+        let rsa_public_key = rsa::RsaPublicKey::from_public_key_pem(&string_public_key)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("rsa public key transformation failed")?;
+
+        let verifying_key = rsa::pkcs1v15::VerifyingKey::<rsa::sha2::Sha256>::new(rsa_public_key);
+
+        // transfrom the signature
+        let decoded_signature = BASE64_ENGINE
+            .decode(signature)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("base64 decoding failed")?;
+
+        let rsa_signature = rsa::pkcs1v15::Signature::try_from(&decoded_signature[..])
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("rsa signature transformation failed")?;
+
+        // signature verification
+        verifying_key
+            .verify(msg, &rsa_signature)
+            .map(|_| true)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)
+            .attach_printable("signature verification step failed")
+    }
+}
+
 /// TripleDesEde3 hash function
 #[derive(Debug)]
 #[cfg(feature = "crypto_openssl")]
@@ -679,6 +730,42 @@ pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
 pub type EncryptableName = Encryptable<Secret<String>>;
 /// Type alias for `Encryptable<Secret<String>>` used for `email` field
 pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
+
+/// Represents the RSA-PSS-SHA256 signing algorithm
+#[derive(Debug)]
+pub struct RsaPssSha256;
+
+impl SignMessage for RsaPssSha256 {
+    fn sign_message(
+        &self,
+        private_key_pem_bytes: &[u8],
+        msg_to_sign: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let parsed_pem = pem::parse(private_key_pem_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to parse PEM string")?;
+        let key_pair = match parsed_pem.tag() {
+            "PRIVATE KEY" => RsaKeyPair::from_pkcs8(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#8 DER with ring"),
+            "RSA PRIVATE KEY" => RsaKeyPair::from_der(parsed_pem.contents())
+                .change_context(errors::CryptoError::InvalidKeyLength)
+                .attach_printable("Failed to parse PKCS#1 DER (using from_der) with ring"),
+            tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Unexpected PEM tag: {tag}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'",
+            )),
+        }?;
+        let rng = ring_rand::SystemRandom::new();
+        let signature_len = key_pair.public().modulus_len();
+        let mut signature_bytes = vec![0; signature_len];
+        key_pair
+            .sign(&RSA_PSS_SHA256, &rng, msg_to_sign, &mut signature_bytes)
+            .change_context(errors::CryptoError::EncodingFailed)
+            .attach_printable("Failed to sign data with ring")?;
+
+        Ok(signature_bytes)
+    }
+}
 
 #[cfg(test)]
 mod crypto_tests {
@@ -875,5 +962,81 @@ mod crypto_tests {
             .expect("Wrong signature verification result");
 
         assert!(!wrong_verified);
+    }
+
+    use ring::signature::{UnparsedPublicKey, RSA_PSS_2048_8192_SHA256};
+
+    #[test]
+    fn test_rsa_pss_sha256_verify_signature() {
+        let signer = crate::crypto::RsaPssSha256;
+        let message = b"abcdefghijklmnopqrstuvwxyz";
+
+        let private_key_pem_bytes =
+            std::fs::read("../../private_key.pem").expect("Failed to read private key");
+        let parsed_pem = pem::parse(&private_key_pem_bytes).expect("Failed to parse PEM");
+        let private_key_der = parsed_pem.contents();
+
+        let signature = signer
+            .sign_message(&private_key_pem_bytes, message)
+            .expect("Signing failed");
+
+        let key_pair = crate::crypto::RsaKeyPair::from_pkcs8(private_key_der)
+            .expect("Failed to parse DER key");
+        let public_key_der = key_pair.public().as_ref().to_vec();
+
+        let public_key = UnparsedPublicKey::new(&RSA_PSS_2048_8192_SHA256, &public_key_der);
+        assert!(
+            public_key.verify(message, &signature).is_ok(),
+            "Right signature should verify"
+        );
+
+        let mut wrong_signature = signature.clone();
+        if let Some(byte) = wrong_signature.first_mut() {
+            *byte ^= 0xFF;
+        }
+
+        assert!(
+            public_key.verify(message, &wrong_signature).is_err(),
+            "Wrong signature should not verify"
+        );
+    }
+
+    #[test]
+    fn test_rsasha256_verify_signature() {
+        use base64::Engine;
+        use rand::rngs::OsRng;
+        use rsa::{
+            pkcs8::EncodePublicKey,
+            signature::{RandomizedSigner, SignatureEncoding},
+        };
+
+        use crate::consts::BASE64_ENGINE;
+
+        let mut rng = OsRng;
+
+        let bits = 2048;
+        let private_key = rsa::RsaPrivateKey::new(&mut rng, bits).expect("keygen failed");
+        let signing_key = rsa::pkcs1v15::SigningKey::<rsa::sha2::Sha256>::new(private_key.clone());
+
+        let message = "{ This is a test message :) }".as_bytes();
+
+        let signature = signing_key.sign_with_rng(&mut rng, message);
+        let encoded_signature = BASE64_ENGINE.encode(signature.to_bytes());
+
+        let rsa_public_key = private_key.to_public_key();
+        let pem_format_public_key = rsa_public_key
+            .to_public_key_pem(rsa::pkcs8::LineEnding::LF)
+            .expect("transformation failed");
+        let encoded_pub_key = BASE64_ENGINE.encode(&pem_format_public_key[..]);
+
+        let right_verified = super::RsaSha256
+            .verify_signature(
+                encoded_pub_key.as_bytes(),
+                encoded_signature.as_bytes(),
+                message,
+            )
+            .expect("Right signature verification result");
+
+        assert!(right_verified);
     }
 }

@@ -240,6 +240,7 @@ impl
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 AttemptStatus::Failure,
             ),
@@ -423,6 +424,7 @@ fn get_nmi_error_response(response: NmiCompleteResponse, http_code: u16) -> Erro
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -638,6 +640,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
                 | WalletData::SamsungPay(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -993,6 +996,7 @@ fn get_standard_error_response(response: StandardResponse, http_code: u16) -> Er
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

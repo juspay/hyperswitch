@@ -128,6 +128,10 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_only_connectors: HashSet<Connector>,
+
+    /// Set of connectors for which psync is disabled in unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_psync_disabled_connectors: HashSet<Connector>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -154,6 +158,23 @@ pub struct ConnectorAuthMetadata {
 
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
+}
+
+/// External Vault Proxy Related Metadata
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum ExternalVaultProxyMetadata {
+    /// VGS proxy data variant
+    VgsMetadata(VgsMetadata),
+}
+
+/// VGS proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VgsMetadata {
+    /// External vault url
+    pub proxy_url: Url,
+    /// CA certificates to verify the vault server
+    pub certificate: Secret<String>,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -206,13 +227,18 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
+        external_vault_proxy_metadata: Option<String>,
         grpc_headers: GrpcHeaders,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         let mut request = tonic::Request::new(payment_authorize_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers(
+            connector_auth_metadata,
+            external_vault_proxy_metadata,
+            grpc_headers,
+        )?;
+
         *request.metadata_mut() = metadata;
 
         self.client
@@ -241,8 +267,11 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_get_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers(
+            connector_auth_metadata,
+            None,
+            grpc_headers,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -271,8 +300,11 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_register_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers(
+            connector_auth_metadata,
+            None,
+            grpc_headers,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -302,8 +334,11 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_repeat_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers(
+            connector_auth_metadata,
+            None,
+            grpc_headers,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -331,8 +366,11 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(webhook_transform_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers(
+            connector_auth_metadata,
+            None,
+            grpc_headers,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -354,6 +392,7 @@ impl UnifiedConnectorServiceClient {
 /// Build the gRPC Headers for Unified Connector Service Request
 pub fn build_unified_connector_service_grpc_headers(
     meta: ConnectorAuthMetadata,
+    external_vault_proxy_metadata: Option<String>,
     grpc_headers: GrpcHeaders,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     let mut metadata = MetadataMap::new();
@@ -404,6 +443,13 @@ pub fn build_unified_connector_service_grpc_headers(
         common_utils_consts::X_MERCHANT_ID,
         parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
     );
+
+    if let Some(external_vault_proxy_metadata) = external_vault_proxy_metadata {
+        metadata.append(
+            consts::UCS_HEADER_EXTERNAL_VAULT_METADATA,
+            parse("external_vault_metadata", &external_vault_proxy_metadata)?,
+        );
+    };
 
     if let Err(err) = grpc_headers
         .tenant_id

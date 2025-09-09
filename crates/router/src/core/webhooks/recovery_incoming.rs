@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{collections::HashMap, marker::PhantomData, str::FromStr};
 
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
@@ -7,19 +7,25 @@ use common_utils::{
 };
 use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
+use futures::stream::SelectNextSome;
 use hyperswitch_domain_models::{
-    payments as domain_payments, revenue_recovery, router_data_v2::flow_common_types,
-    router_flow_types, router_request_types::revenue_recovery as revenue_recovery_request,
-    router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
+    payments as domain_payments,
+    revenue_recovery::{self, RecoveryPaymentIntent},
+    router_data_v2::flow_common_types,
+    router_flow_types,
+    router_request_types::revenue_recovery as revenue_recovery_request,
+    router_response_types::revenue_recovery as revenue_recovery_response,
+    types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use services::kafka;
+use storage::business_status;
 
 use crate::{
     core::{
-        admin,
+        self, admin,
         errors::{self, CustomResult},
         payments::{self, helpers},
     },
@@ -30,11 +36,19 @@ use crate::{
         connector_integration_interface::{self, RouterDataConversion},
     },
     types::{
-        self, api, domain, storage::revenue_recovery as storage_churn_recovery,
+        self, api, domain,
+        storage::{
+            revenue_recovery as storage_revenue_recovery,
+            revenue_recovery_redis_operation::{
+                PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, RedisTokenManager,
+            },
+        },
         transformers::ForeignFrom,
     },
     workflows::revenue_recovery as revenue_recovery_flow,
 };
+#[cfg(feature = "v2")]
+pub const REVENUE_RECOVERY: &str = "revenue_recovery";
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -228,6 +242,7 @@ async fn handle_monitoring_threshold(
     }
     Ok(webhooks::WebhookResponseTracker::NoEffect)
 }
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -244,6 +259,8 @@ async fn handle_schedule_failed_payment(
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
+
+    // When intent_retry_count is less than or equal to threshold
     (intent_retry_count <= mca_retry_threshold)
         .then(|| {
             logger::error!(
@@ -254,12 +271,13 @@ async fn handle_schedule_failed_payment(
             Ok(webhooks::WebhookResponseTracker::NoEffect)
         })
         .async_unwrap_or_else(|| async {
-            RevenueRecoveryAttempt::insert_execute_pcr_task(
-                &billing_connector_account.get_id(),
-                &*state.store,
-                merchant_context.get_merchant_account().get_id().to_owned(),
-                recovery_intent_from_payment_attempt.clone(),
-                business_profile.get_id().to_owned(),
+            // Call calculate_job
+            core::revenue_recovery::upsert_calculate_pcr_task(
+                billing_connector_account,
+                state,
+                merchant_context,
+                recovery_intent_from_payment_attempt,
+                business_profile,
                 intent_retry_count,
                 recovery_attempt_from_payment_attempt
                     .as_ref()
@@ -506,11 +524,15 @@ impl RevenueRecoveryAttempt {
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &domain::MerchantConnectorAccount,
+        card_info: api_payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<Self, errors::RevenueRecoveryError> {
         let revenue_recovery_data = payment_intent
             .create_revenue_recovery_attempt_data(
                 revenue_recovery_metadata.clone(),
                 billing_connector_account,
+                card_info,
+                payment_processor_token,
             )
             .change_context(errors::RevenueRecoveryError::RevenueRecoveryAttemptDataCreateFailed)
             .attach_printable("Failed to build recovery attempt data")?;
@@ -621,14 +643,15 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
+        let payment_connector_name = payment_connector_account
+            .as_ref()
+            .map(|account| account.connector_name);
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
                 billing_connector_account_id,
                 payment_connector_id,
-                payment_connector_account
-                    .as_ref()
-                    .map(|account| account.connector_name),
+                payment_connector_name,
                 common_enums::TriggeredBy::External,
             )
             .await?;
@@ -689,6 +712,16 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
+        self.store_payment_processor_tokens_in_redis(state, &response.0, payment_connector_name)
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(
+                    "Failed to store payment processor tokens in Redis: {:?}",
+                    e
+                );
+                errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
+            })?;
+
         Ok(response)
     }
 
@@ -713,6 +746,7 @@ impl RevenueRecoveryAttempt {
         };
 
         let card_info = revenue_recovery_attempt_data
+            .card_info
             .card_isin
             .clone()
             .async_and_then(|isin| async move {
@@ -726,8 +760,14 @@ impl RevenueRecoveryAttempt {
             })
             .await
             .flatten();
+        let payment_method_data = api_models::payments::RecordAttemptPaymentMethodDataRequest {
+            payment_method_data: api_models::payments::AdditionalPaymentData::Card(Box::new(
+                revenue_recovery_attempt_data.card_info.clone(),
+            )),
+            billing: None,
+        };
 
-        let card_issuer = card_info.and_then(|info| info.card_issuer);
+        let card_issuer = revenue_recovery_attempt_data.card_info.card_issuer.clone();
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
@@ -746,7 +786,7 @@ impl RevenueRecoveryAttempt {
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             billing_connector_id: billing_merchant_connector_account_id.clone(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: None,
+            payment_method_data: Some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
@@ -759,7 +799,7 @@ impl RevenueRecoveryAttempt {
             invoice_billing_started_at_time: revenue_recovery_attempt_data
                 .invoice_billing_started_at_time,
             triggered_by,
-            card_network: revenue_recovery_attempt_data.card_network,
+            card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
             card_issuer,
         })
     }
@@ -864,79 +904,75 @@ impl RevenueRecoveryAttempt {
         Ok(payment_attempt_with_recovery_intent)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn insert_execute_pcr_task(
-        billing_mca_id: &id_type::MerchantConnectorAccountId,
-        db: &dyn StorageInterface,
-        merchant_id: id_type::MerchantId,
-        payment_intent: revenue_recovery::RecoveryPaymentIntent,
-        profile_id: id_type::ProfileId,
-        intent_retry_count: u16,
-        payment_attempt_id: Option<id_type::GlobalAttemptId>,
-        runner: storage::ProcessTrackerRunner,
-        revenue_recovery_retry: api_enums::RevenueRecoveryAlgorithmType,
-    ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
-        let task = "EXECUTE_WORKFLOW";
+    /// Store payment processor tokens in Redis for retry management
+    async fn store_payment_processor_tokens_in_redis(
+        &self,
+        state: &SessionState,
+        recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
+        payment_connector_name: Option<common_enums::connector_enums::Connector>,
+    ) -> CustomResult<(), errors::RevenueRecoveryError> {
+        let revenue_recovery_attempt_data = &self.0;
+        let error_code = revenue_recovery_attempt_data.error_code.clone();
+        let error_message = revenue_recovery_attempt_data.error_message.clone();
+        let connector_name = payment_connector_name
+            .ok_or(errors::RevenueRecoveryError::TransactionWebhookProcessingFailed)
+            .attach_printable("unable to derive payment connector")?
+            .to_string();
 
-        let payment_id = payment_intent.payment_id.clone();
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            error_code.clone(),
+            error_message,
+            connector_name,
+            REVENUE_RECOVERY.to_string(),
+        )
+        .await;
 
-        let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
+        let is_hard_decline = gsm_record
+            .and_then(|record| record.error_category)
+            .map(|category| category == common_enums::ErrorCategory::HardDecline)
+            .unwrap_or(false);
 
-        let schedule_time = revenue_recovery_flow::get_schedule_time_to_retry_mit_payments(
-            db,
-            &merchant_id,
-            (intent_retry_count + 1).into(),
+        // Extract required fields from the revenue recovery attempt data
+        let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
+
+        let attempt_id = recovery_attempt.attempt_id.clone();
+        let token_unit = PaymentProcessorTokenStatus {
+            error_code,
+            inserted_by_attempt_id: attempt_id.clone(),
+            daily_retry_history: HashMap::from([(recovery_attempt.created_at.date(), 1)]),
+            scheduled_at: None,
+            is_hard_decline: Some(is_hard_decline),
+            payment_processor_token_details: PaymentProcessorTokenDetails {
+                payment_processor_token: revenue_recovery_attempt_data
+                    .processor_payment_method_token
+                    .clone(),
+                expiry_month: revenue_recovery_attempt_data
+                    .card_info
+                    .card_exp_month
+                    .clone(),
+                expiry_year: revenue_recovery_attempt_data
+                    .card_info
+                    .card_exp_year
+                    .clone(),
+                card_issuer: revenue_recovery_attempt_data.card_info.card_issuer.clone(),
+                last_four_digits: revenue_recovery_attempt_data.card_info.last4.clone(),
+                card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
+                card_type: revenue_recovery_attempt_data.card_info.card_type.clone(),
+            },
+        };
+
+        // Make the Redis call to store tokens
+        RedisTokenManager::upsert_payment_processor_token(
+            state,
+            &connector_customer_id,
+            token_unit,
         )
         .await
-        .map_or_else(
-            || {
-                Err(errors::RevenueRecoveryError::ScheduleTimeFetchFailed)
-                    .attach_printable("Failed to get schedule time for pcr workflow")
-            },
-            Ok, // Simply returns `time` wrapped in `Ok`
-        )?;
+        .change_context(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed)
+        .attach_printable("Failed to store payment processor tokens in Redis")?;
 
-        let payment_attempt_id = payment_attempt_id
-            .ok_or(report!(
-                errors::RevenueRecoveryError::PaymentAttemptIdNotFound
-            ))
-            .attach_printable("payment attempt id is required for pcr workflow tracking")?;
-
-        let execute_workflow_tracking_data =
-            storage_churn_recovery::RevenueRecoveryWorkflowTrackingData {
-                billing_mca_id: billing_mca_id.clone(),
-                global_payment_id: payment_id.clone(),
-                merchant_id,
-                profile_id,
-                payment_attempt_id,
-                revenue_recovery_retry,
-            };
-
-        let tag = ["PCR"];
-
-        let process_tracker_entry = storage::ProcessTrackerNew::new(
-            process_tracker_id,
-            task,
-            runner,
-            tag,
-            execute_workflow_tracking_data,
-            Some(intent_retry_count.into()),
-            schedule_time,
-            common_enums::ApiVersion::V2,
-        )
-        .change_context(errors::RevenueRecoveryError::ProcessTrackerCreationError)
-        .attach_printable("Failed to construct process tracker entry")?;
-
-        db.insert_process(process_tracker_entry)
-            .await
-            .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
-            .attach_printable("Failed to enter process_tracker_entry in DB")?;
-        metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
-
-        Ok(webhooks::WebhookResponseTracker::Payment {
-            payment_id,
-            status: payment_intent.status,
-        })
+        Ok(())
     }
 }
 

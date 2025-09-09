@@ -113,6 +113,7 @@ impl
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         };
         Ok(Self {
@@ -163,12 +164,15 @@ impl
                     .authentication_request
                     .as_ref()
                     .and_then(|req| req.three_ds_requestor_challenge_ind.as_ref())
-                    .and_then(|v| v.first().cloned());
+                    .and_then(|ind| match ind {
+                        ThreedsRequestorChallengeInd::Single(s) => Some(s.clone()),
+                        ThreedsRequestorChallengeInd::Multiple(v) => v.first().cloned(),
+                    });
 
                 let message_extension = response
-                    .authentication_request
+                    .authentication_response
+                    .message_extension
                     .as_ref()
-                    .and_then(|req| req.message_extension.as_ref())
                     .and_then(|v| match serde_json::to_value(v) {
                         Ok(val) => Some(Secret::new(val)),
                         Err(e) => {
@@ -203,6 +207,7 @@ impl
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         };
         Ok(Self {
@@ -678,8 +683,14 @@ pub struct NetceteraAuthenticationFailureResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationRequest {
     #[serde(rename = "threeDSRequestorChallengeInd")]
-    pub three_ds_requestor_challenge_ind: Option<Vec<String>>,
-    pub message_extension: Option<serde_json::Value>,
+    pub three_ds_requestor_challenge_ind: Option<ThreedsRequestorChallengeInd>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ThreedsRequestorChallengeInd {
+    Single(String),
+    Multiple(Vec<String>),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -694,6 +705,7 @@ pub struct AuthenticationResponse {
     pub ds_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
     pub trans_status_reason: Option<String>,
+    pub message_extension: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

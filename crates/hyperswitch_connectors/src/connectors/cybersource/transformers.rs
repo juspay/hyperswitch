@@ -267,6 +267,9 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 ),
                                 descriptor: None,
                             },
+                            tokenized_card: GooglePayTokenizedCard {
+                                transaction_type: TransactionType::InApp,
+                            },
                         },
                     )),
                     Some(PaymentSolution::GooglePay),
@@ -297,6 +300,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::PaypalRedirect(_)
                 | WalletData::PaypalSdk(_)
                 | WalletData::Paze(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
@@ -550,8 +554,15 @@ pub struct ApplePayPaymentInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MandatePaymentTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: CybersoucrePaymentInstrument,
+    tokenized_card: MandatePaymentTokenizedCard,
 }
 
 #[derive(Debug, Serialize)]
@@ -570,6 +581,13 @@ pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAP
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTokenPaymentInformation {
     fluid_data: FluidData,
+    tokenized_card: GooglePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTokenizedCard {
+    transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]
@@ -2056,6 +2074,9 @@ impl
                     ),
                     descriptor: None,
                 },
+                tokenized_card: GooglePayTokenizedCard {
+                    transaction_type: TransactionType::InApp,
+                },
             }));
         let processing_information =
             ProcessingInformation::try_from((item, Some(PaymentSolution::GooglePay), None))?;
@@ -2463,6 +2484,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::Mifinity(_)
                         | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2534,6 +2556,9 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
+                tokenized_card: MandatePaymentTokenizedCard {
+                    transaction_type: TransactionType::StoredCredentials,
+                },
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -3185,6 +3210,7 @@ impl<F>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     status: enums::AttemptStatus::AuthenticationFailed,
                     ..item.data
@@ -3597,6 +3623,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 });
                 Ok(Self {
                     response,
@@ -4496,6 +4523,7 @@ pub fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 

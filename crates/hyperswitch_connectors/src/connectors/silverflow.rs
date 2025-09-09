@@ -250,6 +250,7 @@ impl ConnectorCommon for Silverflow {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -958,7 +959,8 @@ static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static SILVERFLOW_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Silverflow",
     description: "Silverflow is a global payment processor that provides secure and reliable payment processing services with support for multiple capture methods and 3DS authentication.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static SILVERFLOW_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

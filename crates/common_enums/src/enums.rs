@@ -194,6 +194,10 @@ impl AttemptStatus {
             | Self::IntegrityFailure => false,
         }
     }
+
+    pub fn is_success(self) -> bool {
+        matches!(self, Self::Charged | Self::PartialCharged)
+    }
 }
 
 #[derive(
@@ -569,6 +573,28 @@ pub enum CallConnectorAction {
         error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
+    UCSHandleResponse(Vec<u8>),
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DocumentKind {
+    Cnpj,
+    Cpf,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -1962,6 +1988,7 @@ pub enum PaymentMethodType {
     BniVa,
     Breadpay,
     BriVa,
+    BhnCardNetwork,
     #[cfg(feature = "v2")]
     Card,
     CardRedirect,
@@ -2085,6 +2112,7 @@ impl PaymentMethodType {
             Self::BniVa => "BNI Virtual Account",
             Self::Breadpay => "Breadpay",
             Self::BriVa => "BRI Virtual Account",
+            Self::BhnCardNetwork => "BHN Card Network",
             Self::CardRedirect => "Card Redirect",
             Self::CimbVa => "CIMB Virtual Account",
             Self::ClassicReward => "Classic Reward",
@@ -2851,6 +2879,30 @@ pub enum RequestIncrementalAuthorization {
     True,
     #[default]
     False,
+    Default,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SplitTxnsEnabled {
+    Enable,
+    #[default]
+    Skip,
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
@@ -7655,6 +7707,10 @@ impl TransactionStatus {
             Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
         )
     }
+
+    pub fn is_terminal_state(self) -> bool {
+        matches!(self, Self::Success | Self::Failure)
+    }
 }
 
 #[derive(
@@ -7700,7 +7756,9 @@ pub enum PermissionGroup {
     ThemeManage,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, strum::EnumIter,
+)]
 pub enum ParentGroup {
     Operations,
     Connectors,
@@ -7714,7 +7772,7 @@ pub enum ParentGroup {
     Theme,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
@@ -7745,7 +7803,9 @@ pub enum Resource {
     Theme,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+#[derive(
+    Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize, Hash,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
     Read = 0,
@@ -8377,6 +8437,8 @@ pub enum ErrorCategory {
     ProcessorDeclineUnauthorized,
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
+    HardDecline,
+    SoftDecline,
 }
 
 impl ErrorCategory {
@@ -8385,7 +8447,9 @@ impl ErrorCategory {
             Self::ProcessorDowntime | Self::ProcessorDeclineUnauthorized => true,
             Self::IssueWithPaymentMethod
             | Self::ProcessorDeclineIncorrectData
-            | Self::FrmDecline => false,
+            | Self::FrmDecline
+            | Self::HardDecline
+            | Self::SoftDecline => false,
         }
     }
 }
@@ -8463,10 +8527,41 @@ pub enum AuthenticationProduct {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentConnectorCategory {
+pub enum HyperswitchConnectorCategory {
     PaymentGateway,
     AlternativePaymentMethod,
     BankAcquirer,
+    PayoutProcessor,
+    AuthenticationProvider,
+    FraudAndRiskManagementProvider,
+    TaxCalculationProvider,
+    RevenueGrowthManagementPlatform,
+}
+
+/// Connector Integration Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorIntegrationStatus {
+    /// Connector is integrated and live on production
+    Live,
+    /// Connector is integrated and fully tested on sandbox
+    Sandbox,
+    /// Connector is integrated and partially tested on sandbox
+    Beta,
+    /// Connector is integrated using the online documentation but not tested yet
+    Alpha,
 }
 
 /// The status of the feature
