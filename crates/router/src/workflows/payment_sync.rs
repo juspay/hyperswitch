@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -9,8 +11,6 @@ use scheduler::{
 
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::AsyncExt;
 use crate::{
     consts,
     core::{

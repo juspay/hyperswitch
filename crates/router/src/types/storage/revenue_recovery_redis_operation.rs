@@ -69,16 +69,11 @@ pub struct PaymentProcessorTokenWithRetryInfo {
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
-
-    fn get_connector_customer_lock_key(
-        connector_customer_id: &str,
-    ) -> String {
+    fn get_connector_customer_lock_key(connector_customer_id: &str) -> String {
         format!("customer:{connector_customer_id}:status")
     }
 
-    fn get_connector_customer_tokens_key(
-        connector_customer_id: &str,
-    ) -> String {
+    fn get_connector_customer_tokens_key(connector_customer_id: &str) -> String {
         format!("customer:{connector_customer_id}:tokens")
     }
 
