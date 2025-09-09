@@ -85,6 +85,7 @@ pub struct PaymentsAuthorizeData {
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 

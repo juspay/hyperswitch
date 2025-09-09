@@ -1004,6 +1004,7 @@ impl Default for PaymentAuthorizeType {
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
             feature_metadata: None,
         };
         Self(data)
