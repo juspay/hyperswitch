@@ -6,6 +6,7 @@ pub mod models {
     use masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
+
     // Import vault metadata processing trait at top level
     use crate::vault_metadata::VaultMetadataExtractorExt;
 
@@ -134,14 +135,22 @@ pub mod models {
 
             // Extract headers
             let headers: Option<HashMap<String, String>> = {
-                let header_map: HashMap<String, String> = self.headers()
+                let header_map: HashMap<String, String> = self
+                    .headers()
                     .iter()
                     .filter_map(|(name, value)| {
-                        value.to_str().ok().map(|v| (name.to_string(), v.to_string()))
+                        value
+                            .to_str()
+                            .ok()
+                            .map(|v| (name.to_string(), v.to_string()))
                     })
                     .collect();
-                
-                if header_map.is_empty() { None } else { Some(header_map) }
+
+                if header_map.is_empty() {
+                    None
+                } else {
+                    Some(header_map)
+                }
             };
 
             let response_text = self
@@ -249,7 +258,6 @@ pub mod models {
             }
         }
     }
-
 }
 
 pub use models::*;
