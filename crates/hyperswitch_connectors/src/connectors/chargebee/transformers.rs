@@ -36,6 +36,8 @@ use crate::{
 // SubscriptionCreate structures
 #[derive(Debug, Serialize)]
 pub struct ChargebeeSubscriptionCreateRequest {
+    #[serde(rename = "id")]
+    pub subscription_id: String,
     #[serde(rename = "subscription_items[item_price_id][0]")]
     pub item_price_id: String,
     #[serde(rename = "subscription_items[quantity][0]")]
@@ -72,34 +74,17 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
                     field_name: "subscription_items",
                 })?;
 
+        let address = req.billing_address.address.as_ref();
+
         Ok(Self {
+            subscription_id: req.subscription_id.clone(),
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: req
-                .billing_address
-                .address
-                .as_ref()
-                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
-            billing_address_city: req
-                .billing_address
-                .address
-                .as_ref()
-                .and_then(|addr| addr.city.clone()),
-            billing_address_state: req
-                .billing_address
-                .address
-                .as_ref()
-                .and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
-            billing_address_zip: req
-                .billing_address
-                .address
-                .as_ref()
-                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
-            billing_address_country: req
-                .billing_address
-                .address
-                .as_ref()
-                .and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_line1: address.and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+            billing_address_city: address.and_then(|addr| addr.city.clone()),
+            billing_address_state: address.and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+            billing_address_zip: address.and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+            billing_address_country: address.and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
         })
     }

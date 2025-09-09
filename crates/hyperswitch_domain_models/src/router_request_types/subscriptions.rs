@@ -23,6 +23,7 @@ pub struct SubscriptionItem {
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateRequest {
     pub customer_id: String,
+    pub subscription_id: String,
     pub subscription_items: Vec<SubscriptionItem>,
     pub billing_address: Address,
     pub auto_collection: String,
