@@ -1456,6 +1456,7 @@ pub async fn get_translated_unified_code_and_message(
 }
 
 pub async fn get_additional_payout_data(
+    state: SessionState,
     pm_data: &api::PayoutMethodData,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
@@ -1463,18 +1464,30 @@ pub async fn get_additional_payout_data(
     match pm_data {
         api::PayoutMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
-
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            use open_feature::EvaluationContext;
+            let context = EvaluationContext {
+                custom_fields: std::collections::HashMap::from([(
+                    "profile_id".to_string(),
+                    open_feature::EvaluationContextFieldValue::String(
+                        profile_id.get_string_repr().to_string(),
+                    ),
+                )]),
+                targeting_key: Some(profile_id.get_string_repr().to_string()),
             };
+            let mut enable_extended_bin = false;
+            if let Some(superposition_client) = &state.superposition_client {
+                enable_extended_bin = superposition_client
+                    .get_bool_value("extended_card_bin_enabled", Some(&context), None)
+                    .await
+                    .unwrap_or(false);
+            }
+
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
+            };
+
             let last4 = Some(card_data.card_number.get_last4());
 
             let card_info = card_isin

@@ -480,6 +480,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone());
 
+        let cloned_state = state.clone();
         let store = state.clone().store;
         let profile_id = payment_intent
             .profile_id
@@ -492,8 +493,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
+                        let payment_method_data_domain = payment_method_data.into();
                         helpers::get_additional_payment_data(
-                            &payment_method_data.into(),
+                            cloned_state.clone(),
+                            &payment_method_data_domain,
                             store.as_ref(),
                             &profile_id,
                         )
@@ -1752,8 +1755,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, &*state.store, profile_id)
-                    .await
+                helpers::get_additional_payment_data(
+                    state.clone(),
+                    payment_method_data,
+                    &*state.store,
+                    profile_id,
+                )
+                .await
             })
             .await
             .transpose()?

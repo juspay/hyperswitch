@@ -168,6 +168,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub superposition: SecretStateContainer<Superposition, S>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -214,6 +215,15 @@ pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
     pub global_tenant: GlobalTenant,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Superposition {
+    pub enabled: bool,
+    pub endpoint: String,
+    pub org_id: String,
+    pub workspace_id: String,
+    pub token: Secret<String>,
 }
 
 impl Multitenancy {

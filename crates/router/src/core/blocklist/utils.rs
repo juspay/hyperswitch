@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
@@ -49,38 +51,56 @@ pub async fn toggle_blocklist_guard_for_merchant(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = merchant_id.get_blocklist_guard_key();
-    let maybe_guard = state.store.find_config_by_key(&key).await;
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
+    let mut maybe_guard = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        maybe_guard = superposition_client
+            .get_bool_value("blocklist_guard_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
+    }
     let new_config = configs::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
     };
-    match maybe_guard {
-        Ok(_config) => {
-            let updated_config = configs::ConfigUpdate::Update {
-                config: Some(query.status.to_string()),
-            };
-            state
-                .store
-                .update_config_by_key(&key, updated_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error enabling the blocklist guard")?;
+    if maybe_guard {
+        let updated_config = configs::ConfigUpdate::Update {
+            config: Some(query.status.to_string()),
+        };
+        match state.store.update_config_by_key(&key, updated_config).await {
+            Ok(_) => {}
+            Err(e) if e.current_context().is_db_not_found() => {
+                state
+                    .store
+                    .insert_config(new_config)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error enabling the blocklist guard")?;
+            }
+            Err(error) => {
+                logger::error!(?error);
+                Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error enabling the blocklist guard")?;
+            }
         }
-        Err(e) if e.current_context().is_db_not_found() => {
-            state
-                .store
-                .insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error enabling the blocklist guard")?;
-        }
-        Err(error) => {
-            logger::error!(?error);
-            Err(error)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error enabling the blocklist guard")?;
-        }
-    };
+    } else {
+        state
+            .store
+            .insert_config(new_config)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error enabling the blocklist guard")?;
+    }
     let guard_status = if query.status { "enabled" } else { "disabled" };
     Ok(api_blocklist::ToggleBlocklistResponse {
         blocklist_guard_status: guard_status.to_string(),

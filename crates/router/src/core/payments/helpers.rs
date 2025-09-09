@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    net::IpAddr,
+    str::FromStr,
+};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -2061,26 +2066,22 @@ pub fn decide_payment_method_retrieval_action(
 }
 
 pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
-    let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
-        .await
-        .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to fetch `{config_key}` UCS enabled config from DB"
-            );
-        })
-        .ok()
-        .and_then(|config| {
-            config
-                .config
-                .parse::<bool>()
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
-                })
-                .ok()
-        })
-        .unwrap_or(false)
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "ucs_enabled".to_string(),
+            open_feature::EvaluationContextFieldValue::String(config_key.to_string()),
+        )]),
+        targeting_key: Some(config_key.to_string()),
+    };
+    let mut ucs_enabled = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        ucs_enabled = superposition_client
+            .get_bool_value("ucs_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
+    }
+    ucs_enabled
 }
 
 pub async fn should_execute_based_on_rollout(
@@ -4830,6 +4831,7 @@ mod test {
 
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
+    state: SessionState,
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
@@ -4841,17 +4843,29 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            use open_feature::EvaluationContext;
+            let context = EvaluationContext {
+                custom_fields: HashMap::from([(
+                    "profile_id".to_string(),
+                    open_feature::EvaluationContextFieldValue::String(
+                        profile_id.get_string_repr().to_string(),
+                    ),
+                )]),
+                targeting_key: Some(profile_id.get_string_repr().to_string()),
+            };
+            let mut enable_extended_bin = false;
+            if let Some(superposition_client) = &state.superposition_client {
+                enable_extended_bin = superposition_client
+                    .get_bool_value("extended_card_bin_enabled", Some(&context), None)
+                    .await
+                    .unwrap_or(false);
+            }
+
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -5170,17 +5184,29 @@ pub async fn get_additional_payment_data(
         )),
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            use open_feature::EvaluationContext;
+            let context = EvaluationContext {
+                custom_fields: HashMap::from([(
+                    "profile_id".to_string(),
+                    open_feature::EvaluationContextFieldValue::String(
+                        profile_id.get_string_repr().to_string(),
+                    ),
+                )]),
+                targeting_key: Some(profile_id.get_string_repr().to_string()),
+            };
+            let mut enable_extended_bin = false;
+            if let Some(superposition_client) = &state.superposition_client {
+                enable_extended_bin = superposition_client
+                    .get_bool_value("extended_card_bin_enabled", Some(&context), None)
+                    .await
+                    .unwrap_or(false);
+            }
+
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             let card_network = match card_data
@@ -7256,7 +7282,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let merchant_connector_account_details_hash_map: std::collections::HashMap<
+    let merchant_connector_account_details_hash_map: HashMap<
         id_type::MerchantConnectorAccountId,
         domain::MerchantConnectorAccount,
     > = merchant_connector_account_list
@@ -7504,29 +7530,24 @@ pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let merchants_eligible_for_authentication_service = state
-        .store
-        .as_ref()
-        .find_config_by_key_unwrap_or(
-            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
-            Some("[]".to_string()),
-        )
-        .await;
-
-    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
-        Ok(config) => serde_json::from_str(&config.config)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?,
-        Err(err) => {
-            logger::error!(
-                "Error fetching authentication service enabled merchant config {:?}",
-                err
-            );
-            Vec::new()
-        }
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
-
-    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+    let mut authentication_service = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        authentication_service = superposition_client
+            .get_bool_value("authentication_service_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
+    }
+    Ok(authentication_service)
 }
 
 #[cfg(feature = "v1")]
@@ -7623,17 +7644,29 @@ async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
-    let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
 
-    match update_enabled {
-        Ok(conf) => conf.config.to_lowercase() == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
+    let mut update_enabled = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        update_enabled = superposition_client
+            .get_bool_value(
+                "payment_update_enabled_for_client_auth",
+                Some(&context),
+                None,
+            )
+            .await
+            .unwrap_or(false);
     }
+    update_enabled
 }
 
 pub async fn allow_payment_update_enabled_for_client_auth(

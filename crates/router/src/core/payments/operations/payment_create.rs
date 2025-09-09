@@ -1148,6 +1148,7 @@ impl PaymentCreate {
             })
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
+                    state.clone(),
                     &payment_method_data.into(),
                     &*state.store,
                     &profile_id,

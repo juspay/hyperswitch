@@ -981,7 +981,7 @@ where
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
                         let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
+                            state,
                             merchant_context.get_merchant_account().get_id(),
                             &business_profile,
                         )
@@ -5898,23 +5898,24 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = merchant_context.get_merchant_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-        .await;
 
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
+    use open_feature::EvaluationContext;
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
     };
+    let mut blocklist_guard_enabled = false;
+    if let Some(superposition_client) = &state.superposition_client {
+        blocklist_guard_enabled = superposition_client
+            .get_bool_value("blocklist_guard_enabled", Some(&context), None)
+            .await
+            .unwrap_or(false);
+    }
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -8744,7 +8745,7 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
-                &*state.store,
+                &state,
                 merchant_context.get_merchant_account().get_id(),
                 business_profile,
             )

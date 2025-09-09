@@ -45,6 +45,8 @@ tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2"
 partial-auth = []
 
 [dependencies]
+superposition_provider = { git = "https://github.com/juspay/superposition", branch="main"}
+open-feature = "0.2.5"
 actix-cors = "0.6.5"
 actix-http = "3.11.0"
 actix-multipart = "0.6.2"

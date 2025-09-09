@@ -4127,21 +4127,26 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
+    use open_feature::EvaluationContext;
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let context = EvaluationContext {
+        custom_fields: HashMap::from([(
+            "merchant_id".to_string(),
+            open_feature::EvaluationContextFieldValue::String(
+                merchant_id.get_string_repr().to_string(),
+            ),
+        )]),
+        targeting_key: Some(merchant_id.get_string_repr().to_string()),
+    };
+    let mut requires_cvv = true;
+    if let Some(superposition_client) = &state.superposition_client {
+        requires_cvv = superposition_client
+            .get_bool_value("cvv_enabled", Some(&context), None)
+            .await
+            .unwrap_or(true);
+    }
 
-    let requires_cvv = is_requires_cvv.config != "false";
-
-    let resp = db
+    let resp: Vec<hyperswitch_domain_models::payment_methods::PaymentMethod> = db
         .find_payment_method_by_customer_id_merchant_id_status(
             &(state.into()),
             merchant_context.get_merchant_key_store(),
