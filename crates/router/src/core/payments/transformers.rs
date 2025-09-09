@@ -427,6 +427,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: None,
+        enable_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1548,6 +1549,9 @@ where
     let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
+        let merchant_tax_registration_id = merchant_context
+            .get_merchant_account()
+            .get_merchant_tax_registration_id();
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
@@ -1590,6 +1594,7 @@ where
                 .as_ref()
                 .and_then(|addr| addr.address.as_ref())
                 .and_then(|details| details.city.clone()),
+            merchant_tax_registration_id,
         }
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
@@ -2232,6 +2237,7 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
+                split_txns_enabled: payment_intent.split_txns_enabled,
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
@@ -3398,6 +3404,8 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
+            enable_overcapture: payment_intent.enable_overcapture,
+            is_overcapture_enabled: payment_attempt.is_overcapture_enabled,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3695,6 +3703,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
+            enable_overcapture: pi.enable_overcapture,
+            is_overcapture_enabled: pa.is_overcapture_enabled,
         }
     }
 }
@@ -4026,6 +4036,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         })
     }
 }
@@ -4259,6 +4270,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }
 }
@@ -5956,38 +5968,67 @@ impl ForeignFrom<diesel_models::ConnectorTokenDetails>
     }
 }
 
-impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
-    for Option<enums::PaymentMethodType>
+impl
+    ForeignFrom<(
+        Self,
+        Option<&api_models::payments::AdditionalPaymentData>,
+        Option<enums::PaymentMethod>,
+    )> for Option<enums::PaymentMethodType>
 {
-    fn foreign_from(req: (Self, Option<&api_models::payments::AdditionalPaymentData>)) -> Self {
-        let (payment_method_type, additional_pm_data) = req;
-        additional_pm_data
-            .and_then(|pm_data| {
-                if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
-                    card_info.card_type.as_ref().and_then(|card_type_str| {
-                        api_models::enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
-                            crate::logger::error!(
-                                "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
-                                err,
-                                card_type_str,
-                            );
-                        }).ok()
-                    })
-                } else {
-                    None
-                }
-            })
-            .map_or(payment_method_type, |card_type_in_bin_store| {
-                if let Some(card_type_in_req) = payment_method_type {
-                    if card_type_in_req != card_type_in_bin_store {
-                        crate::logger::info!(
-                            "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
-                            card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
-                        );
+    fn foreign_from(
+        req: (
+            Self,
+            Option<&api_models::payments::AdditionalPaymentData>,
+            Option<enums::PaymentMethod>,
+        ),
+    ) -> Self {
+        let (payment_method_type, additional_pm_data, payment_method) = req;
+
+        match (additional_pm_data, payment_method, payment_method_type) {
+            (
+                Some(api_models::payments::AdditionalPaymentData::Card(card_info)),
+                Some(enums::PaymentMethod::Card),
+                original_type,
+            ) => {
+                let bin_card_type = card_info.card_type.as_ref().and_then(|card_type_str| {
+                    let normalized_type = card_type_str.trim().to_lowercase();
+                    if normalized_type.is_empty() {
+                        return None;
                     }
+                    api_models::enums::PaymentMethodType::from_str(&normalized_type)
+                        .map_err(|_| {
+                            crate::logger::warn!("Invalid BIN card_type: '{}'", card_type_str);
+                        })
+                        .ok()
+                });
+
+                match (original_type, bin_card_type) {
+                    // Override when there's a mismatch
+                    (
+                        Some(
+                            original @ (enums::PaymentMethodType::Debit
+                            | enums::PaymentMethodType::Credit),
+                        ),
+                        Some(bin_type),
+                    ) if original != bin_type => {
+                        crate::logger::info!("BIN lookup override: {} -> {}", original, bin_type);
+                        bin_card_type
+                    }
+                    // Use BIN lookup if no original type exists
+                    (None, Some(bin_type)) => {
+                        crate::logger::info!(
+                            "BIN lookup override: No original payment method type, using BIN result={}",
+                            bin_type
+                        );
+                        Some(bin_type)
+                    }
+                    // Default
+                    _ => original_type,
                 }
-                Some(card_type_in_bin_store)
-            })
+            }
+            // Skip BIN lookup for non-card payments
+            _ => payment_method_type,
+        }
     }
 }
 

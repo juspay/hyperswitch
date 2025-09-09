@@ -198,8 +198,10 @@ services:
       - "9000:9000"
     environment:
       - configPath=/tmp/dashboard-config.toml
+      - themeConfigPath=/tmp/dashboard-theme.json
     volumes:
       - ./config/dashboard.toml:/tmp/dashboard-config.toml
+      - ./config/dashboard_theme.json:/tmp/dashboard-theme.json
     depends_on:
       hyperswitch-server:
         condition: service_healthy

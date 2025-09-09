@@ -521,6 +521,7 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                is_overcapture_enabled: None,
             };
 
             #[cfg(feature = "v1")]

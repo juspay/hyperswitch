@@ -1022,6 +1022,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.mandate_id,
         )?;
 
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &request.capture_method,
+        )?;
+
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
@@ -1266,6 +1271,7 @@ impl PaymentCreate {
         let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         // TODO: remove once https://github.com/juspay/hyperswitch/issues/7421 is fixed
@@ -1630,6 +1636,7 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
+            enable_overcapture: request.enable_overcapture,
         })
     }
 

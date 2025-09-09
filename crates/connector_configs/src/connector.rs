@@ -149,6 +149,7 @@ pub struct ConfigMetadata {
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
+    pub account_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -481,6 +482,7 @@ impl ConnectorConfig {
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
+            Connector::Paysafe => Ok(connector_data.paysafe),
             Connector::Paystack => Ok(connector_data.paystack),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),

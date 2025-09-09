@@ -1588,6 +1588,9 @@ impl AddressDetailsData for AddressDetails {
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
             )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
             _ => Ok(state.clone()),
         }
     }
@@ -2411,6 +2414,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
@@ -2421,6 +2425,11 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_data"))
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
@@ -6316,6 +6325,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: data.request.enable_partial_authorization,
+        enable_overcapture: None,
     }
 }
 
