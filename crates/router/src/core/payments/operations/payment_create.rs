@@ -1266,6 +1266,7 @@ impl PaymentCreate {
         let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         // TODO: remove once https://github.com/juspay/hyperswitch/issues/7421 is fixed

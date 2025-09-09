@@ -1098,6 +1098,10 @@ impl NetAmount {
             + self.tax_on_surcharge.unwrap_or_default()
     }
 
+    pub fn get_additional_amount(&self) -> MinorUnit {
+        self.get_total_amount() - self.get_order_amount()
+    }
+
     pub fn set_order_amount(&mut self, order_amount: MinorUnit) {
         self.order_amount = order_amount;
     }
@@ -2818,6 +2822,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
+                connector_payment_data: None,
                 connector: Some(connector),
                 redirection_data: None,
                 connector_metadata: None,
@@ -2838,34 +2843,43 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id,
                 amount_capturable,
                 updated_by,
-            } => Self {
-                status: Some(status),
-                payment_method_id: None,
-                error_message: Some(error.message),
-                error_code: Some(error.code),
-                modified_at: common_utils::date_time::now(),
-                browser_info: None,
-                payment_token: None,
-                error_reason: error.reason,
-                updated_by,
-                merchant_connector_id: None,
-                unified_code: None,
-                unified_message: None,
-                connector_payment_id,
-                connector: None,
-                redirection_data: None,
-                connector_metadata: None,
-                amount_capturable,
-                amount_to_capture: None,
-                connector_token_details: None,
-                authentication_type: None,
-                feature_metadata: None,
-                network_advice_code: error.network_advice_code,
-                network_decline_code: error.network_decline_code,
-                network_error_message: error.network_error_message,
-                connector_request_reference_id: None,
-                connector_response_reference_id: None,
-            },
+            } => {
+                // Apply automatic hashing for long connector payment IDs
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
+
+                Self {
+                    status: Some(status),
+                    payment_method_id: None,
+                    error_message: Some(error.message),
+                    error_code: Some(error.code),
+                    modified_at: common_utils::date_time::now(),
+                    browser_info: None,
+                    payment_token: None,
+                    error_reason: error.reason,
+                    updated_by,
+                    merchant_connector_id: None,
+                    unified_code: None,
+                    unified_message: None,
+                    connector_payment_id,
+                    connector_payment_data,
+                    connector: None,
+                    redirection_data: None,
+                    connector_metadata: None,
+                    amount_capturable,
+                    amount_to_capture: None,
+                    connector_token_details: None,
+                    authentication_type: None,
+                    feature_metadata: None,
+                    network_advice_code: error.network_advice_code,
+                    network_decline_code: error.network_decline_code,
+                    network_error_message: error.network_error_message,
+                    connector_request_reference_id: None,
+                    connector_response_reference_id: None,
+                }
+            }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
                     status,
@@ -2877,6 +2891,12 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_token_details,
                     connector_response_reference_id,
                 } = *confirm_intent_response_update;
+
+                // Apply automatic hashing for long connector payment IDs
+                let (connector_payment_id, connector_payment_data) = connector_payment_id
+                    .map(ConnectorTransactionId::form_id_and_data)
+                    .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                    .unwrap_or((None, None));
                 Self {
                     status: Some(status),
                     payment_method_id: None,
@@ -2892,6 +2912,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     unified_code: None,
                     unified_message: None,
                     connector_payment_id,
+                    connector_payment_data,
                     connector: None,
                     redirection_data: redirection_data
                         .map(diesel_models::payment_attempt::RedirectForm::from),
@@ -2926,6 +2947,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
+                connector_payment_data: None,
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
@@ -2959,6 +2981,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
+                connector_payment_data: None,
                 connector: None,
                 redirection_data: None,
                 connector_metadata: None,
@@ -2988,6 +3011,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
+                connector_payment_data: None,
                 connector: None,
                 redirection_data: None,
                 status: None,
@@ -3024,6 +3048,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
+                connector_payment_data: None,
                 connector: Some(connector),
                 redirection_data: None,
                 connector_metadata: None,

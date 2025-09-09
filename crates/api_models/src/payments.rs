@@ -643,6 +643,10 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = RequestIncrementalAuthorization)]
     pub request_incremental_authorization: common_enums::RequestIncrementalAuthorization,
 
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_on: PrimitiveDateTime,
@@ -3812,73 +3816,108 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
+    /// The wallet data for Ali Pay HK redirect
+    #[schema(title = "AliPayHkRedirect")]
+    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Ali Pay QrCode
+    #[schema(title = "AliPayQr")]
     AliPayQr(Box<AliPayQr>),
     /// The wallet data for Ali Pay redirect
+    #[schema(title = "AliPayRedirect")]
     AliPayRedirect(AliPayRedirection),
-    /// The wallet data for Ali Pay HK redirect
-    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Amazon Pay
+    #[schema(title = "AmazonPay")]
     AmazonPay(AmazonPayWalletData),
     /// The wallet data for Amazon Pay redirect
+    #[schema(title = "AmazonPayRedirect")]
     AmazonPayRedirect(AmazonPayRedirectData),
-    /// The wallet data for Bluecode QR Code Redirect
-    BluecodeRedirect {},
-    /// The wallet data for Skrill
-    Skrill(SkrillData),
-    /// The wallet data for Paysera
-    Paysera(PayseraData),
-    /// The wallet data for Momo redirect
-    MomoRedirect(MomoRedirection),
-    /// The wallet data for KakaoPay redirect
-    KakaoPayRedirect(KakaoPayRedirection),
-    /// The wallet data for GoPay redirect
-    GoPayRedirect(GoPayRedirection),
-    /// The wallet data for Gcash redirect
-    GcashRedirect(GcashRedirection),
     /// The wallet data for Apple pay
+    #[schema(title = "ApplePay")]
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
+    #[schema(title = "ApplePayRedirect")]
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
+    #[schema(title = "ApplePayThirdPartySdk")]
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// The wallet data for Bluecode QR Code Redirect
+    #[schema(title = "BluecodeRedirect")]
+    BluecodeRedirect {},
+    /// The wallet data for Cashapp Qr
+    #[schema(title = "CashappQr")]
+    CashappQr(Box<CashappQr>),
     /// Wallet data for DANA redirect flow
+    #[schema(title = "DanaRedirect")]
     DanaRedirect {},
+    /// The wallet data for Gcash redirect
+    #[schema(title = "GcashRedirect")]
+    GcashRedirect(GcashRedirection),
+    /// The wallet data for GoPay redirect
+    #[schema(title = "GoPayRedirect")]
+    GoPayRedirect(GoPayRedirection),
     /// The wallet data for Google pay
+    #[schema(title = "GooglePay")]
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
+    #[schema(title = "GooglePayRedirect")]
     GooglePayRedirect(Box<GooglePayRedirectData>),
     /// Wallet data for Google pay third party sdk flow
+    #[schema(title = "GooglePayThirdPartySdk")]
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
+    /// The wallet data for KakaoPay redirect
+    #[schema(title = "KakaoPayRedirect")]
+    KakaoPayRedirect(KakaoPayRedirection),
+    /// Wallet data for MbWay redirect flow
+    #[schema(title = "MbWayRedirect")]
     MbWayRedirect(Box<MbWayRedirection>),
+    // The wallet data for Mifinity Ewallet
+    #[schema(title = "Mifinity")]
+    Mifinity(MifinityData),
     /// The wallet data for MobilePay redirect
+    #[schema(title = "MobilePayRedirect")]
     MobilePayRedirect(Box<MobilePayRedirection>),
+    /// The wallet data for Momo redirect
+    #[schema(title = "MomoRedirect")]
+    MomoRedirect(MomoRedirection),
     /// This is for paypal redirection
+    #[schema(title = "PaypalRedirect")]
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
+    #[schema(title = "PaypalSdk")]
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Paysera
+    #[schema(title = "Paysera")]
+    Paysera(PayseraData),
     /// The wallet data for Paze
+    #[schema(title = "Paze")]
     Paze(PazeWalletData),
+    // The wallet data for RevolutPay
+    #[schema(title = "RevolutPay")]
+    RevolutPay(RevolutPayData),
     /// The wallet data for Samsung Pay
+    #[schema(title = "SamsungPay")]
     SamsungPay(Box<SamsungPayWalletData>),
+    /// The wallet data for Skrill
+    #[schema(title = "Skrill")]
+    Skrill(SkrillData),
+    // The wallet data for Swish
+    #[schema(title = "SwishQr")]
+    SwishQr(SwishQrData),
+    /// The wallet data for Touch n Go Redirection
+    #[schema(title = "TouchNGoRedirect")]
+    TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// Wallet data for Twint Redirection
+    #[schema(title = "TwintRedirect")]
     TwintRedirect {},
     /// Wallet data for Vipps Redirection
+    #[schema(title = "VippsRedirect")]
     VippsRedirect {},
-    /// The wallet data for Touch n Go Redirection
-    TouchNGoRedirect(Box<TouchNGoRedirection>),
-    /// The wallet data for WeChat Pay Redirection
-    WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay Display QrCode
+    #[schema(title = "WeChatPayQr")]
     WeChatPayQr(Box<WeChatPayQr>),
-    /// The wallet data for Cashapp Qr
-    CashappQr(Box<CashappQr>),
-    // The wallet data for Swish
-    SwishQr(SwishQrData),
-    // The wallet data for Mifinity Ewallet
-    Mifinity(MifinityData),
-    // The wallet data for RevolutPay
-    RevolutPay(RevolutPayData),
+    /// The wallet data for WeChat Pay Redirection
+    #[schema(title = "WeChatPayRedirect")]
+    WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -4260,11 +4299,44 @@ pub struct RewardData {
     pub merchant_id: id_type::MerchantId,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BoletoVoucherData {
-    /// The shopper's social security number
+    /// The shopper's social security number (CPF or CNPJ)
     #[schema(value_type = Option<String>)]
     pub social_security_number: Option<Secret<String>>,
+
+    /// The shopper's bank account number associated with the boleto
+    #[schema(value_type = Option<String>)]
+    pub bank_number: Option<Secret<String>>,
+
+    /// The type of identification document used (e.g., CPF or CNPJ)
+    #[schema(value_type = Option<DocumentKind>, example = "Cpf", default = "Cnpj")]
+    pub document_type: Option<common_enums::DocumentKind>,
+
+    /// The fine percentage charged if payment is overdue
+    #[schema(value_type = Option<String>)]
+    pub fine_percentage: Option<String>,
+
+    /// The number of days after the due date when the fine is applied
+    #[schema(value_type = Option<String>)]
+    pub fine_quantity_days: Option<String>,
+
+    /// The interest percentage charged on late payments
+    #[schema(value_type = Option<String>)]
+    pub interest_percentage: Option<String>,
+
+    /// The number of days after which the boleto is written off (canceled)
+    #[schema(value_type = Option<String>)]
+    pub write_off_quantity_days: Option<String>,
+
+    /// Custom messages or instructions to display on the boleto
+    #[schema(value_type = Option<Vec<String>>)]
+    pub messages: Option<Vec<String>>,
+
+    // #[serde(with = "common_utils::custom_serde::date_yyyy_mm_dd::option")]
+    #[schema(value_type = Option<String>, format = "date", example = "2025-08-22")]
+    // The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4975,6 +5047,8 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
+    /// Voucher entry date
+    pub entry_date: Option<String>,
     /// Voucher expiry date and time
     pub expires_at: Option<i64>,
     /// Reference number required for the transaction
@@ -4983,6 +5057,8 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
+    /// Human-readable numeric version of the barcode.
+    pub digitable_line: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
