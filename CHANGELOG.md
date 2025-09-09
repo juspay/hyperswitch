@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.03.0-hotfix3
+
+### Bug Fixes
+
+- **api_locking:** Add delay between api-locking retries ([#9325](https://github.com/juspay/hyperswitch/pull/9325)) ([`8ded9d1`](https://github.com/juspay/hyperswitch/commit/8ded9d11889ace9fcc55ff3f33be483a10d7a7bc))
+
+**Full Changelog:** [`2025.09.03.0-hotfix2...2025.09.03.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.09.03.0-hotfix2...2025.09.03.0-hotfix3)
+
+- - -
+
 ## 2025.09.03.0-hotfix2
 
 ### Features
