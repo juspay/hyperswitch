@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         refunds::{Execute, RSync},
-        Authorize, Capture, PSync, PostCaptureVoid, SetupMandate, Void,
+        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, SetupMandate, Void,
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, BrowserInformation, PaymentsAuthorizeData,
@@ -40,6 +40,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
 use url::Url;
 
 use crate::{
@@ -49,7 +50,8 @@ use crate::{
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, ForeignTryFrom, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        PaymentsCancelRequestData, PaymentsPreProcessingRequestData,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -74,6 +76,7 @@ const CHALLENGE_PREFERENCE: &str = "01";
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
     fn get_related_transaction_id(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Option<String>;
     fn get_is_moto(&self) -> Option<bool>;
     fn get_connector_mandate_id(&self) -> Option<String>;
     fn get_return_url_required(
@@ -117,6 +120,10 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         self.customer_id.clone()
     }
 
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
     fn get_connector_mandate_id(&self) -> Option<String> {
         self.mandate_id.as_ref().and_then(|mandate_ids| {
             mandate_ids.mandate_reference_id.as_ref().and_then(
@@ -133,20 +140,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_return_url_required(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        let return_url = self
-            .router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))?;
-
-        // Replace localhost URLs with the hardcoded telebit.io URL
-        let modified_url = return_url
-            .replace(
-                "http://localhost:8080",
-                "https://rare-ladybug-14.telebit.io",
-            )
-            .replace("localhost", "https://rare-ladybug-14.telebit.io");
-
-        Ok(modified_url)
+        self.get_router_return_url()
     }
 
     fn get_capture_method(&self) -> Option<CaptureMethod> {
@@ -222,6 +216,11 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_capture_method(&self) -> Option<CaptureMethod> {
         self.capture_method
     }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
+    }
+
     fn get_minor_amount_required(
         &self,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
@@ -293,6 +292,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_capture_method(&self) -> Option<CaptureMethod> {
         self.capture_method
+    }
+
+    fn get_complete_authorize_url(&self) -> Option<String> {
+        self.complete_authorize_url.clone()
     }
 
     fn get_minor_amount_required(
@@ -801,9 +804,9 @@ pub struct NuveiACSResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LiabilityShift {
-    #[serde(rename = "Y", alias = "1")]
+    #[serde(rename = "Y", alias = "1", alias = "y")]
     Success,
-    #[serde(rename = "N", alias = "0")]
+    #[serde(rename = "N", alias = "0", alias = "n")]
     Failed,
 }
 
@@ -1514,8 +1517,8 @@ where
         let shipping_address: Option<ShippingAddress> =
             item.get_optional_shipping().map(|address| address.into());
 
-        let billing_address: Option<BillingAddress> = address.map(|ref address| address.into());
-
+        let billing_address: Option<BillingAddress> =
+            address.clone().map(|ref address| address.into());
         let device_details = if request_data
             .device_details
             .ip_address
@@ -1628,7 +1631,7 @@ where
         Some(ThreeD {
             browser_details,
             v2_additional_params: additional_params,
-            notification_url: Some(item.request.get_return_url_required()?),
+            notification_url: item.request.get_complete_authorize_url().clone(),
             merchant_url: Some(item.request.get_return_url_required()?),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),
@@ -1667,6 +1670,53 @@ impl From<NuveiCardDetails> for PaymentOption {
             }),
             ..Default::default()
         }
+    }
+}
+
+impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
+    for NuveiPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        data: (&types::PaymentsCompleteAuthorizeRouterData, Secret<String>),
+    ) -> Result<Self, Self::Error> {
+        let item = data.0;
+        let request_data = match item.request.payment_method_data.clone() {
+            Some(PaymentMethodData::Card(card)) => {
+                let device_details = DeviceDetails::foreign_try_from(&item.request.browser_info)?;
+                Ok(Self {
+                    payment_option: PaymentOption::from(NuveiCardDetails {
+                        card,
+                        three_d: None,
+                        card_holder_name: item.get_optional_billing_full_name(),
+                    }),
+                    device_details,
+                    ..Default::default()
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nuvei"),
+            )),
+        }?;
+        let request = Self::try_from(NuveiPaymentRequestData {
+            amount: convert_amount(
+                NUVEI_AMOUNT_CONVERTOR,
+                item.request.minor_amount,
+                item.request.currency,
+            )?,
+            currency: item.request.currency,
+            connector_auth_type: item.connector_auth_type.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
+            session_token: data.1,
+            capture_method: item.request.capture_method,
+            ..Default::default()
+        })?;
+        Ok(Self {
+            related_transaction_id: item.request.connector_transaction_id.clone(),
+            payment_option: request_data.payment_option,
+            device_details: request_data.device_details,
+            ..request
+        })
     }
 }
 
@@ -2234,17 +2284,18 @@ fn get_payment_status(
                 Some(NuveiTransactionType::InitAuth3D) | Some(NuveiTransactionType::Auth) => {
                     enums::AttemptStatus::Authorized
                 }
-                Some(NuveiTransactionType::Auth3D)
-                | Some(NuveiTransactionType::Sale)
-                | Some(NuveiTransactionType::Settle) => enums::AttemptStatus::Charged,
+                Some(NuveiTransactionType::Sale) | Some(NuveiTransactionType::Settle) => {
+                    enums::AttemptStatus::Charged
+                }
                 Some(NuveiTransactionType::Void) => enums::AttemptStatus::Voided,
+                Some(NuveiTransactionType::Auth3D) => enums::AttemptStatus::AuthenticationPending,
                 _ => enums::AttemptStatus::Pending,
             },
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => {
                 match response.transaction_type {
                     Some(NuveiTransactionType::Auth) => enums::AttemptStatus::AuthorizationFailed,
                     Some(NuveiTransactionType::Void) => enums::AttemptStatus::VoidFailed,
-                    Some(NuveiTransactionType::InitAuth3D) => {
+                    Some(NuveiTransactionType::Auth3D) | Some(NuveiTransactionType::InitAuth3D) => {
                         enums::AttemptStatus::AuthenticationFailed
                     }
                     _ => enums::AttemptStatus::Failure,
@@ -2300,6 +2351,7 @@ fn build_error_response(response: &NuveiPaymentsResponse, http_code: u16) -> Opt
 
 pub trait NuveiPaymentsGenericResponse {}
 
+impl NuveiPaymentsGenericResponse for CompleteAuthorize {}
 impl NuveiPaymentsGenericResponse for Void {}
 impl NuveiPaymentsGenericResponse for PSync {}
 impl NuveiPaymentsGenericResponse for Capture {}
@@ -2572,7 +2624,6 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
                 enrolled_v2: is_enrolled_for_3ds,
                 related_transaction_id: response.transaction_id,
             }),
-
             ..item.data
         })
     }
@@ -2649,11 +2700,7 @@ where
                 .request
                 .get_customer_id_required()
                 .ok_or(missing_field_err("customer_id")())?;
-            let related_transaction_id = if item.is_three_ds() {
-                item.request.get_related_transaction_id().clone()
-            } else {
-                None
-            };
+            let related_transaction_id = item.request.get_related_transaction_id().clone();
 
             let ip_address = data
                 .recurring_mandate_payment_data
