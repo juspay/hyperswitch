@@ -632,7 +632,7 @@ impl
             recovery_request_types::InvoiceRecordBackRequest,
             recovery_response_types::InvoiceRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::InvoiceRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

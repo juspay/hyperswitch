@@ -1401,7 +1401,7 @@ pub fn construct_recovery_record_back_router_data(
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
+) -> RecoveryResult<hyperswitch_domain_models::types::InvoiceRecordBackRouterData> {
     logger::info!("Entering construct_recovery_record_back_router_data");
 
     let auth_type: types::ConnectorAuthType =

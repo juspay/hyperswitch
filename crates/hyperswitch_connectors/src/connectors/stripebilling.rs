@@ -670,7 +670,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -682,7 +682,7 @@ impl
 
     fn get_url(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let invoice_id = req
@@ -705,7 +705,7 @@ impl
 
     fn build_request(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -724,11 +724,11 @@ impl
 
     fn handle_response(
         &self,
-        data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        data: &recovery_router_data_types::InvoiceRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterData,
+        recovery_router_data_types::InvoiceRecordBackRouterData,
         errors::ConnectorError,
     > {
         let response = res
@@ -739,7 +739,7 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterData::try_from(
+        recovery_router_data_types::InvoiceRecordBackRouterData::try_from(
             ResponseRouterData {
                 response,
                 data: data.clone(),
