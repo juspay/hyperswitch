@@ -413,6 +413,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
+    OVERCAPTURE: ["adyen"],
     // Add more inclusion lists
   },
 };
