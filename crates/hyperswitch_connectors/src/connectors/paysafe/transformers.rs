@@ -25,7 +25,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connectors::paysafe,
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
@@ -190,8 +189,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 let amount = item.amount;
                 let payment_type = PaysafePaymentType::Card;
                 let transaction_type = TransactionType::Payment;
-                // let redirect_url = item.router_data.request.get_router_return_url()?;
-                let redirect_url = "https://example.com".to_string(); // Temporary fix until we have return_url in the request
+                let redirect_url = item.router_data.request.get_router_return_url()?;
                 let return_links = vec![
                     ReturnLink {
                         rel: LinkType::Default,
@@ -266,7 +264,7 @@ pub enum PaysafePaymentHandleStatus {
     Completed,
 }
 
-impl tryFrom<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
+impl TryFrom<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: PaysafePaymentHandleStatus) -> Result<Self, Self::Error> {
         match item {
@@ -383,7 +381,7 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let url = match item.response.links.as_ref().and_then(|links| links.get(0)) {
+        let url = match item.response.links.as_ref().and_then(|links| links.first()) {
             Some(link) => link.href.clone(),
             None => return Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         };
@@ -476,8 +474,8 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 })?;
         let account_id = metadata.account_id;
 
-        let redirect_url = item.router_data.request.get_complete_authorize_url()?;
-        // let redirect_url = "https://example.com".to_string(); // Temporary fix until we have return_url in the request
+        let redirect_url_success = item.router_data.request.get_complete_authorize_url()?;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -486,23 +484,17 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             },
             ReturnLink {
                 rel: LinkType::OnCompleted,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
-                    .to_string()
-                    .clone(),
+                href: redirect_url_success.clone(),
                 method: Method::Get.to_string(),
             },
             ReturnLink {
                 rel: LinkType::OnFailed,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
-                    .to_string()
-                    .clone(),
+                href: redirect_url.clone(),
                 method: Method::Get.to_string(),
             },
             ReturnLink {
                 rel: LinkType::OnCancelled,
-                href: "https://webhook.site/bb6bdca0-d11b-4cf1-839a-18bd20a31531"
-                    .to_string()
-                    .clone(),
+                href: redirect_url.clone(),
                 method: Method::Get.to_string(),
             },
         ];
@@ -530,13 +522,23 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 };
                 let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
                 let payment_type = PaysafePaymentType::Card;
-
+                let headers = item.router_data.header_payload.clone();
+                let platform = headers
+                    .as_ref()
+                    .and_then(|headers| headers.x_client_platform.clone());
+                let device_channel = match platform {
+                    Some(common_enums::ClientPlatform::Web)
+                    | Some(common_enums::ClientPlatform::Unknown)
+                    | None => DeviceChannel::Browser,
+                    Some(common_enums::ClientPlatform::Ios)
+                    | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
+                };
                 let three_ds = Some(ThreeDs {
                     merchant_url: item.router_data.request.get_router_return_url()?,
-                    device_channel: DeviceChannel::Browser,
+                    device_channel,
                     message_category: ThreeDsMessageCategory::Payment,
                     authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
-                    requestor_challenge_preference: ThreeDsChallengePreference::NoPreference,
+                    requestor_challenge_preference: ThreeDsChallengePreference::ChallengeMandated,
                 });
 
                 Ok(Self {
@@ -726,7 +728,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
     fn try_from(
         item: ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_handle = match item.response {
+        let payment_handle = match &item.response {
             PaysafeSyncResponse::Payments(sync_response) => sync_response
                 .payments
                 .first()

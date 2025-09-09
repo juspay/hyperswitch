@@ -265,11 +265,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ pre proces req{:?}", printrequest);
-
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -301,7 +296,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        println!("$$$$ pre proc res {:?}", res.response);
         let response: paysafe::PaysafePaymentHandleResponse = res
             .response
             .parse_struct("PaysafePaymentHandleResponse")
@@ -367,22 +361,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         match req.payment_method {
             //Card No 3DS
             enums::PaymentMethod::Card if !req.is_three_ds() => {
-                println!("$$$$$ no3ds auth req");
                 let connector_req =
                     paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
-                let printrequest =
-                    common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                println!("$$$$$ auth req no 3ds{:?}", printrequest);
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
             _ => {
                 let connector_req =
                     paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
-                let printrequest =
-                    common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                println!("$$$$$ auth req {:?}", printrequest);
                 Ok(RequestContent::Json(Box::new(connector_req)))
             }
         }
@@ -416,7 +401,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$$$auth res {:?}", res.response);
         match data.payment_method {
             enums::PaymentMethod::Card if !data.is_three_ds() => {
                 let response: paysafe::PaysafePaymentsResponse = res
@@ -491,10 +475,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$  complete auth req{:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -524,7 +504,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        println!("$$$$ complete auth res {:?}", res.response);
         let response: paysafe::PaysafePaymentsResponse = res
             .response
             .parse_struct("Paysafe PaymentsAuthorizeResponse")
@@ -570,18 +549,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         let connector_payment_id = req.connector_request_reference_id.clone();
         let connector_transaction_id = req.request.get_optional_connector_transaction_id();
 
-        if connector_transaction_id.is_some() {
-            Ok(format!(
-                "{}v1/payments?merchantRefNum={}",
-                self.base_url(connectors),
-                connector_payment_id
-            ))
-        }
-        Ok(format!(
-            "{}v1/paymenthandles?merchantRefNum={}",
-            self.base_url(connectors),
-            connector_payment_id
-        ))
+        let base_url = self.base_url(connectors);
+
+        let url = if connector_transaction_id.is_some() {
+            format!("{base_url}v1/payments?merchantRefNum={connector_payment_id}")
+        } else {
+            format!("{base_url}v1/paymenthandles?merchantRefNum={connector_payment_id}")
+        };
+
+        Ok(url)
     }
 
     fn build_request(
@@ -605,9 +581,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paysafe::PaysafePaymentsSyncResponse = res
+        let response: paysafe::PaysafeSyncResponse = res
             .response
-            .parse_struct("paysafe PaysafePaymentsSyncResponse")
+            .parse_struct("paysafe PaysafeSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
