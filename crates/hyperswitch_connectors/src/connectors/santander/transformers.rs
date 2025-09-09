@@ -15,8 +15,11 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData, RedirectForm},
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData, PaymentsUpdateMetadataRouterData, PaymentsSyncRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -1357,7 +1360,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     boleto_data
                         .digitable_line
                         .clone()
-                        .map(|data|data.expose())
+                        .map(|data| data.expose())
                         .or_else(|| {
                             boleto_data.beneficiary.as_ref().map(|beneficiary| {
                                 format!(

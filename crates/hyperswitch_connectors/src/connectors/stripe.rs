@@ -42,7 +42,7 @@ use hyperswitch_domain_models::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,
         PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
-        TokenizationRouterData
+        TokenizationRouterData,
     },
 };
 #[cfg(feature = "payouts")]

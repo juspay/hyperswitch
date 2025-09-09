@@ -76,7 +76,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 storage_enums::IntentStatus::RequiresCapture,
                 storage_enums::IntentStatus::Processing,
                 storage_enums::IntentStatus::RequiresCapture,
-                storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                storage_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
             ],
             "update_metadata",
         )?;

@@ -5062,10 +5062,10 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
     /// Url to payment instruction page
     pub instructions_url: Option<Url>,
-        /// Human-readable numeric version of the barcode.
-        pub digitable_line: Option<Secret<String>>,
-        /// Bank Number where the boleto was registered
-        pub bank_number: Option<Secret<String>>,
+    /// Human-readable numeric version of the barcode.
+    pub digitable_line: Option<Secret<String>>,
+    /// Bank Number where the boleto was registered
+    pub bank_number: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
