@@ -2196,6 +2196,9 @@ pub struct ProfileCreate {
     /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[nutype::nutype(
@@ -2349,6 +2352,10 @@ pub struct ProfileCreate {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v1")]
@@ -2534,6 +2541,9 @@ pub struct ProfileResponse {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2695,6 +2705,10 @@ pub struct ProfileResponse {
     /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v1")]
@@ -2783,6 +2797,11 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
@@ -2865,6 +2884,9 @@ pub struct ProfileUpdate {
 
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -3013,6 +3035,10 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

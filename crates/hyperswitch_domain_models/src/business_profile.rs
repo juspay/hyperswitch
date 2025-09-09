@@ -84,6 +84,7 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +141,7 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -203,6 +205,7 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
+            is_manual_retry_enabled: value.is_manual_retry_enabled,
         }
     }
 }
@@ -246,6 +249,8 @@ pub struct ProfileGeneralUpdate {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
@@ -266,6 +271,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -348,6 +354,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    always_request_extended_authorization,
+                    is_manual_retry_enabled,
                 } = *update;
 
                 Self {
@@ -385,7 +393,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
-                    always_request_extended_authorization: None,
+                    always_request_extended_authorization,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
                     card_testing_guard_config,
@@ -401,6 +409,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    is_manual_retry_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -457,6 +466,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -510,6 +520,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -563,6 +574,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -616,6 +628,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -669,6 +682,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -722,6 +736,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -775,6 +790,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
         }
     }
@@ -848,6 +864,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
         })
     }
 
@@ -947,6 +964,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 dispute_polling_interval: item.dispute_polling_interval,
+                is_manual_retry_enabled: item.is_manual_retry_enabled,
             })
         }
         .await
@@ -1013,6 +1031,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
         })
     }
 }
@@ -1074,6 +1093,7 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v2")]
@@ -1131,6 +1151,7 @@ pub struct ProfileSetter {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 }
 
 #[cfg(feature = "v2")]
@@ -1193,6 +1214,7 @@ impl From<ProfileSetter> for Profile {
             external_vault_connector_details: value.external_vault_connector_details,
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
+            split_txns_enabled: value.split_txns_enabled,
         }
     }
 }
@@ -1380,6 +1402,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -1461,6 +1484,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
+                    split_txns_enabled,
                 } = *update;
                 Self {
                     profile_name,
@@ -1514,6 +1538,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     external_vault_connector_details,
                     merchant_category_code,
                     merchant_country_code,
+                    split_txns_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1570,6 +1595,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1624,6 +1650,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1678,6 +1705,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1732,6 +1760,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1786,6 +1815,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1840,6 +1870,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1894,6 +1925,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1948,6 +1980,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2003,6 +2036,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                split_txns_enabled: None,
             },
         }
     }
@@ -2082,6 +2116,8 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
+            split_txns_enabled: Some(self.split_txns_enabled),
+            is_manual_retry_enabled: None,
         })
     }
 
@@ -2177,6 +2213,7 @@ impl super::behaviour::Conversion for Profile {
                 external_vault_connector_details: item.external_vault_connector_details,
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
+                split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
             })
         }
         .await
@@ -2247,6 +2284,7 @@ impl super::behaviour::Conversion for Profile {
             external_vault_connector_details: self.external_vault_connector_details,
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: Some(self.split_txns_enabled),
         })
     }
 }

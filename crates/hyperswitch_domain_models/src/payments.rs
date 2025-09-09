@@ -460,6 +460,8 @@ pub struct PaymentIntent {
     pub updated_by: String,
     /// Denotes whether merchant requested for incremental authorization to be enabled for this payment.
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
+    /// Denotes whether merchant requested for split payments to be enabled for this payment
+    pub split_txns_enabled: storage_enums::SplitTxnsEnabled,
     /// Denotes the number of authorizations that have been made for the payment.
     pub authorization_count: Option<i32>,
     /// Denotes the client secret expiry for the payment. This is the time at which the client secret will expire.
@@ -657,6 +659,7 @@ impl PaymentIntent {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .unwrap_or_default(),
+            split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,

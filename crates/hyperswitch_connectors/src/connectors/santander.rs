@@ -1153,17 +1153,6 @@ fn get_webhook_object_from_body(
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Santander {
-    async fn verify_webhook_source(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
-        _connector_name: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true) // the source verification algorithm seems to be unclear as of now (Although MTLS is mentioned in the docs)
-    }
-
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1176,6 +1165,16 @@ impl webhooks::IncomingWebhook for Santander {
                 webhook_body.participant_code,
             ),
         ))
+    }
+    async fn verify_webhook_source(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(true) // the source verification algorithm seems to be unclear as of now (Although MTLS is mentioned in the docs)
     }
 
     fn get_webhook_event_type(
