@@ -1255,6 +1255,11 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Boolean indicating whether to enable overcapture for this payment
+    #[remove_in(PaymentsConfirmRequest)]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5561,6 +5566,14 @@ pub struct PaymentsResponse {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for this payment
+    #[schema(value_type = Option<bool>)]
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean indicating whether overcapture is effectively enabled for this payment
+    #[schema(value_type = Option<bool>)]
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[cfg(feature = "v2")]
