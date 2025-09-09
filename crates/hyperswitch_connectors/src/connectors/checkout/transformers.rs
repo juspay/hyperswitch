@@ -1,4 +1,4 @@
-use common_enums::enums::{self, AttemptStatus};
+use common_enums::enums::{self, AttemptStatus, PaymentChannel};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
@@ -250,6 +250,8 @@ pub enum CheckoutSourceTypes {
 pub enum CheckoutPaymentType {
     Recurring,
     Regular,
+    #[serde(rename = "MOTO")]
+    Moto,
 }
 
 pub struct CheckoutAuthType {
@@ -343,7 +345,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             Some(enums::CaptureMethod::Automatic)
         );
 
-        let (payment_type, challenge_indicator) = if item.router_data.request.is_mandate_payment() {
+        let (payment_type, challenge_indicator) = if item.router_data.request.payment_channel
+            == Some(PaymentChannel::MailOrder)
+            || item.router_data.request.payment_channel == Some(PaymentChannel::TelephoneOrder)
+        {
+            (
+                CheckoutPaymentType::Moto,
+                CheckoutChallengeIndicator::ChallengeRequested,
+            )
+        } else if item.router_data.request.is_mandate_payment() {
             (
                 CheckoutPaymentType::Recurring,
                 CheckoutChallengeIndicator::ChallengeRequestedMandate,
@@ -581,22 +591,21 @@ fn get_attempt_status_cap(
     match status {
         CheckoutPaymentStatus::Authorized => {
             if capture_method == Some(enums::CaptureMethod::Automatic) || capture_method.is_none() {
-                AttemptStatus::Pending
+                AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
             }
         }
         CheckoutPaymentStatus::Captured
         | CheckoutPaymentStatus::PartiallyRefunded
-        | CheckoutPaymentStatus::Refunded => AttemptStatus::Charged,
+        | CheckoutPaymentStatus::Refunded
+        | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
         CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
         CheckoutPaymentStatus::Declined
         | CheckoutPaymentStatus::Expired
         | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
         CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
-        CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
-            AttemptStatus::Pending
-        }
+        CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
     }
 }
@@ -609,7 +618,7 @@ fn get_attempt_status_intent(
     match status {
         CheckoutPaymentStatus::Authorized => {
             if psync_flow == CheckoutPaymentIntent::Capture {
-                AttemptStatus::Pending
+                AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
             }
@@ -766,10 +775,25 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             .redirect
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
 
+        let mandate_reference = if item.data.request.is_mandate_payment() {
+            item.response
+                .source
+                .as_ref()
+                .and_then(|src| src.id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                })
+        } else {
+            None
+        };
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
-            mandate_reference: Box::new(None),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
