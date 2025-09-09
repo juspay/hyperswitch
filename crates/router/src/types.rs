@@ -716,6 +716,7 @@ pub struct RedirectPaymentFlowResponse {
 pub struct RedirectPaymentFlowResponse<D> {
     pub payment_data: D,
     pub profile: domain::Profile,
+    pub next_action: Option<api_models::payments::NextActionData>,
 }
 
 #[cfg(feature = "v1")]

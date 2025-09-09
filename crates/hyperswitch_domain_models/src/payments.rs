@@ -900,6 +900,7 @@ where
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
+    pub redirect_response: Option<api_models::payments::RedirectResponse>,
 }
 
 #[cfg(feature = "v2")]
@@ -947,7 +948,7 @@ impl<F: Clone> PaymentConfirmData<F> {
             mandate_data: self.mandate_data,
             payment_method: self.payment_method,
             merchant_connector_details: self.merchant_connector_details,
-            // redirect_response: self.redirect_response,
+            redirect_response: self.redirect_response,
             external_vault_pmd: self.external_vault_pmd,
         };
         payment_data

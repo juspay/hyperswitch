@@ -2949,7 +2949,7 @@ pub async fn payment_confirm_intent(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
 
-            Box::pin(payments::payments_execute_core(
+            Box::pin(payments::payments_execute_core_wrapper(
                 state,
                 req_state,
                 merchant_context,
@@ -3416,6 +3416,72 @@ pub async fn payments_finish_redirection(
         &auth::PublishableKeyAndProfileIdAuth {
             publishable_key: publishable_key.clone(),
             profile_id: profile_id.clone(),
+        },
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+pub async fn payments_continue_redirection(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use std::str::FromStr;
+
+    let flow = Flow::PaymentsRedirect;
+    let payment_id = path.into_inner();
+    let param_string = req.query_string();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    // Extract publishable_key and profile_id from query parameters
+    // let query_params = req.query_string();
+    let mut publishable_key = String::new();
+    let mut profile_id = String::new();
+
+    for param in param_string.split('&') {
+        if let Some((key, value)) = param.split_once('=') {
+            match key {
+                "publishable_key" => publishable_key = value.to_string(),
+                "profile_id" => profile_id = value.to_string(),
+                _ => {}
+            }
+        }
+    }
+
+    let payload = payments::PaymentsRedirectResponseData {
+        payment_id,
+        json_payload: json_payload.map(|s| s.0),
+        query_params: param_string.to_string(),
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow>::handle_payments_redirect_response(
+                &payments::PaymentRedirectCompleteAuthorize {},
+                state,
+                req_state,
+                merchant_context,
+                auth.profile,
+                req,
+            )
+        },
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
+            profile_id: common_utils::id_type::ProfileId::from_str(&profile_id).unwrap(),
         },
         locking_action,
     ))

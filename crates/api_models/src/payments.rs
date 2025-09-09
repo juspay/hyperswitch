@@ -5950,6 +5950,14 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct PaymentsContinueRedirectionRequest {
+    /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
+    pub feature_metadata: Option<FeatureMetadata>,
+}
+
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
