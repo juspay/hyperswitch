@@ -4135,7 +4135,7 @@ pub async fn list_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let requires_cvv = configs::get_config_bool(
-        &state,
+        state,
         config_keys::REQUIRES_CVV, // superposition key
         &merchant_context
             .get_merchant_account()

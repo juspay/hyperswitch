@@ -434,6 +434,7 @@ impl AppState {
             #[cfg(feature = "superposition")]
             let superposition_service = if conf.superposition.get_inner().enabled {
                 Some(Arc::new(
+                    #[allow(clippy::expect_used)]
                     SuperpositionClient::new(conf.superposition.get_inner().clone())
                         .await
                         .expect("Failed to create superposition client"),
