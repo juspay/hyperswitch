@@ -8730,7 +8730,8 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "superposition_core"
 version = "0.88.1"
-source = "git+https://github.com/juspay/superposition?branch=main#c9208d157a231b4634d3097b281cbddbd4fd46f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0ea3804ca840e2329ee43d27f4bfb27b6fb4abf4f5441e33abe2aded2244387"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -8756,7 +8757,8 @@ dependencies = [
 [[package]]
 name = "superposition_derives"
 version = "0.88.1"
-source = "git+https://github.com/juspay/superposition?branch=main#c9208d157a231b4634d3097b281cbddbd4fd46f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99060e97964918193b87fe387baf5ff5a5b3b48de05ffd2bd9b9e022f960762a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8766,7 +8768,8 @@ dependencies = [
 [[package]]
 name = "superposition_provider"
 version = "0.88.1"
-source = "git+https://github.com/juspay/superposition?branch=main#c9208d157a231b4634d3097b281cbddbd4fd46f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8023fbfd3195a1c66d1f69367eb11c984e9b4dc5e2147a1de68a32172e401e50"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -8787,7 +8790,8 @@ dependencies = [
 [[package]]
 name = "superposition_sdk"
 version = "0.88.1"
-source = "git+https://github.com/juspay/superposition?branch=main#c9208d157a231b4634d3097b281cbddbd4fd46f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b37344622f87b506e1afb21ba81b435814e95b3ff092a2dea40706d3db36eae"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -8804,7 +8808,8 @@ dependencies = [
 [[package]]
 name = "superposition_types"
 version = "0.88.1"
-source = "git+https://github.com/juspay/superposition?branch=main#c9208d157a231b4634d3097b281cbddbd4fd46f2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "165524147049a9332077d163658759d477bef9985ae20c3e4a142c9d4c7a3873"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",

@@ -135,7 +135,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    pub superposition_service: Arc<dyn external_services::superposition::SuperpositionInterface>,
+    pub superposition_service: Option<Arc<external_services::superposition::SuperpositionClient>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -256,7 +256,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    pub superposition_service: Arc<dyn external_services::superposition::SuperpositionInterface>,
+    pub superposition_service: Option<Arc<external_services::superposition::SuperpositionClient>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -423,13 +423,17 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
-            let superposition_service = Arc::new(
-                external_services::superposition::SuperpositionService::new(
-                    conf.superposition.clone(),
-                )
-                .await
-                .expect("Failed to create superposition service"),
-            );
+            let superposition_service = if conf.superposition.enabled {
+                Some(Arc::new(
+                    external_services::superposition::SuperpositionClient::new(
+                        conf.superposition.clone(),
+                    )
+                    .await
+                    .expect("Failed to create superposition client"),
+                ))
+            } else {
+                None
+            };
             Self {
                 flow_name: String::from("default"),
                 stores,

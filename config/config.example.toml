@@ -1228,3 +1228,12 @@ hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+[superposition]
+enabled = false                                  # Enable or disable Superposition integration (default: false)
+endpoint = "http://superposition:8080"          # Superposition service endpoint URL
+token = "your_superposition_token"              # Superposition token
+org_id = "your_org_id"                          # Organization ID in Superposition
+workspace_id = "your_workspace_id"              # Workspace ID in Superposition
+polling_interval = 15                           # Polling interval in seconds for configuration updates
+# request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)

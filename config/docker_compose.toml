@@ -3,12 +3,6 @@ port = 8080
 host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
-[superposition]
-enabled = true
-endpoint = "http://host.docker.internal:8080"
-token = "123456"
-org_id = "localorg"
-workspace_id = "dev"
 
 [log.file]
 enabled = false # Whether you want to store log in log files.
@@ -1243,3 +1237,12 @@ version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its 
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+[superposition]
+enabled = false # Enable Superposition for dynamic configuration management
+endpoint = "http://superposition:8080" # Superposition service endpoint
+token = "123456" # Superposition token
+org_id = "localorg" # Organization ID in Superposition
+workspace_id = "dev" # Workspace ID in Superposition
+polling_interval = 15 # Polling interval in seconds for configuration updates
+# request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)

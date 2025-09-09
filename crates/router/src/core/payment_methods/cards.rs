@@ -83,6 +83,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
+        configs,
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
@@ -4133,24 +4134,25 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = state
-        .superposition_service
-        .get_config_bool(
-            config_keys::REQUIRES_CVV,
-            Some(
-                external_services::superposition::ConfigContext::new().with(
-                    "merchant_id",
-                    merchant_context
-                        .get_merchant_account()
-                        .get_id()
-                        .get_string_repr(),
-                ),
-            ),
-            true, // default value
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
+    let requires_cvv = configs::get_config_bool(
+        &state,
+        config_keys::REQUIRES_CVV, // superposition key
+        &merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_requires_cvv_key(), // database key
+        Some(&external_services::superposition::ConfigContext::new().with(
+            "merchant_id",
+            merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_string_repr(),
+        )),
+        true, // default value
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch requires_cvv config")?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
