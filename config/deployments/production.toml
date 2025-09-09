@@ -117,7 +117,7 @@ payload.base_url = "https://api.payload.com"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
 paypal.base_url = "https://api-m.paypal.com/"
-paysafe.base_url = "https://api.test.paysafe.com/paymenthub/"
+paysafe.base_url = "https://api.paysafe.com/paymenthub/"
 paystack.base_url = "https://api.paystack.co"
 paytm.base_url = "https://securegw-stage.paytm.in/"
 payu.base_url = "https://secure.payu.com/api/"
@@ -445,6 +445,7 @@ paze = { currency = "USD,SEK" }
 credit = { currency = "USD,GBP,EUR,PLN,SEK" }
 debit = { currency = "USD,GBP,EUR,PLN,SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
+apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 
 [pm_filters.itaubank]
 pix = { country = "BR", currency = "BRL" }
