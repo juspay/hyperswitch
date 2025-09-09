@@ -13,6 +13,7 @@ pub mod core {
     use router_env::{instrument, logger, tracing};
     use serde_json::Value;
     use thiserror::Error;
+    use error_stack::{self, ResultExt};
 
     use crate as injector_types;
     use crate::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
@@ -83,6 +84,7 @@ pub mod core {
                 encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
+            
             let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
@@ -93,12 +95,9 @@ pub mod core {
                 .identity(identity)
                 .use_rustls_tls()
                 .build()
-                .map_err(|e| {
-                    logger::error!(
-                        "Failed to construct client with certificate and certificate key: {}",
-                        e
-                    );
-                    error_stack::Report::new(InjectorError::HttpRequestFailed)
+                .change_context(InjectorError::HttpRequestFailed)
+                .inspect_err(|e| {
+                    logger::error!( "Failed to construct client with certificate and certificate key: {:?}", e );
                 });
         }
 
@@ -106,15 +105,15 @@ pub mod core {
         if let Some(ca_pem) = ca_certificate {
             logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
-            let cert = reqwest::Certificate::from_pem(pem.as_bytes()).map_err(|e| {
-                logger::error!("Failed to parse CA certificate PEM block: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+            let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+                .change_context(InjectorError::HttpRequestFailed)
+                .inspect_err(|e| logger::error!("Failed to parse CA certificate PEM block: {:?}", e))?;
             let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
-            return client_builder.use_rustls_tls().build().map_err(|e| {
-                logger::error!("Failed to construct client with CA certificate: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            });
+            return client_builder.use_rustls_tls().build()
+                .change_context(InjectorError::HttpRequestFailed)
+                .inspect_err(|e| {
+                    logger::error!("Failed to construct client with CA certificate: {:?}", e);
+                });
         }
 
         // Case 3: Default client (no certs)
@@ -132,20 +131,22 @@ pub mod core {
         if let Some(proxy_url) = &proxy_config.https_url {
             logger::debug!("Configuring HTTPS proxy");
 
-            let proxy = reqwest::Proxy::https(proxy_url).map_err(|e| {
-                logger::error!("Failed to configure HTTPS proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+            let proxy = reqwest::Proxy::https(proxy_url)
+                .change_context(InjectorError::HttpRequestFailed)
+                .inspect_err(|e| {
+                    logger::error!("Failed to configure HTTPS proxy: {:?}", e);
+                })?;
             client_builder = client_builder.proxy(proxy);
             logger::debug!("HTTPS proxy configured successfully");
         }
 
         if let Some(proxy_url) = &proxy_config.http_url {
             logger::debug!("Configuring HTTP proxy");
-            let proxy = reqwest::Proxy::http(proxy_url).map_err(|e| {
-                logger::error!("Failed to configure HTTP proxy: {}", e);
-                error_stack::Report::new(InjectorError::HttpRequestFailed)
-            })?;
+            let proxy = reqwest::Proxy::http(proxy_url)
+                .change_context(InjectorError::HttpRequestFailed)
+                .inspect_err(|e| {
+                    logger::error!("Failed to configure HTTP proxy: {:?}", e);
+                })?;
             client_builder = client_builder.proxy(proxy);
             logger::debug!("HTTP proxy configured successfully");
         }
@@ -157,10 +158,11 @@ pub mod core {
         proxy_config: &Proxy,
     ) -> error_stack::Result<reqwest::Client, InjectorError> {
         let client_builder = get_client_builder(proxy_config)?;
-        client_builder.build().map_err(|e| {
-            logger::error!("Failed to build default HTTP client: {}", e);
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
-        })
+        client_builder.build()
+            .change_context(InjectorError::HttpRequestFailed)
+            .inspect_err(|e| {
+                logger::error!("Failed to build default HTTP client: {:?}", e);
+            })
     }
 
     fn create_identity_from_certificate_and_key(
@@ -177,10 +179,11 @@ pub mod core {
         );
 
         let combined_pem = format!("{cert_str}\n{key_str}");
-        reqwest::Identity::from_pem(combined_pem.as_bytes()).map_err(|e| {
-            logger::error!("Failed to create identity from certificate and key: {}", e);
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
-        })
+        reqwest::Identity::from_pem(combined_pem.as_bytes())
+            .change_context(InjectorError::HttpRequestFailed)
+            .inspect_err(|e| {
+                logger::error!("Failed to create identity from certificate and key: {:?}", e);
+            })
     }
 
     fn create_certificate(
@@ -192,11 +195,34 @@ pub mod core {
             "Creating certificate from PEM"
         );
 
-        let cert = reqwest::Certificate::from_pem(cert_str.as_bytes()).map_err(|e| {
-            logger::error!("Failed to create certificate from PEM: {}", e);
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
-        })?;
+        let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
+            .change_context(InjectorError::HttpRequestFailed)
+            .inspect_err(|e| {
+                logger::error!("Failed to create certificate from PEM: {:?}", e);
+            })?;
         Ok(vec![cert])
+    }
+
+    /// Generic function to log HTTP request errors with detailed error type information
+    fn log_and_convert_http_error(e: reqwest::Error, context: &str) -> InjectorError {
+        let error_msg = e.to_string();
+        logger::error!("HTTP request failed in {}: {}", context, error_msg);
+
+        // Log specific error types for debugging
+        if e.is_timeout() {
+            logger::error!("Request timed out in {}", context);
+        }
+        if e.is_connect() {
+            logger::error!("Connection error occurred in {}", context);
+        }
+        if e.is_request() {
+            logger::error!("Request construction error in {}", context);
+        }
+        if e.is_decode() {
+            logger::error!("Response decoding error in {}", context);
+        }
+
+        InjectorError::HttpRequestFailed
     }
 
     /// Copy certificate data from connection config to request for reqwest client configuration
@@ -285,24 +311,7 @@ pub mod core {
         // Send the request
         logger::debug!("Sending HTTP request to connector");
         let response = req_builder.send().await.map_err(|e| {
-            let error_msg = e.to_string();
-            logger::error!("HTTP request failed: {}", error_msg);
-
-            // Log specific error types for debugging
-            if e.is_timeout() {
-                logger::error!("Request timed out");
-            }
-            if e.is_connect() {
-                logger::error!("Connection error occurred");
-            }
-            if e.is_request() {
-                logger::error!("Request construction error");
-            }
-            if e.is_decode() {
-                logger::error!("Response decoding error");
-            }
-
-            error_stack::Report::new(InjectorError::HttpRequestFailed)
+            log_and_convert_http_error(e, "send_request")
         })?;
 
         logger::info!(
