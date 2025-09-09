@@ -225,25 +225,28 @@ pub mod core {
         InjectorError::HttpRequestFailed
     }
 
-    /// Copy certificate data from connection config to request for reqwest client configuration
-    fn copy_certificates_to_request(
-        request: &mut common_utils::request::Request,
+    /// Apply certificate configuration to request builder and return built request
+    fn build_request_with_certificates(
+        mut request_builder: RequestBuilder,
         config: &injector_types::ConnectionConfig,
-    ) {
-        if let Some(ca_cert) = &config.ca_cert {
-            logger::debug!("Copying CA certificate from connection config to request");
-            request.ca_certificate = Some(ca_cert.clone());
+    ) -> common_utils::request::Request {
+        // Add certificate configuration if provided
+        if let Some(cert_content) = &config.client_cert {
+            logger::debug!("Adding client certificate content to request builder");
+            request_builder = request_builder.add_certificate(Some(cert_content.clone()));
         }
 
-        if let Some(client_cert) = &config.client_cert {
-            logger::debug!("Copying client certificate from connection config to request");
-            request.certificate = Some(client_cert.clone());
+        if let Some(key_content) = &config.client_key {
+            logger::debug!("Adding client private key content to request builder");
+            request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
         }
 
-        if let Some(client_key) = &config.client_key {
-            logger::debug!("Copying client key from connection config to request");
-            request.certificate_key = Some(client_key.clone());
+        if let Some(ca_content) = &config.ca_cert {
+            logger::debug!("Adding CA certificate content to request builder");
+            request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
         }
+
+        request_builder.build()
     }
 
     /// Simplified HTTP client for injector using the proven external_services create_client logic
@@ -629,7 +632,7 @@ pub mod core {
                 }
             };
 
-            // Build request safely
+            // Build request safely with certificate configuration
             let mut request_builder = RequestBuilder::new()
                 .method(method)
                 .url(url.as_str())
@@ -637,22 +640,6 @@ pub mod core {
 
             if let Some(content) = request_content {
                 request_builder = request_builder.set_body(content);
-            }
-
-            // Add certificate configuration if provided
-            if let Some(cert_content) = &config.client_cert {
-                logger::debug!("Adding client certificate content");
-                request_builder = request_builder.add_certificate(Some(cert_content.clone()));
-            }
-
-            if let Some(key_content) = &config.client_key {
-                logger::debug!("Adding client private key content");
-                request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
-            }
-
-            if let Some(ca_content) = &config.ca_cert {
-                logger::debug!("Adding CA certificate content");
-                request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
             }
 
             // Log certificate configuration (but not the actual content)
@@ -665,10 +652,8 @@ pub mod core {
                 "Certificate configuration applied"
             );
 
-            let mut request = request_builder.build();
-
-            // Copy certificate data from connection config to request for reqwest client configuration
-            copy_certificates_to_request(&mut request, config);
+            // Build request with certificate configuration applied
+            let request = build_request_with_certificates(request_builder, config);
 
             let proxy = if let Some(proxy_url) = &config.proxy_url {
                 let proxy_url_str = proxy_url.clone().expose();
