@@ -20,8 +20,8 @@ pub struct RevenueRecoveryBackfillRequest {
     pub token: String,
     #[serde(rename = "ExpiryDate")]
     pub exp_date: String,
-    #[serde(rename = "CreditCardType.y")]
-    pub credit_card_type_y: String,
+    #[serde(rename = "CreditCardType.x")]
+    pub credit_card_type_x: String,
     #[serde(rename = "type")]
     pub type_field: String,
     #[serde(rename = "product_name")]
@@ -97,13 +97,9 @@ impl RevenueRecoveryDataBackfillForm {
             .deserialize::<RevenueRecoveryBackfillRequest>()
             .flatten()
         {
-            // Step 3: Only push if required fields exist
-            if !record.type_field.trim().is_empty() {
-                records.push(record);
-            }
+            records.push(record);
         }
 
-        // Step 4: Return whatever valid records were collected
         Ok(records)
     }
 }

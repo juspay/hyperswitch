@@ -137,13 +137,14 @@ fn map_card_type(raw_type: &str) -> Result<String, BackfillError> {
 fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<serde_json::Value, BackfillError> {
-    let card_type = map_card_type(&record.type_field)?;
+    // Extract card type from request, if not present then update it with 'card'
+    let card_type = determine_card_type(&record.type_field);
 
     // Parse expiration date (format: MMYY or MM/YY)
     let (exp_month, exp_year) = parse_expiration_date(&record.exp_date)?;
 
-    // Map card network from product name or card type
-    let card_network = map_card_network(&record.credit_card_type_y)
+    // Map card network from request
+    let card_network = map_card_network(&record.credit_card_type_x)
         .and_then(|network| serde_json::to_value(network).ok());
 
     // Build comprehensive card object
@@ -176,6 +177,19 @@ fn build_comprehensive_card_data(
     );
 
     Ok(card_data)
+}
+
+/// Determine card type with fallback logic: type_field if not present -> "Card"
+fn determine_card_type(type_field: &str) -> String {
+    // First try the type_field
+    if let Ok(mapped_type) = map_card_type(type_field) {
+        logger::debug!("Using type_field '{}' -> '{}'", type_field, mapped_type);
+        return mapped_type;
+    }
+
+    // Finally, default to "Card"
+    logger::info!("In CSV '{}' not present, defaulting to 'Card'", type_field);
+    "card".to_string()
 }
 
 /// Parse expiration date
@@ -255,16 +269,17 @@ fn parse_expiration_date(
 /// Map card network from card network type
 fn map_card_network(credit_card_type: &str) -> Option<CardNetwork> {
     if credit_card_type.is_empty() || credit_card_type == "nan" {
+        logger::warn!("Card network type not present");
         return None;
     }
 
-    match credit_card_type.to_uppercase().as_str() {
-        "VISA" => Some(CardNetwork::Visa),
-        "MASTERCARD" => Some(CardNetwork::Mastercard),
-        "AMEX" => Some(CardNetwork::AmericanExpress),
-        "DISCOVER" => Some(CardNetwork::Discover),
+    match credit_card_type {
+        "Visa" => Some(CardNetwork::Visa),
+        "Master Card" => Some(CardNetwork::Mastercard),
+        "American Express" => Some(CardNetwork::AmericanExpress),
+        "Discover" => Some(CardNetwork::Discover),
         _ => {
-            logger::debug!("Unknown card network type: {}", credit_card_type);
+            logger::warn!("Unknown card network type: {}", credit_card_type);
             None
         }
     }

@@ -739,7 +739,10 @@ impl RedisTokenManager {
                     token = token,
                     "Token not found in Redis"
                 );
-                return Ok(());
+                return Err(errors::StorageError::ValueNotFound(
+                    "Token not found in Redis".to_string(),
+                )
+                .into());
             }
         };
 
