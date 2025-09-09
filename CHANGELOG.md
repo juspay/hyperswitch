@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.09.0
+
+### Features
+
+- **business_profile:** Add field in profile for manual retry ([#9266](https://github.com/juspay/hyperswitch/pull/9266)) ([`9c11a6e`](https://github.com/juspay/hyperswitch/commit/9c11a6e66f7d0186cc595d43272c1ff5f0897738))
+- **connector:** [Paysafe] Integrate no 3ds card ([#9127](https://github.com/juspay/hyperswitch/pull/9127)) ([`439936d`](https://github.com/juspay/hyperswitch/commit/439936da582d0729c6c184923f83aab51ec2cfe9))
+
+### Bug Fixes
+
+- **Nuvei:** Post capture void , proper mapping for nuvei ([#9292](https://github.com/juspay/hyperswitch/pull/9292)) ([`f32ce65`](https://github.com/juspay/hyperswitch/commit/f32ce65ab44b2bad016eaab98b0e8757a0a6ae35))
+- **payout:** Use billing address in payment_methods ([#9277](https://github.com/juspay/hyperswitch/pull/9277)) ([`831100c`](https://github.com/juspay/hyperswitch/commit/831100c097b25fcd5f7bbd22762fba4e310c6fbf))
+
+### Miscellaneous Tasks
+
+- Updated openapi spec added labels to wallet data ([#9287](https://github.com/juspay/hyperswitch/pull/9287)) ([`c3ea941`](https://github.com/juspay/hyperswitch/commit/c3ea9412f37f8774759afad084a140c88b68a68a))
+
+**Full Changelog:** [`2025.09.08.0...2025.09.09.0`](https://github.com/juspay/hyperswitch/compare/2025.09.08.0...2025.09.09.0)
+
+- - -
+
 ## 2025.09.08.0
 
 ### Features
