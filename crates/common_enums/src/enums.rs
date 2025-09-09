@@ -1526,6 +1526,7 @@ impl EventClass {
     #[inline]
     pub fn event_types(self) -> HashSet<EventType> {
         match self {
+            #[cfg(feature = "v2")]
             Self::Payments => HashSet::from([
                 EventType::PaymentSucceeded,
                 EventType::PaymentFailed,
@@ -1537,6 +1538,18 @@ impl EventClass {
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
                 EventType::PaymentScheduled,
+            ]),
+            #[cfg(not(feature = "v2"))]
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::PaymentExpired,
+                EventType::ActionRequired,
             ]),
             Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
             Self::Disputes => HashSet::from([
@@ -1592,6 +1605,7 @@ pub enum EventType {
     PaymentPartiallyAuthorized,
     PaymentCaptured,
     PaymentExpired,
+    #[cfg(feature = "v2")]
     // Revenue Recovery Event
     PaymentScheduled,
     ActionRequired,

@@ -1554,6 +1554,7 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
     used_token
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
     state: &SessionState,
     event_class: common_enums::EventClass,
