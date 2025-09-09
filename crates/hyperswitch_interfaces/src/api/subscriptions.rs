@@ -1,11 +1,12 @@
 //! Subscriptions Interface for V1
-
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::GetSubscriptionPlans,
     router_request_types::subscriptions::GetSubscriptionPlansRequest,
     router_response_types::subscriptions::GetSubscriptionPlansResponse,
 };
 
+#[cfg(feature = "v1")]
 use super::{ConnectorCommon, ConnectorIntegration};
 
 #[cfg(feature = "v1")]
