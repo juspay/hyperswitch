@@ -1667,7 +1667,6 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
-    connectors::Paysafe,
     connectors::Trustpayments,
     connectors::Silverflow,
     connectors::Vgs,
