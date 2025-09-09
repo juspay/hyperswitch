@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.03.0-hotfix2
+
+### Features
+
+- **payouts:** Mapped Default Values to Unified Error Code and Message ([#9318](https://github.com/juspay/hyperswitch/pull/9318)) ([`b65d46c`](https://github.com/juspay/hyperswitch/commit/b65d46c41b6c0f1bb2567712220debd66ad2e747))
+
+### Bug Fixes
+
+- **payout:**
+  - Use billing address in payment_methods ([#9311](https://github.com/juspay/hyperswitch/pull/9311)) ([`308760d`](https://github.com/juspay/hyperswitch/commit/308760dd579167fefd5ac47d359c5797ef8fe1b5))
+  - Send latest status in outgoing webhook notifications during IncomingWebhook flow ([#9312](https://github.com/juspay/hyperswitch/pull/9312)) ([`2d5ae96`](https://github.com/juspay/hyperswitch/commit/2d5ae96804c4c39cfb089d67f7beb240a6161877))
+
+**Full Changelog:** [`2025.09.03.0-hotfix1...2025.09.03.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.09.03.0-hotfix1...2025.09.03.0-hotfix2)
+
+- - -
+
 ## 2025.09.03.0-hotfix1
 
 ### Bug Fixes
