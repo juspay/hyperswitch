@@ -1408,6 +1408,7 @@ mod tests {
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
             enable_overcapture: None,
+            network_details: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

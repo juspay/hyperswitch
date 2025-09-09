@@ -1572,9 +1572,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                                 connector: None,
                                 status,
-                                error_message: Some(Some(err.message)),
-                                error_code: Some(Some(err.code)),
-                                error_reason: Some(err.reason),
+                                error_message: Some(Some(err.message.clone())),
+                                error_code: Some(Some(err.code.clone())),
+                                error_reason: Some(err.reason.clone()),
                                 amount_capturable: router_data
                                     .request
                                     .get_amount_capturable(
@@ -1588,11 +1588,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: storage_scheme.to_string(),
                                 unified_code: Some(Some(unified_code)),
                                 unified_message: Some(unified_translated_message),
-                                connector_transaction_id: err.connector_transaction_id,
+                                connector_transaction_id: err.connector_transaction_id.clone(),
                                 payment_method_data: additional_payment_method_data,
                                 authentication_type: auth_update,
-                                issuer_error_code: err.network_decline_code,
-                                issuer_error_message: err.network_error_message,
+                                issuer_error_code: err.network_decline_code.clone(),
+                                issuer_error_message: err.network_error_message.clone(),
+                                network_details: Some(ForeignFrom::foreign_from(&err)),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
                         )
@@ -1633,6 +1634,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             authentication_type: auth_update,
                             issuer_error_code: None,
                             issuer_error_message: None,
+                            network_details: None,
                         }),
                         None,
                     )
