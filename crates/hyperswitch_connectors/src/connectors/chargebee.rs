@@ -16,7 +16,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::flow_common_types::{
     RevenueRecoveryRecordBackData, SubscriptionCreateData,
 };
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
@@ -50,7 +49,7 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::{SubscriptionRecordBackRouterData, SubscriptionCreateRouterData},
+    types::{SubscriptionCreateRouterData, SubscriptionRecordBackRouterData},
 };
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;

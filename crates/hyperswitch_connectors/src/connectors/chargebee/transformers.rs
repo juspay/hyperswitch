@@ -80,11 +80,15 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             subscription_id: req.subscription_id.clone(),
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: address.and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+            billing_address_line1: address
+                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
             billing_address_city: address.and_then(|addr| addr.city.clone()),
-            billing_address_state: address.and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
-            billing_address_zip: address.and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
-            billing_address_country: address.and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
+            billing_address_state: address
+                .and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+            billing_address_zip: address
+                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+            billing_address_country: address
+                .and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
         })
     }

@@ -4,7 +4,6 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse},
     router_data_v2::flow_common_types,
     router_flow_types::{
-        subscriptions::{SubscriptionRecordBack,SubscriptionCreate},
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
@@ -17,6 +16,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
+        subscriptions::{SubscriptionCreate, SubscriptionRecordBack},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
