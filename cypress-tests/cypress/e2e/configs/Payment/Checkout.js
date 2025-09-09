@@ -64,7 +64,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           shipping_cost: 50,
           amount: 6000,
         },
@@ -130,7 +130,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -281,7 +281,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
