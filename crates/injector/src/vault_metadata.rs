@@ -1,13 +1,13 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use masking::{ExposeInterface, Secret};
-use url::Url;
-use std::collections::HashMap;
 use router_env::logger;
+use url::Url;
 
 use crate::{ConnectionConfig, VaultConnectors};
 
-const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::STANDARD;
+const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 pub const EXTERNAL_VAULT_METADATA_HEADER: &str = "x-external-vault-metadata";
 
 /// Trait for different vault metadata processors
@@ -53,11 +53,7 @@ pub enum VaultMetadataError {
 
 impl VaultMetadataError {
     /// Create a URL validation error with context
-    pub fn url_validation_failed(
-        field: &str,
-        url: &str,
-        reason: impl Into<String>,
-    ) -> Self {
+    pub fn url_validation_failed(field: &str, url: &str, reason: impl Into<String>) -> Self {
         Self::UrlValidationFailed {
             field: field.to_string(),
             url: url.to_string(),
@@ -225,9 +221,7 @@ impl VaultMetadataProcessor for ExternalVaultProxyMetadata {
         connection_config: &mut ConnectionConfig,
     ) -> Result<(), VaultMetadataError> {
         match self {
-            Self::VgsMetadata(vgs_metadata) => {
-                vgs_metadata.process_metadata(connection_config)
-            }
+            Self::VgsMetadata(vgs_metadata) => vgs_metadata.process_metadata(connection_config),
         }
     }
 
@@ -283,19 +277,19 @@ impl VaultMetadataFactory {
         }
 
         // Parse JSON with detailed error context
-        let metadata: ExternalVaultProxyMetadata = serde_json::from_slice(&decoded_bytes)
-            .map_err(|e| {
-            logger::error!(
-                error = %e,
-                decoded_size = decoded_bytes.len(),
-                "Failed to parse vault metadata JSON"
-            );
-            VaultMetadataError::JsonParsingFailed(format!(
-                "Invalid JSON structure: {}. Size: {} bytes",
-                e,
-                decoded_bytes.len()
-            ))
-        })?;
+        let metadata: ExternalVaultProxyMetadata =
+            serde_json::from_slice(&decoded_bytes).map_err(|e| {
+                logger::error!(
+                    error = %e,
+                    decoded_size = decoded_bytes.len(),
+                    "Failed to parse vault metadata JSON"
+                );
+                VaultMetadataError::JsonParsingFailed(format!(
+                    "Invalid JSON structure: {}. Size: {} bytes",
+                    e,
+                    decoded_bytes.len()
+                ))
+            })?;
 
         logger::info!(
             vault_connector = ?metadata.vault_connector(),
@@ -326,17 +320,16 @@ impl VaultMetadataExtractor for ConnectionConfig {
                 "Found vault metadata header, processing..."
             );
 
-            let processor = VaultMetadataFactory::from_base64_header(
-                &vault_metadata_header.clone().expose(),
-            )
-            .map_err(|e| {
-                logger::error!(
-                    error = %e,
-                    header_length = vault_metadata_header.clone().expose().len(),
-                    "Failed to create vault metadata processor from header"
-                );
-                e
-            })?;
+            let processor =
+                VaultMetadataFactory::from_base64_header(&vault_metadata_header.clone().expose())
+                    .map_err(|e| {
+                    logger::error!(
+                        error = %e,
+                        header_length = vault_metadata_header.clone().expose().len(),
+                        "Failed to create vault metadata processor from header"
+                    );
+                    e
+                })?;
 
             logger::debug!(
                 vault_connector = ?processor.vault_connector(),
@@ -427,9 +420,10 @@ impl VaultMetadataExtractorExt for ConnectionConfig {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests {
+    use std::collections::HashMap;
+
     use base64::Engine;
     use common_utils::pii::SecretSerdeValue;
-    use std::collections::HashMap;
 
     use super::*;
     use crate::{HttpMethod, InjectorRequest, TokenData, VaultConnectors};

@@ -3,6 +3,7 @@ pub mod core {
 
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use error_stack::{self, ResultExt};
     use masking::{self, ExposeInterface};
     use nom::{
         bytes::complete::{tag, take_while1},
@@ -13,7 +14,6 @@ pub mod core {
     use router_env::{instrument, logger, tracing};
     use serde_json::Value;
     use thiserror::Error;
-    use error_stack::{self, ResultExt};
 
     use crate as injector_types;
     use crate::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
@@ -84,7 +84,7 @@ pub mod core {
                 encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-            
+
             let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
@@ -97,7 +97,10 @@ pub mod core {
                 .build()
                 .change_context(InjectorError::HttpRequestFailed)
                 .inspect_err(|e| {
-                    logger::error!( "Failed to construct client with certificate and certificate key: {:?}", e );
+                    logger::error!(
+                        "Failed to construct client with certificate and certificate key: {:?}",
+                        e
+                    );
                 });
         }
 
@@ -107,9 +110,13 @@ pub mod core {
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
             let cert = reqwest::Certificate::from_pem(pem.as_bytes())
                 .change_context(InjectorError::HttpRequestFailed)
-                .inspect_err(|e| logger::error!("Failed to parse CA certificate PEM block: {:?}", e))?;
+                .inspect_err(|e| {
+                    logger::error!("Failed to parse CA certificate PEM block: {:?}", e)
+                })?;
             let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
-            return client_builder.use_rustls_tls().build()
+            return client_builder
+                .use_rustls_tls()
+                .build()
                 .change_context(InjectorError::HttpRequestFailed)
                 .inspect_err(|e| {
                     logger::error!("Failed to construct client with CA certificate: {:?}", e);
@@ -158,7 +165,8 @@ pub mod core {
         proxy_config: &Proxy,
     ) -> error_stack::Result<reqwest::Client, InjectorError> {
         let client_builder = get_client_builder(proxy_config)?;
-        client_builder.build()
+        client_builder
+            .build()
             .change_context(InjectorError::HttpRequestFailed)
             .inspect_err(|e| {
                 logger::error!("Failed to build default HTTP client: {:?}", e);
@@ -182,7 +190,10 @@ pub mod core {
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(InjectorError::HttpRequestFailed)
             .inspect_err(|e| {
-                logger::error!("Failed to create identity from certificate and key: {:?}", e);
+                logger::error!(
+                    "Failed to create identity from certificate and key: {:?}",
+                    e
+                );
             })
     }
 
@@ -310,9 +321,10 @@ pub mod core {
 
         // Send the request
         logger::debug!("Sending HTTP request to connector");
-        let response = req_builder.send().await.map_err(|e| {
-            log_and_convert_http_error(e, "send_request")
-        })?;
+        let response = req_builder
+            .send()
+            .await
+            .map_err(|e| log_and_convert_http_error(e, "send_request"))?;
 
         logger::info!(
             status_code = response.status().as_u16(),
