@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
-            BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+            BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
         },
         webhooks::VerifyWebhookSource,
         AccessTokenAuth, AccessTokenAuthentication, ExternalVaultCreateFlow,
@@ -34,7 +34,7 @@ use hyperswitch_domain_models::{
         authentication,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -52,7 +52,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,

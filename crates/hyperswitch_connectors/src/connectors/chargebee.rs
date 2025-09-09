@@ -12,12 +12,15 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery::InvoiceRecordBack,
+    router_request_types::revenue_recovery::InvoiceRecordBackRequest,
+    router_response_types::revenue_recovery::InvoiceRecordBackResponse,
+    types::InvoiceRecordBackRouterData,
+};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
+    revenue_recovery
 };
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -560,24 +563,24 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+
 impl
     ConnectorIntegration<
-        RecoveryRecordBack,
-        RevenueRecoveryRecordBackRequest,
-        RevenueRecoveryRecordBackResponse,
+        InvoiceRecordBack,
+        InvoiceRecordBackRequest,
+        InvoiceRecordBackResponse,
     > for Chargebee
 {
     fn get_headers(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_url(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
@@ -600,7 +603,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
@@ -616,7 +619,7 @@ impl
 
     fn build_request(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -638,10 +641,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &RevenueRecoveryRecordBackRouterData,
+        data: &InvoiceRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<InvoiceRecordBackRouterData, errors::ConnectorError> {
         let response: chargebee::ChargebeeRecordbackResponse = res
             .response
             .parse_struct("chargebee ChargebeeRecordbackResponse")

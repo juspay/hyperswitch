@@ -8,7 +8,7 @@ use common_enums::{CallConnectorAction, PaymentAction};
 use common_utils::errors::CustomResult;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -17,12 +17,12 @@ use hyperswitch_domain_models::router_request_types::authentication::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-    RevenueRecoveryRecordBackRequest,
+    InvoiceRecordBackRequest,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    RevenueRecoveryRecordBackResponse,
+    InvoiceRecordBackResponse,
 };
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
