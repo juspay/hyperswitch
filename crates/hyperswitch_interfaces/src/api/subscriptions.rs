@@ -1,5 +1,5 @@
 //! Subscriptions Interface for V1
- #[cfg(feature = "v1")]
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::GetSubscriptionPlanPrices,
     router_request_types::subscriptions::GetSubscriptionPlanPricesRequest,
