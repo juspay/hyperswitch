@@ -7,8 +7,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use open_feature::{EvaluationContext, EvaluationContextFieldValue};
 use superposition_provider::{
-    EvaluationCacheOptions, PollingStrategy, RefreshStrategy, SuperpositionProvider,
-    SuperpositionProviderOptions,
+    PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
 };
 
 /// Default polling interval in seconds
@@ -235,5 +234,35 @@ impl SuperpositionClient {
                 "Failed to retrieve int config for key: {}",
                 key
             )))
+    }
+}
+
+#[cfg(feature = "superposition")]
+#[async_trait::async_trait]
+impl hyperswitch_interfaces::secrets_interface::secret_handler::SecretsHandler
+    for SuperpositionClientConfig
+{
+    async fn convert_to_raw_secret(
+        value: hyperswitch_interfaces::secrets_interface::secret_state::SecretStateContainer<
+            Self,
+            hyperswitch_interfaces::secrets_interface::secret_state::SecuredSecret,
+        >,
+        secret_management_client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> CustomResult<
+        hyperswitch_interfaces::secrets_interface::secret_state::SecretStateContainer<
+            Self,
+            hyperswitch_interfaces::secrets_interface::secret_state::RawSecret,
+        >,
+        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
+    > {
+        let superposition_config = value.get_inner();
+        let token = secret_management_client
+            .get_secret(superposition_config.token.clone())
+            .await?;
+
+        Ok(value.transition_state(|superposition_config| Self {
+            token,
+            ..superposition_config
+        }))
     }
 }

@@ -328,24 +328,6 @@ impl SecretsHandler for settings::NetworkTokenizationService {
     }
 }
 
-#[async_trait::async_trait]
-impl SecretsHandler for external_services::superposition::SuperpositionClientConfig {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let superposition_config = value.get_inner();
-        let token = secret_management_client
-            .get_secret(superposition_config.token.clone())
-            .await?;
-
-        Ok(value.transition_state(|superposition_config| Self {
-            token,
-            ..superposition_config
-        }))
-    }
-}
-
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -468,6 +450,7 @@ pub(crate) async fn fetch_raw_secrets(
         })
         .await;
 
+    #[cfg(feature = "superposition")]
     #[allow(clippy::expect_used)]
     let superposition =
         external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
@@ -578,6 +561,7 @@ pub(crate) async fn fetch_raw_secrets(
         infra_values: conf.infra_values,
         enhancement: conf.enhancement,
         proxy_status_mapping: conf.proxy_status_mapping,
+        #[cfg(feature = "superposition")]
         superposition,
     }
 }
