@@ -1,6 +1,8 @@
 #! /usr/bin/env bash
 EMAIL="demo@hyperswitch.com"
 PASSWORD="Hyperswitch@123"
+# Use admin API key from env or default to test_admin (kept in config/secrets.admin_api_key)
+ADMIN_API_KEY="${ADMIN_API_KEY:-test_admin}"
 # Initialize merchant_id and profile_id to empty strings
 merchant_id=""
 profile_id=""
@@ -12,7 +14,7 @@ health_response_body=$(echo "${health_response}" | head -n1)
 
 # Try signin first
 signin_payload="{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}"
-signin_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "User-Agent: HyperSwitch-Shell-Client/1.0" -H "Referer: ${HYPERSWITCH_CONTROL_CENTER_URL}/" -d "${signin_payload}" "${HYPERSWITCH_SERVER_URL}/user/signin")
+signin_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -H "User-Agent: HyperSwitch-Shell-Client/1.0" -H "Referer: ${HYPERSWITCH_CONTROL_CENTER_URL}/" -d "${signin_payload}" "${HYPERSWITCH_SERVER_URL}/user/signin")
 
 # Check if user needs to be created
 if [[ $(
@@ -31,7 +33,7 @@ if [[ $(
         -H 'Origin: ${HYPERSWITCH_CONTROL_CENTER_URL}' \
         -H 'Referer: ${HYPERSWITCH_CONTROL_CENTER_URL}/' \
         -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36' \
-        -H 'api-key: hyperswitch' \
+        -H 'api-key: ${ADMIN_API_KEY}' \
         -d '${signup_payload}'"
 
     signup_response=$(eval "${signup_cmd}")
@@ -51,7 +53,7 @@ fi
 if [ "${token_type}" = "totp" ]; then
     MAX_RETRIES=3
     for i in $(seq 1 ${MAX_RETRIES}); do
-        terminate_response=$(curl -s -X GET -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer ${token}" "${HYPERSWITCH_SERVER_URL}/user/2fa/terminate?skip_two_factor_auth=true")
+    terminate_response=$(curl -s -X GET -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -H "authorization: Bearer ${token}" "${HYPERSWITCH_SERVER_URL}/user/2fa/terminate?skip_two_factor_auth=true")
 
         new_token=$(echo "${terminate_response}" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
         if [ -n "${new_token}" ]; then
@@ -67,7 +69,7 @@ fi
 
 # Get user info
 if [ -n "${token}" ]; then
-    user_info_cmd="curl -s -X GET -H 'Content-Type: application/json' -H 'api-key: hyperswitch' -H 'authorization: Bearer ${token}' '${HYPERSWITCH_SERVER_URL}/user'"
+    user_info_cmd="curl -s -X GET -H 'Content-Type: application/json' -H 'api-key: ${ADMIN_API_KEY}' -H 'authorization: Bearer ${token}' '${HYPERSWITCH_SERVER_URL}/user'"
     user_info=$(eval "${user_info_cmd}")
 else
     user_info="{}"
@@ -80,7 +82,7 @@ profile_id=$(echo "${user_info}" | grep -o '"profile_id":"[^"]*"' | cut -d'"' -f
 if [ "${is_new_user}" = true ] && [ -n "${merchant_id}" ] && [ -n "${token}" ]; then
     # Create merchant account
     merchant_payload="{\"merchant_id\":\"${merchant_id}\",\"merchant_name\":\"Test\"}"
-    merchant_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer ${token}" -d "${merchant_payload}" "${HYPERSWITCH_SERVER_URL}/accounts/${merchant_id}")
+    merchant_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -H "authorization: Bearer ${token}" -d "${merchant_payload}" "${HYPERSWITCH_SERVER_URL}/accounts/${merchant_id}")
 
     # Configure connector
     connector_payload=$(
@@ -128,11 +130,28 @@ if [ "${is_new_user}" = true ] && [ -n "${merchant_id}" ] && [ -n "${token}" ]; 
 }
 EOF
     )
-    connector_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: hyperswitch" -H "authorization: Bearer ${token}" -d "${connector_payload}" "${HYPERSWITCH_SERVER_URL}/account/${merchant_id}/connectors")
+    connector_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -H "authorization: Bearer ${token}" -d "${connector_payload}" "${HYPERSWITCH_SERVER_URL}/account/${merchant_id}/connectors")
+
+    # Create a server-side API key for this merchant for testing and print it once
+    api_key_payload='{"description":"local dev key"}'
+    api_key_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -d "${api_key_payload}" "${HYPERSWITCH_SERVER_URL}/api_keys/${merchant_id}")
+    created_api_key=$(echo "${api_key_response}" | grep -o '"api_key":"[^"]*"' | cut -d '"' -f4)
+    if [ -n "${created_api_key}" ]; then
+        echo "Created merchant API key: ${created_api_key}"
+    fi
 
     # Silently check if configuration was successful without printing messages
     if [ -z "$(echo "${merchant_response}" | grep -o 'merchant_id')" ] || [ -z "$(echo "${connector_response}" | grep -o 'connector_id')" ]; then
-        # Only log to debug log if we want to troubleshoot later
         : # No-op command
+    fi
+fi
+
+# Always try to create and print a merchant API key if we have a merchant_id
+if [ -n "${merchant_id}" ]; then
+    api_key_payload='{"description":"local dev key"}'
+    api_key_response=$(curl -s -X POST -H "Content-Type: application/json" -H "api-key: ${ADMIN_API_KEY}" -d "${api_key_payload}" "${HYPERSWITCH_SERVER_URL}/api_keys/${merchant_id}")
+    created_api_key=$(echo "${api_key_response}" | grep -o '"api_key":"[^"]*"' | cut -d '"' -f4)
+    if [ -n "${created_api_key}" ]; then
+        echo "Created merchant API key: ${created_api_key}"
     fi
 fi

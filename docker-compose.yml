@@ -4,21 +4,18 @@ volumes:
   ckh_data:
 
 networks:
-  router_net:
+  router_net: {}
 
 services:
-  ### Dependencies
   prestart-hook:
     image: curlimages/curl-base:latest
     container_name: prestart-hook
     environment:
       - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
     entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "apk add --no-cache bash && /bin/bash /prestart_hook.sh",
-      ]
+      - "/bin/sh"
+      - "-c"
+      - "apk add --no-cache bash && /bin/bash /prestart_hook.sh"
     volumes:
       - ./scripts/prestart_hook.sh:/prestart_hook.sh
     networks:
@@ -27,7 +24,7 @@ services:
   pg:
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       - router_net
     volumes:
