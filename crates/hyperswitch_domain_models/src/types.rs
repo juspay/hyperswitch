@@ -4,9 +4,11 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack,
-        subscriptions::CreateCustomer, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
+        mandate_revoke::MandateRevoke,
+        revenue_recovery::RecoveryRecordBack,
+        subscriptions::{CreateCustomer, SubscriptionCreate, SubscriptionRecordBack},
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
@@ -18,7 +20,9 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::CreateCustomerRequest,
+        subscriptions::{
+            CreateCustomerRequest, SubscriptionCreateRequest, SubscriptionsRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -39,7 +43,7 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        subscriptions::CreateCustomerResponse,
+        subscriptions::{CreateCustomerResponse, SubscriptionCreateResponse},
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
@@ -176,3 +180,12 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
 >;
+
+pub type SubscriptionRecordBackRouterData = RouterData<
+    SubscriptionRecordBack,
+    SubscriptionsRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+pub type SubscriptionCreateRouterData =
+    RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
