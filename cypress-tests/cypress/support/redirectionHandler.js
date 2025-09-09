@@ -647,15 +647,12 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     url: redirectionUrl.href,
     failOnStatusCode: false,
   }).then((response) => {
-
     responseContentType = response.headers["content-type"];
 
     // Check if the response is JSON
     if (response.headers["content-type"]?.includes("application/json")) {
-
       // For JSON responses, check if it contains useful info
       if (response.body && typeof response.body === "object") {
-
         // If the JSON contains redirect info, use it
         if (response.body.redirect_url) {
           cy.visit(response.body.redirect_url, { failOnStatusCode: false });
