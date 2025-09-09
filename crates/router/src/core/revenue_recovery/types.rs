@@ -1451,10 +1451,9 @@ pub fn construct_recovery_record_back_router_data(
         },
         response: Err(types::ErrorResponse::default()),
     };
-    let old_router_data =
-        flow_common_types::InvoiceRecordBackData::to_old_router_data(router_data)
-            .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-            .attach_printable("Cannot construct record back router data")?;
+    let old_router_data = flow_common_types::InvoiceRecordBackData::to_old_router_data(router_data)
+        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+        .attach_printable("Cannot construct record back router data")?;
     Ok(old_router_data)
 }
 
