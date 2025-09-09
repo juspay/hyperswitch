@@ -15,6 +15,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CreateSubscriptionRequest {
     pub subscription_id: Option<String>,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
     pub mca_id: Option<String>,
@@ -34,6 +35,7 @@ impl CreateSubscriptionRequest {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CreateSubscriptionResponse {
     pub subscription: Subscription,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub client_secret: Option<String>,
     pub merchant_id: String,
     pub mca_id: Option<String>,
@@ -59,7 +61,8 @@ pub enum SubscriptionStatus {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Invoice {
     pub id: String,
-    pub total: u64,
+    pub total_amount: u64,
+    pub currency: common_enums::Currency,
 }
 
 impl Subscription {
@@ -73,10 +76,11 @@ impl Subscription {
 }
 
 impl Invoice {
-    pub fn new(id: impl Into<String>, total: u64) -> Self {
+    pub fn new(id: impl Into<String>, total_amount: u64, currency: common_enums::Currency) -> Self {
         Self {
             id: id.into(),
-            total,
+            total_amount,
+            currency,
         }
     }
 }
@@ -84,11 +88,13 @@ impl CreateSubscriptionResponse {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscription: Subscription,
+        profile_id: common_utils::id_type::ProfileId,
         merchant_id: impl Into<String>,
         mca_id: Option<String>,
     ) -> Self {
         Self {
             subscription,
+            profile_id,
             client_secret: None,
             merchant_id: merchant_id.into(),
             mca_id,

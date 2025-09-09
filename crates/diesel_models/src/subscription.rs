@@ -89,7 +89,7 @@ impl SubscriptionNew {
             self.subscription_id
         )));
 
-        self.client_secret = self.client_secret.clone();
+        self.client_secret = client_secret.clone();
         client_secret
     }
 }

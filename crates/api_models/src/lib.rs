@@ -42,6 +42,7 @@ pub mod recon;
 pub mod refunds;
 pub mod relay;
 pub mod routing;
+#[cfg(feature = "v1")]
 pub mod subscription;
 pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
