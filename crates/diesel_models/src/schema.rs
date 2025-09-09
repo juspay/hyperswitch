@@ -986,6 +986,7 @@ diesel::table! {
         #[max_length = 255]
         network_transaction_id -> Nullable<Varchar>,
         is_overcapture_enabled -> Nullable<Bool>,
+        network_details -> Nullable<Jsonb>,
     }
 }
 
