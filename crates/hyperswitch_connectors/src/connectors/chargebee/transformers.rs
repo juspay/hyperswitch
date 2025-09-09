@@ -15,10 +15,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, PaymentsResponseData,
-        RefundsResponseData,
+        revenue_recovery::InvoiceRecordBackResponse, PaymentsResponseData, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, InvoiceRecordBackRouterData},
+    types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -673,9 +672,7 @@ pub enum ChargebeeRecordStatus {
     Failure,
 }
 
-impl TryFrom<&ChargebeeRouterData<&InvoiceRecordBackRouterData>>
-    for ChargebeeRecordPaymentRequest
-{
+impl TryFrom<&ChargebeeRouterData<&InvoiceRecordBackRouterData>> for ChargebeeRecordPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &ChargebeeRouterData<&InvoiceRecordBackRouterData>,

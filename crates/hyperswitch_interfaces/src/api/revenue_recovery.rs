@@ -40,11 +40,7 @@ pub trait BillingConnectorPaymentsSyncIntegration:
 
 /// trait RevenueRecoveryRecordBack
 pub trait RevenueRecoveryRecordBack:
-    ConnectorIntegration<
-    InvoiceRecordBack,
-    InvoiceRecordBackRequest,
-    InvoiceRecordBackResponse,
->
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
 {
 }
 
