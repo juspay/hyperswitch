@@ -700,7 +700,7 @@ pub struct PaysafePaymentsSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentHandlesSyncResponse {
-    pub payment_handles: Vec<PaysafePaymentsResponse>,
+    pub payment_handles: Vec<PaysafePaymentHandleResponse>,
 }
 
 // Paysafe Payments Response Structure
@@ -728,21 +728,27 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
     fn try_from(
         item: ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_handle = match &item.response {
-            PaysafeSyncResponse::Payments(sync_response) => sync_response
-                .payments
-                .first()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-            PaysafeSyncResponse::PaymentHandles(sync_response) => sync_response
-                .payment_handles
-                .first()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+        let status = match &item.response {
+            PaysafeSyncResponse::Payments(sync_response) => {
+                let payment_response = sync_response
+                    .payments
+                    .first()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                get_paysafe_payment_status(
+                    payment_response.status.clone(),
+                    item.data.request.capture_method,
+                )
+            }
+            PaysafeSyncResponse::PaymentHandles(sync_response) => {
+                let payment_handle_response = sync_response
+                    .payment_handles
+                    .first()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                common_enums::AttemptStatus::try_from(payment_handle_response.status.clone())?
+            }
         };
         Ok(Self {
-            status: get_paysafe_payment_status(
-                payment_handle.status,
-                item.data.request.capture_method,
-            ),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
