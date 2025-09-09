@@ -3277,7 +3277,7 @@ dependencies = [
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
- "typed-builder",
+ "typed-builder 0.21.2",
  "url",
  "vaultrs",
 ]
@@ -5687,7 +5687,7 @@ dependencies = [
  "mockall",
  "time",
  "tokio 1.45.1",
- "typed-builder",
+ "typed-builder 0.20.1",
 ]
 
 [[package]]
@@ -9992,11 +9992,31 @@ dependencies = [
 
 [[package]]
 name = "typed-builder"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd9d30e3a08026c78f246b173243cf07b3696d274debd26680773b6773c2afc7"
+dependencies = [
+ "typed-builder-macro 0.20.1",
+]
+
+[[package]]
+name = "typed-builder"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fef81aec2ca29576f9f6ae8755108640d0a86dd3161b2e8bca6cfa554e98f77d"
 dependencies = [
- "typed-builder-macro",
+ "typed-builder-macro 0.21.2",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c36781cc0e46a83726d9879608e4cf6c2505237e263a8eb8c24502989cfdb28"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]
