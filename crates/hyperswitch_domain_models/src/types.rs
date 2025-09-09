@@ -114,11 +114,8 @@ pub type VerifyWebhookSourceRouterData = RouterData<
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
-pub type InvoiceRecordBackRouterData = RouterData<
-    InvoiceRecordBack,
-    InvoiceRecordBackRequest,
-    InvoiceRecordBackResponse,
->;
+pub type InvoiceRecordBackRouterData =
+    RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
