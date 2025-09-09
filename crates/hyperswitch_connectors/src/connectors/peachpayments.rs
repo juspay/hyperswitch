@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use common_enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -7,7 +8,6 @@ use common_utils::{
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use common_enums;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -22,8 +22,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -119,7 +119,10 @@ impl ConnectorCommon for Peachpayments {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             ("x-api-key".to_string(), auth.api_key.expose().into_masked()),
-            ("x-tenant-id".to_string(), auth.tenant_id.expose().into_masked()),
+            (
+                "x-tenant-id".to_string(),
+                auth.tenant_id.expose().into_masked(),
+            ),
             ("x-exi-auth-ver".to_string(), "v1".to_string().into_masked()),
         ])
     }
@@ -159,12 +162,12 @@ impl ConnectorValidation for Peachpayments {
         pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        
+
         // PeachPayments supports both manual and automatic capture
         match capture_method {
-            common_enums::CaptureMethod::Manual 
-            | common_enums::CaptureMethod::Automatic 
-            | common_enums::CaptureMethod::SequentialAutomatic => {},
+            common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::SequentialAutomatic => {}
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: format!("Capture method {:?} is not supported", capture_method),
@@ -176,7 +179,7 @@ impl ConnectorValidation for Peachpayments {
 
         // PeachPayments only supports card payments for now
         match payment_method {
-            common_enums::PaymentMethod::Card => {},
+            common_enums::PaymentMethod::Card => {}
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: format!("Payment method {:?} is not supported", payment_method),
@@ -189,11 +192,14 @@ impl ConnectorValidation for Peachpayments {
         // Validate payment method types for cards
         if let Some(payment_method_type) = pmt {
             match payment_method_type {
-                common_enums::PaymentMethodType::Credit 
-                | common_enums::PaymentMethodType::Debit => {},
+                common_enums::PaymentMethodType::Credit
+                | common_enums::PaymentMethodType::Debit => {}
                 _ => {
                     return Err(errors::ConnectorError::NotSupported {
-                        message: format!("Payment method type {:?} is not supported", payment_method_type),
+                        message: format!(
+                            "Payment method type {:?} is not supported",
+                            payment_method_type
+                        ),
                         connector: "Peachpayments",
                     }
                     .into());
@@ -324,10 +330,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req.request.connector_transaction_id
+        let connector_transaction_id = req
+            .request
+            .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!("{}/transactions/{}", self.base_url(connectors), connector_transaction_id))
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -392,7 +404,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
-        Ok(format!("{}/transactions/{}/confirm", self.base_url(connectors), connector_transaction_id))
+        Ok(format!(
+            "{}/transactions/{}/confirm",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -407,7 +423,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
 
         let connector_router_data = peachpayments::PeachpaymentsRouterData::from((amount, req));
-        let connector_req = peachpayments::PeachpaymentsConfirmRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            peachpayments::PeachpaymentsConfirmRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -478,7 +495,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = &req.request.connector_transaction_id;
-        Ok(format!("{}/transactions/{}/void", self.base_url(connectors), connector_transaction_id))
+        Ok(format!(
+            "{}/transactions/{}/void",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -501,7 +522,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -553,7 +576,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpa
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = req.request.connector_transaction_id.clone();
-        Ok(format!("{}/transactions/{}/refund", self.base_url(connectors), connector_transaction_id))
+        Ok(format!(
+            "{}/transactions/{}/refund",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -639,9 +666,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req.request.get_connector_refund_id()
+        let connector_refund_id = req
+            .request
+            .get_connector_refund_id()
             .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
-        Ok(format!("{}/transactions/{}", self.base_url(connectors), connector_refund_id))
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            connector_refund_id
+        ))
     }
 
     fn build_request(

@@ -1676,6 +1676,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Peachpayments => {
                 peachpayments::transformers::PeachpaymentsAuthType::try_from(self.auth_type)?;
+                peachpayments::transformers::PeachPaymentsConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Placetopay => {
