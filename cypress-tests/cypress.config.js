@@ -1,6 +1,7 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import fs from "fs";
+import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
 let globalState;
 
@@ -9,10 +10,8 @@ const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
-// Detect CI environment and apply appropriate timeout multipliers
-const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
-
-const timeoutMultiplier = isCI ? 1.5 : 1;
+// Get timeout multiplier from shared utility
+const timeoutMultiplier = getTimeoutMultiplier();
 
 export default defineConfig({
   e2e: {

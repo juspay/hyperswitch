@@ -1,11 +1,10 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
 
 import jsQR from "jsqr";
+import { getTimeoutMultiplier } from "../utils/RequestBodyUtils.js";
 
-// Detect CI environment and apply appropriate timeout multipliers (same logic as cypress.config.js)
-const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
-
-const timeoutMultiplier = isCI ? 1.5 : 1;
+// Get timeout multiplier from shared utility
+const timeoutMultiplier = getTimeoutMultiplier();
 
 // Define constants for wait times with adaptive scaling
 const CONSTANTS = {
@@ -643,52 +642,35 @@ function bankRedirectRedirection(
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   let responseContentType = null;
 
-  // Check response content-type first for all connectors to handle JSON responses
-  cy.log(`Checking response content-type for ${connectorId} 3DS flow`);
-
   // First check what type of response we get from the redirect URL
   cy.request({
     url: redirectionUrl.href,
     failOnStatusCode: false,
   }).then((response) => {
-    cy.log(`Response status: ${response.status}`);
-    cy.log(`Response content-type: ${response.headers["content-type"]}`);
 
     responseContentType = response.headers["content-type"];
 
     // Check if the response is JSON
     if (response.headers["content-type"]?.includes("application/json")) {
-      cy.log(
-        `${connectorId} returned JSON response - handling as completed 3DS flow`
-      );
 
       // For JSON responses, check if it contains useful info
       if (response.body && typeof response.body === "object") {
-        cy.log("JSON response body:", response.body);
 
         // If the JSON contains redirect info, use it
         if (response.body.redirect_url) {
-          cy.log("Found redirect_url in JSON, visiting that instead");
           cy.visit(response.body.redirect_url, { failOnStatusCode: false });
         } else {
-          // Otherwise, directly navigate to expected URL since 3DS might be complete
-          cy.log("No redirect_url found, navigating to expected URL");
           cy.visit(expectedUrl.href);
           // Verify return URL and exit completely
           verifyReturnUrl(redirectionUrl, expectedUrl, true);
           return;
         }
       } else {
-        // If no useful JSON, go directly to expected URL
-        cy.log("Empty or invalid JSON, navigating to expected URL");
         cy.visit(expectedUrl.href);
-        // Verify return URL and exit completely
         verifyReturnUrl(redirectionUrl, expectedUrl, true);
         return;
       }
     } else {
-      // If it's HTML, proceed with normal visit
-      cy.log("Response is HTML, proceeding with normal visit");
       cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     }
   });
@@ -1486,8 +1468,6 @@ function handleFlow(
         const iframes = $body.find("iframe");
 
         if (iframes.length > 0) {
-          cy.log(`Found ${iframes.length} iframe(s), executing iframe flow`);
-
           // Wait for iframe to be ready
           cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
             .should("be.visible")
