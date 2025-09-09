@@ -3,7 +3,7 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
         BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
-        RevenueRecoveryRecordBackData,
+        InvoiceRecordBackData,
     },
     router_flow_types::{
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
@@ -48,7 +48,7 @@ pub trait BillingConnectorPaymentsSyncIntegrationV2:
 pub trait RevenueRecoveryRecordBackV2:
     ConnectorIntegrationV2<
     InvoiceRecordBack,
-    RevenueRecoveryRecordBackData,
+    InvoiceRecordBackData,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
 >

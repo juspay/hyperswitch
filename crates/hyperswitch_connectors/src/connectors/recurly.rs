@@ -300,10 +300,10 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegrationV2<
-        recovery_router_flows::RecoveryRecordBack,
-        recovery_flow_common_types::RevenueRecoveryRecordBackData,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::InvoiceRecordBack,
+        recovery_flow_common_types::InvoiceRecordBackData,
+        recovery_request_types::InvoiceRecordBackRequest,
+        recovery_response_types::InvoiceRecordBackResponse,
     > for Recurly
 {
     fn get_headers(

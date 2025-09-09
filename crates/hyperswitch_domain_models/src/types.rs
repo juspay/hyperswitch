@@ -151,7 +151,7 @@ pub type BillingConnectorPaymentsSyncRouterDataV2 = RouterDataV2<
 
 pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
     InvoiceRecordBack,
-    router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
+    router_data_v2::flow_common_types::InvoiceRecordBackData,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
 >;

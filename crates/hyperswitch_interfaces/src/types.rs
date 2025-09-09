@@ -264,7 +264,7 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+/// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
 pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
     InvoiceRecordBack,
     InvoiceRecordBackRequest,
@@ -285,10 +285,10 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+/// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
 pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
     InvoiceRecordBack,
-    flow_common_types::RevenueRecoveryRecordBackData,
+    flow_common_types::InvoiceRecordBackData,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
 >;

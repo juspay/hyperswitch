@@ -663,9 +663,9 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegration<
-        recovery_router_flows::RecoveryRecordBack,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::InvoiceRecordBack,
+        recovery_request_types::InvoiceRecordBackRequest,
+        recovery_response_types::InvoiceRecordBackResponse,
     > for Stripebilling
 {
     fn get_headers(

@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
             ExternalVaultProxyFlowData, FilesFlowData, MandateRevokeFlowData, PaymentFlowData,
-            RefundFlowData, RevenueRecoveryRecordBackData, UasFlowData, VaultConnectorFlowData,
+            RefundFlowData, InvoiceRecordBackData, UasFlowData, VaultConnectorFlowData,
             WebhookSourceVerifyData,
         },
         RouterDataV2,
@@ -760,7 +760,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
 }
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
-    for RevenueRecoveryRecordBackData
+    for InvoiceRecordBackData
 {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
