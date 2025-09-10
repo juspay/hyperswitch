@@ -1186,7 +1186,7 @@ impl From<api_models::subscription::CreateSubscriptionRequest> for CustomerDetai
         let customer_id = request.get_customer_id().map(ToOwned::to_owned);
         let customer = request.customer;
 
-        CustomerDetails {
+        Self {
             customer_id,
             name: customer.as_ref().and_then(|cus| cus.name.clone()),
             email: customer.as_ref().and_then(|cus| cus.email.clone()),
