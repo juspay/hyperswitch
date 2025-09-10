@@ -13,8 +13,8 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
-            handle_unified_connector_service_response_for_payment_register, set_access_token_for_ucs, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_register, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
