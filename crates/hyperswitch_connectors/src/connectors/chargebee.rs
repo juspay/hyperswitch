@@ -24,12 +24,12 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync},
+        refunds::{Execute, RSync}, CreateConnectorCustomer
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        RefundsData, SetupMandateRequestData, ConnectorCustomerData
     },
     router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -39,8 +39,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, payments::ConnectorCustomer, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -65,7 +65,7 @@ impl Chargebee {
         }
     }
 }
-
+impl ConnectorCustomer for Chargebee {}
 impl api::Payment for Chargebee {}
 impl api::PaymentSession for Chargebee {}
 impl api::ConnectorAccessToken for Chargebee {}
@@ -79,8 +79,6 @@ impl api::RefundExecute for Chargebee {}
 impl api::RefundSync for Chargebee {}
 impl api::PaymentToken for Chargebee {}
 
-#[cfg(feature = "v1")]
-impl api::subscriptions::CreateCustomer for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
@@ -668,12 +666,8 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl
-    ConnectorIntegration<
-        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
-        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
-    > for Chargebee
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Chargebee
 {
     fn get_headers(
         &self,
@@ -764,19 +758,19 @@ impl
 #[cfg(all(feature = "v2", feature = "v1"))]
 impl
     ConnectorIntegrationV2<
-        hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+        hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
         hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-        hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-        hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+        hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+        hyperswitch_domain_models::router_response_types::PaymentsResponseData,
     > for Chargebee
 {
     fn get_headers(
         &self,
         _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         todo!()
@@ -785,10 +779,10 @@ impl
     fn get_url(
         &self,
         _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::ConnectorError> {
         todo!()
@@ -801,10 +795,10 @@ impl
     fn get_request_body(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
     ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
         todo!()
@@ -813,7 +807,7 @@ impl
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
             hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
             hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
@@ -825,19 +819,19 @@ impl
     fn handle_response_v2(
         &self,
         _data: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<
         RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::subscriptions::CreateCustomer,
+            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
             hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
         >,
         errors::ConnectorError,
     > {

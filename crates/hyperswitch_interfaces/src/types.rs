@@ -16,7 +16,6 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
-        subscriptions::CreateCustomer,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -32,7 +31,6 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::CreateCustomerRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -55,7 +53,6 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             RevenueRecoveryRecordBackResponse,
         },
-        subscriptions::CreateCustomerResponse,
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
@@ -353,14 +350,16 @@ impl Default for Proxy {
     }
 }
 #[cfg(feature = "v1")]
-/// Type alias for `ConnectorIntegration<CreateCustomer, CreateCustomerRequest, CreateCustomerResponse>`
+/// Type alias for `ConnectorIntegration<CreateConnectorCustomer, CreateCustomerRequest, CreateCustomerResponse>`
 pub type CreateCustomerType =
-    dyn ConnectorIntegration<CreateCustomer, CreateCustomerRequest, CreateCustomerResponse>;
+    dyn ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 
-/// Type alias for `ConnectorIntegrationV2<CreateCustomer, CreateCustomerData, CreateCustomerRequest, CreateCustomerResponse>`
+
+#[cfg(feature = "v1")]
+/// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, CreateCustomerData, CreateCustomerRequest, CreateCustomerResponse>`
 pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
-    CreateCustomer,
+    CreateConnectorCustomer,
     flow_common_types::CreateCustomerData,
-    CreateCustomerRequest,
-    CreateCustomerResponse,
+    ConnectorCustomerData,
+    PaymentsResponseData,
 >;

@@ -348,6 +348,9 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
             connector_customer: Some(connector_customer_id.clone()),
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id,
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..data.clone()
         })

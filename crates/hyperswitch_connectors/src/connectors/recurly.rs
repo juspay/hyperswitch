@@ -11,20 +11,20 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{flow_common_types as customer_flow_common_types, UasFlowData},
     router_flow_types::{
-        subscriptions::CreateCustomer as CreateCustomerFlow,
+        payments::CreateConnectorCustomer as CreateCustomerFlow,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
     },
     router_request_types::{
-        subscriptions as customer_request_types,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
+        ConnectorCustomerData,
     },
-    router_response_types::subscriptions as customer_response_types,
+    router_response_types::PaymentsResponseData,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -153,8 +153,8 @@ impl
     ConnectorIntegrationV2<
         CreateCustomerFlow,
         customer_flow_common_types::CreateCustomerData,
-        customer_request_types::CreateCustomerRequest,
-        customer_response_types::CreateCustomerResponse,
+        ConnectorCustomerData,
+        PaymentsResponseData,
     > for Recurly
 {
 }

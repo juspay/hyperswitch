@@ -611,6 +611,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                 Some(connector_customer_id) => Ok(Self {
                     response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                         connector_customer_id,
+                        name: None,
+                        email: None,
+                        billing_address: None,
                     }),
                     ..item.data
                 }),

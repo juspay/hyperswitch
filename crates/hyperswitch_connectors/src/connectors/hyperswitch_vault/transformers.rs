@@ -110,6 +110,9 @@ impl<F, T>
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..item.data
         })

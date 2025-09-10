@@ -374,6 +374,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.data.customer_id.expose(),
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..item.data
         })

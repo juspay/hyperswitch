@@ -4021,6 +4021,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeCustomerResponse, T, PaymentsResp
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..item.data
         })

@@ -1,9 +1,10 @@
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
-pub mod subscriptions;
 
 use std::collections::HashMap;
+// use common_enums::enums;
+use api_models::payments::AddressDetails;
 
 use common_utils::{pii, request::Method, types::MinorUnit};
 pub use disputes::{
@@ -58,6 +59,9 @@ pub enum PaymentsResponseData {
 
     ConnectorCustomerResponse {
         connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
     },
 
     ThreeDSEnrollmentResponse {

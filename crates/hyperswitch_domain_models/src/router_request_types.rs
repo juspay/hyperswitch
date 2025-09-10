@@ -1,7 +1,6 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
-pub mod subscriptions;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
@@ -11,6 +10,7 @@ use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 use serde_with::serde_as;
+use api_models::payments::AddressDetails;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
@@ -182,6 +182,8 @@ impl
             split_payments: data.request.split_payments.clone(),
             setup_future_usage: data.request.setup_future_usage,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -288,6 +290,9 @@ pub struct ConnectorCustomerData {
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+
+    pub customer_id: Option<id_type::CustomerId>,
+    pub billing_address: Option<AddressDetails>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -303,6 +308,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             split_payments: None,
             setup_future_usage: data.setup_future_usage,
             customer_acceptance: data.customer_acceptance,
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -362,6 +369,8 @@ impl
             split_payments: data.request.split_payments.clone(),
             setup_future_usage: data.request.setup_future_usage,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -388,6 +397,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             split_payments: None,
             setup_future_usage: None,
             customer_acceptance: None,
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
