@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
+    types::RevenueRecoveryRecordBackRouterData, router_data_v2::{flow_common_types::CreateCustomerData, RouterDataV2}
 };
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -773,86 +773,86 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 #[cfg(all(feature = "v2", feature = "v1"))]
 impl
     ConnectorIntegrationV2<
-        hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-        hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-        hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+        CreateConnectorCustomer,
+        CreateCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
     > for Chargebee
 {
     fn get_headers(
         &self,
-        _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        todo!()
+        // Not Implemented (R)
     }
     fn get_url(
         &self,
-        _req: &hyperswitch_domain_models::router_data_v2::RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        // Not Implemented (R)
     }
     fn get_content_type(&self) -> &'static str {
-        todo!()
+        // Not Implemented (R)
     }
     fn get_request_body(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
     ) -> CustomResult<Option<RequestContent>, errors::ConnectorError> {
-        todo!()
+        // Not Implemented (R)
     }
     fn build_request_v2(
         &self,
         _req: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::subscriptions::CreateCustomerRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::CreateCustomerResponse,
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        todo!()
+        // Not Implemented (R)
     }
     fn handle_response_v2(
         &self,
         _data: &RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
         _event_builder: Option<&mut ConnectorEvent>,
         _res: Response,
     ) -> CustomResult<
         RouterDataV2<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+            CreateConnectorCustomer,
+            CreateCustomerData,
+            ConnectorCustomerData,
+            PaymentsResponseData,
         >,
         errors::ConnectorError,
     > {
-        todo!()
+        // Not Implemented (R)
     }
     fn get_error_response_v2(
         &self,
         _res: Response,
         _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        todo!()
+        // Not Implemented (R)
     }
 }
 
