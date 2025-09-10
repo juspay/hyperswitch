@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ErrorResponse, RouterData,
+        ErrorResponse, L2L3Data, RouterData,
     },
     router_flow_types::{
         refunds::{Execute, RSync},
@@ -94,9 +94,6 @@ trait NuveiAuthorizePreprocessingCommon {
         &self,
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag>;
-    fn get_order_tax_amount(
-        &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>>;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
@@ -157,11 +154,6 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         &self,
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
         Ok(self.payment_method_data.clone())
-    }
-    fn get_order_tax_amount(
-        &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>> {
-        Ok(None)
     }
 
     fn get_minor_amount_required(
@@ -243,11 +235,6 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
         Ok(self.payment_method_data.clone())
     }
-    fn get_order_tax_amount(
-        &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.order_tax_amount)
-    }
 
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
         self.get_email()
@@ -325,11 +312,6 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
             .into(),
         )
     }
-    fn get_order_tax_amount(
-        &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<errors::ConnectorError>> {
-        Ok(None)
-    }
 
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         None
@@ -376,8 +358,62 @@ pub struct NuveiSessionResponse {
 
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct NuvieAmountDetails {
-    total_tax: Option<StringMajorUnit>,
+pub struct NuveiAmountDetails {
+    pub total_tax: Option<StringMajorUnit>,
+    pub total_shipping: Option<StringMajorUnit>,
+    pub total_handling: Option<StringMajorUnit>,
+    pub total_discount: Option<StringMajorUnit>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NuveiItemType {
+    #[default]
+    Physical,
+    Discount,
+    #[serde(rename = "Shipping_fee")]
+    ShippingFee,
+    Digital,
+    #[serde(rename = "Gift_card")]
+    GiftCard,
+    #[serde(rename = "Store_credit")]
+    StoreCredit,
+    Surcharge,
+    #[serde(rename = "Sales_tax")]
+    SalesTax,
+}
+impl From<Option<enums::ProductType>> for NuveiItemType {
+    fn from(value: Option<enums::ProductType>) -> Self {
+        match value {
+            Some(enums::ProductType::Digital) => Self::Digital,
+            Some(enums::ProductType::Physical) => Self::Physical,
+            Some(enums::ProductType::Ride)
+            | Some(enums::ProductType::Travel)
+            | Some(enums::ProductType::Accommodation) => Self::ShippingFee,
+            _ => Self::Physical,
+        }
+    }
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiItem {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub item_type: NuveiItemType,
+    pub price: StringMajorUnit,
+    pub quantity: String,
+    pub group_id: Option<String>,
+    pub discount: Option<StringMajorUnit>,
+    pub discount_rate: Option<String>,
+    pub shipping: Option<StringMajorUnit>,
+    pub shipping_tax: Option<StringMajorUnit>,
+    pub shipping_tax_rate: Option<String>,
+    pub tax: Option<StringMajorUnit>,
+    pub tax_rate: Option<String>,
+    pub image_url: Option<String>,
+    pub product_url: Option<String>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
@@ -404,7 +440,8 @@ pub struct NuveiPaymentsRequest {
     pub shipping_address: Option<ShippingAddress>,
     pub related_transaction_id: Option<String>,
     pub url_details: Option<UrlDetails>,
-    pub amount_details: Option<NuvieAmountDetails>,
+    pub amount_details: Option<NuveiAmountDetails>,
+    pub items: Option<Vec<NuveiItem>>,
     pub is_partial_approval: Option<PartialApprovalFlag>,
     pub external_scheme_details: Option<ExternalSchemeDetails>,
 }
@@ -1424,6 +1461,94 @@ where
         ..Default::default()
     })
 }
+fn get_l2_l3_items(
+    l2_l3_data: &Option<L2L3Data>,
+    currency: enums::Currency,
+) -> Result<Option<Vec<NuveiItem>>, error_stack::Report<errors::ConnectorError>> {
+    l2_l3_data.as_ref().map_or(Ok(None), |data| {
+        data.order_details
+            .as_ref()
+            .map_or(Ok(None), |order_details_list| {
+                // Map each order to a Result<NuveiItem>
+                let results: Vec<Result<NuveiItem, error_stack::Report<errors::ConnectorError>>> =
+                    order_details_list
+                        .iter()
+                        .map(|order| {
+                            let discount = order
+                                .unit_discount_amount
+                                .map(|amount| {
+                                    convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency)
+                                })
+                                .transpose()?;
+                            let tax = order
+                                .total_tax_amount
+                                .map(|amount| {
+                                    convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency)
+                                })
+                                .transpose()?;
+                            Ok(NuveiItem {
+                                name: order.product_name.clone(),
+                                item_type: order.product_type.clone().into(),
+                                price: convert_amount(
+                                    NUVEI_AMOUNT_CONVERTOR,
+                                    order.amount,
+                                    currency,
+                                )?,
+                                quantity: order.quantity.to_string(),
+                                group_id: order.product_id.clone(),
+                                discount,
+                                discount_rate: None,
+                                shipping: None,
+                                shipping_tax: None,
+                                shipping_tax_rate: None,
+                                tax,
+                                tax_rate: order.tax_rate.map(|rate| rate.to_string()),
+                                image_url: order.product_img_link.clone(),
+                                product_url: None,
+                            })
+                        })
+                        .collect();
+                let mut items = Vec::with_capacity(results.len());
+                for result in results {
+                    match result {
+                        Ok(item) => items.push(item),
+                        Err(err) => return Err(err),
+                    }
+                }
+                Ok(Some(items))
+            })
+    })
+}
+
+fn get_amount_details(
+    l2_l3_data: &Option<L2L3Data>,
+    currency: enums::Currency,
+) -> Result<Option<NuveiAmountDetails>, error_stack::Report<errors::ConnectorError>> {
+    l2_l3_data.as_ref().map_or(Ok(None), |data| {
+        let total_tax = data
+            .order_tax_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_shipping = data
+            .shipping_cost
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_discount = data
+            .discount_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        let total_handling = data
+            .duty_amount
+            .map(|amount| convert_amount(NUVEI_AMOUNT_CONVERTOR, amount, currency))
+            .transpose()?;
+        Ok(Some(NuveiAmountDetails {
+            total_tax,
+            total_shipping,
+            total_handling,
+            total_discount,
+        }))
+    })
+}
 
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
@@ -1578,12 +1703,8 @@ where
         })?;
         let return_url = item.request.get_return_url_required()?;
 
-        let amount_details = match item.request.get_order_tax_amount()? {
-            Some(tax) => Some(NuvieAmountDetails {
-                total_tax: Some(convert_amount(NUVEI_AMOUNT_CONVERTOR, tax, currency)?),
-            }),
-            None => None,
-        };
+        let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
+        let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;
         let address = {
             if let Some(billing_address) = item.get_optional_billing() {
                 let mut billing_address = billing_address.clone();
@@ -1631,6 +1752,7 @@ where
                 pending_url: return_url.clone(),
             }),
             amount_details,
+            items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
             ..request
         })
@@ -3011,9 +3133,9 @@ fn convert_to_additional_payment_method_connector_response(
         merchant_advice_code.and_then(|code| get_merchant_advice_code_description(code));
 
     let payment_checks = serde_json::json!({
-        "avs_result_code": avs_code,
+        "avs_result": avs_code,
         "avs_description": avs_description,
-        "cvv_2_reply_code": cvv2_code,
+        "cvv_2_reply": cvv2_code,
         "cvv_2_description": cvv_description,
         "merchant_advice_code": merchant_advice_code,
         "merchant_advice_code_description": merchant_advice_description

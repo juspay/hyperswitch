@@ -85,6 +85,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -142,6 +143,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -206,6 +208,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
             is_manual_retry_enabled: value.is_manual_retry_enabled,
+            always_enable_overcapture: value.always_enable_overcapture,
         }
     }
 }
@@ -272,6 +275,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -356,6 +360,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     dispute_polling_interval,
                     always_request_extended_authorization,
                     is_manual_retry_enabled,
+                    always_enable_overcapture,
                 } = *update;
 
                 Self {
@@ -410,6 +415,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     dispute_polling_interval,
                     is_manual_retry_enabled,
+                    always_enable_overcapture,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -467,6 +473,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -521,6 +528,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -575,6 +583,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -629,6 +638,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -683,6 +693,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -737,6 +748,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -791,6 +803,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
             },
         }
     }
@@ -865,6 +878,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            always_enable_overcapture: self.always_enable_overcapture,
         })
     }
 
@@ -965,6 +979,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_country_code: item.merchant_country_code,
                 dispute_polling_interval: item.dispute_polling_interval,
                 is_manual_retry_enabled: item.is_manual_retry_enabled,
+                always_enable_overcapture: item.always_enable_overcapture,
             })
         }
         .await
@@ -2118,6 +2133,7 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
+            always_enable_overcapture: None,
         })
     }
 
