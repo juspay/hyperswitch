@@ -20,7 +20,8 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
             handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper, set_access_token_for_ucs,
+            handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
+            ucs_logging_wrapper,
         },
     },
     logger,
@@ -894,26 +895,26 @@ async fn call_unified_connector_service_authorize(
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
-    // Extract and store access token if present
-    if let Some(access_token) =
-        get_access_token_from_ucs_response(payment_authorize_response.state.as_ref())
-    {
-        if let Err(error) = set_access_token_for_ucs(
-            state,
-            merchant_context,
-            &router_data.connector,
-            access_token,
-        )
-        .await
-        {
-            logger::error!(
-                ?error,
-                "Failed to store UCS access token from authorize response"
-            );
-        } else {
-            logger::debug!("Successfully stored access token from UCS authorize response");
-        }
-    }
+            // Extract and store access token if present
+            if let Some(access_token) =
+                get_access_token_from_ucs_response(payment_authorize_response.state.as_ref())
+            {
+                if let Err(error) = set_access_token_for_ucs(
+                    state,
+                    merchant_context,
+                    &router_data.connector,
+                    access_token,
+                )
+                .await
+                {
+                    logger::error!(
+                        ?error,
+                        "Failed to store UCS access token from authorize response"
+                    );
+                } else {
+                    logger::debug!("Successfully stored access token from UCS authorize response");
+                }
+            }
 
             router_data.status = status;
             router_data.response = router_data_response;
@@ -1001,26 +1002,26 @@ async fn call_unified_connector_service_repeat_payment(
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
-    // Extract and store access token if present
-    if let Some(access_token) =
-        get_access_token_from_ucs_response(payment_repeat_response.state.as_ref())
-    {
-        if let Err(error) = set_access_token_for_ucs(
-            state,
-            merchant_context,
-            &router_data.connector,
-            access_token,
-        )
-        .await
-        {
-            logger::error!(
-                ?error,
-                "Failed to store UCS access token from repeat response"
-            );
-        } else {
-            logger::debug!("Successfully stored access token from UCS repeat response");
-        }
-    }
+            // Extract and store access token if present
+            if let Some(access_token) =
+                get_access_token_from_ucs_response(payment_repeat_response.state.as_ref())
+            {
+                if let Err(error) = set_access_token_for_ucs(
+                    state,
+                    merchant_context,
+                    &router_data.connector,
+                    access_token,
+                )
+                .await
+                {
+                    logger::error!(
+                        ?error,
+                        "Failed to store UCS access token from repeat response"
+                    );
+                } else {
+                    logger::debug!("Successfully stored access token from UCS repeat response");
+                }
+            }
 
             router_data.status = status;
             router_data.response = router_data_response;
