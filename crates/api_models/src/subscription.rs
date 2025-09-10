@@ -1,9 +1,12 @@
-use common_utils::{events::ApiEventMetric, pii};
+use common_utils::{events::ApiEventMetric, pii, types::MinorUnit};
 
 use crate::{
     customers::{CustomerRequest, CustomerResponse},
-    payments::CustomerDetailsResponse,
+    enums as api_enums,
+    payments::{Address, CustomerDetails, CustomerDetailsResponse, PaymentMethodDataRequest},
 };
+use common_types::payments::CustomerAcceptance;
+use time::PrimitiveDateTime;
 
 pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 
@@ -51,6 +54,16 @@ pub enum SubscriptionStatus {
     Created,
     Active,
     InActive,
+}
+
+impl SubscriptionStatus {
+    pub fn get_status_from_connector_status(status: &str) -> Self {
+        match status {
+            "active" => Self::Active,
+            "inactive" => Self::InActive,
+            _ => Self::Created,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -112,3 +125,70 @@ pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResp
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentData {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_data: PaymentMethodDataRequest,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentResponseData {
+    pub payment_id: String,
+    pub status: api_enums::IntentStatus,
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub connector: Option<String>,
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConfirmSubscriptionRequest {
+    pub client_secret: Option<String>,
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
+    pub coupon_code: Option<String>,
+    pub customer: Option<CustomerDetails>,
+    pub billing_address: Option<Address>,
+    pub payment_data: PaymentData,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionRequest {}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConfirmSubscriptionResponse {
+    pub subscription: Subscription,
+    pub payment: Option<PaymentResponseData>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub invoice: Option<Invoice>,
+}
+
+impl ApiEventMetric for ConfirmSubscriptionResponse {}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCreateResponse {
+    pub subscription_id: String,
+    pub status: String,
+    pub customer_id: String,
+    pub currency_code: api_enums::Currency,
+    pub total_amount: MinorUnit,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    pub created_at: Option<PrimitiveDateTime>,
+}
+
+impl Default for SubscriptionCreateResponse {
+    fn default() -> Self {
+        Self {
+            subscription_id: "sub_ID".to_string(),
+            status: "active".to_string(),
+            customer_id: "cust_ID".to_string(),
+            currency_code: api_enums::Currency::USD,
+            total_amount: MinorUnit::new(0),
+            next_billing_at: None,
+            created_at: None,
+        }
+    }
+}
