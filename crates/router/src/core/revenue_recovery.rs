@@ -563,13 +563,13 @@ pub async fn perform_calculate_workflow(
             );
 
             // reset active attmept id and payment connector transmission before going to execute workflow
-            let  _ = reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
+            let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
                 state,
                 payment_intent,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
                 is_there_an_active_payment_attempt_id
-            ).await?;
+            )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
             insert_execute_pcr_task_to_pt(
@@ -1039,7 +1039,7 @@ pub async fn get_payment_response_using_payment_get_operation(
                     state,
                     payment_intent_id,
                     &request,
-                    &merchant_context,
+                    merchant_context,
                     &revenue_recovery_payment_data.profile,
                     &hyperswitch_domain_models::payments::HeaderPayload::default(),
                 )
@@ -1050,7 +1050,7 @@ pub async fn get_payment_response_using_payment_get_operation(
             None,
             None,
             None,
-            &merchant_context,
+            merchant_context,
             &revenue_recovery_payment_data.profile,
             None,
         )?;
