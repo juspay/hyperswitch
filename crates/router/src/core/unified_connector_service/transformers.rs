@@ -530,6 +530,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(convert_access_token_to_grpc),
             test_mode: None,
             payment_method_type: None,
         })
