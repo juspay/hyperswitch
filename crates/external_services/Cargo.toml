@@ -12,7 +12,7 @@ aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
-superposition = ["dep:open-feature", "dep:superposition_provider", "dep:uniffi"]
+superposition = ["dep:open-feature", "dep:superposition_provider"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
 revenue_recovery = [
@@ -72,7 +72,6 @@ quick-xml = { version = "0.31.0", features = ["serialize"] }
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "a56de0a4ee393af5c401f02b6b4344cb263f4cac", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.88.1", optional = true }
-uniffi = { version = "0.29.4", default-features = false, optional = true }
 
 
 # First party crates
