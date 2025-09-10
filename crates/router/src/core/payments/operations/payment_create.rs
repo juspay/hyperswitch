@@ -1393,6 +1393,7 @@ impl PaymentCreate {
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
                 network_transaction_id:None,
+                network_details:None,
             },
             additional_pm_data,
 

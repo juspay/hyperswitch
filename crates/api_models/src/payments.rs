@@ -2036,6 +2036,11 @@ impl Default for MandateType {
     }
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema)]
+pub struct NetworkDetails {
+    pub network_advice_code: Option<String>,
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct Card {
     /// The card number
@@ -5574,6 +5579,10 @@ pub struct PaymentsResponse {
     /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+
+    /// Contains card network response details (e.g., Visa/Mastercard advice codes).
+    #[schema(value_type = Option<NetworkDetails>)]
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v2")]
