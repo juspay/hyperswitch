@@ -32,7 +32,7 @@ pub async fn create_subscription(
             .get_merchant_account()
             .get_id()
             .get_string_repr(),
-        request.mca_id.clone(),
+        request.merchant_connector_account_id.clone(),
     );
 
     let customer = get_customer_details_from_request(request.clone());
@@ -70,7 +70,7 @@ pub async fn create_subscription(
         SubscriptionStatus::Created.to_string(),
         None,
         None,
-        request.mca_id,
+        request.merchant_connector_account_id,
         None,
         None,
         merchant_context.get_merchant_account().get_id().clone(),
