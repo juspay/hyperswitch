@@ -2,10 +2,10 @@
 use std::str::FromStr;
 
 use common_enums::enums;
-use common_utils::id_type::CustomerId;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
+    id_type::CustomerId,
     pii::{self, Email},
     types::MinorUnit,
 };

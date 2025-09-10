@@ -34,8 +34,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, CreateCustomerRouterData,
+        CreateCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -747,10 +747,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         data: &CreateCustomerRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<
-        CreateCustomerRouterData,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<CreateCustomerRouterData, errors::ConnectorError> {
         let response: chargebee::ChargebeeCustomerCreateResponse = res
             .response
             .parse_struct("ChargebeeCustomerCreateResponse")
