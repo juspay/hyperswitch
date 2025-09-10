@@ -1366,7 +1366,7 @@ async fn record_back_to_billing_connector(
         revenue_recovery_response::InvoiceRecordBackResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data = construct_recovery_record_back_router_data(
+    let router_data = construct_invoice_record_back_router_data(
         state,
         billing_mca,
         payment_attempt,
@@ -1396,13 +1396,13 @@ async fn record_back_to_billing_connector(
     Ok(())
 }
 
-pub fn construct_recovery_record_back_router_data(
+pub fn construct_invoice_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::InvoiceRecordBackRouterData> {
-    logger::info!("Entering construct_recovery_record_back_router_data");
+    logger::info!("Entering construct_invoice_record_back_router_data");
 
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))

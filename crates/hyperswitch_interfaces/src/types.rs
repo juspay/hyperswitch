@@ -265,7 +265,7 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
 >;
 
 /// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
-pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
+pub type InvoiceRecordBackType = dyn ConnectorIntegration<
     InvoiceRecordBack,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
@@ -286,7 +286,7 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
 >;
 
 /// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
-pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+pub type InvoiceRecordBackTypeV2 = dyn ConnectorIntegrationV2<
     InvoiceRecordBack,
     flow_common_types::InvoiceRecordBackData,
     InvoiceRecordBackRequest,

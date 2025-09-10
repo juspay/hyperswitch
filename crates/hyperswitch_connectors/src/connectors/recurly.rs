@@ -349,9 +349,9 @@ impl
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
-                .url(&types::RevenueRecoveryRecordBackTypeV2::get_url(self, req)?)
+                .url(&types::InvoiceRecordBackTypeV2::get_url(self, req)?)
                 .attach_default_headers()
-                .headers(types::RevenueRecoveryRecordBackTypeV2::get_headers(
+                .headers(types::InvoiceRecordBackTypeV2::get_headers(
                     self, req,
                 )?)
                 .header("Content-Length", "0")

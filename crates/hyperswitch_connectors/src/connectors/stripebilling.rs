@@ -711,11 +711,11 @@ impl
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::RevenueRecoveryRecordBackType::get_url(
+                .url(&types::InvoiceRecordBackType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::RevenueRecoveryRecordBackType::get_headers(
+                .headers(types::InvoiceRecordBackType::get_headers(
                     self, req, connectors,
                 )?)
                 .build(),
