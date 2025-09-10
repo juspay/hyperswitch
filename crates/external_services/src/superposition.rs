@@ -11,7 +11,11 @@ use superposition_provider::{
     PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
 };
 
-impl TryFrom<StructValue> for Value {
+/// Wrapper type for JSON values from Superposition
+#[derive(Debug, Clone)]
+pub struct JsonValue(pub Value);
+
+impl TryFrom<StructValue> for JsonValue {
     type Error = String;
 
     fn try_from(sv: StructValue) -> Result<Self, Self::Error> {
@@ -19,7 +23,7 @@ impl TryFrom<StructValue> for Value {
         for (k, v) in sv.fields {
             map.insert(k, convert_open_feature_value(v)?);
         }
-        Ok(Value::Object(map))
+        Ok(JsonValue(Value::Object(map)))
     }
 }
 
@@ -31,7 +35,7 @@ fn convert_open_feature_value(v: OFValue) -> Result<Value, String> {
         OFValue::Float(f) => Number::from_f64(f)
             .map(Value::Number)
             .ok_or_else(|| format!("Invalid number: {}", f)),
-        OFValue::Struct(sv) => Value::try_from(sv),
+        OFValue::Struct(sv) => Ok(JsonValue::try_from(sv)?.0),
         OFValue::Array(list) => {
             let arr: Result<Vec<_>, _> = list.into_iter().map(convert_open_feature_value).collect();
             Ok(Value::Array(arr?))
@@ -305,14 +309,14 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&HashMap<String, String>>,
-    ) -> CustomResult<serde_json::Value, SuperpositionError> {
+    ) -> CustomResult<Value, SuperpositionError> {
         let config_context = context.map(|ctx| ConfigContext {
             values: ctx.clone(),
         });
         let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
-        self.client
-            .get_struct_value::<serde_json::Value>(key, Some(&evaluation_context), None)
+        let json_result = self.client
+            .get_struct_value::<JsonValue>(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
                 SuperpositionError::ClientError(format!(
@@ -323,7 +327,9 @@ impl SuperpositionClient {
             .change_context(SuperpositionError::ClientError(format!(
                 "Failed to retrieve object config for key: {}",
                 key
-            )))
+            )))?;
+
+        Ok(json_result.0)
     }
 }
 
