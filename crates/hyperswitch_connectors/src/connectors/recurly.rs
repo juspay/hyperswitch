@@ -351,9 +351,7 @@ impl
                 .method(Method::Put)
                 .url(&types::InvoiceRecordBackTypeV2::get_url(self, req)?)
                 .attach_default_headers()
-                .headers(types::InvoiceRecordBackTypeV2::get_headers(
-                    self, req,
-                )?)
+                .headers(types::InvoiceRecordBackTypeV2::get_headers(self, req)?)
                 .header("Content-Length", "0")
                 .build(),
         ))
