@@ -162,26 +162,6 @@ pub trait ToApiPixAdditionalDetails {
     fn to_api(&self) -> api_models::payments::PixAdditionalDetails;
 }
 
-// pub trait ToDieselBoletoExpiryDetails {
-//     fn to_diesel(&self) -> Option<String>;
-// }
-
-// pub trait ToApiBoletoExpiryDetails {
-//     fn to_api(&self) -> Option<String>;
-// }
-
-// impl ToDieselBoletoExpiryDetails for Option<String> {
-//     fn to_diesel(&self) -> Option<String> {
-//         self.clone()
-//     }
-// }
-
-// impl ToApiBoletoExpiryDetails for Option<String> {
-//     fn to_api(&self) -> Option<String> {
-//         self.clone()
-//     }
-// }
-
 impl ToDieselPixAdditionalDetails for api_models::payments::PixAdditionalDetails {
     fn to_diesel(&self) -> diesel_models::types::PixAdditionalDetails {
         diesel_models::types::PixAdditionalDetails {

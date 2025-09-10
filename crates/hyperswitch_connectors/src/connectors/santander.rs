@@ -142,7 +142,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = santander::SantanderBoletoUpdateRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -151,7 +151,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
-            .method(Method::Post)
+            .method(Method::Patch)
             .url(&PaymentsUpdateMetadataType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(PaymentsUpdateMetadataType::get_headers(
@@ -447,8 +447,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         .into()),
                     }
                 }
-                _ => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
                 }
                 .into()),
             },
@@ -459,13 +460,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     santander_constants::SANTANDER_VERSION,
                     santander_mca_metadata.workspace_id
                 )),
-                _ => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
                 }
                 .into()),
             },
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: req.payment_method.to_string(),
+                connector: "Santander",
             }
             .into()),
         }
