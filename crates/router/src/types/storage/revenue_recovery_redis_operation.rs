@@ -146,7 +146,6 @@ impl RedisTokenManager {
                 |_| true,
             );
 
-
         tracing::debug!(
             connector_customer_id = connector_customer_id,
             new_ttl_in_seconds = exp_in_seconds,
