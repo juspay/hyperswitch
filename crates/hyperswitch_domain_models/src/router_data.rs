@@ -1825,20 +1825,21 @@ impl
         _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
+        let intent_status = common_enums::IntentStatus::from(self.status);
         PaymentIntentUpdate::VoidUpdate {
-            status: common_enums::IntentStatus::Cancelled,
+            status: intent_status,
             updated_by: storage_scheme.to_string(),
         }
     }
 
     fn get_payment_attempt_update(
         &self,
-        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentAttemptUpdate {
         PaymentAttemptUpdate::VoidUpdate {
-            status: common_enums::AttemptStatus::Voided,
-            cancellation_reason: None,
+            status: self.status,
+            cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
             updated_by: storage_scheme.to_string(),
         }
     }

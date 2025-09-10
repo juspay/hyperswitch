@@ -8,16 +8,17 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{
-    BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest,
-    ValidateStatusForOperation,
+    BoxedOperation, Domain, GetTracker, Operation, OperationSessionSetters, UpdateTracker,
+    ValidateRequest, ValidateStatusForOperation,
 };
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations},
+        payments::operations,
     },
     routes::{app::ReqState, SessionState},
     types::{
+        self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{self, enums},
@@ -25,9 +26,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-
-/// Operation name for payment cancellation
-const PAYMENT_CANCEL_OPERATION: &str = "cancel";
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentsCancel;
@@ -157,17 +155,7 @@ impl<F: Send + Clone + Sync>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            payment_intent.status,
-            &[
-                enums::IntentStatus::Failed,
-                enums::IntentStatus::Succeeded,
-                enums::IntentStatus::Cancelled,
-                enums::IntentStatus::Processing,
-                enums::IntentStatus::RequiresMerchantAction,
-            ],
-            PAYMENT_CANCEL_OPERATION,
-        )?;
+        self.validate_status_for_operation(payment_intent.status)?;
 
         let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
             errors::ApiErrorResponse::InvalidRequestData {
@@ -176,7 +164,7 @@ impl<F: Send + Clone + Sync>
             }
         })?;
 
-        let mut payment_attempt = db
+        let payment_attempt = db
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
@@ -184,37 +172,16 @@ impl<F: Send + Clone + Sync>
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to find payment attempt for cancellation")?;
 
-        let amount = payment_attempt.amount_details.get_net_amount();
-
-        payment_attempt
-            .cancellation_reason
-            .clone_from(&request.cancellation_reason);
-
-        let creds_identifier = request
-            .merchant_connector_details
-            .as_ref()
-            .map(|mcd| mcd.creds_identifier.to_owned());
-        request
-            .merchant_connector_details
-            .to_owned()
-            .async_map(|mcd| async {
-                helpers::insert_merchant_connector_creds_to_config(
-                    db,
-                    merchant_context.get_merchant_account().get_id(),
-                    mcd,
-                )
-                .await
-            })
-            .await
-            .transpose()?;
-
-        let payment_data = hyperswitch_domain_models::payments::PaymentCancelData {
+        let mut payment_data = hyperswitch_domain_models::payments::PaymentCancelData {
             flow: PhantomData,
             payment_intent,
             payment_attempt,
         };
+
+        payment_data.set_cancellation_reason(request.cancellation_reason.clone());
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
 
@@ -253,34 +220,14 @@ impl<F: Clone + Send + Sync>
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        // Update payment intent status to Cancelled
-        let payment_intent_update =
-            hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::VoidUpdate {
-                status: enums::IntentStatus::Cancelled,
-                updated_by: storage_scheme.to_string(),
-            };
+        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
+            status: enums::AttemptStatus::VoidInitiated,
+            cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
+            updated_by: storage_scheme.to_string(),
+        };
 
-        let updated_payment_intent = db
-            .update_payment_intent(
-                key_manager_state,
-                payment_data.payment_intent.clone(),
-                payment_intent_update,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        // Only update payment attempt if this was a real payment attempt (has active_attempt_id)
-        let updated_payment_attempt = if payment_data.payment_intent.active_attempt_id.is_some() {
-            // Update payment attempt status to Voided
-            let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
-                status: enums::AttemptStatus::Voided,
-                cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
-                updated_by: storage_scheme.to_string(),
-            };
-
-            db.update_payment_attempt(
+        let updated_payment_attempt = db
+            .update_payment_attempt(
                 key_manager_state,
                 merchant_key_store,
                 payment_data.payment_attempt.clone(),
@@ -288,14 +235,9 @@ impl<F: Clone + Send + Sync>
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
-        } else {
-            // For RequiresPaymentMethod status without active attempt, keep the dummy attempt
-            payment_data.payment_attempt.clone()
-        };
-
-        payment_data.payment_intent = updated_payment_intent;
-        payment_data.payment_attempt = updated_payment_attempt;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to update payment attempt for cancellation")?;
+        payment_data.set_payment_attempt(updated_payment_attempt);
 
         Ok((Box::new(self), payment_data))
     }
@@ -315,7 +257,6 @@ impl<F: Send + Clone + Sync>
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedCancelOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        // For cancellation, we don't need customer details
         Ok((Box::new(*self), None))
     }
 
@@ -333,7 +274,6 @@ impl<F: Send + Clone + Sync>
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        // For cancellation, we don't need payment method data
         Ok((Box::new(*self), None, None))
     }
 
@@ -350,14 +290,14 @@ impl<F: Send + Clone + Sync>
             .as_ref()
             .get_required_value("connector")
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Connector is none when constructing response")?;
+            .attach_printable("Connector not found for payment cancellation")?;
 
         let merchant_connector_id = payment_attempt
             .merchant_connector_id
             .as_ref()
             .get_required_value("merchant_connector_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+            .attach_printable("Merchant connector ID not found for payment cancellation")?;
 
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
@@ -378,16 +318,34 @@ impl ValidateStatusForOperation for PaymentsCancel {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Succeeded
+            common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::RequiresCapture => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::RequiresMerchantAction => {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: format!("Cannot cancel payment with status: {intent_status}"),
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Expired => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: [
+                        common_enums::IntentStatus::RequiresCapture,
+                        common_enums::IntentStatus::PartiallyCapturedAndCapturable,
+                        common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture,
+                    ]
+                    .map(|enum_value| enum_value.to_string())
+                    .join(", "),
                 })
             }
-            _ => Ok(()),
         }
     }
 }

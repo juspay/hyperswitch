@@ -10458,6 +10458,8 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         connector_request_reference_id: String,
     );
+    #[cfg(feature = "v2")]
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>);
 }
 
 #[cfg(feature = "v1")]
@@ -11106,6 +11108,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     ) {
         todo!()
     }
+
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -11413,6 +11419,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     ) {
         todo!()
     }
+
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -11713,6 +11723,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         &mut self,
         connector_request_reference_id: String,
     ) {
+        todo!()
+    }
+
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
         todo!()
     }
 }
@@ -12018,6 +12032,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         &mut self,
         connector_request_reference_id: String,
     ) {
+        todo!()
+    }
+
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
         todo!()
     }
 }
@@ -12489,5 +12507,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         _connector_request_reference_id: String,
     ) {
         todo!()
+    }
+
+    fn set_cancellation_reason(&mut self, cancellation_reason: Option<String>) {
+        self.payment_attempt.cancellation_reason = cancellation_reason;
     }
 }
