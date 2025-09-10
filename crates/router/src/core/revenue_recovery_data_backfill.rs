@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, RevenueRecoveryDataBackfillResponse, RevenueRecoveryBackfillRequest,
+    BackfillError, RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse,
 };
 use common_enums::CardNetwork;
 use hyperswitch_domain_models::api::ApplicationResponse;
@@ -139,11 +139,7 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i
                     Some(retry_history)
                 }
                 Err(e) => {
-                    logger::warn!(
-                        "Failed to parse daily_retry_history JSON '{}': {}",
-                        json,
-                        e
-                    );
+                    logger::warn!("Failed to parse daily_retry_history JSON '{}': {}", json, e);
                     None
                 }
             }
@@ -160,27 +156,27 @@ fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<serde_json::Value, BackfillError> {
     let mut card_data = serde_json::Map::new();
-    
+
     // Extract card type from request, if not present then update it with 'card'
     let card_type = determine_card_type(&record.type_field);
-    card_data.insert("card_type".to_string(), serde_json::Value::String(card_type));
+    card_data.insert(
+        "card_type".to_string(),
+        serde_json::Value::String(card_type),
+    );
 
-    // Parse expiration date 
+    // Parse expiration date
     let (exp_month, exp_year) = parse_expiration_date(record.exp_date.as_deref())?;
-    
 
-    [
-        (exp_month, "card_exp_month"),
-        (exp_year, "card_exp_year"),
-    ]
-    .into_iter()
-    .filter_map(|(value, key)| value.map(|v| (key, serde_json::Value::String(v))))
-    .for_each(|(key, value)| {
-        card_data.insert(key.to_string(), value);
-    });
+    [(exp_month, "card_exp_month"), (exp_year, "card_exp_year")]
+        .into_iter()
+        .filter_map(|(value, key)| value.map(|v| (key, serde_json::Value::String(v))))
+        .for_each(|(key, value)| {
+            card_data.insert(key.to_string(), value);
+        });
 
     // Add card network
-    record.card_network
+    record
+        .card_network
         .clone()
         .and_then(|network| serde_json::to_value(network).ok())
         .map(|network_value| card_data.insert("card_network".to_string(), network_value));
@@ -203,7 +199,9 @@ fn build_comprehensive_card_data(
     // Add daily retry history
     parse_daily_retry_history(record.daily_retry_history.as_deref())
         .and_then(|retry_history| serde_json::to_value(retry_history).ok())
-        .map(|retry_history_value| card_data.insert("daily_retry_history".to_string(), retry_history_value));
+        .map(|retry_history_value| {
+            card_data.insert("daily_retry_history".to_string(), retry_history_value)
+        });
 
     Ok(serde_json::Value::Object(card_data))
 }
@@ -236,7 +234,7 @@ fn parse_expiration_date(
             return Ok((None, None));
         }
     }
-    
+
     let exp_date = match exp_date {
         Some(date) => date,
         None => {
@@ -258,18 +256,18 @@ fn parse_expiration_date(
         );
 
         // Validate and parse month using functional programming patterns
-        let month_num = month
-            .parse::<u8>()
-            .map_err(|parse_err| {
-                logger::warn!(
-                    "Failed to parse month '{}' in expiration date '{}': {}",
-                    month, exp_date, parse_err
-                );
-                BackfillError::CsvParsingError(format!(
-                    "Invalid month format in expiration date '{}': {} (parse error: {})",
-                    exp_date, month, parse_err
-                ))
-            })?;
+        let month_num = month.parse::<u8>().map_err(|parse_err| {
+            logger::warn!(
+                "Failed to parse month '{}' in expiration date '{}': {}",
+                month,
+                exp_date,
+                parse_err
+            );
+            BackfillError::CsvParsingError(format!(
+                "Invalid month format in expiration date '{}': {} (parse error: {})",
+                exp_date, month, parse_err
+            ))
+        })?;
 
         if !(1..=12).contains(&month_num) {
             logger::warn!(

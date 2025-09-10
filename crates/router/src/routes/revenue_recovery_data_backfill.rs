@@ -33,10 +33,7 @@ pub async fn revenue_recovery_data_backfill(
         &req,
         records,
         |state, _, records, _req| {
-            revenue_recovery_data_backfill::revenue_recovery_data_backfill(
-                state,
-                records,
-            )
+            revenue_recovery_data_backfill::revenue_recovery_data_backfill(state, records)
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,

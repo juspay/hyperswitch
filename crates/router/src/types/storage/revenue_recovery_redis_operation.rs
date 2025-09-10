@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use masking::ExposeInterface;
+
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
@@ -737,7 +737,9 @@ impl RedisTokenManager {
                 token = token,
                 "Token not found in Redis"
             );
-            error_stack::Report::new(errors::StorageError::ValueNotFound("Token not found in Redis".to_string()))
+            error_stack::Report::new(errors::StorageError::ValueNotFound(
+                "Token not found in Redis".to_string(),
+            ))
         })?;
 
         // Parse existing JSON
@@ -826,17 +828,23 @@ impl RedisTokenManager {
         token: &str,
         card_data: &serde_json::Value,
     ) -> CustomResult<(), errors::StorageError> {
-        let update_params = RedisTokenUpdateParams::from_card_data(card_data)
-            .map_err(|err| {
-                tracing::error!(
-                    customer_id = customer_id,
-                    token = token,
-                    error = %err,
-                    "Failed to parse card data for Redis token update"
-                );
-                errors::StorageError::SerializationFailed
-            })?;
-        Self::update_redis_token_with_params_and_retry_history(state, customer_id, token, update_params, card_data).await
+        let update_params = RedisTokenUpdateParams::from_card_data(card_data).map_err(|err| {
+            tracing::error!(
+                customer_id = customer_id,
+                token = token,
+                error = %err,
+                "Failed to parse card data for Redis token update"
+            );
+            errors::StorageError::SerializationFailed
+        })?;
+        Self::update_redis_token_with_params_and_retry_history(
+            state,
+            customer_id,
+            token,
+            update_params,
+            card_data,
+        )
+        .await
     }
 
     /// Update Redis token with parameters and daily retry history
@@ -873,7 +881,9 @@ impl RedisTokenManager {
                 token = token,
                 "Token not found in Redis"
             );
-            error_stack::Report::new(errors::StorageError::ValueNotFound("Token not found in Redis".to_string()))
+            error_stack::Report::new(errors::StorageError::ValueNotFound(
+                "Token not found in Redis".to_string(),
+            ))
         })?;
 
         // Parse existing JSON
@@ -986,9 +996,10 @@ impl RedisTokenUpdateParams {
                 .map(|s| Secret::new(s.to_string()))
         }
 
-        let obj = card_data.as_object()
+        let obj = card_data
+            .as_object()
             .ok_or("Card data is not a valid JSON object")?;
-        
+
         Ok(Self {
             card_type: get_str_field(obj, "card_type"),
             expiry_month: get_str_field(obj, "card_exp_month"),
