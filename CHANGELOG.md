@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.10.0
+
+### Features
+
+- **connector:** [Barclaycard] Add Apple Pay Flow ([#8885](https://github.com/juspay/hyperswitch/pull/8885)) ([`77498ee`](https://github.com/juspay/hyperswitch/commit/77498ee52d9a48779054730dd058fafc907f4300))
+- **core:** Add Network Details in Payments Response ([#9273](https://github.com/juspay/hyperswitch/pull/9273)) ([`75bf58d`](https://github.com/juspay/hyperswitch/commit/75bf58d656cd0ddd1538342a6e6ce3d1a07ec98a))
+- **nuvei:** L2L3 Data ([#9290](https://github.com/juspay/hyperswitch/pull/9290)) ([`1d0551a`](https://github.com/juspay/hyperswitch/commit/1d0551a62bc39404f1ef90688d060814ecb62ac0))
+- **router:** Add support for overcapture ([#8949](https://github.com/juspay/hyperswitch/pull/8949)) ([`04a8cc4`](https://github.com/juspay/hyperswitch/commit/04a8cc441b15d84015f372c4d7691899651b0044))
+- Customise default theme ([#9243](https://github.com/juspay/hyperswitch/pull/9243)) ([`bfdea04`](https://github.com/juspay/hyperswitch/commit/bfdea0416b2708fde5e91a493ce540a6e9e6d436))
+
+### Bug Fixes
+
+- **api_locking:** Add delay between api-locking retries ([#9308](https://github.com/juspay/hyperswitch/pull/9308)) ([`4052f8a`](https://github.com/juspay/hyperswitch/commit/4052f8a28c55039f8deef3652f04f88c9045f5b4))
+- **connectors:** [authorizedotnet] send customerProfileId in the CIT flow and map customerPaymentProfileId in the Setup Mandate flow ([#9298](https://github.com/juspay/hyperswitch/pull/9298)) ([`72c0f89`](https://github.com/juspay/hyperswitch/commit/72c0f896ceca3f1fec84754f95f825e51990004b))
+
+### Refactors
+
+- **ucs:** Introduce dedicated gRPC header type and enhance lineage ID handling ([#9275](https://github.com/juspay/hyperswitch/pull/9275)) ([`876ea3f`](https://github.com/juspay/hyperswitch/commit/876ea3f61d599a4fdb9e509523619fe4a8c56c61))
+
+**Full Changelog:** [`2025.09.09.0...2025.09.10.0`](https://github.com/juspay/hyperswitch/compare/2025.09.09.0...2025.09.10.0)
+
+- - -
+
 ## 2025.09.09.0
 
 ### Features
