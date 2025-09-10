@@ -135,16 +135,17 @@ impl RedisTokenManager {
 
         let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
-        let result: bool = match redis_conn
+        let result: bool = redis_conn
             .set_expiry(&lock_key.into(), exp_in_seconds)
             .await
-        {
-            Ok(_) => true,
-            Err(error) => {
-                tracing::error!(operation = "update_lock_ttl", err = ?error);
-                false
-            }
-        };
+            .map_or_else(
+                |error| {
+                    tracing::error!(operation = "update_lock_ttl", err = ?error);
+                    false
+                },
+                |_| true,
+            );
+
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,
