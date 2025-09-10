@@ -268,7 +268,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         .attach_printable("Failed to construct request metadata")?;
         let header_payload = state
             .get_grpc_headers_ucs()
-            .external_vault_proxy_metadata(None);
+            .external_vault_proxy_metadata(None)
+            .reference_id(None);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,

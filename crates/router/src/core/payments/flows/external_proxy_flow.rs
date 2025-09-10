@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use common_enums as enums;
+use common_utils::ucs_interfaces::UcsHeaderFromRequest;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
@@ -395,7 +396,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .attach_printable("Failed to construct external vault proxy metadata")?;
         let headers_builder = state
             .get_grpc_headers_ucs()
-            .external_vault_proxy_metadata(Some(external_vault_proxy_metadata));
+            .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
+            .reference_id(self.request.get_ucs_reference_id());
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,

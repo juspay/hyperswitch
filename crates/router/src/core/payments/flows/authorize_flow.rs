@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
+use common_utils::ucs_interfaces::UcsHeaderFromRequest;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
@@ -855,7 +856,8 @@ async fn call_unified_connector_service_authorize(
             .attach_printable("Failed to construct request metadata")?;
     let headers_builder = state
         .get_grpc_headers_ucs()
-        .external_vault_proxy_metadata(None);
+        .external_vault_proxy_metadata(None)
+        .reference_id(router_data.request.get_ucs_reference_id());
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
@@ -928,7 +930,8 @@ async fn call_unified_connector_service_repeat_payment(
             .attach_printable("Failed to construct request metadata")?;
     let headers_builder = state
         .get_grpc_headers_ucs()
-        .external_vault_proxy_metadata(None);
+        .external_vault_proxy_metadata(None)
+        .reference_id(router_data.request.get_ucs_reference_id());
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,

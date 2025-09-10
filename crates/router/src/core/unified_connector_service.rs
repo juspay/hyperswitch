@@ -775,6 +775,7 @@ pub async fn call_unified_connector_service_for_webhook(
             merchant_context.get_merchant_account().get_id().clone(),
         ))
         .external_vault_proxy_metadata(None)
+        .reference_id(None)
         .build();
 
     // Make UCS call - client availability already verified
