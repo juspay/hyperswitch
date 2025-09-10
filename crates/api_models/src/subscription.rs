@@ -1,12 +1,12 @@
+use common_types::payments::CustomerAcceptance;
 use common_utils::{events::ApiEventMetric, pii, types::MinorUnit};
+use time::PrimitiveDateTime;
 
 use crate::{
     customers::{CustomerRequest, CustomerResponse},
     enums as api_enums,
     payments::{Address, CustomerDetails, CustomerDetailsResponse, PaymentMethodDataRequest},
 };
-use common_types::payments::CustomerAcceptance;
-use time::PrimitiveDateTime;
 
 pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 
