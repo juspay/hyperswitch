@@ -1170,6 +1170,10 @@ impl Subscription {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(
+                web::resource("/plans/{client_secret}")
+                    .route(web::get().to(subscription::get_subscription_plans)),
+            )
     }
 }
 

@@ -100,6 +100,13 @@ impl CreateSubscriptionResponse {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GetPlansResponse {
+    pub plan_id: String,
+    pub name: String,
+    pub description: String,
+}
+
 pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResponse {
     CustomerDetailsResponse {
         id: Some(r.customer_id.clone()),
@@ -110,5 +117,6 @@ pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResp
     }
 }
 
-impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+impl ApiEventMetric for CreateSubscriptionResponse {}
+impl ApiEventMetric for GetPlansResponse {}

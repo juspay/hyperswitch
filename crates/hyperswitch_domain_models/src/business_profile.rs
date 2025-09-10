@@ -84,6 +84,7 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +141,7 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -203,6 +205,7 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             dispute_polling_interval: value.dispute_polling_interval,
+            is_manual_retry_enabled: value.is_manual_retry_enabled,
         }
     }
 }
@@ -268,6 +271,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -351,6 +355,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     dispute_polling_interval,
                     always_request_extended_authorization,
+                    is_manual_retry_enabled,
                 } = *update;
 
                 Self {
@@ -404,6 +409,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     dispute_polling_interval,
+                    is_manual_retry_enabled,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -460,6 +466,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -513,6 +520,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -566,6 +574,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -619,6 +628,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -672,6 +682,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -725,6 +736,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -778,6 +790,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
             },
         }
     }
@@ -851,6 +864,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
         })
     }
 
@@ -950,6 +964,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 dispute_polling_interval: item.dispute_polling_interval,
+                is_manual_retry_enabled: item.is_manual_retry_enabled,
             })
         }
         .await
@@ -1016,6 +1031,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
         })
     }
 }
@@ -2101,6 +2117,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
+            is_manual_retry_enabled: None,
         })
     }
 
