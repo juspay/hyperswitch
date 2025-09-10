@@ -25,7 +25,7 @@ use crate::{
         metrics,
     },
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
 #[instrument(skip_all)]
@@ -521,6 +521,7 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                is_overcapture_enabled: None,
             };
 
             #[cfg(feature = "v1")]
@@ -572,6 +573,7 @@ where
                 authentication_type: auth_update,
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
+                network_details: Some(ForeignFrom::foreign_from(error_response)),
             };
 
             #[cfg(feature = "v1")]
@@ -720,6 +722,7 @@ pub fn make_new_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_details: Default::default(),
     }
 }
 
