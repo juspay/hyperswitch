@@ -735,7 +735,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                     .first()
                     .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
                 get_paysafe_payment_status(
-                    payment_response.status.clone(),
+                    payment_response.status,
                     item.data.request.capture_method,
                 )
             }
@@ -744,7 +744,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                     .payment_handles
                     .first()
                     .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-                common_enums::AttemptStatus::try_from(payment_handle_response.status.clone())?
+                common_enums::AttemptStatus::try_from(payment_handle_response.status)?
             }
         };
         Ok(Self {
