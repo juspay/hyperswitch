@@ -358,11 +358,11 @@ impl RedisTokenManager {
 
             // Obtain network-specific limits and compute remaining monthly retries.
             let card_network_config = card_config.get_network_config(card_network);
-            
 
             let monthly_retry_remaining = std::cmp::max(
                 0,
-                card_network_config.max_retry_count_for_thirty_day - retry_info.total_30_day_retries,
+                card_network_config.max_retry_count_for_thirty_day
+                    - retry_info.total_30_day_retries,
             );
 
             // Build the per-token result struct.
