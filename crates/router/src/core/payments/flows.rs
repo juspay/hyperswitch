@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use common_types::payments::CustomerAcceptance;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
