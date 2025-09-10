@@ -5,6 +5,9 @@ pub enum CustomersErrorResponse {
     #[error("Customer has already been redacted")]
     CustomerRedacted,
 
+    #[error("Bad customer request")]
+    BadRequest,
+
     #[error("Something went wrong")]
     InternalServerError,
 

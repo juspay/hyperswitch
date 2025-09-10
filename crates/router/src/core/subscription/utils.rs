@@ -1,6 +1,5 @@
 use api_models::{customers::CustomerRequest, subscription::CreateSubscriptionRequest};
 use common_utils::id_type::GenerateId;
-use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
     router_request_types::CustomerDetails,
@@ -8,7 +7,10 @@ use hyperswitch_domain_models::{
 
 use crate::{
     core::customers::create_customer,
-    db::{errors, StorageInterface},
+    db::{
+        errors::{self, StorageErrorExt},
+        StorageInterface,
+    },
     routes::SessionState,
     types::{api::CustomerResponse, transformers::ForeignInto},
 };
@@ -38,8 +40,7 @@ pub async fn get_or_create_customer(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
-        .change_context(errors::CustomersErrorResponse::InternalServerError)
-        .attach_printable("subscription: unable to perform db read query")?
+        .to_not_found_response(errors::CustomersErrorResponse::CustomerNotFound)?
     {
         // Customer found
         Some(customer) => {
@@ -52,7 +53,7 @@ pub async fn get_or_create_customer(
         None => Ok(create_customer(
             state,
             merchant_context,
-            customer_request.ok_or(errors::CustomersErrorResponse::CustomerNotFound)?,
+            customer_request.ok_or(errors::CustomersErrorResponse::BadRequest)?,
             None,
         )
         .await?),

@@ -1,5 +1,6 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -83,14 +84,11 @@ impl SubscriptionNew {
         }
     }
 
-    pub fn generate_and_set_client_secret(&mut self) -> Option<String> {
-        let client_secret = Some(generate_id_with_default_len(&format!(
-            "{}_secret",
-            self.subscription_id
-        )));
-
-        self.client_secret = client_secret.clone();
-        client_secret
+    pub fn generate_and_set_client_secret(&mut self) -> Secret<String> {
+        let client_secret =
+            generate_id_with_default_len(&format!("{}_secret", self.subscription_id));
+        self.client_secret = Some(client_secret.clone());
+        Secret::new(client_secret)
     }
 }
 

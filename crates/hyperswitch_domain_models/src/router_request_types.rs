@@ -1181,6 +1181,26 @@ pub struct CustomerDetails {
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
 
+impl From<api_models::subscription::CreateSubscriptionRequest> for CustomerDetails {
+    fn from(request: api_models::subscription::CreateSubscriptionRequest) -> Self {
+        let customer_id = request.get_customer_id().map(ToOwned::to_owned);
+        let customer = request.customer;
+
+        CustomerDetails {
+            customer_id,
+            name: customer.as_ref().and_then(|cus| cus.name.clone()),
+            email: customer.as_ref().and_then(|cus| cus.email.clone()),
+            phone: customer.as_ref().and_then(|cus| cus.phone.clone()),
+            phone_country_code: customer
+                .as_ref()
+                .and_then(|cus| cus.phone_country_code.clone()),
+            tax_registration_id: customer
+                .as_ref()
+                .and_then(|cus| cus.tax_registration_id.clone()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: actix_web::http::header::HeaderMap,

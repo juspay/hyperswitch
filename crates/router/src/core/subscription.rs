@@ -1,14 +1,17 @@
 pub mod utils;
 use api_models::subscription::{
-    self as subscription_types, CreateSubscriptionResponse, Subscription, SubscriptionStatus,
+    self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
     SUBSCRIPTION_ID_PREFIX,
 };
 use common_utils::generate_id_with_default_len;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    router_request_types::CustomerDetails,
+};
 use payment_methods::helpers::StorageErrorExt;
-use utils::{get_customer_details_from_request, get_or_create_customer};
+use utils::get_or_create_customer;
 
 use super::errors::{self, RouterResponse};
 use crate::routes::SessionState;
@@ -24,18 +27,16 @@ pub async fn create_subscription(
         .subscription_id
         .clone()
         .unwrap_or(generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX));
-    let subscription_details = Subscription::new(&id, SubscriptionStatus::Created, None);
     let mut response = CreateSubscriptionResponse::new(
-        subscription_details,
+        id.clone(),
+        SubscriptionStatus::Created,
+        None,
         request.profile_id.clone(),
-        merchant_context
-            .get_merchant_account()
-            .get_id()
-            .get_string_repr(),
+        merchant_context.get_merchant_account().get_id().clone(),
         request.merchant_connector_account_id.clone(),
     );
 
-    let customer = get_customer_details_from_request(request.clone());
+    let customer = CustomerDetails::from(request.clone());
     let customer_id = if customer.customer_id.is_some()
         || customer.name.is_some()
         || customer.email.is_some()
@@ -78,7 +79,7 @@ pub async fn create_subscription(
         None,
         request.profile_id,
     );
-    response.client_secret = subscription.generate_and_set_client_secret();
+    response.client_secret = Some(subscription.generate_and_set_client_secret());
     db.insert_subscription_entry(subscription)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)

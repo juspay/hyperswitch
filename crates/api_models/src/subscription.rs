@@ -1,25 +1,49 @@
 use common_utils::{events::ApiEventMetric, pii};
+use masking::Secret;
+use utoipa::ToSchema;
 
 use crate::{
     customers::{CustomerRequest, CustomerResponse},
     payments::CustomerDetailsResponse,
 };
 
+/// Prefix used when generating subscription IDs.
 pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Request payload for creating a subscription.
+///
+/// This struct captures details required to create a subscription,
+/// including plan, profile, merchant connector, and optional customer info.
+#[derive(Debug, Clone, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
+    /// Unique identifier for the subscription (optional, generated if missing).
     pub subscription_id: Option<String>,
+
+    /// Associated profile ID for this subscription.
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
+
+    /// Optional coupon code applied to the subscription.
     pub coupon_code: Option<String>,
+
+    /// Optional merchant connector account ID for routing payments.
     pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+
+    /// Whether to immediately confirm the subscription on creation.
     pub confirm: bool,
+
+    /// Optional customer ID associated with this subscription.
     pub customer_id: Option<common_utils::id_type::CustomerId>,
+
+    /// Optional full customer request data.
     pub customer: Option<CustomerRequest>,
 }
 
 impl CreateSubscriptionRequest {
+    /// Retrieves the `customer_id` either from the top-level field
+    /// or from the nested [`CustomerRequest`].
     pub fn get_customer_id(&self) -> Option<&common_utils::id_type::CustomerId> {
         self.customer_id
             .as_ref()
@@ -27,86 +51,93 @@ impl CreateSubscriptionRequest {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+/// Response payload returned after successfully creating a subscription.
+///
+/// Includes details such as subscription ID, status, plan, merchant, and customer info.
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreateSubscriptionResponse {
-    pub subscription: Subscription,
-    pub profile_id: common_utils::id_type::ProfileId,
-    pub client_secret: Option<String>,
-    pub merchant_id: String,
-    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub coupon_code: Option<String>,
-    pub customer: Option<CustomerDetailsResponse>,
-    pub invoice: Option<Invoice>,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Subscription {
+    /// Unique identifier for the subscription.
     pub id: String,
+
+    /// Current status of the subscription.
     pub status: SubscriptionStatus,
+
+    /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
+
+    /// Associated profile ID.
+    pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Optional client secret used for secure client-side interactions.
+    pub client_secret: Option<Secret<String>>,
+
+    /// Merchant identifier owning this subscription.
+    pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Optional merchant connector account ID for routing payments.
+    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+
+    /// Optional coupon code applied to this subscription.
+    pub coupon_code: Option<String>,
+
+    /// Optional customer details response.
+    pub customer: Option<CustomerDetailsResponse>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display)]
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive (e.g., cancelled or expired).
+#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
 pub enum SubscriptionStatus {
+    /// Subscription is created but not yet active.
     Created,
+
+    /// Subscription is active.
     Active,
+
+    /// Subscription is inactive.
     InActive,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Invoice {
-    pub id: String,
-    pub total_amount: u64,
-    pub currency: common_enums::Currency,
-}
-
-impl Subscription {
-    pub fn new(id: impl Into<String>, status: SubscriptionStatus, plan_id: Option<String>) -> Self {
-        Self {
-            id: id.into(),
-            status,
-            plan_id,
-        }
-    }
-}
-
-impl Invoice {
-    pub fn new(id: impl Into<String>, total_amount: u64, currency: common_enums::Currency) -> Self {
-        Self {
-            id: id.into(),
-            total_amount,
-            currency,
-        }
-    }
-}
 impl CreateSubscriptionResponse {
-    #[allow(clippy::too_many_arguments)]
+    /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
+    ///
+    /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
     pub fn new(
-        subscription: Subscription,
+        id: String,
+        status: SubscriptionStatus,
+        plan_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
-        merchant_id: impl Into<String>,
+        merchant_id: common_utils::id_type::MerchantId,
         merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> Self {
         Self {
-            subscription,
+            id,
+            status,
+            plan_id,
             profile_id,
             client_secret: None,
-            merchant_id: merchant_id.into(),
+            merchant_id,
             merchant_connector_account_id,
             coupon_code: None,
             customer: None,
-            invoice: None,
         }
     }
 }
 
-pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResponse {
+/// Maps a [`CustomerResponse`] into a [`CustomerDetailsResponse`].
+///
+/// This is used to transform customer information returned by the customer API
+/// into the response format expected by the subscription API.
+pub fn map_customer_resp_to_details(response: &CustomerResponse) -> CustomerDetailsResponse {
     CustomerDetailsResponse {
-        id: Some(r.customer_id.clone()),
-        name: r.name.as_ref().map(|n| n.clone().into_inner()),
-        email: r.email.as_ref().map(|e| pii::Email::from(e.clone())),
-        phone: r.phone.as_ref().map(|p| p.clone().into_inner()),
-        phone_country_code: r.phone_country_code.clone(),
+        id: Some(response.customer_id.clone()),
+        name: response.name.as_ref().map(|n| n.clone().into_inner()),
+        email: response.email.as_ref().map(|e| pii::Email::from(e.clone())),
+        phone: response.phone.as_ref().map(|p| p.clone().into_inner()),
+        phone_country_code: response.phone_country_code.clone(),
     }
 }
 
