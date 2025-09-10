@@ -7270,6 +7270,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Payone,
     connectors::Paypal,
     connectors::Paystack,
+    connectors::Paysafe,
     connectors::Paytm,
     connectors::Payu,
     connectors::Phonepe,

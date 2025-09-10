@@ -2992,10 +2992,9 @@ pub async fn payment_check_gift_card_balance(
     json_payload: web::Json<api_models::payments::PaymentsGiftCardBalanceCheckRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    use hyperswitch_domain_models::payments::PaymentConfirmData;
-
     let flow = Flow::GiftCardBalanceCheck;
 
+    let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
@@ -3019,7 +3018,6 @@ pub async fn payment_check_gift_card_balance(
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
-            let operation = payments::operations::PaymentIntentConfirm;
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
