@@ -14,10 +14,12 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
+    revenue_recovery,
+    router_data_v2::{flow_common_types::CreateCustomerData, RouterDataV2},
+    router_flow_types::revenue_recovery::RecoveryRecordBack,
     router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData, router_data_v2::{flow_common_types::CreateCustomerData, RouterDataV2}
+    types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
