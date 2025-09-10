@@ -63,7 +63,7 @@ pub enum RoutableConnectors {
     Adyen,
     Affirm,
     Airwallex,
-    // Amazonpay,
+    Amazonpay,
     Archipel,
     Authorizedotnet,
     Bankofamerica,
@@ -132,6 +132,7 @@ pub enum RoutableConnectors {
     Payload,
     Payone,
     Paypal,
+    Paysafe,
     Paystack,
     Paytm,
     Payu,
@@ -232,7 +233,7 @@ pub enum Connector {
     Adyen,
     Affirm,
     Airwallex,
-    // Amazonpay,
+    Amazonpay,
     Archipel,
     Authorizedotnet,
     Bambora,
@@ -308,6 +309,7 @@ pub enum Connector {
     Payme,
     Payone,
     Paypal,
+    Paysafe,
     Paystack,
     Paytm,
     Payu,
@@ -432,7 +434,7 @@ impl Connector {
             | Self::Affirm
             | Self::Adyenplatform
             | Self::Airwallex
-            // | Self::Amazonpay
+            | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
@@ -496,6 +498,7 @@ impl Connector {
             | Self::Payme
             | Self::Payone
             | Self::Paypal
+            | Self::Paysafe
             | Self::Paystack
             | Self::Payu
             | Self::Placetopay
@@ -551,12 +554,16 @@ impl Connector {
     }
 
     pub fn get_payment_methods_supporting_extended_authorization(self) -> HashSet<PaymentMethod> {
-        HashSet::new()
+        HashSet::from([PaymentMethod::Card])
     }
     pub fn get_payment_method_types_supporting_extended_authorization(
         self,
     ) -> HashSet<PaymentMethodType> {
-        HashSet::new()
+        HashSet::from([PaymentMethodType::Credit, PaymentMethodType::Debit])
+    }
+
+    pub fn is_overcapture_supported_by_connector(self) -> bool {
+        matches!(self, Self::Stripe | Self::Adyen)
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
@@ -606,6 +613,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Adyen => Self::Adyen,
             RoutableConnectors::Affirm => Self::Affirm,
             RoutableConnectors::Airwallex => Self::Airwallex,
+            RoutableConnectors::Amazonpay => Self::Amazonpay,
             RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
@@ -669,6 +677,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
+            RoutableConnectors::Paysafe => Self::Paysafe,
             RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
             RoutableConnectors::Placetopay => Self::Placetopay,
@@ -738,6 +747,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Affirm => Ok(Self::Affirm),
             Connector::Airwallex => Ok(Self::Airwallex),
+            Connector::Amazonpay => Ok(Self::Amazonpay),
             Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
@@ -801,6 +811,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
+            Connector::Paysafe => Ok(Self::Paysafe),
             Connector::Paystack => Ok(Self::Paystack),
             Connector::Payu => Ok(Self::Payu),
             Connector::Placetopay => Ok(Self::Placetopay),

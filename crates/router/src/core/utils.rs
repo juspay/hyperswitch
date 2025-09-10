@@ -98,30 +98,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let billing = payout_data.billing_address.to_owned();
 
-    let billing_address = billing.map(|a| {
-        let phone_details = api_models::payments::PhoneDetails {
-            number: a.phone_number.clone().map(Encryptable::into_inner),
-            country_code: a.country_code.to_owned(),
-        };
-        let address_details = api_models::payments::AddressDetails {
-            city: a.city.to_owned(),
-            country: a.country.to_owned(),
-            line1: a.line1.clone().map(Encryptable::into_inner),
-            line2: a.line2.clone().map(Encryptable::into_inner),
-            line3: a.line3.clone().map(Encryptable::into_inner),
-            zip: a.zip.clone().map(Encryptable::into_inner),
-            first_name: a.first_name.clone().map(Encryptable::into_inner),
-            last_name: a.last_name.clone().map(Encryptable::into_inner),
-            state: a.state.map(Encryptable::into_inner),
-            origin_zip: a.origin_zip.map(Encryptable::into_inner),
-        };
-
-        api_models::payments::Address {
-            phone: Some(phone_details),
-            address: Some(address_details),
-            email: a.email.to_owned().map(Email::from),
-        }
-    });
+    let billing_address = billing.map(api_models::payments::Address::from);
 
     let address = PaymentAddress::new(None, billing_address.map(From::from), None, None);
 
@@ -386,7 +363,11 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: refund.id.get_string_repr().to_string().clone(),
+        connector_request_reference_id: refund
+            .merchant_reference_id
+            .get_string_repr()
+            .to_string()
+            .clone(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]

@@ -1895,6 +1895,7 @@ dependencies = [
  "nutype",
  "once_cell",
  "openssl",
+ "pem 2.0.1",
  "phonenumber",
  "proptest",
  "quick-xml",
@@ -1903,6 +1904,7 @@ dependencies = [
  "reqwest 0.11.27",
  "ring 0.17.14",
  "router_env",
+ "rsa",
  "rust_decimal",
  "rustc-hash 1.1.0",
  "semver 1.0.26",
@@ -2246,6 +2248,12 @@ name = "crunchy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
+
+[[package]]
+name = "crypto"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c84494160481771c27fca091fb9b41c0dfa588e3a3b8156e797b3703b778459d"
 
 [[package]]
 name = "crypto-bigint"
@@ -3063,6 +3071,7 @@ dependencies = [
  "rust-grpc-client",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
@@ -3070,6 +3079,7 @@ dependencies = [
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
+ "typed-builder",
  "url",
  "vaultrs",
 ]
@@ -4037,6 +4047,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "crc",
+ "crypto",
  "encoding_rs",
  "error-stack 0.4.1",
  "hex",
@@ -4054,7 +4065,7 @@ dependencies = [
  "nanoid",
  "num-traits",
  "openssl",
- "pem",
+ "pem 3.0.5",
  "qrcode",
  "quick-xml",
  "rand 0.8.5",
@@ -4070,6 +4081,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_with",
  "sha1",
+ "sha2",
  "strum 0.26.3",
  "time",
  "unicode-normalization",
@@ -4393,6 +4405,7 @@ name = "injector"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "common_utils",
  "error-stack 0.4.1",
  "masking 0.1.0",
@@ -4403,6 +4416,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio 1.45.1",
+ "tracing",
  "url",
 ]
 
@@ -4578,7 +4592,7 @@ checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
- "pem",
+ "pem 3.0.5",
  "ring 0.17.14",
  "serde",
  "serde_json",
@@ -5730,6 +5744,16 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pem"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b13fe415cdf3c8e44518e18a7c95a13431d9bdf6d15367d82b23c377fdd441a"
+dependencies = [
+ "base64 0.21.7",
+ "serde",
 ]
 
 [[package]]
@@ -6952,6 +6976,7 @@ dependencies = [
  "pkcs1",
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
+ "sha2",
  "signature 2.2.0",
  "spki 0.7.3",
  "subtle",
@@ -9325,6 +9350,26 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if 1.0.0",
  "static_assertions",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fef81aec2ca29576f9f6ae8755108640d0a86dd3161b2e8bca6cfa554e98f77d"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ecb9ecf7799210407c14a8cfdfe0173365780968dc57973ed082211958e0b18"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]

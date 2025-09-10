@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, RequestSurchargeDetails,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -15,7 +15,10 @@ use common_utils::{
 };
 use diesel_models::{
     ephemeral_key,
-    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+    payment_attempt::{
+        ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+        NetworkDetails as DieselNetworkDetails,
+    },
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
@@ -358,6 +361,13 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            payment_data.payment_attempt
+                .payment_method_data
+                .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -412,7 +422,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .map(|reference_id| reference_id.get_string_repr().to_owned()),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        additional_payment_method_data: None,
+        additional_payment_method_data,
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: None,
@@ -420,6 +430,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         locale: None,
         payment_channel: None,
         enable_partial_authorization: None,
+        enable_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1063,6 +1074,13 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
         });
 
+    let order_tax_amount = payment_data
+        .payment_intent
+        .amount_details
+        .tax_details
+        .clone()
+        .and_then(|tax| tax.get_default_tax_amount());
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -1088,6 +1106,9 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
         customer_name,
+        metadata: payment_data.payment_intent.metadata,
+        order_tax_amount,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1531,6 +1552,9 @@ where
     let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
+        let merchant_tax_registration_id = merchant_context
+            .get_merchant_account()
+            .get_merchant_tax_registration_id();
 
         types::L2L3Data {
             order_date: payment_data.payment_intent.order_date,
@@ -1573,6 +1597,7 @@ where
                 .as_ref()
                 .and_then(|addr| addr.address.as_ref())
                 .and_then(|details| details.city.clone()),
+            merchant_tax_registration_id,
         }
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
@@ -2148,6 +2173,24 @@ where
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
+
+        let is_cit_transaction = payment_intent.setup_future_usage.is_off_session();
+
+        let mandate_type = if payment_intent.customer_present
+            == common_enums::PresenceOfCustomerDuringPayment::Absent
+        {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        let payment_type = helpers::infer_payment_type(
+            payment_intent.amount_details.order_amount.into(),
+            mandate_type.as_ref(),
+        );
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -2197,10 +2240,12 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
+                split_txns_enabled: payment_intent.split_txns_enabled,
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
+                payment_type,
             },
             vec![],
         )))
@@ -3362,6 +3407,11 @@ where
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
+            enable_overcapture: payment_intent.enable_overcapture,
+            is_overcapture_enabled: payment_attempt.is_overcapture_enabled,
+            network_details: payment_attempt
+                .network_details
+                .map(NetworkDetails::foreign_from),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3659,6 +3709,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
+            enable_overcapture: pi.enable_overcapture,
+            is_overcapture_enabled: pa.is_overcapture_enabled,
+            network_details: pa.network_details.map(NetworkDetails::foreign_from),
         }
     }
 }
@@ -3990,6 +4043,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         })
     }
 }
@@ -4223,6 +4277,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }
 }
@@ -4788,6 +4843,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .amount_details
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -4805,6 +4867,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             apple_pay_recurring_details,
             customer_name: None,
+            metadata: payment_data.payment_intent.metadata,
+            order_tax_amount,
+            shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         })
     }
 }
@@ -4874,6 +4939,20 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 ForeignFrom::foreign_from((apple_pay_recurring_details, apple_pay_amount))
             });
 
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.get_default_tax_amount());
+
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+
+        let metadata = payment_data
+            .payment_intent
+            .metadata
+            .clone()
+            .map(Secret::new);
+
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -4891,6 +4970,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
             customer_name: None,
+            order_tax_amount,
+            shipping_cost,
+            metadata,
         })
     }
 }
@@ -5877,6 +5959,22 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
     }
 }
 
+impl ForeignFrom<DieselNetworkDetails> for NetworkDetails {
+    fn foreign_from(value: DieselNetworkDetails) -> Self {
+        Self {
+            network_advice_code: value.network_advice_code,
+        }
+    }
+}
+
+impl ForeignFrom<NetworkDetails> for DieselNetworkDetails {
+    fn foreign_from(value: NetworkDetails) -> Self {
+        Self {
+            network_advice_code: value.network_advice_code,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ForeignFrom<diesel_models::ConnectorTokenDetails>
     for Option<api_models::payments::ConnectorTokenDetails>
@@ -5893,38 +5991,67 @@ impl ForeignFrom<diesel_models::ConnectorTokenDetails>
     }
 }
 
-impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
-    for Option<enums::PaymentMethodType>
+impl
+    ForeignFrom<(
+        Self,
+        Option<&api_models::payments::AdditionalPaymentData>,
+        Option<enums::PaymentMethod>,
+    )> for Option<enums::PaymentMethodType>
 {
-    fn foreign_from(req: (Self, Option<&api_models::payments::AdditionalPaymentData>)) -> Self {
-        let (payment_method_type, additional_pm_data) = req;
-        additional_pm_data
-            .and_then(|pm_data| {
-                if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
-                    card_info.card_type.as_ref().and_then(|card_type_str| {
-                        api_models::enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
-                            crate::logger::error!(
-                                "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
-                                err,
-                                card_type_str,
-                            );
-                        }).ok()
-                    })
-                } else {
-                    None
-                }
-            })
-            .map_or(payment_method_type, |card_type_in_bin_store| {
-                if let Some(card_type_in_req) = payment_method_type {
-                    if card_type_in_req != card_type_in_bin_store {
-                        crate::logger::info!(
-                            "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
-                            card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
-                        );
+    fn foreign_from(
+        req: (
+            Self,
+            Option<&api_models::payments::AdditionalPaymentData>,
+            Option<enums::PaymentMethod>,
+        ),
+    ) -> Self {
+        let (payment_method_type, additional_pm_data, payment_method) = req;
+
+        match (additional_pm_data, payment_method, payment_method_type) {
+            (
+                Some(api_models::payments::AdditionalPaymentData::Card(card_info)),
+                Some(enums::PaymentMethod::Card),
+                original_type,
+            ) => {
+                let bin_card_type = card_info.card_type.as_ref().and_then(|card_type_str| {
+                    let normalized_type = card_type_str.trim().to_lowercase();
+                    if normalized_type.is_empty() {
+                        return None;
                     }
+                    api_models::enums::PaymentMethodType::from_str(&normalized_type)
+                        .map_err(|_| {
+                            crate::logger::warn!("Invalid BIN card_type: '{}'", card_type_str);
+                        })
+                        .ok()
+                });
+
+                match (original_type, bin_card_type) {
+                    // Override when there's a mismatch
+                    (
+                        Some(
+                            original @ (enums::PaymentMethodType::Debit
+                            | enums::PaymentMethodType::Credit),
+                        ),
+                        Some(bin_type),
+                    ) if original != bin_type => {
+                        crate::logger::info!("BIN lookup override: {} -> {}", original, bin_type);
+                        bin_card_type
+                    }
+                    // Use BIN lookup if no original type exists
+                    (None, Some(bin_type)) => {
+                        crate::logger::info!(
+                            "BIN lookup override: No original payment method type, using BIN result={}",
+                            bin_type
+                        );
+                        Some(bin_type)
+                    }
+                    // Default
+                    _ => original_type,
                 }
-                Some(card_type_in_bin_store)
-            })
+            }
+            // Skip BIN lookup for non-card payments
+            _ => payment_method_type,
+        }
     }
 }
 
@@ -5943,6 +6070,13 @@ impl From<pm_types::TokenResponse> for domain::NetworkTokenData {
             bank_code: None,
             nick_name: None,
             eci: None,
+        }
+    }
+}
+impl ForeignFrom<&hyperswitch_domain_models::router_data::ErrorResponse> for DieselNetworkDetails {
+    fn foreign_from(err: &hyperswitch_domain_models::router_data::ErrorResponse) -> Self {
+        Self {
+            network_advice_code: err.network_advice_code.clone(),
         }
     }
 }

@@ -31,9 +31,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
-                // enums::Connector::Amazonpay => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
-                // }
+                enums::Connector::Amazonpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay::new())))
+                }
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
@@ -342,6 +342,9 @@ impl FeatureMatrixConnectorData {
                 // }
                 enums::Connector::Paypal => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
+                enums::Connector::Paysafe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paysafe::new())))
                 }
                 enums::Connector::Paystack => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))

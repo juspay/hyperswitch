@@ -339,6 +339,26 @@ key1 = "Merchant ID"
 [authipay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[amazonpay]
+[[amazonpay.wallet]]
+payment_method_type = "amazon_pay"
+[amazonpay.connector_auth.BodyKey]
+api_key="Public Key"
+key1="Private Key"
+
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="merchant_id"
+label="Merchant ID"
+placeholder="Enter Merchant ID"
+required=true
+type="Text"
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="store_id"
+label="Store ID"
+placeholder="Enter Store ID"
+required=true
+type="Text"
+
 [authorizedotnet]
 [[authorizedotnet.credit]]
 payment_method_type = "Mastercard"
@@ -1032,10 +1052,64 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[barclaycard.wallet]]
   payment_method_type = "google_pay"
+[[barclaycard.wallet]]
+  payment_method_type = "apple_pay"
 [barclaycard.connector_auth.SignatureKey]
 api_key = "Key"
 key1 = "Merchant ID"
 api_secret = "Shared Secret"
+
+[[barclaycard.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[barclaycard.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[barclaycard.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [[barclaycard.metadata.google_pay]]
 name = "merchant_name"
@@ -1712,6 +1786,7 @@ api_secret = "Secret Key"
 [dlocal.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[dwolla]
 [[dwolla.bank_debit]]
   payment_method_type = "ach"
 [dwolla.connector_auth.BodyKey]
@@ -1719,7 +1794,6 @@ api_key="Client ID"
 key1="Client Secret"
 [dwolla.connector_webhook_details]
 merchant_secret="Source verification key"
-
 [dwolla.metadata.merchant_funding_source]
 name = "merchant_funding_source"
 label = "Funding Source ID"
@@ -5032,7 +5106,7 @@ type = "Text"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.account_value]
+[nordea.metadata.destination_account_number]
   name="destination_account_number"
   label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
@@ -5185,6 +5259,12 @@ placeholder = "Enter Acquirer Country Code"
 required = false
 type = "Text"
 
+
+[santander]
+[[santander.voucher]]
+  payment_method_type = "boleto"
+[[santander.bank_transfer]]
+  payment_method_type = "pix"  
 [santander.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
@@ -5223,6 +5303,20 @@ label = "Merchant Name"
 placeholder = "Enter the merchant name"
 required = true
 type = "Text"
+
+[santander.metadata.workspace_id]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
+
+[santander.metadata.covenant_code]
+name="covenant_code"
+label="Covenant Code"
+placeholder="Enter the covenant code"
+required=true
+type="Text"
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
@@ -5367,5 +5461,50 @@ api_key = "Password"
 key1 = "Username"
 
 [paysafe]
-[paysafe.connector_auth.HeaderKey]
-api_key = "API Key"
+[[paysafe.credit]]
+payment_method_type = "Mastercard"
+[[paysafe.credit]]
+payment_method_type = "Visa"
+[[paysafe.credit]]
+payment_method_type = "Interac"
+[[paysafe.credit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.credit]]
+payment_method_type = "JCB"
+[[paysafe.credit]]
+payment_method_type = "DinersClub"
+[[paysafe.credit]]
+payment_method_type = "Discover"
+[[paysafe.credit]]
+payment_method_type = "CartesBancaires"
+[[paysafe.credit]]
+payment_method_type = "UnionPay"
+[[paysafe.debit]]
+payment_method_type = "Mastercard"
+[[paysafe.debit]]
+payment_method_type = "Visa"
+[[paysafe.debit]]
+payment_method_type = "Interac"
+[[paysafe.debit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.debit]]
+payment_method_type = "JCB"
+[[paysafe.debit]]
+payment_method_type = "DinersClub"
+[[paysafe.debit]]
+payment_method_type = "Discover"
+[[paysafe.debit]]
+payment_method_type = "CartesBancaires"
+[[paysafe.debit]]
+payment_method_type = "UnionPay"
+[paysafe.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[paysafe.connector_webhook_details]
+merchant_secret = "Source verification key"
+[paysafe.metadata.account_id]
+name="account_id"
+label="Payment Method Account ID"
+placeholder="Enter Account ID"
+required=true
+type="Text"
