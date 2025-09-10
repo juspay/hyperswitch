@@ -613,6 +613,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             retry_count,
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
+            metadata: None
         })
     }
 }

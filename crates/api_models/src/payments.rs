@@ -6200,6 +6200,10 @@ pub struct PaymentsResponse {
 
     /// Additional data that might be required by hyperswitch based on the additional features.
     pub feature_metadata: Option<FeatureMetadata>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -9610,6 +9614,10 @@ pub struct RecoveryPaymentsCreate {
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata : Option<pii::SecretSerdeValue>,
 }
 
 /// Error details for the payment
