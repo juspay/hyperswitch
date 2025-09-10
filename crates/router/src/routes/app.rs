@@ -562,6 +562,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            #[cfg(feature = "superposition")]
             superposition_service: self.superposition_service.clone(),
         })
     }

@@ -171,9 +171,12 @@ impl SuperpositionClient {
     pub async fn get_bool_value(
         &self,
         key: &str,
-        context: Option<&ConfigContext>,
+        context: Option<&HashMap<String, String>>,
     ) -> CustomResult<bool, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let config_context = context.map(|ctx| ConfigContext {
+            values: ctx.clone(),
+        });
+        let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
         self.client
             .get_bool_value(key, Some(&evaluation_context), None)
@@ -194,9 +197,12 @@ impl SuperpositionClient {
     pub async fn get_string_value(
         &self,
         key: &str,
-        context: Option<&ConfigContext>,
+        context: Option<&HashMap<String, String>>,
     ) -> CustomResult<String, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let config_context = context.map(|ctx| ConfigContext {
+            values: ctx.clone(),
+        });
+        let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
         self.client
             .get_string_value(key, Some(&evaluation_context), None)
@@ -217,9 +223,12 @@ impl SuperpositionClient {
     pub async fn get_int_value(
         &self,
         key: &str,
-        context: Option<&ConfigContext>,
+        context: Option<&HashMap<String, String>>,
     ) -> CustomResult<i64, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let config_context = context.map(|ctx| ConfigContext {
+            values: ctx.clone(),
+        });
+        let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
         self.client
             .get_int_value(key, Some(&evaluation_context), None)
@@ -232,6 +241,58 @@ impl SuperpositionClient {
             })
             .change_context(SuperpositionError::ClientError(format!(
                 "Failed to retrieve int config for key: {}",
+                key
+            )))
+    }
+
+    /// Get a float configuration value from Superposition
+    pub async fn get_float_value(
+        &self,
+        key: &str,
+        context: Option<&HashMap<String, String>>,
+    ) -> CustomResult<f64, SuperpositionError> {
+        let config_context = context.map(|ctx| ConfigContext {
+            values: ctx.clone(),
+        });
+        let evaluation_context = self.build_evaluation_context(config_context.as_ref());
+
+        self.client
+            .get_float_value(key, Some(&evaluation_context), None)
+            .await
+            .map_err(|e| {
+                SuperpositionError::ClientError(format!(
+                    "Failed to get float value for key '{}': {:?}",
+                    key, e
+                ))
+            })
+            .change_context(SuperpositionError::ClientError(format!(
+                "Failed to retrieve float config for key: {}",
+                key
+            )))
+    }
+
+    /// Get an object configuration value from Superposition
+    pub async fn get_object_value(
+        &self,
+        key: &str,
+        context: Option<&HashMap<String, String>>,
+    ) -> CustomResult<open_feature::StructValue, SuperpositionError> {
+        let config_context = context.map(|ctx| ConfigContext {
+            values: ctx.clone(),
+        });
+        let evaluation_context = self.build_evaluation_context(config_context.as_ref());
+
+        self.client
+            .get_object_value(key, Some(&evaluation_context), None)
+            .await
+            .map_err(|e| {
+                SuperpositionError::ClientError(format!(
+                    "Failed to get object value for key '{}': {:?}",
+                    key, e
+                ))
+            })
+            .change_context(SuperpositionError::ClientError(format!(
+                "Failed to retrieve object config for key: {}",
                 key
             )))
     }

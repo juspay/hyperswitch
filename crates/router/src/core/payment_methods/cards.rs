@@ -4141,15 +4141,14 @@ pub async fn list_customer_payment_method(
             .get_merchant_account()
             .get_id()
             .get_requires_cvv_key(), // database key
-        Some(
-            &external_services::superposition::ConfigContext::new().with(
-                "merchant_id",
-                merchant_context
-                    .get_merchant_account()
-                    .get_id()
-                    .get_string_repr(),
-            ),
-        ),
+        Some(HashMap::from([(
+            "merchant_id".to_string(),
+            merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_string_repr()
+                .to_string(),
+        )])),
         true, // default value
     )
     .await
