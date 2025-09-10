@@ -253,6 +253,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_country_code -> Nullable<Varchar>,
         dispute_polling_interval -> Nullable<Int4>,
+        is_manual_retry_enabled -> Nullable<Bool>,
+        always_enable_overcapture -> Nullable<Bool>,
     }
 }
 
@@ -983,6 +985,8 @@ diesel::table! {
         connector_request_reference_id -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_id -> Nullable<Varchar>,
+        is_overcapture_enabled -> Nullable<Bool>,
+        network_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1086,6 +1090,7 @@ diesel::table! {
         duty_amount -> Nullable<Int8>,
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
+        enable_overcapture -> Nullable<Bool>,
     }
 }
 

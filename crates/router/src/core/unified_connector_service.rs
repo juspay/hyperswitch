@@ -9,8 +9,9 @@ use common_utils::consts::BASE64_ENGINE;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::{
-    ConnectorAuthMetadata, UnifiedConnectorServiceError,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -47,7 +48,6 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::transformers::ForeignTryFrom,
-    utils,
 };
 
 pub mod transformers;
@@ -769,10 +769,13 @@ pub async fn call_unified_connector_service_for_webhook(
         })?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
-    };
+    let grpc_headers = state
+        .get_grpc_headers_ucs()
+        .lineage_ids(LineageIds::new(
+            merchant_context.get_merchant_account().get_id().clone(),
+        ))
+        .external_vault_proxy_metadata(None)
+        .build();
 
     // Make UCS call - client availability already verified
     match ucs_client
@@ -814,6 +817,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderIntermediate,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -822,7 +826,12 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
-    F: FnOnce(RouterData<T, Req, Resp>, GrpcReq) -> Fut + Send,
+    F: FnOnce(
+            RouterData<T, Req, Resp>,
+            GrpcReq,
+            external_services::grpc_client::GrpcHeadersUcs,
+        ) -> Fut
+        + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
@@ -835,7 +844,9 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
-
+    let grpc_header = grpc_header_builder
+        .lineage_ids(LineageIds::new(merchant_id.clone()))
+        .build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
@@ -857,7 +868,7 @@ where
 
     // Execute UCS function and measure timing
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request).await;
+    let result = handler(router_data, grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call
