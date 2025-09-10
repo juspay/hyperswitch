@@ -1904,6 +1904,7 @@ dependencies = [
  "reqwest 0.11.27",
  "ring 0.17.14",
  "router_env",
+ "rsa",
  "rust_decimal",
  "rustc-hash 1.1.0",
  "semver 1.0.26",
@@ -3070,6 +3071,7 @@ dependencies = [
  "rust-grpc-client",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
@@ -3077,6 +3079,7 @@ dependencies = [
  "tonic-build",
  "tonic-reflection",
  "tonic-types",
+ "typed-builder",
  "url",
  "vaultrs",
 ]
@@ -6973,6 +6976,7 @@ dependencies = [
  "pkcs1",
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
+ "sha2",
  "signature 2.2.0",
  "spki 0.7.3",
  "subtle",
@@ -9346,6 +9350,26 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if 1.0.0",
  "static_assertions",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fef81aec2ca29576f9f6ae8755108640d0a86dd3161b2e8bca6cfa554e98f77d"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ecb9ecf7799210407c14a8cfdfe0173365780968dc57973ed082211958e0b18"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]
