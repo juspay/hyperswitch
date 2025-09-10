@@ -2291,7 +2291,6 @@ pub struct NuveiTransactionSyncResponseDetails {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiTransactionSyncResponse {
-    // pub user_details: Option<String>,
     pub payment_option: Option<PaymentOption>,
     pub partial_approval: Option<NuveiTxnPartialApproval>,
     pub is_currency_converted: Option<bool>,
