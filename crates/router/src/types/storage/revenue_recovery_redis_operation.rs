@@ -362,10 +362,12 @@ impl RedisTokenManager {
 
             // Obtain network-specific limits and compute remaining monthly retries.
             let card_network_config = card_config.get_network_config(card_network);
+            
 
-            let monthly_retry_remaining = card_network_config
-                .max_retry_count_for_thirty_day
-                .saturating_sub(retry_info.total_30_day_retries);
+            let monthly_retry_remaining = std::cmp::max(
+                0,
+                card_network_config.max_retry_count_for_thirty_day - retry_info.total_30_day_retries,
+            );
 
             // Build the per-token result struct.
             let token_with_retry_info = PaymentProcessorTokenWithRetryInfo {
@@ -419,6 +421,7 @@ impl RedisTokenManager {
         let monthly_wait_hours =
             if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
                 (0..RETRY_WINDOW_DAYS)
+                    .rev()
                     .map(|i| today - Duration::days(i.into()))
                     .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
                     .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
