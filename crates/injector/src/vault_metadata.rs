@@ -5,10 +5,7 @@ use masking::{ExposeInterface, Secret};
 use router_env::logger;
 use url::Url;
 
-use crate::{
-    types::ConnectionConfig, VaultConnectors,
-    consts::EXTERNAL_VAULT_METADATA_HEADER
-};
+use crate::{consts::EXTERNAL_VAULT_METADATA_HEADER, types::ConnectionConfig, VaultConnectors};
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 

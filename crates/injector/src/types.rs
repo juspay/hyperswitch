@@ -9,8 +9,7 @@ pub mod models {
 
     // Import vault metadata processing trait at top level
     use crate::{
-        vault_metadata::VaultMetadataExtractorExt,
-        consts::EXTERNAL_VAULT_METADATA_HEADER
+        consts::EXTERNAL_VAULT_METADATA_HEADER, vault_metadata::VaultMetadataExtractorExt,
     };
 
     // Enums for the injector - making it standalone
@@ -208,9 +207,7 @@ pub mod models {
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
             // Process vault metadata if present
-            if let Some(vault_header) =
-                headers.remove(EXTERNAL_VAULT_METADATA_HEADER)
-            {
+            if let Some(vault_header) = headers.remove(EXTERNAL_VAULT_METADATA_HEADER) {
                 let vault_header_value = vault_header.expose();
                 logger::info!(
                     vault_header_length = vault_header_value.len(),
