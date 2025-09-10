@@ -726,7 +726,7 @@ impl
             base.push('/');
         }
 
-        let url = format!("{base}v2/items{query_params}");
+        let url = format!("{base}v2/item_prices{query_params}");
         Ok(url)
     }
     // check if get_content_type is required
