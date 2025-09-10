@@ -644,7 +644,7 @@ impl From<&Address> for BillingAddress {
             address: address_details.and_then(|address| address.get_optional_line1()),
             street_number: None,
             zip: address_details.and_then(|details| details.get_optional_zip()),
-            state: None,
+            state: address_details.and_then(|address| address.get_optional_state()),
             cell: None,
             address_match: None,
             address_line2: address_details.and_then(|address| address.get_optional_line2()),
