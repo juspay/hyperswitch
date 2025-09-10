@@ -673,6 +673,8 @@ impl
     }
 }
 
+impl api::subscriptions::Subscriptions for Chargebee {}
+
 impl api::subscriptions::GetSubscriptionPlanPricesFlow for Chargebee {}
 
 fn get_chargebee_plan_prices_query_params(
