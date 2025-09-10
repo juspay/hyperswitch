@@ -2077,7 +2077,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
             merchant_secret.peek(),
         ])?);
 
-        Ok(NuveiPaymentSyncRequest {
+        Ok(Self {
             merchant_id,
             merchant_site_id,
             time_stamp,
@@ -2320,10 +2320,10 @@ impl From<NuveiTransactionSyncResponse> for NuveiPaymentsResponse {
                 partial_approval.requested_currency,
                 transaction_details
                     .as_ref()
-                    .map_or(None, |txn| txn.processed_amount.clone()),
+                    .and_then(|txn| txn.processed_amount.clone()),
                 transaction_details
                     .as_ref()
-                    .map_or(None, |txn| txn.processed_currency.clone()),
+                    .and_then(|txn| txn.processed_currency.clone()),
             ) {
                 (
                     Some(requested_amount),
