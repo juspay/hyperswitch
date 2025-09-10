@@ -276,14 +276,14 @@ impl SuperpositionClient {
         &self,
         key: &str,
         context: Option<&HashMap<String, String>>,
-    ) -> CustomResult<open_feature::StructValue, SuperpositionError> {
+    ) -> CustomResult<serde_json::Value, SuperpositionError> {
         let config_context = context.map(|ctx| ConfigContext {
             values: ctx.clone(),
         });
         let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
         self.client
-            .get_struct_value(key, Some(&evaluation_context), None)
+            .get_struct_value::<serde_json::Value>(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
                 SuperpositionError::ClientError(format!(

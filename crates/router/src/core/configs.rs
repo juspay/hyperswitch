@@ -195,13 +195,10 @@ pub async fn get_config_object(
 ) -> CustomResult<serde_json::Value, errors::StorageError> {
     #[cfg(feature = "superposition")]
     if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(struct_value) = superposition_client
+        if let Ok(json_value) = superposition_client
             .get_object_value(superposition_key, context.as_ref())
             .await
         {
-            // Convert StructValue to serde_json::Value
-            let json_value = serde_json::to_value(struct_value)
-                .change_context(errors::StorageError::DeserializationFailed)?;
             return Ok(json_value);
         }
     }
