@@ -274,7 +274,6 @@ pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
     RevenueRecoveryRecordBackResponse,
 >;
 
-#[cfg(feature = "v1")]
 /// Type alias for `ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>`
 pub type SubscriptionCreateType = dyn ConnectorIntegration<
     SubscriptionCreate,
@@ -318,15 +317,6 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     flow_common_types::BillingConnectorInvoiceSyncFlowData,
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
->;
-
-#[cfg(feature = "v2")]
-/// Type alias for `ConnectorIntegrationV2<SubscriptionCreate, SubscriptionCreateData, SubscriptionCreateRequest, SubscriptionCreateResponse>`
-pub type SubscriptionCreateTypeV2 = dyn ConnectorIntegrationV2<
-    SubscriptionCreate,
-    flow_common_types::SubscriptionCreateData,
-    SubscriptionCreateRequest,
-    SubscriptionCreateResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
