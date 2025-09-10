@@ -14,7 +14,8 @@ use crate::{
         },
         unified_connector_service::{
             build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
-            handle_unified_connector_service_response_for_payment_register, set_access_token_for_ucs, ucs_logging_wrapper,
+            handle_unified_connector_service_response_for_payment_register,
+            set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -323,47 +324,51 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-        // Extract and store access token if present
-        if let Some(access_token) =
-            get_access_token_from_ucs_response(payment_register_response.state.as_ref())
-        {
-            if let Err(error) = set_access_token_for_ucs(
-                state,
-                merchant_context,
-                &self.connector,
-                access_token,
-            )
-            .await
-            {
-                logger::error!(
-                    ?error,
-                    "Failed to store UCS access token from setup mandate response"
-                );
-            } else {
-                logger::debug!("Successfully stored access token from UCS setup mandate response");
-            }
-        }
+                // Extract and store access token if present
+                if let Some(access_token) =
+                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+                {
+                    if let Err(error) = set_access_token_for_ucs(
+                        state,
+                        merchant_context,
+                        &self.connector,
+                        access_token,
+                    )
+                    .await
+                    {
+                        logger::error!(
+                            ?error,
+                            "Failed to store UCS access token from setup mandate response"
+                        );
+                    } else {
+                        logger::debug!(
+                            "Successfully stored access token from UCS setup mandate response"
+                        );
+                    }
+                }
 
-        // Extract and store access token if present
-        if let Some(access_token) =
-            get_access_token_from_ucs_response(payment_register_response.state.as_ref())
-        {
-            if let Err(error) = set_access_token_for_ucs(
-                state,
-                merchant_context,
-                &self.connector,
-                access_token,
-            )
-            .await
-            {
-                logger::error!(
-                    ?error,
-                    "Failed to store UCS access token from setup mandate response"
-                );
-            } else {
-                logger::debug!("Successfully stored access token from UCS setup mandate response");
-            }
-        }
+                // Extract and store access token if present
+                if let Some(access_token) =
+                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+                {
+                    if let Err(error) = set_access_token_for_ucs(
+                        state,
+                        merchant_context,
+                        &self.connector,
+                        access_token,
+                    )
+                    .await
+                    {
+                        logger::error!(
+                            ?error,
+                            "Failed to store UCS access token from setup mandate response"
+                        );
+                    } else {
+                        logger::debug!(
+                            "Successfully stored access token from UCS setup mandate response"
+                        );
+                    }
+                }
 
                 router_data.status = status;
                 router_data.response = router_data_response;
