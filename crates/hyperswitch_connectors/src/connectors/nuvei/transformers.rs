@@ -2323,7 +2323,7 @@ impl From<NuveiTransactionSyncResponse> for NuveiPaymentsResponse {
                     .and_then(|txn| txn.processed_amount.clone()),
                 transaction_details
                     .as_ref()
-                    .and_then(|txn| txn.processed_currency.clone()),
+                    .and_then(|txn| txn.processed_currency),
             ) {
                 (
                     Some(requested_amount),
