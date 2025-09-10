@@ -506,7 +506,7 @@ pub async fn perform_calculate_workflow(
     );
 
     let get_tracker_response = get_trackers_response_for_payment_get_operation::<
-    hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
+        hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
     >(
         db,
         payment_id,
@@ -688,7 +688,9 @@ pub async fn perform_calculate_workflow(
 
                             let event_type = common_enums::EventType::PaymentFailed;
 
-                            if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+                            if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) =
+                                payments_response
+                            {
                                 send_outgoing_webhook_based_on_revenue_recovery_status(
                                     state,
                                     event_class,
@@ -716,8 +718,6 @@ pub async fn perform_calculate_workflow(
             }
         }
     }
-
-
 
     Ok(())
 }
