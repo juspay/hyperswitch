@@ -689,6 +689,8 @@ fn get_chargebee_plans_query_params(
 
 impl api::subscriptions::Subscriptions for Chargebee {}
 
+impl api::subscriptions::GetSubscriptionEstimateFlow for Chargebee {}
+
 impl
     ConnectorIntegration<
         GetSubscriptionEstimate,
