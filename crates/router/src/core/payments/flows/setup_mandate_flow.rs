@@ -285,7 +285,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let header_payload = state
             .get_grpc_headers_ucs()
             .external_vault_proxy_metadata(None)
-            .reference_id(None);
+            .merchant_reference_id(None);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,

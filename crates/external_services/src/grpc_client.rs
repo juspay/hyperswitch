@@ -161,7 +161,7 @@ pub struct GrpcHeadersUcs {
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
-    reference_id: Option<ucs_interfaces::UcsReferenceId>,
+    merchant_reference_id: Option<ucs_interfaces::UcsReferenceId>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage

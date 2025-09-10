@@ -857,7 +857,7 @@ async fn call_unified_connector_service_authorize(
     let headers_builder = state
         .get_grpc_headers_ucs()
         .external_vault_proxy_metadata(None)
-        .reference_id(router_data.request.get_ucs_reference_id());
+        .merchant_reference_id(router_data.request.get_ucs_reference_id());
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
@@ -931,7 +931,7 @@ async fn call_unified_connector_service_repeat_payment(
     let headers_builder = state
         .get_grpc_headers_ucs()
         .external_vault_proxy_metadata(None)
-        .reference_id(router_data.request.get_ucs_reference_id());
+        .merchant_reference_id(router_data.request.get_ucs_reference_id());
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
