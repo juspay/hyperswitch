@@ -96,7 +96,7 @@ impl ProfileInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -116,7 +116,7 @@ impl ProfileInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_business_profile_by_merchant_id_profile_id(
@@ -136,7 +136,7 @@ impl ProfileInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -157,7 +157,7 @@ impl ProfileInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -181,7 +181,7 @@ impl ProfileInterface for Store {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -218,7 +218,7 @@ impl ProfileInterface for Store {
                                 merchant_key_store.merchant_id.clone().into(),
                             )
                             .await
-                            .change_context(errors::StorageError::DecryptionError)?,
+                            .map_err(|error| report!(errors::StorageError::from(error)))?,
                     );
                 }
                 Ok(domain_business_profiles)
@@ -251,7 +251,7 @@ impl ProfileInterface for MockDb {
                 merchant_key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_business_profile_by_profile_id(
@@ -274,7 +274,7 @@ impl ProfileInterface for MockDb {
                         merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
             .transpose()?
@@ -310,7 +310,7 @@ impl ProfileInterface for MockDb {
                         merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
             .transpose()?
@@ -351,7 +351,7 @@ impl ProfileInterface for MockDb {
                         merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
             .transpose()?
@@ -407,7 +407,7 @@ impl ProfileInterface for MockDb {
                     merchant_key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)?;
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
             domain_business_profiles.push(domain_profile);
         }
 
@@ -438,7 +438,7 @@ impl ProfileInterface for MockDb {
                         merchant_key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
             .transpose()?
