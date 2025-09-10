@@ -4198,6 +4198,8 @@ where
             &merchant_connector_account,
             merchant_recipient_data,
             None,
+            None,
+            None,
         )
         .await?;
 
@@ -5114,6 +5116,8 @@ where
             &merchant_connector_account,
             merchant_recipient_data,
             None,
+            None,
+            None,
         )
         .await?;
 
@@ -5612,6 +5616,14 @@ where
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
+        if let Some(hyperswitch_domain_models::payment_method_data::WalletData::ApplePayRedirect(
+            _,
+        )) = payment_data
+            .get_payment_method_data()
+            .and_then(|pmd| pmd.get_wallet_data())
+        {
+            return Ok(None);
+        }
         let apple_pay_metadata = check_apple_pay_metadata(state, Some(merchant_connector_account));
 
         add_apple_pay_flow_metrics(
@@ -6101,6 +6113,8 @@ where
                 &merchant_connector_account,
                 None,
                 None,
+                Some(session_connector_data.payment_method_type),
+                Some(session_connector_data.payment_method_sub_type),
             )
             .await?;
 
@@ -6423,6 +6437,8 @@ where
                         merchant_context,
                         customer,
                         merchant_connector_account,
+                        None,
+                        None,
                         None,
                         None,
                     )
@@ -6814,6 +6830,8 @@ where
             merchant_conn_account,
             None,
             header_payload,
+            None,
+            None,
         )
         .await?;
 

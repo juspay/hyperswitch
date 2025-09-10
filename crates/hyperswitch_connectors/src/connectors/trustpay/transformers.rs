@@ -1534,7 +1534,7 @@ impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
     fn from(value: SdkSecretInfo) -> Self {
         Self {
             display: value.display,
-            payment: value.payment,
+            payment: Some(value.payment),
         }
     }
 }
