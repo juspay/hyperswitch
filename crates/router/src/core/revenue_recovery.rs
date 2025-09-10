@@ -468,8 +468,6 @@ pub async fn perform_calculate_workflow(
 
     let event_class = common_enums::EventClass::Payments;
 
-    let mut event_type = common_enums::EventType::PaymentScheduled;
-
     logger::info!(
         process_id = %process.id,
         payment_id = %tracking_data.global_payment_id.get_string_repr(),
@@ -500,6 +498,32 @@ pub async fn perform_calculate_workflow(
             return Err(sch_errors::ProcessTrackerError::ProcessUpdateFailed);
         }
     };
+    let payment_id = &api_models::payments::PaymentIdType::PaymentAttemptId(
+        tracking_data
+            .payment_attempt_id
+            .get_string_repr()
+            .to_string(),
+    );
+
+    let get_tracker_response = get_trackers_response_for_payment_get_operation::<
+    hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
+    >(
+        db,
+        payment_id,
+        profile_id,
+        key_manager_state,
+        merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account().storage_scheme,
+    )
+    .await
+    .change_context(errors::RecoveryError::ValueNotFound)
+    .attach_printable("Cannot construct payment status data to trigger outgoing webhook")?;
+
+    let payments_response = get_tracker_response
+        .payment_data
+        .clone()
+        .generate_response(state, None, None, None, &merchant_context, profile, None)
+        .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed);
 
     // 2. Get best available token
     let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -662,7 +686,24 @@ pub async fn perform_calculate_workflow(
                                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                                 })?;
 
-                            event_type = common_enums::EventType::PaymentFailed;
+                            let event_type = common_enums::EventType::PaymentFailed;
+
+                            if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+                                send_outgoing_webhook_based_on_revenue_recovery_status(
+                                    state,
+                                    event_class,
+                                    event_type,
+                                    payment_intent,
+                                    &merchant_context,
+                                    profile,
+                                    response,
+                                    tracking_data
+                                        .payment_attempt_id
+                                        .get_string_repr()
+                                        .to_string(),
+                                )
+                                .await?
+                            };
 
                             logger::info!(
                                 process_id = %process.id,
@@ -676,49 +717,7 @@ pub async fn perform_calculate_workflow(
         }
     }
 
-    let payment_id = &api_models::payments::PaymentIdType::PaymentAttemptId(
-        tracking_data
-            .payment_attempt_id
-            .get_string_repr()
-            .to_string(),
-    );
 
-    let get_tracker_response = get_trackers_response_for_payment_get_operation::<
-        hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
-    >(
-        db,
-        payment_id,
-        profile_id,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
-    )
-    .await
-    .change_context(errors::RecoveryError::ValueNotFound)
-    .attach_printable("Cannot construct payment status data to trigger outgoing webhook")?;
-
-    let payments_response = get_tracker_response
-        .payment_data
-        .clone()
-        .generate_response(state, None, None, None, &merchant_context, profile, None)
-        .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed);
-
-    if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
-        send_outgoing_webhook_based_on_revenue_recovery_status(
-            state,
-            event_class,
-            event_type,
-            payment_intent,
-            &merchant_context,
-            profile,
-            response,
-            tracking_data
-                .payment_attempt_id
-                .get_string_repr()
-                .to_string(),
-        )
-        .await?
-    };
 
     Ok(())
 }

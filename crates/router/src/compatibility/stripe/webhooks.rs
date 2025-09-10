@@ -269,8 +269,6 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
     match event_type {
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
         api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
-        #[cfg(feature = "v2")]
-        api_models::enums::EventType::PaymentScheduled => "payment_intent.processing",
         api_models::enums::EventType::PaymentProcessing
         | api_models::enums::EventType::PaymentPartiallyAuthorized => "payment_intent.processing",
         api_models::enums::EventType::PaymentCancelled
