@@ -704,13 +704,30 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let query_params = get_chargebee_plan_prices_query_params(req)?;
+
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
-        Ok(format!("{url}v2/item_prices{query_params}"))
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
+        let url = format!("{base}v2/items{query_params}");
+        Ok(url)
     }
     // check if get_content_type is required
     fn build_request(
