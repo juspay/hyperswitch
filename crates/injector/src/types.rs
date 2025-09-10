@@ -8,7 +8,10 @@ pub mod models {
     use serde::{Deserialize, Serialize};
 
     // Import vault metadata processing trait at top level
-    use crate::vault_metadata::VaultMetadataExtractorExt;
+    use crate::{
+        vault_metadata::VaultMetadataExtractorExt,
+        consts::EXTERNAL_VAULT_METADATA_HEADER
+    };
 
     // Enums for the injector - making it standalone
 
@@ -206,7 +209,7 @@ pub mod models {
 
             // Process vault metadata if present
             if let Some(vault_header) =
-                headers.remove(consts::EXTERNAL_VAULT_METADATA_HEADER)
+                headers.remove(EXTERNAL_VAULT_METADATA_HEADER)
             {
                 let vault_header_value = vault_header.expose();
                 logger::info!(
