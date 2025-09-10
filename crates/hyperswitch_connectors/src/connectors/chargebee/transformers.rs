@@ -3,7 +3,12 @@ use std::str::FromStr;
 
 use common_enums::enums;
 use common_utils::id_type::CustomerId;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    pii::{self, Email},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
@@ -12,9 +17,11 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
-        RecoveryRecordBack,
+        CreateConnectorCustomer, RecoveryRecordBack,
     },
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_request_types::{
+        revenue_recovery::RevenueRecoveryRecordBackRequest, ConnectorCustomerData, ResponseId,
+    },
     router_response_types::{
         revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
         RefundsResponseData,
@@ -780,8 +787,8 @@ pub struct ChargebeeCustomerCreateRequest {
     #[serde(rename = "id")]
     pub customer_id: CustomerId,
     #[serde(rename = "first_name")]
-    pub name: Option<String>,
-    pub email: Option<pii::Email>,
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
@@ -803,7 +810,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCusto
                     field_name: "customer_id",
                 })?
                 .clone(),
-            name: req.name.as_ref().map(|n| n.clone().expose()),
+            name: req.name.clone(),
             email: req.email.clone(),
             billing_address: req.billing_address.clone(),
         })
@@ -818,17 +825,17 @@ pub struct ChargebeeCustomerCreateResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeCustomerDetails {
     pub id: String,
-    pub name: Option<String>,
-    pub email: Option<String>,
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
 impl
     TryFrom<
         ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::CreateConnectorCustomer,
+            CreateConnectorCustomer,
             ChargebeeCustomerCreateResponse,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            ConnectorCustomerData,
             PaymentsResponseData,
         >,
     > for hyperswitch_domain_models::types::CreateCustomerRouterData
@@ -837,9 +844,9 @@ impl
 
     fn try_from(
         item: ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::CreateConnectorCustomer,
+            CreateConnectorCustomer,
             ChargebeeCustomerCreateResponse,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
+            ConnectorCustomerData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -848,8 +855,8 @@ impl
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: c.id.clone(),
-                name: c.name.clone(),
-                email: c.email.clone(),
+                name: c.name.as_ref().map(|n| n.clone().expose()),
+                email: c.email.as_ref().map(|e| e.clone().expose().expose()),
                 billing_address: c.billing_address.clone(),
             }),
             ..item.data

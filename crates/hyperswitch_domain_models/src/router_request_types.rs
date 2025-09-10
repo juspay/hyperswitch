@@ -290,7 +290,6 @@ pub struct ConnectorCustomerData {
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
-
     pub customer_id: Option<id_type::CustomerId>,
     pub billing_address: Option<AddressDetails>,
 }
