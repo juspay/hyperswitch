@@ -283,7 +283,7 @@ impl SuperpositionClient {
         let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
         self.client
-            .get_object_value(key, Some(&evaluation_context), None)
+            .get_struct_value(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
                 SuperpositionError::ClientError(format!(
