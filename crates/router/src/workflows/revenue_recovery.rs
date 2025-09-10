@@ -527,19 +527,27 @@ pub async fn update_token_expiry_based_on_schedule_time(
     connector_customer_id: &str,
     delayed_schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    let expiry_buffer = state.conf.revenue_recovery.recovery_timestamp.redis_ttl_buffer_in_seconds;
+    let expiry_buffer = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .redis_ttl_buffer_in_seconds;
 
     delayed_schedule_time
-    .async_map(|t| async move {
-        let expiry_time = calculate_difference_in_seconds(t) + expiry_buffer;
-        RedisTokenManager::update_connector_customer_lock_ttl(state, connector_customer_id, expiry_time)
+        .async_map(|t| async move {
+            let expiry_time = calculate_difference_in_seconds(t) + expiry_buffer;
+            RedisTokenManager::update_connector_customer_lock_ttl(
+                state,
+                connector_customer_id,
+                expiry_time,
+            )
             .await
             .change_context(errors::ProcessTrackerError::ERedisError(
                 errors::RedisError::RedisConnectionError.into(),
             ))
-    })
-    .await
-    .transpose()?;
+        })
+        .await
+        .transpose()?;
 
     Ok(())
 }
@@ -584,8 +592,12 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     let delayed_schedule_time =
         scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
-    let _= update_token_expiry_based_on_schedule_time(state, connector_customer_id, delayed_schedule_time)
-        .await;
+    let _ = update_token_expiry_based_on_schedule_time(
+        state,
+        connector_customer_id,
+        delayed_schedule_time,
+    )
+    .await;
 
     Ok(delayed_schedule_time)
 }
