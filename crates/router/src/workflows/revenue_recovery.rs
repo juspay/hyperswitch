@@ -513,9 +513,8 @@ pub struct ScheduledToken {
 #[cfg(feature = "v2")]
 pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
     let now_utc = time::OffsetDateTime::now_utc();
-    let scheduled_time_with_buffer = scheduled_time + time::Duration::minutes(5);
 
-    let scheduled_offset_dt = scheduled_time_with_buffer.assume_utc();
+    let scheduled_offset_dt = scheduled_time.assume_utc();
     let difference = scheduled_offset_dt - now_utc;
 
     difference.whole_seconds()
