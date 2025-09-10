@@ -75,7 +75,7 @@ pub async fn set_access_token_for_ucs(
         ..access_token
     };
 
-    router_env::logger::debug!(
+    logger::debug!(
         access_token_expiry_after_modification = modified_access_token.expires,
         merchant_id = ?merchant_id,
         connector_name = connector_name
@@ -89,7 +89,7 @@ pub async fn set_access_token_for_ucs(
         // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
         // Payments should not fail, once the access token is successfully created
         // The next request will create new access token, if required
-        router_env::logger::error!(access_token_set_error=?access_token_set_error, "Failed to store UCS access token");
+        logger::error!(access_token_set_error=?access_token_set_error, "Failed to store UCS access token");
     }
 
     Ok(())

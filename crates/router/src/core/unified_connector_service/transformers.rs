@@ -597,13 +597,6 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        // Extract access token from response state - this will be handled by Hyperswitch caching
-        let _extracted_access_token = response
-            .state
-            .as_ref()
-            .and_then(|state| state.access_token.as_ref())
-            .map(convert_grpc_access_token_to_domain);
-
         let response = if response.error_code.is_some() {
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),

@@ -944,6 +944,19 @@ async fn call_unified_connector_service_repeat_payment(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
+    let merchant_id = merchant_context.get_merchant_account().get_id();
+    if let Ok(Some(cached_access_token)) = state
+        .store
+        .get_access_token(merchant_id, &router_data.connector)
+        .await
+    {
+        router_data.access_token = Some(cached_access_token);
+        logger::debug!(
+            "Using cached access token for UCS repeat call to connector: {}",
+            router_data.connector
+        );
+    }
+
     let client = state
         .grpc_client
         .unified_connector_service_client
