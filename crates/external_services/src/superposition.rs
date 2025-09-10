@@ -315,7 +315,8 @@ impl SuperpositionClient {
         });
         let evaluation_context = self.build_evaluation_context(config_context.as_ref());
 
-        let json_result = self.client
+        let json_result = self
+            .client
             .get_struct_value::<JsonValue>(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
