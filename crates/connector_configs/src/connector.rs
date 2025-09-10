@@ -114,6 +114,7 @@ pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
+    pub account_type: Option<InputData>,
     pub terminal_id: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
@@ -147,6 +148,8 @@ pub struct ConfigMetadata {
     pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
+    pub merchant_funding_source: Option<InputData>,
+    pub account_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -155,6 +158,7 @@ pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
     pub paze: Option<Vec<InputData>>,
     pub google_pay: Option<Vec<InputData>>,
+    pub amazon_pay: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -196,6 +200,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub adyenplatform_payout: Option<ConnectorTomlConfig>,
     pub airwallex: Option<ConnectorTomlConfig>,
+    pub amazonpay: Option<ConnectorTomlConfig>,
     pub archipel: Option<ConnectorTomlConfig>,
     pub authorizedotnet: Option<ConnectorTomlConfig>,
     pub bamboraapac: Option<ConnectorTomlConfig>,
@@ -270,6 +275,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
+    pub paysafe: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub paypal_payout: Option<ConnectorTomlConfig>,
     pub paystack: Option<ConnectorTomlConfig>,
@@ -402,6 +408,7 @@ impl ConnectorConfig {
             Connector::Affirm => Ok(connector_data.affirm),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
+            Connector::Amazonpay => Ok(connector_data.amazonpay),
             Connector::Archipel => Ok(connector_data.archipel),
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
@@ -475,6 +482,7 @@ impl ConnectorConfig {
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
+            Connector::Paysafe => Ok(connector_data.paysafe),
             Connector::Paystack => Ok(connector_data.paystack),
             Connector::Payu => Ok(connector_data.payu),
             Connector::Placetopay => Ok(connector_data.placetopay),

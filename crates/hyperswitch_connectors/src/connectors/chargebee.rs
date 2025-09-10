@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -30,7 +31,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -783,4 +784,21 @@ impl webhooks::IncomingWebhook for Chargebee {
     }
 }
 
-impl ConnectorSpecifications for Chargebee {}
+static CHARGEBEE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Chargebee",
+    description: "Chargebee is a Revenue Growth Management (RGM) platform that helps subscription businesses manage subscriptions, billing, revenue recognition, collections, and customer retention, essentially streamlining the entire subscription lifecycle.",
+    connector_type: enums::HyperswitchConnectorCategory::RevenueGrowthManagementPlatform,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+};
+
+static CHARGEBEE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Chargebee {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&CHARGEBEE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&CHARGEBEE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

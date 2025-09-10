@@ -43,12 +43,17 @@ impl RevenueRecoveryPaymentData {
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
     ) -> Option<time::PrimitiveDateTime> {
+        if is_hard_decline {
+            logger::info!("Hard Decline encountered");
+            return None;
+        }
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
                 None
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
+                logger::info!("Cascading type found for Revenue Recovery retry payment");
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     merchant_id,
@@ -72,13 +77,19 @@ pub struct RevenueRecoverySettings {
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct RecoveryTimestamp {
-    pub initial_timestamp_in_hours: i64,
+    pub initial_timestamp_in_seconds: i64,
+    pub job_schedule_buffer_time_in_seconds: i64,
+    pub reopen_workflow_buffer_time_in_seconds: i64,
+    pub max_random_schedule_delay_in_seconds: i64,
 }
 
 impl Default for RecoveryTimestamp {
     fn default() -> Self {
         Self {
-            initial_timestamp_in_hours: 1,
+            initial_timestamp_in_seconds: 1,
+            job_schedule_buffer_time_in_seconds: 15,
+            reopen_workflow_buffer_time_in_seconds: 60,
+            max_random_schedule_delay_in_seconds: 300,
         }
     }
 }

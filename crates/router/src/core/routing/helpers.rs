@@ -2307,19 +2307,6 @@ pub async fn create_specific_dynamic_routing_setup(
         }
     };
 
-    if state.conf.open_router.dynamic_routing_enabled {
-        enable_decision_engine_dynamic_routing_setup(
-            state,
-            business_profile.get_id(),
-            dynamic_routing_type,
-            &mut dynamic_routing_algo_ref,
-            Some(payload),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to setup decision engine dynamic routing")?;
-    }
-
     let record = db
         .insert_routing_algorithm(algo)
         .await
@@ -2494,7 +2481,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
@@ -2572,7 +2559,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
@@ -2599,7 +2586,7 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
     );
     let request = open_router::GetDecisionEngineConfigRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
-        config: dynamic_routing_type,
+        algorithm: dynamic_routing_type,
     };
     let response: Option<open_router::DecisionEngineConfigSetupRequest> =
         routing_utils::ConfigApiClient::send_decision_engine_request(
@@ -2653,7 +2640,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
         .await;
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_RULE_DELETE_ENDPOINT,
@@ -2704,7 +2691,7 @@ pub async fn create_decision_engine_merchant(
         gateway_success_rate_based_decider_input: None,
     };
 
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Post,
         DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
@@ -2730,7 +2717,7 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
         state,
         services::Method::Delete,
         &path,

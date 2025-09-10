@@ -556,6 +556,7 @@ pub struct RedirectionErrorResponse {
 pub struct RedirectionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     psp_reference: Option<String>,
@@ -571,6 +572,7 @@ pub struct PresentToShopperResponse {
     psp_reference: Option<String>,
     result_code: AdyenStatus,
     action: AdyenPtsAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     merchant_reference: Option<String>,
@@ -583,6 +585,7 @@ pub struct PresentToShopperResponse {
 pub struct QrCodeResponseResponse {
     result_code: AdyenStatus,
     action: AdyenQrCodeAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
@@ -1825,7 +1828,13 @@ impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
     fn from(item: &PaymentsAuthorizeRouterData) -> Self {
         match item.request.off_session {
             Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
+            _ => match item.request.payment_channel {
+                Some(common_enums::PaymentChannel::Ecommerce)
+                | None
+                | Some(common_enums::PaymentChannel::Other(_)) => Self::Ecommerce,
+                Some(common_enums::PaymentChannel::MailOrder)
+                | Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Moto,
+            },
         }
     }
 }
@@ -2379,6 +2388,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPay(_)
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
@@ -3987,6 +3997,7 @@ pub fn get_adyen_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4056,7 +4067,10 @@ pub fn get_adyen_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_webhook_response(
@@ -4069,6 +4083,7 @@ pub fn get_webhook_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4102,6 +4117,8 @@ pub fn get_webhook_response(
         None
     };
 
+    let txn_amount = response.amount.as_ref().map(|amount| amount.value);
+
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
             utils::construct_captures_response_hashmap(vec![response])?;
@@ -4111,6 +4128,7 @@ pub fn get_webhook_response(
             PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
             },
+            txn_amount,
         ))
     } else {
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -4127,7 +4145,8 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             charges: None,
         };
-        Ok((status, error, payments_response_data))
+
+        Ok((status, error, payments_response_data, txn_amount))
     }
 }
 
@@ -4141,6 +4160,7 @@ pub fn get_redirection_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4214,7 +4234,10 @@ pub fn get_redirection_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_present_to_shopper_response(
@@ -4227,6 +4250,7 @@ pub fn get_present_to_shopper_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4283,7 +4307,9 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_qr_code_response(
@@ -4296,6 +4322,7 @@ pub fn get_qr_code_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4351,7 +4378,10 @@ pub fn get_qr_code_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_redirection_error_response(
@@ -4364,6 +4394,7 @@ pub fn get_redirection_error_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4407,7 +4438,7 @@ pub fn get_redirection_error_response(
         charges: None,
     };
 
-    Ok((status, error, payments_response_data))
+    Ok((status, error, payments_response_data, None))
 }
 
 pub fn get_qr_metadata(
@@ -4566,6 +4597,8 @@ pub fn get_present_to_shopper_metadata(
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
+                entry_date: None,
+                digitable_line: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -4662,7 +4695,7 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
-        let (status, error, payment_response_data) = match item.response {
+        let (status, error, payment_response_data, amount) = match item.response {
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
@@ -4686,9 +4719,18 @@ impl<F, Req>
             )?,
         };
 
+        let minor_amount_captured = match status {
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => amount,
+            _ => None,
+        };
+
         Ok(Self {
             status,
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
             response: error.map_or_else(|| Ok(payment_response_data), Err),
+            minor_amount_captured,
             ..item.data
         })
     }

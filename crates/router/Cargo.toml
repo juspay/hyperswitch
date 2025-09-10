@@ -89,7 +89,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "aae51574fed25b0a7849e3832cff8904bc310cf5", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "a56de0a4ee393af5c401f02b6b4344cb263f4cac", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "a56de0a4ee393af5c401f02b6b4344cb263f4cac", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"

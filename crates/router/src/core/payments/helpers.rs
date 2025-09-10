@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1121,6 +1121,26 @@ pub fn validate_recurring_details_and_token(
             message: "Expected one out of recurring_details and mandate_id but got both".into()
         }))
     })?;
+
+    Ok(())
+}
+
+pub fn validate_overcapture_request(
+    enable_overcapture: &Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    capture_method: &Option<common_enums::CaptureMethod>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(overcapture) = enable_overcapture {
+        utils::when(
+            *overcapture.deref()
+                && !matches!(*capture_method, Some(common_enums::CaptureMethod::Manual)),
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid overcapture request: supported only with manual capture"
+                        .into()
+                }))
+            },
+        )?;
+    }
 
     Ok(())
 }
@@ -3899,6 +3919,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3983,6 +4004,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4065,6 +4087,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4636,6 +4659,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_details: None,
         }
     }
 
@@ -5404,6 +5428,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
@@ -5425,6 +5452,9 @@ async fn get_and_merge_apple_pay_metadata(
                     apple_pay_combined: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay_combined.clone()),
+                    amazon_pay: connector_wallets_details_optional
+                        .as_ref()
+                        .and_then(|d| d.amazon_pay.clone()),
                     samsung_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.samsung_pay.clone()),
@@ -6936,7 +6966,6 @@ pub enum UnifiedAuthenticationServiceFlow {
     ExternalAuthenticationPostAuthenticate {
         authentication_id: id_type::AuthenticationId,
     },
-    ClickToPayConfirmation,
 }
 
 #[cfg(feature = "v1")]
@@ -6947,7 +6976,6 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
-    do_authorisation_confirmation: &bool,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -6983,17 +7011,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
                     && business_profile.is_click_to_pay_enabled
                     && payment_data.service_details.is_some()
                 {
-                    let should_do_uas_confirmation_call = payment_data
-                        .service_details
-                        .as_ref()
-                        .map(|details| details.is_network_confirmation_call_required())
-                        .unwrap_or(true);
-
-                    if *do_authorisation_confirmation && should_do_uas_confirmation_call {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayConfirmation)
-                    } else {
-                        Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
-                    }
+                    Some(UnifiedAuthenticationServiceFlow::ClickToPayInitiate)
                 } else {
                     None
                 }
