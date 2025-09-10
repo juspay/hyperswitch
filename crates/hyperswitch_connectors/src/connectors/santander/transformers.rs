@@ -1722,7 +1722,8 @@ pub struct SantanderWebhookBody {
     pub final_beneficiary_name: String,
     pub due_date: String,
     pub nominal_value: StringMajorUnit,
-    pub payed_value: String,
+    #[serde(rename = "payed_value")]
+    pub paid_value: String,
     pub interest_value: String,
     pub fine: String,
     pub deduction_value: String,
@@ -1756,25 +1757,32 @@ pub enum WebhookPaymentType {
 /// Represents the channel through which a boleto payment was made.
 pub enum PaymentChannel {
     /// Payment made at a bank branch or ATM (self-service).
-    AgenciasAutoAtendimento,
+    #[serde(rename = "AgenciasAutoAtendimento")]
+    BankBranchOrAtm,
 
     /// Payment made through online banking.
-    InternetBanking,
+    #[serde(rename = "InternetBanking")]
+    OnlineBanking,
 
     /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
-    CorrespondenteBancarioFisico,
+    #[serde(rename = "CorrespondenteBancarioFisico")]
+    PhysicalCorrespondentAgent,
 
     /// Payment made via Santander’s call center.
-    CentralDeAtendimento,
+    #[serde(rename = "CentralDeAtendimento")]
+    CallCenter,
 
     /// Payment made via electronic file, typically for bulk company payments.
-    ArquivoEletronico,
+    #[serde(rename = "ArquivoEletronico")]
+    ElectronicFile,
 
     /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
-    Dda,
+    #[serde(rename = "Dda")]
+    DirectDebitAuthorized,
 
     /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
-    CorrespondenteBancarioDigital,
+    #[serde(rename = "CorrespondenteBancarioDigital")]
+    DigitalCorrespondentAgent,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

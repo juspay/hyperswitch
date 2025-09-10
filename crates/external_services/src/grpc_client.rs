@@ -161,9 +161,9 @@ pub struct GrpcHeadersUcs {
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
 }
-/// Type aliase for GrpcHeaders builder in initial stage
+/// Type aliases for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), ())>;
-/// Type aliase for GrpcHeaders builder in intermediate stage
+/// Type aliases for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderIntermediate =
     GrpcHeadersUcsBuilder<((String,), (), (Option<String>,))>;
 

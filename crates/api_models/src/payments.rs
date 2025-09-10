@@ -8523,19 +8523,19 @@ pub struct PixAdditionalDetails {
     pub messages: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum PixQRExpirationDuration {
     Immediate(ImmediateExpirationTime),
     Scheduled(ScheduledExpirationTime),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
     pub date: String,
