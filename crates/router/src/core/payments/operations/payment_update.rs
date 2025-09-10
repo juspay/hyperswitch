@@ -460,6 +460,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
 
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &payment_attempt.capture_method,
+        )?;
+        payment_intent.enable_overcapture = request.enable_overcapture;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -813,6 +819,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -832,6 +839,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     fingerprint_id: None,
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
+                    network_transaction_id,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.amount.into(),
@@ -966,6 +974,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     enable_partial_authorization: payment_data
                         .payment_intent
                         .enable_partial_authorization,
+                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
                 })),
                 key_store,
                 storage_scheme,

@@ -1,3 +1,6 @@
+use std::collections::{HashMap, HashSet};
+
+use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -15,7 +18,8 @@ use unified_connector_service_client::payments::{
 
 use crate::{
     consts,
-    grpc_client::{GrpcClientSettings, GrpcHeaders},
+    grpc_client::{GrpcClientSettings, GrpcHeadersUcs},
+    utils::deserialize_hashset,
 };
 
 /// Unified Connector Service error variants
@@ -121,9 +125,13 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: u64,
 
-    /// List of connectors to use with the unified connector service
-    #[serde(default)]
-    pub ucs_only_connectors: Vec<String>,
+    /// Set of external services/connectors available for the unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_only_connectors: HashSet<Connector>,
+
+    /// Set of connectors for which psync is disabled in unified connector service
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_psync_disabled_connectors: HashSet<Connector>,
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -144,8 +152,29 @@ pub struct ConnectorAuthMetadata {
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
 
+    /// Optional auth_key_map used for authentication.
+    pub auth_key_map:
+        Option<HashMap<common_enums::enums::Currency, common_utils::pii::SecretSerdeValue>>,
+
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
+}
+
+/// External Vault Proxy Related Metadata
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum ExternalVaultProxyMetadata {
+    /// VGS proxy data variant
+    VgsMetadata(VgsMetadata),
+}
+
+/// VGS proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VgsMetadata {
+    /// External vault url
+    pub proxy_url: Url,
+    /// CA certificates to verify the vault server
+    pub certificate: Secret<String>,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -198,13 +227,14 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         let mut request = tonic::Request::new(payment_authorize_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
         *request.metadata_mut() = metadata;
 
         self.client
@@ -227,7 +257,7 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_get_request: payments_grpc::PaymentServiceGetRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceGetResponse>>
     {
         let mut request = tonic::Request::new(payment_get_request);
@@ -257,7 +287,7 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_register_request: payments_grpc::PaymentServiceRegisterRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRegisterResponse>>
     {
         let mut request = tonic::Request::new(payment_register_request);
@@ -287,7 +317,7 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_repeat_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
         tonic::Response<payments_grpc::PaymentServiceRepeatEverythingResponse>,
     > {
@@ -318,7 +348,7 @@ impl UnifiedConnectorServiceClient {
         &self,
         webhook_transform_request: PaymentServiceTransformRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceTransformResponse>> {
         let mut request = tonic::Request::new(webhook_transform_request);
 
@@ -346,7 +376,7 @@ impl UnifiedConnectorServiceClient {
 /// Build the gRPC Headers for Unified Connector Service Request
 pub fn build_unified_connector_service_grpc_headers(
     meta: ConnectorAuthMetadata,
-    grpc_headers: GrpcHeaders,
+    grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     let mut metadata = MetadataMap::new();
     let parse =
@@ -381,10 +411,39 @@ pub fn build_unified_connector_service_grpc_headers(
             parse("api_secret", api_secret.peek())?,
         );
     }
+    if let Some(auth_key_map) = meta.auth_key_map {
+        let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::ParsingFailed
+        })?;
+        metadata.append(
+            consts::UCS_HEADER_AUTH_KEY_MAP,
+            parse("auth_key_map", &auth_key_map_str)?,
+        );
+    }
 
     metadata.append(
         common_utils_consts::X_MERCHANT_ID,
         parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
+    );
+
+    if let Some(external_vault_proxy_metadata) = grpc_headers.external_vault_proxy_metadata {
+        metadata.append(
+            consts::UCS_HEADER_EXTERNAL_VAULT_METADATA,
+            parse("external_vault_metadata", &external_vault_proxy_metadata)?,
+        );
+    };
+
+    let lineage_ids_str = grpc_headers
+        .lineage_ids
+        .get_url_encoded_string()
+        .map_err(|err| {
+            logger::error!(?err);
+            UnifiedConnectorServiceError::HeaderInjectionFailed(consts::UCS_LINEAGE_IDS.to_string())
+        })?;
+    metadata.append(
+        consts::UCS_LINEAGE_IDS,
+        parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
 
     if let Err(err) = grpc_headers

@@ -247,6 +247,7 @@ pub enum BankTransferType {
 pub enum GiftCardType {
     PaySafeCard,
     Givex,
+    BhnCardNetwork,
 }
 
 #[derive(

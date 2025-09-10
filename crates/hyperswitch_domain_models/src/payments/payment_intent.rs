@@ -251,6 +251,7 @@ pub struct PaymentIntentUpdateFields {
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -447,6 +448,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -752,7 +754,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     frm_metadata,
                     request_external_three_ds_authentication:
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
-
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
@@ -1098,6 +1099,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_amount_tax: value.shipping_amount_tax,
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
+                    enable_overcapture: value.enable_overcapture,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1266,6 +1268,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            enable_overcapture,
         } = value;
         Self {
             amount,
@@ -1315,6 +1318,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             duty_amount,
             enable_partial_authorization,
+            enable_overcapture,
         }
     }
 }
@@ -1340,20 +1344,14 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v2")]
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: id_type::GlobalPaymentId,
-    },
     List(Box<PaymentIntentListParams>),
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        if let Self::List(pi_list_params) = self {
-            pi_list_params.profile_id.clone()
-        } else {
-            None
-        }
+        let Self::List(pi_list_params) = self;
+        pi_list_params.profile_id.clone()
     }
 }
 
@@ -1387,21 +1385,22 @@ pub struct PaymentIntentListParams {
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
-    pub connector: Option<api_models::enums::Connector>,
-    pub currency: Option<common_enums::Currency>,
-    pub status: Option<common_enums::IntentStatus>,
-    pub payment_method_type: Option<common_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    pub authentication_type: Option<common_enums::AuthenticationType>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
-    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
+    pub payment_id: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1473,39 +1472,36 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             merchant_order_reference_id,
             offset,
         } = value;
-        if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
-        } else {
-            Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
-                starting_at: created_gte.or(created_gt).or(created),
-                ending_at: created_lte.or(created_lt).or(created),
-                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
-                    api_models::payments::AmountFilter {
-                        start_amount,
-                        end_amount,
-                    }
-                }),
-                connector,
-                currency,
-                status,
-                payment_method_type,
-                payment_method_subtype,
-                authentication_type,
-                merchant_connector_id,
-                profile_id,
-                customer_id,
-                starting_after_id: starting_after,
-                ending_before_id: ending_before,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order: api_models::payments::Order {
-                    on: order_on,
-                    by: order_by,
-                },
-                card_network,
-                merchant_order_reference_id,
-            }))
-        }
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: offset.unwrap_or_default(),
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                }
+            }),
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            profile_id,
+            customer_id,
+            starting_after_id: starting_after,
+            ending_before_id: ending_before,
+            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: api_models::payments::Order {
+                on: order_on,
+                by: order_by,
+            },
+            card_network,
+            merchant_order_reference_id,
+            payment_id,
+        }))
     }
 }
 
@@ -1673,6 +1669,7 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -1742,6 +1739,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by,
 
             request_incremental_authorization: Some(request_incremental_authorization),
+            split_txns_enabled: Some(split_txns_enabled),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1791,6 +1789,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: None,
             order_date: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         })
     }
     async fn convert_back(
@@ -1895,6 +1894,7 @@ impl behaviour::Conversion for PaymentIntent {
                 request_incremental_authorization: storage_model
                     .request_incremental_authorization
                     .unwrap_or_default(),
+                split_txns_enabled: storage_model.split_txns_enabled.unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
@@ -1983,6 +1983,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by: self.updated_by,
 
             request_incremental_authorization: Some(self.request_incremental_authorization),
+            split_txns_enabled: Some(self.split_txns_enabled),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
@@ -2110,6 +2111,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
         })
     }
 
@@ -2218,6 +2220,7 @@ impl behaviour::Conversion for PaymentIntent {
                 duty_amount: storage_model.duty_amount,
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_overcapture: storage_model.enable_overcapture,
             })
         }
         .await
@@ -2298,6 +2301,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: self.shipping_amount_tax,
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
         })
     }
 }

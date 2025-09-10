@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::errors::{CustomResult, ValidationError};
 
 crate::id_type!(
@@ -19,5 +21,13 @@ impl MerchantConnectorAccountId {
     /// Get a merchant connector account id from String
     pub fn wrap(merchant_connector_account_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(merchant_connector_account_id))
+    }
+}
+
+impl FromStr for MerchantConnectorAccountId {
+    type Err = std::fmt::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(std::borrow::Cow::Owned(s.to_string())).map_err(|_| std::fmt::Error)
     }
 }

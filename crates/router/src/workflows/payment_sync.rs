@@ -158,6 +158,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             authentication_type: None,
                             issuer_error_code: None,
                             issuer_error_message: None,
+                            network_details:None
                         };
 
                     payment_data.payment_attempt = db
