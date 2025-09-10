@@ -13,7 +13,7 @@ pub struct CreateSubscriptionRequest {
     pub profile_id: common_utils::id_type::ProfileId,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
-    pub mca_id: Option<String>,
+    pub mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub confirm: bool,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub customer: Option<CustomerRequest>,
@@ -33,7 +33,7 @@ pub struct CreateSubscriptionResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     pub client_secret: Option<String>,
     pub merchant_id: String,
-    pub mca_id: Option<String>,
+    pub mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub coupon_code: Option<String>,
     pub customer: Option<CustomerDetailsResponse>,
     pub invoice: Option<Invoice>,
@@ -85,7 +85,7 @@ impl CreateSubscriptionResponse {
         subscription: Subscription,
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: impl Into<String>,
-        mca_id: Option<String>,
+        mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> Self {
         Self {
             subscription,

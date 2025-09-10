@@ -70,16 +70,7 @@ pub async fn create_subscription(
         SubscriptionStatus::Created.to_string(),
         None,
         None,
-        request
-            .mca_id
-            .map(|mca_id| {
-                common_utils::id_type::MerchantConnectorAccountId::wrap(mca_id).change_context(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Invalid merchant_connector_account_id".to_string(),
-                    },
-                )
-            })
-            .transpose()?,
+        request.mca_id,
         None,
         None,
         merchant_context.get_merchant_account().get_id().clone(),
