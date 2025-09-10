@@ -967,7 +967,7 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
-                
+
                 // update the connector payment transmission field to Unsuccessful and unset active attempt id
                 // revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
                 //     enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
@@ -1021,7 +1021,6 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
-
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
                 db.as_scheduler()
