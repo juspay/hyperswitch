@@ -3036,6 +3036,7 @@ pub async fn payment_check_gift_card_balance(
                 req_state,
                 request,
                 header_payload.clone(),
+                payment_id,
             ))
             .await
         },

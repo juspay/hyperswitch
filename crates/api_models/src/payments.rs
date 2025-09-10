@@ -659,8 +659,10 @@ pub struct PaymentsIntentResponse {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GiftCardBalanceCheckResponse {
-    pub balance: Option<MinorUnit>,
-    pub currency: Option<common_enums::Currency>,
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub needs_additional_pm_data: bool,
+    pub remaining_amount: MinorUnit,
 }
 
 #[cfg(feature = "v2")]

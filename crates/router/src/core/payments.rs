@@ -2611,9 +2611,10 @@ pub async fn payments_check_gift_card_balance_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    req_state: ReqState,
+    _req_state: ReqState,
     req: payments_api::PaymentsGiftCardBalanceCheckRequest,
-    header_payload: HeaderPayload,
+    _header_payload: HeaderPayload,
+    payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<payments_api::GiftCardBalanceCheckResponse> {
     use hyperswitch_domain_models::{
         router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
@@ -2625,8 +2626,48 @@ pub async fn payments_check_gift_card_balance_core(
 
     use crate::db::errors::ConnectorErrorExt;
 
-    let gift_card_connector_id =
-        id_type::MerchantConnectorAccountId::from_str("mca_fvjf542PZk72x16S8AtM").unwrap();
+    let db = state.store.as_ref();
+
+    let key_manager_state = &(&state).into();
+
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            key_manager_state,
+            &payment_id,
+            merchant_context.get_merchant_key_store(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let payment_connector_accounts = db
+        .list_enabled_connector_accounts_by_profile_id(
+            key_manager_state,
+            profile.get_id(),
+            merchant_context.get_merchant_key_store(),
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error when fetching merchant connector accounts")?;
+
+    let gift_card_connector_id = payment_connector_accounts
+        .iter()
+        .find_map(|account| {
+            account
+                .payment_methods_enabled
+                .as_ref()?
+                .iter()
+                .find(|payment_method| {
+                    payment_method.payment_method_type == common_enums::PaymentMethod::GiftCard
+                })
+                .map(|_| account.get_id().clone())
+        })
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "No MCA found with Gift Card Support".to_string(),
+        })
+        .attach_printable("No configured MCA supports Gift Card")?;
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
@@ -2641,7 +2682,6 @@ pub async fn payments_check_gift_card_balance_core(
             )?,
         ));
 
-    println!("debug: got mca details");
     let connector_name = merchant_connector_account
         .get_connector_name()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -2656,13 +2696,9 @@ pub async fn payments_check_gift_card_balance_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    println!("debug: getting connector auth type");
-
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    dbg!(&connector_auth_type);
 
     let resource_common_data = GiftCardBalanceCheckFlowData {
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
@@ -2689,7 +2725,7 @@ pub async fn payments_check_gift_card_balance_core(
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
     };
 
-    let mut old_router_data = GiftCardBalanceCheckFlowData::to_old_router_data(router_data)
+    let old_router_data = GiftCardBalanceCheckFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault create api call",
@@ -2700,7 +2736,6 @@ pub async fn payments_check_gift_card_balance_core(
         GiftCardBalanceCheckRequestData,
         PaymentsResponseData,
     > = connector_data.connector.get_connector_integration();
-    println!("debug: executing connector steps");
 
     let connector_response = services::execute_connector_processing_step(
         &state,
@@ -2713,37 +2748,30 @@ pub async fn payments_check_gift_card_balance_core(
     .await
     .to_payment_failed_response()?;
 
+    let payment_method_balance = connector_response
+        .payment_method_balance
+        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Payment Method Balance cannot be None".to_string(),
+        })
+        .attach_printable("Payment Method Balance cannot be None")?; // always get the connector name from this call
+    let balance = payment_method_balance.amount;
+    let currency = payment_method_balance.currency;
+    let remaining_amount =
+        if (payment_intent.amount_details.order_amount - balance).is_greater_than(0) {
+            payment_intent.amount_details.order_amount - balance
+        } else {
+            MinorUnit::zero()
+        };
+    let needs_additional_pm_data = remaining_amount.is_greater_than(0);
+
     let resp = payments_api::GiftCardBalanceCheckResponse {
-        balance: connector_response
-            .payment_method_balance
-            .clone()
-            .map(|val| val.amount),
-        currency: connector_response
-            .payment_method_balance
-            .clone()
-            .map(|val| val.currency),
+        balance,
+        currency,
+        needs_additional_pm_data,
+        remaining_amount,
     };
 
     Ok(services::ApplicationResponse::Json(resp))
-
-    // let resource_common_data = VaultConnectorFlowData {
-    //     merchant_id: merchant_account.get_id().to_owned(),
-    // };
-
-    // let router_data = types::RouterDataV2 {
-    //     flow: PhantomData,
-    //     resource_common_data,
-    //     tenant_id: state.tenant.tenant_id.clone(),
-    //     connector_auth_type,
-    //     request: types::VaultRequestData {
-    //         payment_method_vaulting_data,
-    //         connector_vault_id,
-    //         connector_customer_id,
-    //     },
-    //     response: Ok(types::VaultResponseData::default()),
-    // };
-
-    // Ok(router_data)
 }
 
 #[cfg(feature = "v2")]
