@@ -20,6 +20,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
+pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
