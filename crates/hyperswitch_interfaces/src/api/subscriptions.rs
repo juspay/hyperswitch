@@ -1,8 +1,6 @@
 //! Customers Interface for V1
 
-use super::ConnectorCommon;
-
-use super::payments::ConnectorCustomer as PaymentsConnectorCustomer;
+use super::{payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon};
 
 #[cfg(feature = "v1")]
 /// trait Subscriptions for V1

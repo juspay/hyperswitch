@@ -2,7 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -10,7 +10,6 @@ use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
 use serde_with::serde_as;
-use api_models::payments::AddressDetails;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{

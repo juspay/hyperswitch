@@ -2,8 +2,9 @@
 use std::str::FromStr;
 
 use common_enums::enums;
-use common_utils::id_type::CustomerId;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, ext_traits::ByteSliceExt, id_type::CustomerId, pii, types::MinorUnit,
+};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;

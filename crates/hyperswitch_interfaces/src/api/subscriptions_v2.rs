@@ -1,8 +1,7 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::CreateCustomerData,
     router_flow_types::payments::CreateConnectorCustomer,
-    router_request_types::ConnectorCustomerData,
-    router_response_types::PaymentsResponseData,
+    router_request_types::ConnectorCustomerData, router_response_types::PaymentsResponseData,
 };
 
 use crate::connector_integration_v2::ConnectorIntegrationV2;
