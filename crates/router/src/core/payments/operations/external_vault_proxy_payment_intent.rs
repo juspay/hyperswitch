@@ -329,7 +329,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                         storage_scheme,
                     )
                     .await?;
-  
+
                 Ok((Box::new(self), Some(customer)))
             }
             None => Ok((Box::new(self), None)),
