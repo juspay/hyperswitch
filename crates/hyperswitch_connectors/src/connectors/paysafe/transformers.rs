@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use cards::CardNumber;
-use common_enums::enums;
+use common_enums::{enums, Currency};
 use common_utils::{
     pii::{IpAddress, SecretSerdeValue},
     request::Method,
@@ -48,7 +50,18 @@ impl<T> From<(MinorUnit, T)> for PaysafeRouterData<T> {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PaysafeConnectorMetadataObject {
-    pub account_id: Secret<String>,
+    pub account_id: PaysafePaymentMethodDetails,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PaysafePaymentMethodDetails {
+    pub card: Option<HashMap<Currency, CardAccountId>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct CardAccountId {
+    no_three_ds: Option<Secret<String>>,
+    three_ds: Option<Secret<String>>,
 }
 
 impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
@@ -108,7 +121,7 @@ pub struct PaysafePaymentHandleRequest {
     pub settle_with_auth: bool,
     #[serde(flatten)]
     pub payment_method: PaysafePaymentMethod,
-    pub currency_code: enums::Currency,
+    pub currency_code: Currency,
     pub payment_type: PaysafePaymentType,
     pub transaction_type: TransactionType,
     pub return_links: Vec<ReturnLink>,
@@ -151,6 +164,35 @@ pub enum TransactionType {
     Payment,
 }
 
+impl PaysafePaymentMethodDetails {
+    pub fn get_no_three_ds_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card
+            .as_ref()
+            .and_then(|cards| cards.get(&currency))
+            .and_then(|card| card.no_three_ds.clone())
+            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing no_3ds account_id",
+            })
+    }
+
+    pub fn get_three_ds_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card
+            .as_ref()
+            .and_then(|cards| cards.get(&currency))
+            .and_then(|card| card.three_ds.clone())
+            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing no_3ds account_id",
+            })
+    }
+}
+
+
 impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -167,6 +209,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
+                let currency = item.router_data.request.get_currency()?;
         match item.router_data.request.get_payment_method_data()?.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PaysafeCard {
@@ -184,8 +227,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 };
 
                 let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
-                let account_id = metadata.account_id;
-
+                let account_id = metadata.account_id.get_no_three_ds_account_id(currency)?;
                 let amount = item.amount;
                 let payment_type = PaysafePaymentType::Card;
                 let transaction_type = TransactionType::Payment;
@@ -221,7 +263,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                         Some(enums::CaptureMethod::Automatic) | None
                     ),
                     payment_method,
-                    currency_code: item.router_data.request.get_currency()?,
+                    currency_code: currency,
                     payment_type,
                     transaction_type,
                     return_links,
@@ -394,7 +436,7 @@ impl<F>
             payment_handle_token: item.response.payment_handle_token.clone(),
         });
         Ok(Self {
-            status: common_enums::AttemptStatus::AuthenticationPending,
+            status: common_enums::AttemptStatus::try_from(item.response.status.clone())?,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
@@ -417,7 +459,7 @@ pub struct PaysafePaymentsRequest {
     pub amount: MinorUnit,
     pub settle_with_auth: bool,
     pub payment_handle_token: Secret<String>,
-    pub currency_code: enums::Currency,
+    pub currency_code: Currency,
     pub customer_ip: Option<Secret<String, IpAddress>>,
 }
 
@@ -472,8 +514,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
-        let account_id = metadata.account_id;
-
         let redirect_url_success = item.router_data.request.get_complete_authorize_url()?;
         let redirect_url = item.router_data.request.get_router_return_url()?;
         let return_links = vec![
@@ -533,6 +573,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     Some(common_enums::ClientPlatform::Ios)
                     | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
                 };
+                let account_id = metadata.account_id.get_three_ds_account_id(currency_code)?;
                 let three_ds = Some(ThreeDs {
                     merchant_url: item.router_data.request.get_router_return_url()?,
                     device_channel,
