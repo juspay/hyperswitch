@@ -514,5 +514,5 @@ pub fn get_valid_webhook_status(key: &str) -> JsResult {
                 .collect();
             Ok(serde_wasm_bindgen::to_value(&statuses)?)
         }
-}
+    }
 }

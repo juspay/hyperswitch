@@ -3,7 +3,12 @@ pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
 
-use api_models::{enums, payments::{self as api_payments, PaymentsResponse}, process_tracker::revenue_recovery, webhooks};
+use api_models::{
+    enums,
+    payments::{self as api_payments, PaymentsResponse},
+    process_tracker::revenue_recovery,
+    webhooks,
+};
 use common_utils::{
     self,
     errors::CustomResult,
@@ -22,7 +27,11 @@ use scheduler::errors as sch_errors;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, transformers::GenerateResponse, operations::{Operation,GetTrackerResponse}},
+        payments::{
+            self,
+            operations::{GetTrackerResponse, Operation},
+            transformers::GenerateResponse,
+        },
         revenue_recovery::types::RevenueRecoveryOutgoingWebhook,
         webhooks::get_trackers_response_for_payment_get_operation,
     },
@@ -31,8 +40,7 @@ use crate::{
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
-        api as router_api_types,
-        domain,
+        api as router_api_types, domain,
         storage::{self, revenue_recovery as pcr},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -470,12 +478,11 @@ pub async fn perform_calculate_workflow(
     let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
 
     let mut revenue_recovery_metadata = payment_intent
-    .feature_metadata
-    .as_ref()
-    .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
-    .get_required_value("Payment Revenue Recovery Metadata")?
-    .convert_back();
-
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
 
     let event_class = common_enums::EventClass::Payments;
 
@@ -513,10 +520,9 @@ pub async fn perform_calculate_workflow(
     };
 
     // External Payments which enter the calculate workflow for the first time will have active attempt id as None
-    // Then we dont need to send an webhook to the merchant as its not a failure from our side. 
+    // Then we dont need to send an webhook to the merchant as its not a failure from our side.
     // Thus we dont need to a payment get call for such payments.
-    let is_there_an_active_payment_attempt_id= payment_intent.active_attempt_id.is_some();
-
+    let is_there_an_active_payment_attempt_id = payment_intent.active_attempt_id.is_some();
 
     // 2. Get best available token
     let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -708,10 +714,12 @@ pub async fn perform_calculate_workflow(
         revenue_recovery_payment_data,
         &merchant_context_from_revenue_recovery_payment_data,
         is_there_an_active_payment_attempt_id,
-    ).await?;
+    )
+    .await?;
 
     if let Some(event_kind) = event_type {
-        if let Some(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
+        if let Some(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response
+        {
             RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                 state,
                 event_class,
@@ -1011,42 +1019,43 @@ pub async fn get_payment_response_using_payment_get_operation(
     payment_intent_id: &id_type::GlobalPaymentId,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     merchant_context: &domain::MerchantContext,
-    is_there_an_active_payment_attempt_id: bool
-)-> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
+    is_there_an_active_payment_attempt_id: bool,
+) -> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
     if is_there_an_active_payment_attempt_id {
-    let operation = payments::operations::PaymentGet;
+        let operation = payments::operations::PaymentGet;
 
-    let request = router_api_types::PaymentsRetrieveRequest {
-        force_sync: false,
-        param: None,
-        expand_attempts: false,
-        return_raw_connector_response: None,
-        merchant_connector_details: None,
-    };
+        let request = router_api_types::PaymentsRetrieveRequest {
+            force_sync: false,
+            param: None,
+            expand_attempts: false,
+            return_raw_connector_response: None,
+            merchant_connector_details: None,
+        };
 
-    let get_tracker_response : GetTrackerResponse<PaymentStatusData<router_api_types::PSync>> = operation
-        .to_get_tracker()?
-        .get_trackers(
+        let get_tracker_response: GetTrackerResponse<PaymentStatusData<router_api_types::PSync>> =
+            operation
+                .to_get_tracker()?
+                .get_trackers(
+                    state,
+                    payment_intent_id,
+                    &request,
+                    &merchant_context,
+                    &revenue_recovery_payment_data.profile,
+                    &hyperswitch_domain_models::payments::HeaderPayload::default(),
+                )
+                .await?;
+
+        let payments_response = get_tracker_response.payment_data.generate_response(
             state,
-            payment_intent_id,
-            &request,
+            None,
+            None,
+            None,
             &merchant_context,
             &revenue_recovery_payment_data.profile,
-            &hyperswitch_domain_models::payments::HeaderPayload::default(),
-        )
-        .await?;
+            None,
+        )?;
 
-    let payments_response = get_tracker_response.payment_data.generate_response(
-        state,
-        None,
-        None,
-        None,
-        &merchant_context,
-        &revenue_recovery_payment_data.profile,
-        None,
-    )?;
-
-    Ok(Some(payments_response))
+        Ok(Some(payments_response))
     } else {
         Ok(None)
     }
@@ -1059,15 +1068,15 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     mut revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
-    is_there_an_active_payment_attempt_id: bool
+    is_there_an_active_payment_attempt_id: bool,
 ) -> Result<Option<()>, sch_errors::ProcessTrackerError> {
-    if is_there_an_active_payment_attempt_id{
-    // update the connector payment transmission field to Unsuccessful and unset active attempt id
-    revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
-        enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-    );
+    if is_there_an_active_payment_attempt_id {
+        // update the connector payment transmission field to Unsuccessful and unset active attempt id
+        revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+            enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+        );
 
-    let payment_update_req =
+        let payment_update_req =
         api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
             payment_intent
                 .feature_metadata
@@ -1092,9 +1101,8 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
         .await
         .change_context(errors::RecoveryError::PaymentCallFailed)?;
 
-    Ok(Some(()))
-    }
-    else {
+        Ok(Some(()))
+    } else {
         Ok(None)
     }
 }

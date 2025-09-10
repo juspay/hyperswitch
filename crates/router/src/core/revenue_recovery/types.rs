@@ -1526,7 +1526,7 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
 
 pub struct RevenueRecoveryOutgoingWebhook;
 
-impl RevenueRecoveryOutgoingWebhook{
+impl RevenueRecoveryOutgoingWebhook {
     #[allow(clippy::too_many_arguments)]
     pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
         state: &SessionState,
