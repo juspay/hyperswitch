@@ -680,9 +680,10 @@ fn get_chargebee_plans_query_params(
         GetSubscriptionPlansResponse,
     >,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let limit = 10; // hardcoded limit param
-    let item_type = "plan"; // hardcoded filter param
-    let param = format!("?limit={}&type[is]={}", limit, item_type);
+    // Try to get limit from request, else default to 10
+    let limit = _req.request.limit.unwrap_or(10);
+    const ITEM_TYPE: &str = "plan"; // hardcoded filter param
+    let param = format!("?limit={}&type[is]={}", limit, ITEM_TYPE);
     Ok(param)
 }
 

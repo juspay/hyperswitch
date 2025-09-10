@@ -789,7 +789,7 @@ pub struct ChargebeeItem {
     pub id: String,
     pub name: String,
     #[serde(rename = "type")]
-    pub plan_type: String, // to check if new enum is required for this
+    pub plan_type: String,
     pub is_giftable: bool,
     pub enabled_for_checkout: bool,
     pub enabled_in_portal: bool,
