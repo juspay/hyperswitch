@@ -40,7 +40,6 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-
 use url::Url;
 
 use crate::{
