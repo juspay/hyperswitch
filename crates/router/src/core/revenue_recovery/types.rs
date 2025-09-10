@@ -1415,12 +1415,12 @@ async fn record_back_to_billing_connector(
     .attach_printable("invalid connector name received in billing merchant connector account")?;
 
     let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
-        router_flow_types::RecoveryRecordBack,
-        revenue_recovery_request::RevenueRecoveryRecordBackRequest,
-        revenue_recovery_response::RevenueRecoveryRecordBackResponse,
+        router_flow_types::InvoiceRecordBack,
+        revenue_recovery_request::InvoiceRecordBackRequest,
+        revenue_recovery_response::InvoiceRecordBackResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data = construct_recovery_record_back_router_data(
+    let router_data = construct_invoice_record_back_router_data(
         state,
         billing_mca,
         payment_attempt,
@@ -1450,13 +1450,13 @@ async fn record_back_to_billing_connector(
     Ok(())
 }
 
-pub fn construct_recovery_record_back_router_data(
+pub fn construct_invoice_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
-    logger::info!("Entering construct_recovery_record_back_router_data");
+) -> RecoveryResult<hyperswitch_domain_models::types::InvoiceRecordBackRouterData> {
+    logger::info!("Entering construct_invoice_record_back_router_data");
 
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
@@ -1487,11 +1487,11 @@ pub fn construct_recovery_record_back_router_data(
         ))?;
 
     let router_data = router_data_v2::RouterDataV2 {
-        flow: PhantomData::<router_flow_types::RecoveryRecordBack>,
+        flow: PhantomData::<router_flow_types::InvoiceRecordBack>,
         tenant_id: state.tenant.tenant_id.clone(),
-        resource_common_data: flow_common_types::RevenueRecoveryRecordBackData,
+        resource_common_data: flow_common_types::InvoiceRecordBackData,
         connector_auth_type: auth_type,
-        request: revenue_recovery_request::RevenueRecoveryRecordBackRequest {
+        request: revenue_recovery_request::InvoiceRecordBackRequest {
             merchant_reference_id,
             amount: payment_attempt.get_total_amount(),
             currency: payment_intent.amount_details.currency,
@@ -1505,10 +1505,9 @@ pub fn construct_recovery_record_back_router_data(
         },
         response: Err(types::ErrorResponse::default()),
     };
-    let old_router_data =
-        flow_common_types::RevenueRecoveryRecordBackData::to_old_router_data(router_data)
-            .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-            .attach_printable("Cannot construct record back router data")?;
+    let old_router_data = flow_common_types::InvoiceRecordBackData::to_old_router_data(router_data)
+        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+        .attach_printable("Cannot construct record back router data")?;
     Ok(old_router_data)
 }
 
