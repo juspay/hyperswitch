@@ -5,10 +5,39 @@ use std::collections::HashMap;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use open_feature::{EvaluationContext, EvaluationContextFieldValue};
+use open_feature::{EvaluationContext, EvaluationContextFieldValue, StructValue, Value as OFValue};
+use serde_json::{Map, Number, Value};
 use superposition_provider::{
     PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
 };
+
+impl TryFrom<StructValue> for Value {
+    type Error = String;
+
+    fn try_from(sv: StructValue) -> Result<Self, Self::Error> {
+        let mut map = Map::new();
+        for (k, v) in sv.fields {
+            map.insert(k, convert_open_feature_value(v)?);
+        }
+        Ok(Value::Object(map))
+    }
+}
+
+fn convert_open_feature_value(v: OFValue) -> Result<Value, String> {
+    match v {
+        OFValue::String(s) => Ok(Value::String(s)),
+        OFValue::Bool(b) => Ok(Value::Bool(b)),
+        OFValue::Int(n) => Ok(Value::Number(Number::from(n))),
+        OFValue::Float(f) => Number::from_f64(f)
+            .map(Value::Number)
+            .ok_or_else(|| format!("Invalid number: {}", f)),
+        OFValue::Struct(sv) => Value::try_from(sv),
+        OFValue::Array(list) => {
+            let arr: Result<Vec<_>, _> = list.into_iter().map(convert_open_feature_value).collect();
+            Ok(Value::Array(arr?))
+        }
+    }
+}
 
 /// Default polling interval in seconds
 const fn default_polling_interval() -> u64 {
