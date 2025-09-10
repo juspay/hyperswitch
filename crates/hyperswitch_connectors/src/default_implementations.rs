@@ -19,8 +19,6 @@ use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
     RevenueRecoveryRecordBackRequest,
 };
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
@@ -46,11 +44,10 @@ use hyperswitch_domain_models::{
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
         SubscriptionCreate as SubscriptionCreateFlow,
-        SubscriptionRecordBack as SubscriptionRecordBackFlow,
     },
     router_request_types::{
         authentication,
-        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
+        subscriptions::SubscriptionCreateRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -129,7 +126,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{SubscriptionCreate, SubscriptionRecordBack, Subscriptions},
+        subscriptions::{SubscriptionCreate, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6334,15 +6331,8 @@ default_imp_for_uas_authentication!(
 
 macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
-        $(  impl SubscriptionRecordBack for $path::$connector {}
-            impl SubscriptionCreate for $path::$connector {}
+        $(  impl SubscriptionCreate for $path::$connector {}
             impl Subscriptions for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            SubscriptionRecordBackFlow,
-            SubscriptionsRecordBackRequest,
-            RevenueRecoveryRecordBackResponse
-            > for $path::$connector {}
             impl
             ConnectorIntegration<
             SubscriptionCreateFlow,
@@ -8590,19 +8580,6 @@ impl<const T: u8> ExternalVaultProxyPaymentsCreateV1 for connectors::DummyConnec
 impl<const T: u8>
     ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
     for connectors::DummyConnector<T>
-{
-}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> SubscriptionRecordBack for connectors::DummyConnector<T> {}
-
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    ConnectorIntegration<
-        SubscriptionRecordBackFlow,
-        SubscriptionsRecordBackRequest,
-        RevenueRecoveryRecordBackResponse,
-    > for connectors::DummyConnector<T>
 {
 }
 

@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
-        subscriptions::{SubscriptionCreate, SubscriptionRecordBack},
+        subscriptions::SubscriptionCreate,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
+        subscriptions::SubscriptionCreateRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -275,14 +275,6 @@ pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
 >;
 
 #[cfg(feature = "v1")]
-/// Type alias for `ConnectorIntegration<SubscriptionRecordBack, SubscriptionsRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type SubscriptionRecordBackType = dyn ConnectorIntegration<
-    SubscriptionRecordBack,
-    SubscriptionsRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->;
-
-#[cfg(feature = "v1")]
 /// Type alias for `ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>`
 pub type SubscriptionCreateType = dyn ConnectorIntegration<
     SubscriptionCreate,
@@ -326,15 +318,6 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     flow_common_types::BillingConnectorInvoiceSyncFlowData,
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
->;
-
-#[cfg(feature = "v2")]
-/// Type alias for `ConnectorIntegrationV2<SubscriptionRecordBack, SubscriptionCreateData, SubscriptionsRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type SubscriptionRecordBackTypeV2 = dyn ConnectorIntegrationV2<
-    SubscriptionRecordBack,
-    flow_common_types::SubscriptionCreateData,
-    SubscriptionsRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
 >;
 
 #[cfg(feature = "v2")]

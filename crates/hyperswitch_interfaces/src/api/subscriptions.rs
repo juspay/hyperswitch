@@ -1,31 +1,12 @@
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::{
-        SubscriptionCreate as SubscriptionCreateFlow,
-        SubscriptionRecordBack as SubscriptionRecordBackFlow,
-    },
-    router_request_types::subscriptions::{
-        SubscriptionCreateRequest, SubscriptionsRecordBackRequest,
-    },
-    router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse,
-        subscriptions::SubscriptionCreateResponse,
-    },
+    router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
+    router_request_types::subscriptions::SubscriptionCreateRequest,
+    router_response_types::subscriptions::SubscriptionCreateResponse,
 };
 
 #[cfg(feature = "v1")]
 use super::{ConnectorCommon, ConnectorIntegration};
-
-#[cfg(feature = "v1")]
-/// trait SubscriptionRecordBack
-pub trait SubscriptionRecordBack:
-    ConnectorIntegration<
-    SubscriptionRecordBackFlow,
-    SubscriptionsRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->
-{
-}
 
 #[cfg(feature = "v1")]
 /// trait SubscriptionCreate
@@ -36,11 +17,7 @@ pub trait SubscriptionCreate:
 
 /// trait Subscriptions
 #[cfg(feature = "v1")]
-pub trait Subscriptions: ConnectorCommon + SubscriptionRecordBack + SubscriptionCreate {}
-
-#[cfg(not(feature = "v1"))]
-/// trait SubscriptionRecordBack
-pub trait SubscriptionRecordBack {}
+pub trait Subscriptions: ConnectorCommon + SubscriptionCreate {}
 
 /// trait Subscriptions
 #[cfg(not(feature = "v1"))]

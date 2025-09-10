@@ -4,13 +4,11 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke,
-        revenue_recovery::RecoveryRecordBack,
-        subscriptions::{SubscriptionCreate, SubscriptionRecordBack},
-        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
-        Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
-        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
+        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack,
+        subscriptions::SubscriptionCreate, AccessTokenAuth, AccessTokenAuthentication,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
         PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
         SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
@@ -20,7 +18,7 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             RevenueRecoveryRecordBackRequest,
         },
-        subscriptions::{SubscriptionCreateRequest, SubscriptionsRecordBackRequest},
+        subscriptions::SubscriptionCreateRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -175,12 +173,6 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     router_data_v2::flow_common_types::ExternalVaultProxyFlowData,
     ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
->;
-
-pub type SubscriptionRecordBackRouterData = RouterData<
-    SubscriptionRecordBack,
-    SubscriptionsRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
 >;
 
 pub type SubscriptionCreateRouterData =
