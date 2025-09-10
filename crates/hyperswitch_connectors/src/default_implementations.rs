@@ -7038,7 +7038,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Zen,
     connectors::Zsl
 );
- 
+
 macro_rules! default_imp_for_external_vault {
     ($($path:ident::$connector:ident),*) => {
         $(
