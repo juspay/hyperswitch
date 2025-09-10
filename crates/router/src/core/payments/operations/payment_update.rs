@@ -460,6 +460,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
 
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &payment_attempt.capture_method,
+        )?;
+        payment_intent.enable_overcapture = request.enable_overcapture;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -968,6 +974,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     enable_partial_authorization: payment_data
                         .payment_intent
                         .enable_partial_authorization,
+                    enable_overcapture: payment_data.payment_intent.enable_overcapture,
                 })),
                 key_store,
                 storage_scheme,
