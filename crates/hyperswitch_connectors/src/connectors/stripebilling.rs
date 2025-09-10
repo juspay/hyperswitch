@@ -727,10 +727,8 @@ impl
         data: &recovery_router_data_types::InvoiceRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<
-        recovery_router_data_types::InvoiceRecordBackRouterData,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<recovery_router_data_types::InvoiceRecordBackRouterData, errors::ConnectorError>
+    {
         let response = res
             .response
             .parse_struct::<stripebilling::StripebillingRecordBackResponse>(
@@ -739,13 +737,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::InvoiceRecordBackRouterData::try_from(
-            ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        )
+        recovery_router_data_types::InvoiceRecordBackRouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
