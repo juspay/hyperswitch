@@ -2413,7 +2413,6 @@ where
             raw_connector_response,
             feature_metadata: payment_intent
                 .feature_metadata
-                .clone()
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
         };
@@ -2527,8 +2526,7 @@ where
             raw_connector_response,
             feature_metadata: payment_intent
                 .feature_metadata
-                .as_ref()
-                .map(|feature_metadata| feature_metadata.clone().convert_back()),
+                .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
         };
 

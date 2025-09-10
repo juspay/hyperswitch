@@ -435,7 +435,7 @@ pub async fn perform_payments_sync(
     )
     .await?;
 
-    let payment_attempt = psync_data.clone().payment_attempt;
+    let payment_attempt = psync_data.payment_attempt.clone();
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()
