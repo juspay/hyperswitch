@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
             PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
             UpdateMetadata,
         },
-        subscriptions::{GetSubscriptionPlans, GetSubscriptionEstimate},
+        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        subscriptions::{GetSubscriptionPlansRequest, GetSubscriptionEstimateRequest},
+        subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -64,11 +64,12 @@ use hyperswitch_domain_models::{
         UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        subscriptions::{GetSubscriptionPlansResponse, GetSubscriptionEstimateResponse }, AcceptDisputeResponse,
-        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
-        FetchDisputesResponse, MandateRevokeResponseData, PaymentsResponseData,
-        RetrieveFileResponse, SubmitEvidenceResponse, TaxCalculationResponseData,
-        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
+        subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse},
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -126,7 +127,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{GetSubscriptionPlansFlow, GetSubscriptionEstimateFlow, Subscriptions},
+        subscriptions::{GetSubscriptionEstimateFlow, GetSubscriptionPlansFlow, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -7046,7 +7047,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Zen,
     connectors::Zsl
 );
- 
+
 macro_rules! default_imp_for_external_vault {
     ($($path:ident::$connector:ident),*) => {
         $(

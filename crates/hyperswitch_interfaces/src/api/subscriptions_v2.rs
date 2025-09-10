@@ -1,9 +1,13 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::{GetSubscriptionPlansData, GetSubscriptionEstimateData},
-    router_flow_types::subscriptions::{GetSubscriptionPlans, GetSubscriptionEstimate},
-    router_request_types::subscriptions::{GetSubscriptionPlansRequest, GetSubscriptionEstimateRequest},
-    router_response_types::subscriptions::{GetSubscriptionPlansResponse, GetSubscriptionEstimateResponse},
+    router_data_v2::flow_common_types::{GetSubscriptionEstimateData, GetSubscriptionPlansData},
+    router_flow_types::subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
+    router_request_types::subscriptions::{
+        GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest,
+    },
+    router_response_types::subscriptions::{
+        GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse,
+    },
 };
 
 use crate::connector_integration_v2::ConnectorIntegrationV2;
@@ -32,5 +36,3 @@ pub trait GetSubscriptionEstimateV2:
 >
 {
 }
-
-

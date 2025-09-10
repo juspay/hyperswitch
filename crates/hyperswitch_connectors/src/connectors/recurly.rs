@@ -9,22 +9,27 @@ use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::{flow_common_types::{GetSubscriptionPlansData, GetSubscriptionEstimateData}, UasFlowData},
+    router_data_v2::{
+        flow_common_types::{GetSubscriptionEstimateData, GetSubscriptionPlansData},
+        UasFlowData,
+    },
     router_flow_types::{
-        subscriptions::{GetSubscriptionPlans, GetSubscriptionEstimate},
+        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
     },
     router_request_types::{
-        subscriptions::{ GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest },
+        subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
     },
-    router_response_types::subscriptions::{ GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse },
+    router_response_types::subscriptions::{
+        GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse,
+    },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -153,12 +158,13 @@ impl
 {
 }
 
-impl ConnectorIntegrationV2<
-    GetSubscriptionEstimate,
-    GetSubscriptionEstimateData,
-    GetSubscriptionEstimateRequest,
-    GetSubscriptionEstimateResponse,
-> for Recurly
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionEstimate,
+        GetSubscriptionEstimateData,
+        GetSubscriptionEstimateRequest,
+        GetSubscriptionEstimateResponse,
+    > for Recurly
 {
 }
 
