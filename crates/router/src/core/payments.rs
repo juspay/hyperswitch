@@ -4304,13 +4304,32 @@ where
                 )
                 .await?;
 
-            router_data
-                .call_unified_connector_service(
+            // Retrieve cached access token before UCS call
+            let add_access_token_result = router_data
+                .add_access_token(
                     state,
-                    merchant_connector_account.clone(),
+                    &connector,
                     merchant_context,
+                    payment_data.get_creds_identifier(),
                 )
                 .await?;
+
+            // Update router_data with the retrieved access token
+            let should_continue_with_ucs = access_token::update_router_data_with_access_token_result(
+                &add_access_token_result,
+                &mut router_data,
+                &call_connector_action,
+            );
+
+            if should_continue_with_ucs {
+                router_data
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account.clone(),
+                        merchant_context,
+                    )
+                    .await?;
+            }
 
             Ok((router_data, merchant_connector_account))
         } else {
@@ -4940,13 +4959,32 @@ where
                 )
                 .await?;
 
-            router_data
-                .call_unified_connector_service(
+            // Retrieve cached access token before UCS call
+            let add_access_token_result = router_data
+                .add_access_token(
                     state,
-                    merchant_connector_account_type_details.clone(),
+                    &connector,
                     merchant_context,
+                    payment_data.get_creds_identifier(),
                 )
                 .await?;
+
+            // Update router_data with the retrieved access token
+            let should_continue_with_ucs = access_token::update_router_data_with_access_token_result(
+                &add_access_token_result,
+                &mut router_data,
+                &call_connector_action,
+            );
+
+            if should_continue_with_ucs {
+                router_data
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account_type_details.clone(),
+                        merchant_context,
+                    )
+                    .await?;
+            }
 
             Ok(router_data)
         } else {
