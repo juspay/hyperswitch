@@ -2996,12 +2996,6 @@ pub async fn payment_check_gift_card_balance(
 
     let flow = Flow::GiftCardBalanceCheck;
 
-    // TODO: Populate browser information into the payload
-    // if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
-    //     return api::log_and_return_error_response(err);
-    // }
-
-    let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {

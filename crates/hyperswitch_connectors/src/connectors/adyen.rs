@@ -1261,32 +1261,12 @@ impl
             })?,
         };
 
-        let amount = convert_amount(self.amount_converter, amount, currency)?;
-
-        // if response.balance.currency != currency || response.balance.value < amount {
-        //     Ok(RouterData {
-        //         response: Err(ErrorResponse {
-        //             code: NO_ERROR_CODE.to_string(),
-        //             message: NO_ERROR_MESSAGE.to_string(),
-        //             reason: Some(constants::LOW_BALANCE_ERROR_MESSAGE.to_string()),
-        //             status_code: res.status_code,
-        //             attempt_status: Some(enums::AttemptStatus::Failure),
-        //             connector_transaction_id: Some(response.psp_reference),
-        //             network_advice_code: None,
-        //             network_decline_code: None,
-        //             network_error_message: None,
-        //             connector_metadata: None,
-        //         }),
-        //         ..data.clone()
-        //     })
-        // } else {
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        // }
     }
 
     fn get_error_response(

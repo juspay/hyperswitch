@@ -515,17 +515,6 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     }
 }
 
-// impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
-//     type Error = error_stack::Report<ApiErrorResponse>;
-
-//     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             minor_amount: data.minor_amount,
-//             currency: data.currency,
-//         })
-//     }
-// }
-
 impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
