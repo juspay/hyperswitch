@@ -524,6 +524,15 @@ pub async fn perform_calculate_workflow(
     // Thus we dont need to a payment get call for such payments.
     let is_there_an_active_payment_attempt_id = payment_intent.active_attempt_id.is_some();
 
+    let payments_response = get_payment_response_using_payment_get_operation(
+        state,
+        &tracking_data.global_payment_id,
+        revenue_recovery_payment_data,
+        &merchant_context_from_revenue_recovery_payment_data,
+        is_there_an_active_payment_attempt_id,
+    )
+    .await?;
+
     // 2. Get best available token
     let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
         state,
@@ -707,15 +716,6 @@ pub async fn perform_calculate_workflow(
             }
         }
     }
-
-    let payments_response = get_payment_response_using_payment_get_operation(
-        state,
-        &tracking_data.global_payment_id,
-        revenue_recovery_payment_data,
-        &merchant_context_from_revenue_recovery_payment_data,
-        is_there_an_active_payment_attempt_id,
-    )
-    .await?;
 
     if let Some(event_kind) = event_type {
         if let Some(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response
