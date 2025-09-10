@@ -32,21 +32,13 @@ pub async fn revenue_recovery_data_backfill(
         state,
         &req,
         records,
-        |state, auth: auth::AuthenticationData, records, _req| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, _, records, _req| {
             revenue_recovery_data_backfill::revenue_recovery_data_backfill(
                 state,
                 records,
-                merchant_context,
-                auth.profile,
             )
         },
-        &auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

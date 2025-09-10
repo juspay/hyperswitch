@@ -2,6 +2,7 @@ use std::{fs::File, io::BufReader};
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
+use common_enums::CardNetwork;
 use common_utils::events::ApiEventMetric;
 use csv::Reader;
 use serde::{Deserialize, Serialize};
@@ -9,36 +10,38 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
     #[serde(rename = "Binnumber")]
-    pub bin_number: String,
+    pub bin_number: Option<String>,
     #[serde(rename = "Cardtype")]
-    pub card_type: String,
+    pub card_type: Option<String>,
     #[serde(rename = "CustomerID_resp")]
     pub customer_id_resp: String,
     #[serde(rename = "cnpTxnId")]
-    pub cnp_txn_id: String,
+    pub connector_payment_id: Option<String>,
     #[serde(rename = "Token")]
-    pub token: String,
+    pub token: Option<String>,
     #[serde(rename = "ExpiryDate")]
-    pub exp_date: String,
+    pub exp_date: Option<String>,
     #[serde(rename = "CreditCardType.x")]
-    pub credit_card_type_x: String,
+    pub card_network: Option<CardNetwork>,
     #[serde(rename = "type")]
-    pub type_field: String,
+    pub type_field: Option<String>,
     #[serde(rename = "product_name")]
-    pub product_name: String,
+    pub product_name: Option<String>,
     #[serde(rename = "clean_bank_name")]
-    pub clean_bank_name: String,
+    pub clean_bank_name: Option<String>,
     #[serde(rename = "country_name")]
-    pub country_name: String,
+    pub country_name: Option<String>,
+    #[serde(rename = "daily_retry_history")]
+    pub daily_retry_history: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaymentMethodDataBackfillResponse {
+pub struct RevenueRecoveryDataBackfillResponse {
     pub processed_records: usize,
     pub failed_records: usize,
 }
 
-impl ApiEventMetric for PaymentMethodDataBackfillResponse {
+impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
