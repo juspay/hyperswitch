@@ -5,10 +5,12 @@ use masking::{ExposeInterface, Secret};
 use router_env::logger;
 use url::Url;
 
-use crate::{ConnectionConfig, VaultConnectors};
+use crate::{
+    types::ConnectionConfig, VaultConnectors,
+    consts::EXTERNAL_VAULT_METADATA_HEADER
+};
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
-pub const EXTERNAL_VAULT_METADATA_HEADER: &str = "x-external-vault-metadata";
 
 /// Trait for different vault metadata processors
 pub trait VaultMetadataProcessor: Send + Sync {
@@ -426,7 +428,7 @@ mod tests {
     use common_utils::pii::SecretSerdeValue;
 
     use super::*;
-    use crate::{HttpMethod, InjectorRequest, TokenData, VaultConnectors};
+    use crate::types::{HttpMethod, InjectorRequest, TokenData, VaultConnectors};
 
     #[test]
     fn test_vault_metadata_processing() {

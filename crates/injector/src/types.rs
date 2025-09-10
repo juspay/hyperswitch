@@ -206,7 +206,7 @@ pub mod models {
 
             // Process vault metadata if present
             if let Some(vault_header) =
-                headers.remove(crate::vault_metadata::EXTERNAL_VAULT_METADATA_HEADER)
+                headers.remove(consts::EXTERNAL_VAULT_METADATA_HEADER)
             {
                 let vault_header_value = vault_header.expose();
                 logger::info!(

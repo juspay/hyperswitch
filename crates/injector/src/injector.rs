@@ -16,7 +16,7 @@ pub mod core {
     use thiserror::Error;
 
     use crate as injector_types;
-    use crate::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
+    use crate::types::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
 
     impl From<injector_types::HttpMethod> for Method {
         fn from(method: injector_types::HttpMethod) -> Self {
