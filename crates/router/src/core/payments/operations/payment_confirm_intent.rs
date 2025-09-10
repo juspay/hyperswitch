@@ -472,20 +472,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
             (None, Some(pm_data @ domain::PaymentMethodData::Card(card)), customer_acceptance) => {
-                let ppmt = payment_methods::store_card_data_in_redis(
-                    state,
-                    pm_data,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    payment_data.payment_attempt.payment_method_type,
-                    merchant_context,
-                    business_profile,
-                )
-                .await?;
-
-                payment_data.payment_attempt.payment_token = Some(ppmt);
-
-                if let Some(_customer_acceptance) = customer_acceptance {
+                let payment_method_pm_data = if let Some(_customer_acceptance) = customer_acceptance
+                {
                     let customer_id = match &payment_data.payment_intent.customer_id {
                         Some(customer_id) => customer_id.clone(),
                         None => {
@@ -524,7 +512,22 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     (Some(payment_method), None)
                 } else {
                     (None, None)
-                }
+                };
+
+                let ppmt = payment_methods::store_card_data_in_redis(
+                    state,
+                    pm_data,
+                    &payment_data.payment_intent,
+                    &payment_data.payment_attempt,
+                    payment_data.payment_attempt.payment_method_type,
+                    merchant_context,
+                    business_profile,
+                )
+                .await?;
+
+                payment_data.payment_attempt.payment_token = Some(ppmt);
+
+                payment_method_pm_data
             }
             _ => (None, None), // Pass payment_data unmodified for any other case
         };
