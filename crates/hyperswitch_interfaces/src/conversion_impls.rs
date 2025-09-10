@@ -205,6 +205,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
             response,
         );
         router_data.connector_auth_type = new_router_data.connector_auth_type;
+        router_data.merchant_id = merchant_id;
         Ok(router_data)
     }
 }

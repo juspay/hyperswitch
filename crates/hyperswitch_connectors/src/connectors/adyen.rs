@@ -1248,19 +1248,6 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let currency = match data.request.currency {
-            Some(currency) => currency,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?,
-        };
-        let amount = match data.request.minor_amount {
-            Some(amount) => amount,
-            None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?,
-        };
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
