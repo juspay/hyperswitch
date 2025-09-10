@@ -24,12 +24,13 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync}, CreateConnectorCustomer
+        refunds::{Execute, RSync},
+        CreateConnectorCustomer,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData, ConnectorCustomerData
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -665,7 +666,6 @@ impl
     }
 }
 
-#[cfg(feature = "v1")]
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
     for Chargebee
 {

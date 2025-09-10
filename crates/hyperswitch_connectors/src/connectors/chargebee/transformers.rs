@@ -1,7 +1,6 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
-//use api_models::payments::AddressDetails;
 use common_enums::enums;
 use common_utils::id_type::CustomerId;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
@@ -786,7 +785,6 @@ pub struct ChargebeeCustomerCreateRequest {
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
-#[cfg(feature = "v1")]
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCustomerRouterData>>
     for ChargebeeCustomerCreateRequest
 {
@@ -825,11 +823,10 @@ pub struct ChargebeeCustomerDetails {
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
-#[cfg(feature = "v1")]
 impl
     TryFrom<
         ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+            hyperswitch_domain_models::router_flow_types::CreateConnectorCustomer,
             ChargebeeCustomerCreateResponse,
             hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
             PaymentsResponseData,
@@ -840,7 +837,7 @@ impl
 
     fn try_from(
         item: ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
+            hyperswitch_domain_models::router_flow_types::CreateConnectorCustomer,
             ChargebeeCustomerCreateResponse,
             hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
             PaymentsResponseData,
