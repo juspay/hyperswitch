@@ -1889,7 +1889,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     ))
 }
 
-#[cfg(feature = "v1")]
 pub async fn retrieve_payment_method_with_temporary_token(
     state: &SessionState,
     token: &str,
@@ -1944,12 +1943,28 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 || updated_card.card_type.is_none()
                 || updated_card.card_issuing_country.is_none()
             {
+                #[cfg(feature = "v1")]
                 let additional_payment_method_data: Option<
                     api_models::payments::AdditionalPaymentData,
                 > = payment_attempt
                     .payment_method_data
                     .clone()
                     .and_then(|data| match data {
+                        serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
+                        _ => Some(data.parse_value("AdditionalPaymentData")),
+                    })
+                    .transpose()
+                    .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+                    .ok()
+                    .flatten();
+                // payment_method_data is a `Secret` in v2, so we need to call `peek()` while matching
+                #[cfg(feature = "v2")]
+                let additional_payment_method_data: Option<
+                    api_models::payments::AdditionalPaymentData,
+                > = payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .and_then(|data| match data.peek() {
                         serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
                         _ => Some(data.parse_value("AdditionalPaymentData")),
                     })
@@ -2788,50 +2803,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     Ok((operation, payment_method, pm_id))
 }
 
-#[cfg(feature = "v1")]
-pub async fn store_in_vault_and_generate_ppmt(
-    state: &SessionState,
-    payment_method_data: &domain::PaymentMethodData,
-    payment_intent: &PaymentIntent,
-    payment_attempt: &PaymentAttempt,
-    payment_method: enums::PaymentMethod,
-    merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&domain::Profile>,
-) -> RouterResult<String> {
-    let router_token = vault::Vault::store_payment_method_data_in_locker(
-        state,
-        None,
-        payment_method_data,
-        payment_intent.customer_id.to_owned(),
-        payment_method,
-        merchant_key_store,
-    )
-    .await?;
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-    let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
-        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
-            &parent_payment_method_token,
-            payment_method,
-        ))
-    });
-
-    let intent_fulfillment_time = business_profile
-        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
-        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
-
-    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-        key_for_hyperswitch_token
-            .insert(
-                intent_fulfillment_time,
-                storage::PaymentTokenData::temporary_generic(router_token),
-                state,
-            )
-            .await?;
-    };
-    Ok(parent_payment_method_token)
-}
-
-#[cfg(feature = "v2")]
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodData,

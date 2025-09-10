@@ -527,7 +527,7 @@ pub async fn retrieve_payment_method_with_token(
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
-            retrieve_payment_method_with_temporary_token(
+            payment_helpers::retrieve_payment_method_with_temporary_token(
                 state,
                 &generic_token.token,
                 payment_intent,
@@ -545,138 +545,17 @@ pub async fn retrieve_payment_method_with_token(
             )
             .unwrap_or_default()
         }
-        _ => Err(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "PermanentCard and AuthBankDebit Token not implemented".to_string(),
-            ),
-        })?,
+
+        storage::PaymentTokenData::PermanentCard(_)
+        | storage::PaymentTokenData::AuthBankDebit(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "PermanentCard and AuthBankDebit Token not implemented".to_string(),
+                ),
+            })?
+        }
     };
     Ok(token)
-}
-
-#[cfg(feature = "v2")]
-pub async fn retrieve_payment_method_with_temporary_token(
-    state: &SessionState,
-    token: &str,
-    payment_intent: &PaymentIntent,
-    payment_attempt: &PaymentAttempt,
-    merchant_key_store: &domain::MerchantKeyStore,
-    card_token_data: Option<&domain::CardToken>,
-) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
-    let (pm, supplementary_data) =
-        vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
-            .await
-            .attach_printable(
-                "Payment method for given token not found or there was a problem fetching it",
-            )?;
-
-    when(
-        supplementary_data
-            .customer_id
-            .ne(&payment_intent.customer_id),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
-        },
-    )?;
-
-    Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm {
-        Some(domain::PaymentMethodData::Card(card)) => {
-            let mut updated_card = card.clone();
-            let mut is_card_updated = false;
-
-            // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-            // from payment_method_data.card_token object
-            let name_on_card =
-                card_token_data.and_then(|token_data| token_data.card_holder_name.clone());
-
-            if let Some(name) = name_on_card.clone() {
-                if !name.peek().is_empty() {
-                    is_card_updated = true;
-                    updated_card.nick_name = name_on_card;
-                }
-            }
-
-            if let Some(token_data) = card_token_data {
-                if let Some(cvc) = token_data.card_cvc.clone() {
-                    is_card_updated = true;
-                    updated_card.card_cvc = cvc;
-                }
-            }
-
-            // populate additional card details from payment_attempt.payment_method_data (additional_payment_data) if not present in the locker
-            if updated_card.card_issuer.is_none()
-                || updated_card.card_network.is_none()
-                || updated_card.card_type.is_none()
-                || updated_card.card_issuing_country.is_none()
-            {
-                let additional_payment_method_data: Option<
-                    api_models::payments::AdditionalPaymentData,
-                > = payment_attempt
-                    .payment_method_data
-                    .clone()
-                    .and_then(|data| match data.peek() {
-                        serde_json::Value::Null => None, // This is to handle the case when the payment_method_data is null
-                        _ => Some(data.parse_value("AdditionalPaymentData")),
-                    })
-                    .transpose()
-                    .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
-                    .ok()
-                    .flatten();
-                if let Some(api_models::payments::AdditionalPaymentData::Card(card)) =
-                    additional_payment_method_data
-                {
-                    is_card_updated = true;
-                    updated_card.card_issuer = updated_card.card_issuer.or(card.card_issuer);
-                    updated_card.card_network = updated_card.card_network.or(card.card_network);
-                    updated_card.card_type = updated_card.card_type.or(card.card_type);
-                    updated_card.card_issuing_country = updated_card
-                        .card_issuing_country
-                        .or(card.card_issuing_country);
-                };
-            };
-
-            if is_card_updated {
-                let updated_pm = domain::PaymentMethodData::Card(updated_card);
-                vault::Vault::store_payment_method_data_in_locker(
-                    state,
-                    Some(token.to_owned()),
-                    &updated_pm,
-                    payment_intent.customer_id.to_owned(),
-                    enums::PaymentMethod::Card,
-                    merchant_key_store,
-                )
-                .await?;
-
-                Some((updated_pm, enums::PaymentMethod::Card))
-            } else {
-                Some((
-                    domain::PaymentMethodData::Card(card),
-                    enums::PaymentMethod::Card,
-                ))
-            }
-        }
-
-        Some(the_pm @ domain::PaymentMethodData::Wallet(_)) => {
-            Some((the_pm, enums::PaymentMethod::Wallet))
-        }
-
-        Some(the_pm @ domain::PaymentMethodData::BankTransfer(_)) => {
-            Some((the_pm, enums::PaymentMethod::BankTransfer))
-        }
-
-        Some(the_pm @ domain::PaymentMethodData::BankRedirect(_)) => {
-            Some((the_pm, enums::PaymentMethod::BankRedirect))
-        }
-
-        Some(the_pm @ domain::PaymentMethodData::BankDebit(_)) => {
-            Some((the_pm, enums::PaymentMethod::BankDebit))
-        }
-
-        Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment method received from locker is unsupported by locker")?,
-
-        None => None,
-    })
 }
 
 #[cfg(feature = "v1")]
