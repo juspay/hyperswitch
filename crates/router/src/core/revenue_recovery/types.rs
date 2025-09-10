@@ -199,7 +199,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     _headers,
                 ))) = payments_response
                 {
-                    send_outgoing_webhook_based_on_revenue_recovery_status(
+                    RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                         state,
                         event_class,
                         event_status,
@@ -533,7 +533,7 @@ impl Action {
                             );
 
                             if let Ok(hyperswitch_domain_models::api::ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response {
-                                send_outgoing_webhook_based_on_revenue_recovery_status(
+                                RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                                     state,
                                     event_class,
                                     event_status,
@@ -758,36 +758,6 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
-                // update the connector payment transmission field to Unsuccessful and unset active attempt id
-                revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
-                    enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                );
-
-                let payment_update_req =
-                PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                    payment_intent
-                        .feature_metadata
-                        .clone()
-                        .unwrap_or_default()
-                        .convert_back()
-                        .set_payment_revenue_recovery_metadata_using_api(
-                            revenue_recovery_metadata.clone(),
-                        ),
-                    api_enums::UpdateActiveAttempt::Unset,
-                );
-                logger::info!(
-                    "Call made to payments update intent api , with the request body {:?}",
-                    payment_update_req
-                );
-                revenue_recovery_core::api::update_payment_intent_api(
-                    state,
-                    payment_intent.id.clone(),
-                    revenue_recovery_payment_data,
-                    payment_update_req,
-                )
-                .await
-                .change_context(errors::RecoveryError::PaymentCallFailed)?;
-
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -1554,33 +1524,37 @@ pub fn get_payment_processor_token_id_from_payment_attempt(
     used_token
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
-    state: &SessionState,
-    event_class: common_enums::EventClass,
-    event_status: common_enums::EventType,
-    payment_intent: &PaymentIntent,
-    merchant_context: &domain::MerchantContext,
-    profile: &domain::Profile,
-    response: api_models::payments::PaymentsResponse,
-    payment_attempt_id: String,
-) -> RecoveryResult<()> {
-    let outgoing_webhook_content =
-        api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
-    create_event_and_trigger_outgoing_webhook(
-        state.clone(),
-        profile.clone(),
-        merchant_context.get_merchant_key_store(),
-        event_status,
-        event_class,
-        payment_attempt_id,
-        enums::EventObjectType::PaymentDetails,
-        outgoing_webhook_content,
-        payment_intent.created_at,
-    )
-    .await
-    .change_context(errors::RecoveryError::InvalidTask)
-    .attach_printable("Failed to send out going webhook")?;
+pub struct RevenueRecoveryOutgoingWebhook;
 
-    Ok(())
+impl RevenueRecoveryOutgoingWebhook{
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_outgoing_webhook_based_on_revenue_recovery_status(
+        state: &SessionState,
+        event_class: common_enums::EventClass,
+        event_status: common_enums::EventType,
+        payment_intent: &PaymentIntent,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
+        response: api_models::payments::PaymentsResponse,
+        payment_attempt_id: String,
+    ) -> RecoveryResult<()> {
+        let outgoing_webhook_content =
+            api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(response));
+        create_event_and_trigger_outgoing_webhook(
+            state.clone(),
+            profile.clone(),
+            merchant_context.get_merchant_key_store(),
+            event_status,
+            event_class,
+            payment_attempt_id,
+            enums::EventObjectType::PaymentDetails,
+            outgoing_webhook_content,
+            payment_intent.created_at,
+        )
+        .await
+        .change_context(errors::RecoveryError::InvalidTask)
+        .attach_printable("Failed to send out going webhook")?;
+
+        Ok(())
+    }
 }

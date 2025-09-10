@@ -2383,8 +2383,6 @@ where
             })
             .unwrap_or_default();
 
-        let metadata = payment_intent.metadata.map(|value| value.peek().clone());
-
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2417,7 +2415,7 @@ where
                 .feature_metadata
                 .clone()
                 .map(|feature_metadata| feature_metadata.convert_back()),
-            metadata,
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2494,7 +2492,6 @@ where
                 )]
             })
             .unwrap_or_default();
-        let metadata = payment_intent.metadata.map(|value| value.peek().clone());
 
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
@@ -2530,9 +2527,9 @@ where
             raw_connector_response,
             feature_metadata: payment_intent
                 .feature_metadata
-                .clone()
-                .map(|feature_metadata| feature_metadata.convert_back()),
-            metadata,
+                .as_ref()
+                .map(|feature_metadata| feature_metadata.clone().convert_back()),
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
