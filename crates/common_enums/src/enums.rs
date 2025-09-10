@@ -1617,7 +1617,6 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
-    RetryScheduled,
 }
 
 #[derive(
