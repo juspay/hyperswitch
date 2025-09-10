@@ -9617,7 +9617,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata : Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 /// Error details for the payment

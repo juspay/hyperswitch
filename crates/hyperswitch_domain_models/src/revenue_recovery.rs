@@ -78,7 +78,7 @@ pub struct RevenueRecoveryInvoiceData {
     /// Invoice Starting Time
     pub billing_started_at: Option<PrimitiveDateTime>,
     /// metadata of the merchant
-    pub metadata : Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug)]
@@ -180,7 +180,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,
-            metadata: None
+            metadata: None,
         }
     }
 }

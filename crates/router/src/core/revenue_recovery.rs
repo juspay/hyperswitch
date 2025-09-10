@@ -13,7 +13,9 @@ use common_utils::{
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
-    ApiModelToDieselModelConvertor, merchant_context, payments::{PaymentIntent, PaymentStatusData}, revenue_recovery as domain_revenue_recovery
+    merchant_context,
+    payments::{PaymentIntent, PaymentStatusData},
+    revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
 
@@ -500,35 +502,6 @@ pub async fn perform_calculate_workflow(
             return Err(sch_errors::ProcessTrackerError::ProcessUpdateFailed);
         }
     };
-<<<<<<< Updated upstream
-    let payment_id = &api_models::payments::PaymentIdType::PaymentAttemptId(
-        tracking_data
-            .payment_attempt_id
-            .get_string_repr()
-            .to_string(),
-    );
-
-    let get_tracker_response = get_trackers_response_for_payment_get_operation::<
-        hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
-    >(
-        db,
-        payment_id,
-        profile_id,
-        key_manager_state,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
-    )
-    .await
-    .change_context(errors::RecoveryError::ValueNotFound)
-    .attach_printable("Cannot construct payment status data to trigger outgoing webhook")?;
-
-    let payments_response = get_tracker_response
-        .payment_data
-        .clone()
-        .generate_response(state, None, None, None, &merchant_context, profile, None)
-        .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed);
-=======
->>>>>>> Stashed changes
 
     // 2. Get best available token
     let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -691,30 +664,7 @@ pub async fn perform_calculate_workflow(
                                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                                 })?;
 
-<<<<<<< Updated upstream
-                            let event_type = common_enums::EventType::PaymentFailed;
-
-                            if let Ok(ApplicationResponse::JsonWithHeaders((response, _headers))) =
-                                payments_response
-                            {
-                                send_outgoing_webhook_based_on_revenue_recovery_status(
-                                    state,
-                                    event_class,
-                                    event_type,
-                                    payment_intent,
-                                    &merchant_context,
-                                    profile,
-                                    response,
-                                    tracking_data
-                                        .payment_attempt_id
-                                        .get_string_repr()
-                                        .to_string(),
-                                )
-                                .await?
-                            };
-=======
                             event_type = Some(common_enums::EventType::PaymentFailed);
->>>>>>> Stashed changes
 
                             logger::info!(
                                 process_id = %process.id,
@@ -728,8 +678,6 @@ pub async fn perform_calculate_workflow(
         }
     }
 
-<<<<<<< Updated upstream
-=======
     if let Some(event_kind) = event_type {
         let payment_data = construct_payment_status_data_for_outgoing_revenue_recovery_webhook::<
             hyperswitch_domain_models::router_flow_types::PaymentGetIntent,
@@ -742,12 +690,12 @@ pub async fn perform_calculate_workflow(
         .await
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("Cannot construct payment status data to trigger outgoing webhook")?;
-    
+
         let payments_response = payment_data
             .clone()
             .generate_response(state, None, None, None, &merchant_context, profile, None)
             .change_context(errors::RecoveryError::PaymentsResponseGenerationFailed)?;
-    
+
         if let ApplicationResponse::JsonWithHeaders((response, _headers)) = payments_response {
             send_outgoing_webhook_based_on_revenue_recovery_status(
                 state,
@@ -757,13 +705,15 @@ pub async fn perform_calculate_workflow(
                 &merchant_context,
                 profile,
                 response,
-                tracking_data.payment_attempt_id.get_string_repr().to_string(),
+                tracking_data
+                    .payment_attempt_id
+                    .get_string_repr()
+                    .to_string(),
             )
             .await?;
         }
     }
 
->>>>>>> Stashed changes
     Ok(())
 }
 
@@ -1041,15 +991,14 @@ pub async fn retrieve_revenue_recovery_process_tracker(
     Ok(ApplicationResponse::Json(response))
 }
 
-
 async fn construct_payment_status_data_for_outgoing_revenue_recovery_webhook<F>(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    payment_attempt_id : &id_type::GlobalAttemptId,
-    merchant_context: &domain::MerchantContext
-)-> RouterResult<PaymentStatusData<F>>
+    payment_attempt_id: &id_type::GlobalAttemptId,
+    merchant_context: &domain::MerchantContext,
+) -> RouterResult<PaymentStatusData<F>>
 where
-    F: Clone, 
+    F: Clone,
 {
     let merchant_key_store = merchant_context.get_merchant_key_store();
     let storage_schema = merchant_context.get_merchant_account().storage_scheme;
@@ -1058,7 +1007,15 @@ where
 
     let key_manager_state = &state.into();
 
-    let payment_attempt = db.find_payment_attempt_by_id(key_manager_state, merchant_key_store, payment_attempt_id, storage_schema).await.to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let payment_attempt = db
+        .find_payment_attempt_by_id(
+            key_manager_state,
+            merchant_key_store,
+            payment_attempt_id,
+            storage_schema,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     // let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(payment_intent.shipping_address, payment_intent.billing_address, None, None);
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -1077,14 +1034,13 @@ where
         Some(true),
     );
 
-
-    Ok(PaymentStatusData{
-        flow : PhantomData,
+    Ok(PaymentStatusData {
+        flow: PhantomData,
         payment_intent: payment_intent.clone(),
         payment_attempt,
         payment_address,
         should_sync_with_connector: false,
         attempts: None,
-        merchant_connector_details: None
+        merchant_connector_details: None,
     })
 }

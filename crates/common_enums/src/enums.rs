@@ -1557,7 +1557,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
-            ])
+            ]),
         }
     }
 }
@@ -1617,7 +1617,7 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
-    RetryScheduled
+    RetryScheduled,
 }
 
 #[derive(

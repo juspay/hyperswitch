@@ -422,7 +422,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
             billing_started_at,
-            metadata: None
+            metadata: None,
         })
     }
 }

@@ -2412,7 +2412,7 @@ where
                 .feature_metadata
                 .clone()
                 .map(|feature_metadata| feature_metadata.convert_back()),
-            metadata
+            metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2527,7 +2527,7 @@ where
                 .feature_metadata
                 .clone()
                 .map(|feature_metadata| feature_metadata.convert_back()),
-            metadata
+            metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
