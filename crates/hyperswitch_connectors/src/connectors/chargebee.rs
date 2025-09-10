@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::{SubscriptionRecordBackRouterData, SubscriptionCreateRouterData},
+    types::{SubscriptionCreateRouterData, SubscriptionRecordBackRouterData},
 };
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
@@ -226,12 +226,12 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
         req: &SubscriptionCreateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let metadata: chargebee::ChargebeeMetadata =
-            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+        // let metadata: chargebee::ChargebeeMetadata =
+        //     utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+            .replace("$", "hyperswitch-juspay2-test");
         let customer_id = &req.request.customer_id;
         Ok(format!(
             "{url}v2/customers/{customer_id}/subscription_for_items"
@@ -933,7 +933,7 @@ impl
         let url = self
             .base_url(connectors)
             .to_string()
-            .replace("$", "hyperswitch-juspay-test"); // TODO: replace with metadata.site
+            .replace("$", "hyperswitch-juspay2-test"); // TODO: replace with metadata.site
         Ok(format!("{url}v2/customers"))
     }
 

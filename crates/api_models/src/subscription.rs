@@ -126,6 +126,15 @@ pub struct PaymentData {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub customer_acceptance: Option<CustomerAcceptance>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentResponseData {
+    pub payment_id: String,
+    pub status: api_enums::IntentStatus,
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: String,
+    pub connector: Option<String>,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConfirmSubscriptionRequest {
     pub client_secret: Option<String>,
@@ -144,9 +153,24 @@ impl ApiEventMetric for ConfirmSubscriptionRequest {}
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ConfirmSubscriptionResponse {
     pub subscription: Subscription,
-    pub payment: PaymentsResponse,
+    pub payment: PaymentResponseData,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub invoice: Option<Invoice>,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SubscriptionPaymentsRequest {
+    pub payment_id: Option<String>,
+    pub amount: Option<i64>,
+    pub currency: Option<api_enums::Currency>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: Option<String>,
+    pub confirm: Option<bool>,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+}
