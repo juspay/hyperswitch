@@ -23,7 +23,7 @@ impl TryFrom<StructValue> for JsonValue {
         for (k, v) in sv.fields {
             map.insert(k, convert_open_feature_value(v)?);
         }
-        Ok(JsonValue(Value::Object(map)))
+        Ok(Self(Value::Object(map)))
     }
 }
 
