@@ -22463,6 +22463,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_retry_algorithm_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23610,6 +23618,14 @@
             "$ref": "#/components/schemas/GsmDecision"
           }
         }
+      },
+      "RevenueRecoveryAlgorithmType": {
+        "type": "string",
+        "enum": [
+          "monitoring",
+          "smart",
+          "cascading"
+        ]
       },
       "RevenueRecoveryMetadata": {
         "type": "object",

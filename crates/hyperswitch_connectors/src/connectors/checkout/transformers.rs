@@ -687,6 +687,8 @@ pub struct PaymentsResponse {
     id: String,
     amount: Option<MinorUnit>,
     currency: Option<String>,
+    scheme_id: Option<String>,
+    processing: Option<PaymentProcessingDetails>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
@@ -700,6 +702,13 @@ pub struct PaymentsResponse {
     source: Option<Source>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentProcessingDetails {
+    /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
+    pub partner_merchant_advice_code: Option<String>,
+    /// The original authorization response code sent by the scheme.
+    pub partner_response_code: Option<String>,
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
@@ -795,7 +804,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -838,7 +847,17 @@ impl
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
         let status =
             get_attempt_status_cap((item.response.status, item.data.request.capture_method));
-
+        let network_advice_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| {
+                processing
+                    .partner_merchant_advice_code
+                    .as_ref()
+                    .or(processing.partner_response_code.as_ref())
+            })
+            .cloned();
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
@@ -854,7 +873,7 @@ impl
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
+                network_advice_code,
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
@@ -880,7 +899,7 @@ impl
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -952,7 +971,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1002,6 +1021,7 @@ pub struct PaymentVoidResponse {
     pub(super) status: u16,
     action_id: String,
     reference: String,
+    scheme_id: Option<String>,
 }
 
 impl From<&PaymentVoidResponse> for AttemptStatus {
@@ -1026,7 +1046,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1092,6 +1112,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsCaptureRouterData>> for PaymentCapture
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -1127,7 +1148,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1608,6 +1629,8 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             source: Some(Source {
                 id: details.source.and_then(|src| src.id),
             }),
+            scheme_id: None,
+            processing: None,
         };
 
         Ok(psync_struct)
