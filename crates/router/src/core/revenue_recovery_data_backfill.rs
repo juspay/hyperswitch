@@ -161,7 +161,7 @@ fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<ComprehensiveCardData, BackfillError> {
     // Extract card type from request, if not present then update it with 'card'
-    let card_type = Some(determine_card_type(record.type_field));
+    let card_type = Some(determine_card_type(record.payment_method_sub_type));
 
     // Parse expiration date
     let (exp_month, exp_year) = parse_expiration_date(
@@ -205,9 +205,9 @@ fn build_comprehensive_card_data(
     })
 }
 
-/// Determine card type with fallback logic: type_field if not present -> "Card"
-fn determine_card_type(type_field: Option<PaymentMethodType>) -> String {
-    match type_field {
+/// Determine card type with fallback logic: payment_method_sub_type if not present -> "Card"
+fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> String {
+    match payment_method_sub_type {
         Some(card_type_enum) => {
             let mapped_type = match card_type_enum {
                 PaymentMethodType::Credit => "credit".to_string(),
@@ -217,14 +217,14 @@ fn determine_card_type(type_field: Option<PaymentMethodType>) -> String {
                 _ => "card".to_string(),
             };
             logger::debug!(
-                "Using type_field enum '{:?}' -> '{}'",
+                "Using payment_method_sub_type enum '{:?}' -> '{}'",
                 card_type_enum,
                 mapped_type
             );
             mapped_type
         }
         None => {
-            logger::info!("In CSV type_field not present, defaulting to 'card'");
+            logger::info!("In CSV payment_method_sub_type not present, defaulting to 'card'");
             "card".to_string()
         }
     }

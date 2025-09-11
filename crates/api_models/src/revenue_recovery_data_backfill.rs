@@ -11,14 +11,12 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
     pub bin_number: Option<Secret<String>>,
-    pub card_type: Option<String>,
     pub customer_id_resp: String,
     pub connector_payment_id: Option<String>,
     pub token: Option<Secret<String>>,
     pub exp_date: Option<Secret<String>>,
     pub card_network: Option<CardNetwork>,
-    pub type_field: Option<PaymentMethodType>,
-    pub product_name: Option<String>,
+    pub payment_method_sub_type: Option<PaymentMethodType>,
     pub clean_bank_name: Option<String>,
     pub country_name: Option<String>,
     pub daily_retry_history: Option<String>,
