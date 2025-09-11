@@ -1284,6 +1284,9 @@ pub fn payments_list() {}
           example = "pro_abcdefghijklmnop"
         ),
     ),
+    request_body(
+      content = PaymentsGiftCardBalanceCheckRequest,
+    ),
     responses(
         (status = 200, description = "Get the Gift Card Balance", body = GiftCardBalanceCheckResponse),
     ),

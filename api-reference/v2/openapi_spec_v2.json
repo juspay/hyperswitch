@@ -2622,6 +2622,16 @@
             "example": "pro_abcdefghijklmnop"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Get the Gift Card Balance",
@@ -19419,6 +19429,19 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsGiftCardBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Gift Card balance check",
+        "required": [
+          "gift_card_data"
+        ],
+        "properties": {
+          "gift_card_data": {
+            "$ref": "#/components/schemas/GiftCardData"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",

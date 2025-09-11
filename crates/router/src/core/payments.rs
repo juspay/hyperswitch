@@ -60,10 +60,20 @@ pub use hyperswitch_domain_models::{
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };
+
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
+    router_flow_types::GiftCardBalanceCheck,
+    router_request_types::GiftCardBalanceCheckRequestData,
+    router_response_types::PaymentsResponseData,
+};
+#[cfg(feature = "v2")]
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -2662,14 +2672,14 @@ pub async fn payments_check_gift_card_balance_core(
             )
             .await
             .attach_printable(
-                "failed to fetch merchant connector account for external vault insert",
+                "failed to fetch merchant connector account for gift card balance check",
             )?,
         ));
 
     let connector_name = merchant_connector_account
         .get_connector_name()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+        .attach_printable("Connector name not present for gift card balance check")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,

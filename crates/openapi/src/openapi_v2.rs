@@ -545,6 +545,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentRevenueRecoveryMetadata,
         api_models::payments::BillingConnectorPaymentDetails,
         api_models::payments::GiftCardBalanceCheckResponse,
+        api_models::payments::PaymentsGiftCardBalanceCheckRequest,
         api_models::enums::PaymentConnectorTransmission,
         api_models::enums::TriggeredBy,
         api_models::payments::PaymentAttemptResponse,
