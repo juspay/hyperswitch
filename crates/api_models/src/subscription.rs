@@ -137,10 +137,10 @@ pub struct PaymentData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentResponseData {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub status: api_enums::IntentStatus,
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: api_enums::Currency,
     pub connector: Option<String>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -168,6 +168,7 @@ pub struct ConfirmSubscriptionResponse {
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
 
+// Dummy types from here onwards, to be replaced after connector integration
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: String,
@@ -179,16 +180,33 @@ pub struct SubscriptionCreateResponse {
     pub created_at: Option<PrimitiveDateTime>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CreateCustomer;
+
+#[derive(Debug, Clone)]
+pub struct CreateCustomerRequest {
+    pub id: common_utils::id_type::CustomerId,
+    // More fields can be added as needed
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateCustomerResponse {
+    pub id: common_utils::id_type::CustomerId,
+    // More fields can be added as needed
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateSubscription;
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCreateRequest {
+    pub id: String, // More fields can be added as needed
+}
+
+#[allow(clippy::todo)]
 impl Default for SubscriptionCreateResponse {
     fn default() -> Self {
-        Self {
-            subscription_id: "sub_ID".to_string(),
-            status: "active".to_string(),
-            customer_id: "cust_ID".to_string(),
-            currency_code: api_enums::Currency::USD,
-            total_amount: MinorUnit::new(0),
-            next_billing_at: None,
-            created_at: None,
-        }
+        // TODO: Replace with a proper default implementation after connector integration
+        todo!()
     }
 }
