@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.11.0
+
+### Features
+
+- **connector:**
+  - [checkout] Add mandate flow ([#9248](https://github.com/juspay/hyperswitch/pull/9248)) ([`7355a83`](https://github.com/juspay/hyperswitch/commit/7355a83ef9316a6cc7f9fa0c9c9aec7397e9fc4b))
+  - Enhance ACI connector with comprehensive 3DS support - DRAFT ([#8986](https://github.com/juspay/hyperswitch/pull/8986)) ([`b014b13`](https://github.com/juspay/hyperswitch/commit/b014b1387acec0a0a9f699332ce486bb8d28c620))
+  - [checkout] add support for MOTO payments ([#9327](https://github.com/juspay/hyperswitch/pull/9327)) ([`3f8943b`](https://github.com/juspay/hyperswitch/commit/3f8943bd461a9dc3a5ad9f99f193483ea8186682))
+- **core:** [Retry] MIT Retries ([#8628](https://github.com/juspay/hyperswitch/pull/8628)) ([`c0e31d3`](https://github.com/juspay/hyperswitch/commit/c0e31d38ffabaef6b459a7513089917d294aacf9))
+
+### Bug Fixes
+
+- **trustpay:** Add connector request reference ID generation for v2 ([#8925](https://github.com/juspay/hyperswitch/pull/8925)) ([`041656e`](https://github.com/juspay/hyperswitch/commit/041656ec66426154f609faa2228aee73b2bf761d))
+- **users:** Add bad request for openidconnect ([#9244](https://github.com/juspay/hyperswitch/pull/9244)) ([`09d475b`](https://github.com/juspay/hyperswitch/commit/09d475b423c0fad6935a936211fc802928a450c6))
+- Fix api url in dashboard configuration ([#9334](https://github.com/juspay/hyperswitch/pull/9334)) ([`5ab8a27`](https://github.com/juspay/hyperswitch/commit/5ab8a27c10786885b91b79fbb9fb8b5e990029e1))
+
+### Refactors
+
+- **connector:**
+  - Rename RevenueRecoveryRecordBack as InvoiceRecordBack ([#9321](https://github.com/juspay/hyperswitch/pull/9321)) ([`ea2fd1d`](https://github.com/juspay/hyperswitch/commit/ea2fd1d4768f83d8564477ef82940a5f33b0e3a1))
+  - [Paysafe] fix wasm ([#9349](https://github.com/juspay/hyperswitch/pull/9349)) ([`6b50c83`](https://github.com/juspay/hyperswitch/commit/6b50c83fded2533cbfd1c155ef02536fd5ce03db))
+
+**Full Changelog:** [`2025.09.10.0...2025.09.11.0`](https://github.com/juspay/hyperswitch/compare/2025.09.10.0...2025.09.11.0)
+
+- - -
+
 ## 2025.09.10.0
 
 ### Features
