@@ -2949,7 +2949,14 @@ pub async fn payment_confirm_intent(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
 
-            Box::pin(payments::payments_execute_core(
+            Box::pin(payments::payments_core::<
+                api_types::Authorize,
+                api_models::payments::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentConfirmData<api_types::Authorize>,
+            >(
                 state,
                 req_state,
                 merchant_context,

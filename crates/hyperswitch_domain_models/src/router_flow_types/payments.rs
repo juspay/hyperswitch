@@ -85,11 +85,3 @@ pub struct PaymentGetListAttempts;
 
 #[derive(Debug, Clone)]
 pub struct ExternalVaultProxy;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum NextActionFlows {
-    PreAuthenticate,
-    Authenticate,
-    PostAuthenticate,
-    Authorize,
-}
