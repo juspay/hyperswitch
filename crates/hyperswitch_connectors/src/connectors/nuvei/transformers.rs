@@ -2386,7 +2386,6 @@ pub struct FraudDetails {
 }
 
 fn get_payment_status(
-    // response: &NuveiPaymentsResponse,
     amount: Option<i64>,
     is_post_capture_void: bool,
     transaction_type: Option<NuveiTransactionType>,
