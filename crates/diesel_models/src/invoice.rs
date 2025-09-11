@@ -1,25 +1,26 @@
-use common_utils::pii::SecretSerdeValue;
+use common_enums::connector_enums::{Connector, InvoiceStatus};
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::invoices;
 
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
-#[diesel(table_name = invoices)]
+#[diesel(table_name = invoices, check_for_backend(diesel::pg::Pg))]
 pub struct InvoiceNew {
     pub invoice_id: String,
-    pub subscription_id: Option<String>,
+    pub subscription_id: String,
     pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    pub payment_intent_id: String,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub payment_method_id: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub currency: String,
     pub status: String,
-    pub provider_name: String,
+    pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
@@ -35,19 +36,19 @@ pub struct InvoiceNew {
 )]
 pub struct Invoice {
     pub invoice_id: String,
-    pub subscription_id: Option<String>,
+    pub subscription_id: String,
     pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    pub payment_intent_id: String,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub payment_method_id: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub currency: String,
     pub status: String,
-    pub provider_name: String,
-    pub metadata: Option<serde_json::Value>,
+    pub provider_name: Connector,
+    pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -64,18 +65,18 @@ impl InvoiceNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         invoice_id: String,
-        subscription_id: Option<String>,
+        subscription_id: String,
         connector_subscription_id: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-        payment_intent_id: String,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
         payment_method_id: Option<String>,
         customer_id: common_utils::id_type::CustomerId,
-        amount: i32,
+        amount: MinorUnit,
         currency: String,
-        status: String,
-        provider_name: String,
+        status: InvoiceStatus,
+        provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
     ) -> Self {
         let now = common_utils::date_time::now();
@@ -91,7 +92,7 @@ impl InvoiceNew {
             customer_id,
             amount,
             currency,
-            status,
+            status: status.to_string(),
             provider_name,
             metadata,
             created_at: now,
@@ -101,10 +102,10 @@ impl InvoiceNew {
 }
 
 impl InvoiceUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
+    pub fn new(payment_method_id: Option<String>, status: Option<InvoiceStatus>) -> Self {
         Self {
             payment_method_id,
-            status,
+            status: status.map(|status| status.to_string()),
             modified_at: common_utils::date_time::now(),
         }
     }

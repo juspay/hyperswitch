@@ -665,7 +665,7 @@ diesel::table! {
         #[max_length = 255]
         invoice_id -> Varchar,
         #[max_length = 255]
-        subscription_id -> Nullable<Varchar>,
+        subscription_id -> Varchar,
         #[max_length = 255]
         connector_subscription_id -> Nullable<Varchar>,
         #[max_length = 255]
@@ -675,12 +675,12 @@ diesel::table! {
         #[max_length = 255]
         merchant_connector_id -> Varchar,
         #[max_length = 255]
-        payment_intent_id -> Varchar,
+        payment_intent_id -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
         #[max_length = 255]
         customer_id -> Varchar,
-        amount -> Int4,
+        amount -> Int8,
         #[max_length = 3]
         currency -> Varchar,
         #[max_length = 50]
