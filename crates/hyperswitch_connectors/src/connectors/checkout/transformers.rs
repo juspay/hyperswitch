@@ -702,6 +702,13 @@ pub struct PaymentsResponse {
     source: Option<Source>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentProcessingDetails {
+    /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
+    pub partner_merchant_advice_code: Option<String>,
+    /// The original authorization response code sent by the scheme.
+    pub partner_response_code: Option<String>,
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
@@ -797,7 +804,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
