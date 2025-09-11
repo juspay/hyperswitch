@@ -86,6 +86,11 @@ pub enum PaymentsResponseData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckResponseData {
+    pub balance: MinorUnit,
+}
+
+#[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }

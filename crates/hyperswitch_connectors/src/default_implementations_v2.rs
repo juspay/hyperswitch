@@ -56,9 +56,9 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -222,7 +222,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             GiftCardBalanceCheck,
             GiftCardBalanceCheckFlowData,
             GiftCardBalanceCheckRequestData,
-            PaymentsResponseData,
+            GiftCardBalanceCheckResponseData,
         > for $path::$connector{}
             impl ConnectorIntegrationV2<
             PostProcessing,

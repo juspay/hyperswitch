@@ -20,7 +20,9 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
+    router_response_types::{
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
+    },
 };
 
 use crate::api;
@@ -196,7 +198,7 @@ pub trait PaymentsGiftCardBalanceCheck:
     api::ConnectorIntegration<
     GiftCardBalanceCheck,
     GiftCardBalanceCheckRequestData,
-    PaymentsResponseData,
+    GiftCardBalanceCheckResponseData,
 >
 {
 }

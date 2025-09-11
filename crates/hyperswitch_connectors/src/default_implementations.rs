@@ -63,9 +63,9 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -7180,7 +7180,7 @@ macro_rules! default_imp_for_gift_card_balance_check {
             ConnectorIntegration<
             GiftCardBalanceCheck,
             GiftCardBalanceCheckRequestData,
-            PaymentsResponseData,
+            GiftCardBalanceCheckResponseData,
         > for $path::$connector
         {}
     )*
@@ -8141,7 +8141,7 @@ impl<const T: u8>
     ConnectorIntegration<
         GiftCardBalanceCheck,
         GiftCardBalanceCheckRequestData,
-        PaymentsResponseData,
+        GiftCardBalanceCheckResponseData,
     > for connectors::DummyConnector<T>
 {
 }

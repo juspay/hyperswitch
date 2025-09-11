@@ -35,9 +35,10 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse, PaymentMethodDetails,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt, UploadFileResponse,
+        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
+        GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -1169,7 +1170,7 @@ impl
     ConnectorIntegration<
         GiftCardBalanceCheck,
         GiftCardBalanceCheckRequestData,
-        PaymentsResponseData,
+        GiftCardBalanceCheckResponseData,
     > for Adyen
 {
     fn get_headers(

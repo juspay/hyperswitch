@@ -33,8 +33,9 @@ use hyperswitch_domain_models::{
         SubmitEvidenceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateReference, PaymentsResponseData,
-        RedirectForm, RefundsResponseData, SubmitEvidenceResponse,
+        AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        SubmitEvidenceResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -3972,9 +3973,14 @@ impl
             GiftCardBalanceCheck,
             AdyenBalanceResponse,
             GiftCardBalanceCheckRequestData,
-            PaymentsResponseData,
+            GiftCardBalanceCheckResponseData,
         >,
-    > for RouterData<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, PaymentsResponseData>
+    >
+    for RouterData<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    >
 {
     type Error = Error;
     fn try_from(
@@ -3982,19 +3988,12 @@ impl
             GiftCardBalanceCheck,
             AdyenBalanceResponse,
             GiftCardBalanceCheckRequestData,
-            PaymentsResponseData,
+            GiftCardBalanceCheckResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+            response: Ok(GiftCardBalanceCheckResponseData {
+                balance: item.response.balance.value,
             }),
             payment_method_balance: Some(PaymentMethodBalance {
                 currency: item.response.balance.currency,

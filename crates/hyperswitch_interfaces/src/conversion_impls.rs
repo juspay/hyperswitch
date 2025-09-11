@@ -176,9 +176,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     where
         Self: Sized,
     {
-        let resource_common_data = Self {
-            merchant_id: old_router_data.merchant_id.clone(),
-        };
+        let resource_common_data = Self;
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
             tenant_id: old_router_data.tenant_id.clone(),
@@ -195,7 +193,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     where
         Self: Sized,
     {
-        let Self { merchant_id } = new_router_data.resource_common_data;
         let request = new_router_data.request.clone();
         let response = new_router_data.response.clone();
         let mut router_data = get_default_router_data(
@@ -205,7 +202,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
             response,
         );
         router_data.connector_auth_type = new_router_data.connector_auth_type;
-        router_data.merchant_id = merchant_id;
         Ok(router_data)
     }
 }

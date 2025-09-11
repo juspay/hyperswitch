@@ -11,6 +11,8 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 #[cfg(feature = "v2")]
+use crate::core::gift_card;
+#[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 use crate::{
     self as app,
@@ -3021,7 +3023,7 @@ pub async fn payment_check_gift_card_balance(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            Box::pin(payments::payments_check_gift_card_balance_core(
+            Box::pin(gift_card::payments_check_gift_card_balance_core(
                 state,
                 merchant_context,
                 auth.profile,

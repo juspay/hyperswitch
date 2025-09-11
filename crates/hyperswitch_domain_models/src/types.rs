@@ -38,8 +38,9 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
-        TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
+        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
+        RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -76,8 +77,11 @@ pub type AccessTokenAuthenticationRouterData = RouterData<
     AccessTokenAuthenticationRequestData,
     AccessTokenAuthenticationResponse,
 >;
-pub type PaymentsGiftCardBalanceCheckRouterData =
-    RouterData<GiftCardBalanceCheck, GiftCardBalanceCheckRequestData, PaymentsResponseData>;
+pub type PaymentsGiftCardBalanceCheckRouterData = RouterData<
+    GiftCardBalanceCheck,
+    GiftCardBalanceCheckRequestData,
+    GiftCardBalanceCheckResponseData,
+>;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
