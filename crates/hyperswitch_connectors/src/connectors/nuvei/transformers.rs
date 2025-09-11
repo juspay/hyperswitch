@@ -2450,7 +2450,6 @@ fn get_payment_status(
     }
 }
 
-/// Struct to hold error response parameters to avoid too many function arguments
 #[derive(Debug)]
 struct ErrorResponseParams {
     http_code: u16,
