@@ -367,7 +367,6 @@ api_key="API Key"
 [bluecode]
 api_key="EOrder Token"
 
-
 [peachpayments]
 api_key="API Key"
 key1="Tenant ID"

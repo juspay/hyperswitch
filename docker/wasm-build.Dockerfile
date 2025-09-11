@@ -1,6 +1,6 @@
 FROM rust:latest as builder
 
-ARG FEATURES="dummy_connector"
+ARG FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
 RUN apt-get update \
@@ -19,3 +19,6 @@ COPY . .
 RUN echo env
 RUN cargo install wasm-pack
 RUN wasm-pack build --target web --out-dir /tmp/wasm --out-name euclid crates/euclid_wasm -- --features ${VERSION_FEATURE_SET},${FEATURES}
+FROM scratch
+
+COPY --from=builder /tmp/wasm /tmp

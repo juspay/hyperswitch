@@ -6840,8 +6840,6 @@ placeholder="Enter Account ID"
 required=true
 type="Text"
 
-
-
 [peachpayments]
 [[peachpayments.credit]]
   payment_method_type = "Mastercard"
