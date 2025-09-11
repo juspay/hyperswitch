@@ -1,5 +1,6 @@
 //! Customers Interface for V1
 
+#[cfg(feature = "v1")]
 use super::{payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon};
 
 #[cfg(feature = "v1")]
