@@ -1,4 +1,5 @@
 use std::str::FromStr;
+
 use cards::CardNumber;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
@@ -7,9 +8,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::ResponseId,
     router_response_types::PaymentsResponseData,
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-    },
+    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData},
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -265,9 +264,7 @@ impl TryFrom<&PaymentsCancelRouterData> for PeachpaymentsVoidRequest {
                 .request
                 .cancellation_reason
                 .as_ref()
-                .map(|reason| {
-                    FailureReason::from_str(reason)
-                })
+                .map(|reason| FailureReason::from_str(reason))
                 .transpose()?
                 .unwrap_or(FailureReason::Timeout),
         })
@@ -343,7 +340,8 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                 )?;
 
                 let merchant_information = MerchantInformation {
-                    client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+                    client_merchant_reference_id: connector_merchant_config
+                        .client_merchant_reference_id,
                     name: connector_merchant_config.name,
                     mcc: connector_merchant_config.mcc,
                     phone: connector_merchant_config.phone,
@@ -494,10 +492,12 @@ impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
             PeachpaymentsPaymentStatus::Pending
             | PeachpaymentsPaymentStatus::Authorized
             | PeachpaymentsPaymentStatus::Approved => Self::Authorized,
-            PeachpaymentsPaymentStatus::Declined
-            | PeachpaymentsPaymentStatus::Failed => Self::Failure,
-            PeachpaymentsPaymentStatus::Voided
-            | PeachpaymentsPaymentStatus::Reversed => Self::Voided,
+            PeachpaymentsPaymentStatus::Declined | PeachpaymentsPaymentStatus::Failed => {
+                Self::Failure
+            }
+            PeachpaymentsPaymentStatus::Voided | PeachpaymentsPaymentStatus::Reversed => {
+                Self::Voided
+            }
             PeachpaymentsPaymentStatus::ThreedsRequired => Self::AuthenticationPending,
             PeachpaymentsPaymentStatus::ApprovedConfirmed
             | PeachpaymentsPaymentStatus::Successful => Self::Charged,
@@ -600,8 +600,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, Payme
         // Check if it's an error response
         let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
             Err(ErrorResponse {
-                code: item.response.response_code.value().map(|val| val.to_string()).unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item.response.response_code.description().map(|desc| desc.to_string()).unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                code: item
+                    .response
+                    .response_code
+                    .value()
+                    .map(|val| val.to_string())
+                    .unwrap_or(NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_code
+                    .description()
+                    .map(|desc| desc.to_string())
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .ecommerce_card_payment_only_transaction_data
@@ -650,8 +660,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsConfirmResponse, T, Paymen
         // Check if it's an error response
         let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
             Err(ErrorResponse {
-                code: item.response.response_code.value().map(|val| val.to_string()).unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item.response.response_code.description().map(|desc| desc.to_string()).unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                code: item
+                    .response
+                    .response_code
+                    .value()
+                    .map(|val| val.to_string())
+                    .unwrap_or(NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_code
+                    .description()
+                    .map(|desc| desc.to_string())
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: Some(status),
