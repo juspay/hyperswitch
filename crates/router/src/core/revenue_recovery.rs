@@ -446,6 +446,11 @@ pub async fn perform_payments_sync(
         .convert_back();
     let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
         payment_attempt.status.foreign_into();
+    
+    let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData{
+        psync_data: Some(psync_data),
+        ..revenue_recovery_payment_data.clone()
+    };
 
     Box::pin(
         pcr_status.update_pt_status_based_on_attempt_status_for_payments_sync(
@@ -454,7 +459,7 @@ pub async fn perform_payments_sync(
             process.clone(),
             profile,
             merchant_context,
-            revenue_recovery_payment_data,
+            new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
         ),
