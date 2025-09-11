@@ -290,6 +290,8 @@ pub enum RecoveryError {
     BillingMerchantConnectorAccountIdNotFound,
     #[error("Failed to generate payment sync data")]
     PaymentsResponseGenerationFailed,
+    #[error("Outgoing Webhook Failed")]
+    RevenueRecoveryOutgoingWebhookFailed,
 }
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum HealthCheckDecisionEngineError {

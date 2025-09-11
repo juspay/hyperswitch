@@ -432,6 +432,8 @@ pub async fn perform_payments_sync(
         state,
         &tracking_data.global_payment_id,
         revenue_recovery_payment_data,
+        true,
+        true,
     )
     .await?;
 
@@ -522,14 +524,14 @@ pub async fn perform_calculate_workflow(
     // External Payments which enter the calculate workflow for the first time will have active attempt id as None
     // Then we dont need to send an webhook to the merchant as its not a failure from our side.
     // Thus we dont need to a payment get call for such payments.
-    let is_there_an_active_payment_attempt_id = payment_intent.active_attempt_id.is_some();
+    let active_payment_attempt_id = payment_intent.active_attempt_id.as_ref();
 
     let payments_response = get_payment_response_using_payment_get_operation(
         state,
         &tracking_data.global_payment_id,
         revenue_recovery_payment_data,
         &merchant_context_from_revenue_recovery_payment_data,
-        is_there_an_active_payment_attempt_id,
+        active_payment_attempt_id,
     )
     .await?;
 
@@ -568,7 +570,7 @@ pub async fn perform_calculate_workflow(
                 payment_intent,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
-                is_there_an_active_payment_attempt_id
+                active_payment_attempt_id
             )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
@@ -717,25 +719,32 @@ pub async fn perform_calculate_workflow(
         }
     }
 
-    if let Some(event_kind) = event_type {
-        if let Some(ApplicationResponse::JsonWithHeaders((response, _headers))) = payments_response
-        {
-            RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
-                state,
-                event_class,
-                event_kind,
-                payment_intent,
-                &merchant_context,
-                profile,
-                response,
-                tracking_data
-                    .payment_attempt_id
-                    .get_string_repr()
-                    .to_string(),
-            )
-            .await?;
-        }
+    let _outgoing_webhook = event_type.and_then(|event_kind| {
+        payments_response.map(|resp| Some((event_kind, resp)))
+    })
+    .flatten()
+    .async_map(|(event_kind, response)| async move {
+        let _ = RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+            state,
+            event_class,
+            event_kind,
+            payment_intent,
+            &merchant_context,
+            profile,
+            tracking_data.payment_attempt_id.get_string_repr().to_string(),
+            response
+        )
+        .await
+        .map_err(|e| {
+            logger::error!(
+                error = ?e,
+                "Failed to send outgoing webhook"
+            );
+            e
+        })
+        .ok();
     }
+    ).await;
 
     Ok(())
 }
@@ -1019,45 +1028,31 @@ pub async fn get_payment_response_using_payment_get_operation(
     payment_intent_id: &id_type::GlobalPaymentId,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     merchant_context: &domain::MerchantContext,
-    is_there_an_active_payment_attempt_id: bool,
+    active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
 ) -> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
-    if is_there_an_active_payment_attempt_id {
-        let operation = payments::operations::PaymentGet;
+    match active_payment_attempt_id {
+        Some(_) => {
+            let payment_response = api::call_psync_api(
+                state,
+                payment_intent_id,
+                revenue_recovery_payment_data,
+                false,
+                false,
+            )
+            .await?;
+            let payments_response = payment_response.generate_response(
+                state,
+                None,
+                None,
+                None,
+                merchant_context,
+                &revenue_recovery_payment_data.profile,
+                None,
+            )?;
 
-        let request = router_api_types::PaymentsRetrieveRequest {
-            force_sync: false,
-            param: None,
-            expand_attempts: false,
-            return_raw_connector_response: None,
-            merchant_connector_details: None,
-        };
-
-        let get_tracker_response: GetTrackerResponse<PaymentStatusData<router_api_types::PSync>> =
-            operation
-                .to_get_tracker()?
-                .get_trackers(
-                    state,
-                    payment_intent_id,
-                    &request,
-                    merchant_context,
-                    &revenue_recovery_payment_data.profile,
-                    &hyperswitch_domain_models::payments::HeaderPayload::default(),
-                )
-                .await?;
-
-        let payments_response = get_tracker_response.payment_data.generate_response(
-            state,
-            None,
-            None,
-            None,
-            merchant_context,
-            &revenue_recovery_payment_data.profile,
-            None,
-        )?;
-
-        Ok(Some(payments_response))
-    } else {
-        Ok(None)
+            Ok(Some(payments_response))
+        }
+        None => Ok(None),
     }
 }
 
@@ -1068,15 +1063,16 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     mut revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
-    is_there_an_active_payment_attempt_id: bool,
+    active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
 ) -> Result<Option<()>, sch_errors::ProcessTrackerError> {
-    if is_there_an_active_payment_attempt_id {
-        // update the connector payment transmission field to Unsuccessful and unset active attempt id
-        revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
-            enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-        );
+    match active_payment_attempt_id {
+        Some(_) => {
+            // update the connector payment transmission field to Unsuccessful and unset active attempt id
+            revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+            );
 
-        let payment_update_req =
+            let payment_update_req =
         api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
             payment_intent
                 .feature_metadata
@@ -1088,21 +1084,21 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
                 ),
             enums::UpdateActiveAttempt::Unset,
         );
-        logger::info!(
-            "Call made to payments update intent api , with the request body {:?}",
-            payment_update_req
-        );
-        api::update_payment_intent_api(
-            state,
-            payment_intent.id.clone(),
-            revenue_recovery_payment_data,
-            payment_update_req,
-        )
-        .await
-        .change_context(errors::RecoveryError::PaymentCallFailed)?;
+            logger::info!(
+                "Call made to payments update intent api , with the request body {:?}",
+                payment_update_req
+            );
+            api::update_payment_intent_api(
+                state,
+                payment_intent.id.clone(),
+                revenue_recovery_payment_data,
+                payment_update_req,
+            )
+            .await
+            .change_context(errors::RecoveryError::PaymentCallFailed)?;
 
-        Ok(Some(()))
-    } else {
-        Ok(None)
+            Ok(Some(()))
+        }
+        None => Ok(None),
     }
 }
