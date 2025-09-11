@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
@@ -844,10 +842,7 @@ impl<F, T>
                     price_id: prices.item_price.id,
                     plan_id: prices.item_price.item_id,
                     amount: prices.item_price.price,
-                    currency: <common_enums::Currency as FromStr>::from_str(
-                        &prices.item_price.currency_code.to_string(),
-                    )
-                    .unwrap_or(common_enums::Currency::USD), // defaulting to USD if parsing fails
+                    currency: prices.item_price.currency_code,
                     interval: match prices.item_price.period_unit {
                         ChargebeePeriodUnit::Day => subscriptions::PeriodUnit::Day,
                         ChargebeePeriodUnit::Week => subscriptions::PeriodUnit::Week,
