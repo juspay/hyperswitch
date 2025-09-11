@@ -54,8 +54,10 @@ use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
 use crate::{
-    connectors::chargebee::transformers::ChargebeeListPlansResponse, constants::{self, headers},
-    types::ResponseRouterData, utils,
+    connectors::chargebee::transformers::ChargebeeListPlansResponse,
+    constants::{self, headers},
+    types::ResponseRouterData,
+    utils,
 };
 
 #[derive(Clone)]
@@ -673,11 +675,7 @@ fn get_chargebee_plans_query_params(
 ) -> CustomResult<String, errors::ConnectorError> {
     // Try to get limit from request, else default to 10
     let limit = _req.request.limit.unwrap_or(10);
-    let param = format!(
-        "?limit={}&type[is]={}",
-        limit,
-        constants::PLAN_ITEM_TYPE
-    );
+    let param = format!("?limit={}&type[is]={}", limit, constants::PLAN_ITEM_TYPE);
     Ok(param)
 }
 
