@@ -1,11 +1,13 @@
 pub mod transformers;
 
-use common_enums;
+use std::sync::LazyLock;
+
+use common_enums::{self, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -20,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -40,17 +45,17 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as peachpayments;
 
-use crate::{constants::headers, types::ResponseRouterData, utils, utils::RefundsRequestData};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Peachpayments {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Peachpayments {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
@@ -144,7 +149,7 @@ impl ConnectorCommon for Peachpayments {
             status_code: res.status_code,
             code: response.error_ref.clone(),
             message: response.message.clone(),
-            reason: Some(response.get_error_details_message()),
+            reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -155,62 +160,7 @@ impl ConnectorCommon for Peachpayments {
     }
 }
 
-impl ConnectorValidation for Peachpayments {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<common_enums::CaptureMethod>,
-        payment_method: common_enums::PaymentMethod,
-        pmt: Option<common_enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-
-        // PeachPayments supports both manual and automatic capture
-        match capture_method {
-            common_enums::CaptureMethod::Manual
-            | common_enums::CaptureMethod::Automatic
-            | common_enums::CaptureMethod::SequentialAutomatic => {}
-            _ => {
-                return Err(errors::ConnectorError::NotSupported {
-                    message: format!("Capture method {:?} is not supported", capture_method),
-                    connector: "Peachpayments",
-                }
-                .into());
-            }
-        }
-
-        // PeachPayments only supports card payments for now
-        match payment_method {
-            common_enums::PaymentMethod::Card => {}
-            _ => {
-                return Err(errors::ConnectorError::NotSupported {
-                    message: format!("Payment method {:?} is not supported", payment_method),
-                    connector: "Peachpayments",
-                }
-                .into());
-            }
-        }
-
-        // Validate payment method types for cards
-        if let Some(payment_method_type) = pmt {
-            match payment_method_type {
-                common_enums::PaymentMethodType::Credit
-                | common_enums::PaymentMethodType::Debit => {}
-                _ => {
-                    return Err(errors::ConnectorError::NotSupported {
-                        message: format!(
-                            "Payment method type {:?} is not supported",
-                            payment_method_type
-                        ),
-                        connector: "Peachpayments",
-                    }
-                    .into());
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
+impl ConnectorValidation for Peachpayments {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Peachpayments {
     //TODO: implement sessions flow
@@ -559,168 +509,22 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Peachpayments {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}/transactions/{}/refund",
-            self.base_url(connectors),
-            connector_transaction_id
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data =
-            peachpayments::PeachpaymentsRouterData::from((refund_amount, req));
-        let connector_req =
-            peachpayments::PeachpaymentsRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
     fn build_request(
         &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: peachpayments::RefundResponse = res
-            .response
-            .parse_struct("peachpayments RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::NotImplemented("Execute".to_string()).into())
     }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpayments {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req
-            .request
-            .get_connector_refund_id()
-            .change_context(errors::ConnectorError::MissingConnectorRefundID)?;
-        Ok(format!(
-            "{}/transactions/{}",
-            self.base_url(connectors),
-            connector_refund_id
-        ))
-    }
-
     fn build_request(
         &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: peachpayments::RefundResponse = res
-            .response
-            .parse_struct("peachpayments RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        Err(errors::ConnectorError::NotImplemented("Refunds Retrieve".to_string()).into())
     }
 }
 
@@ -748,4 +552,81 @@ impl webhooks::IncomingWebhook for Peachpayments {
     }
 }
 
-impl ConnectorSpecifications for Peachpayments {}
+static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::AmericanExpress,
+        ];
+
+        let mut peachpayments_supported_payment_methods = SupportedPaymentMethods::new();
+
+        peachpayments_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        peachpayments_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        peachpayments_supported_payment_methods
+    });
+
+static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Peachpayments",
+    description: "The secure African payment gateway with easy integrations, 365-day support, and advanced orchestration.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
+};
+
+static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Peachpayments {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PEACHPAYMENTS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
