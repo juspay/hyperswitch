@@ -784,7 +784,7 @@ pub struct ChargebeeGetPlanPriceList {
 pub struct ChargebeePlanPriceItem {
     pub id: String,
     pub name: String,
-    pub currency_code: String,
+    pub currency_code: common_enums::Currency,
     pub free_quantity: i64,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -845,7 +845,7 @@ impl<F, T>
                     plan_id: prices.item_price.item_id,
                     amount: prices.item_price.price,
                     currency: <common_enums::Currency as FromStr>::from_str(
-                        &prices.item_price.currency_code,
+                        &prices.item_price.currency_code.to_string(),
                     )
                     .unwrap_or(common_enums::Currency::USD), // defaulting to USD if parsing fails
                     interval: match prices.item_price.period_unit {
