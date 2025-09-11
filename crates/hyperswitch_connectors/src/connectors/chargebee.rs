@@ -12,33 +12,30 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::revenue_recovery;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::types::SubscriptionCreateRouterData;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        subscriptions::SubscriptionCreate,
         revenue_recovery::InvoiceRecordBack,
+        subscriptions::SubscriptionCreate,
     },
     router_request_types::{
-        subscriptions::SubscriptionCreateRequest, AccessTokenRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData, revenue_recovery::InvoiceRecordBackRequest, 
+        revenue_recovery::InvoiceRecordBackRequest, subscriptions::SubscriptionCreateRequest,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, 
-        subscriptions::SubscriptionCreateResponse, ConnectorInfo, PaymentsResponseData,
-       
-        RefundsResponseData,
-    ,
+        revenue_recovery::InvoiceRecordBackResponse, subscriptions::SubscriptionCreateResponse,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
         InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
