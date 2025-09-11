@@ -6893,6 +6893,8 @@ payment_method_type = "Visa"
 payment_method_type = "Mastercard"
 [[trustpayments.debit]]
 payment_method_type = "Visa"
+[[trustpayments.bank_redirect]]
+payment_method_type = "eps"
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 

@@ -1,6 +1,7 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
+use url;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -33,6 +34,8 @@ pub enum TrustpaymentsSettleStatus {
     ManualCapture,
     #[serde(rename = "3")]
     Voided,
+    #[serde(rename = "10")]
+    EpsPending,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -68,6 +71,8 @@ impl TrustpaymentsSettleStatus {
             Self::Settled => "1",
             Self::ManualCapture => "2",
             Self::Voided => "3",
+            Self::EpsPending => "10",
+
         }
     }
 }
@@ -325,6 +330,86 @@ pub struct TrustpaymentsPaymentRequestData {
     pub settlestatus: String,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsEpsRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsEpsRequestData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsEpsRequestData {
+    pub sitereference: String,
+    pub requesttypedescriptions: Vec<String>,
+    pub accounttypedescription: String,
+    pub paymenttypedescription: String,
+    pub currencyiso3a: String,
+    pub baseamount: String,
+    pub orderreference: String,
+    pub successfulurlredirect: Option<String>,
+    pub errorurlredirect: Option<String>,
+    pub billingfirstname: Option<String>,
+    pub billinglastname: Option<String>,
+    pub billingcountryiso2a: Option<String>,
+    pub billingemail: Option<String>,
+}
+
+impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
+    for TrustpaymentsEpsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
+                        Ok(Self {
+                            alias: auth.username.expose(),
+                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                            request: vec![TrustpaymentsEpsRequestData {
+                                sitereference: auth.site_reference.expose(),
+                                requesttypedescriptions: vec!["AUTH".to_string()],
+                                accounttypedescription: "ECOM".to_string(),
+                                paymenttypedescription: "EPS".to_string(),
+                                currencyiso3a: item.router_data.request.currency.to_string(),
+                                baseamount: item.amount.to_string(),
+                                orderreference: item.router_data.connector_request_reference_id.clone(),
+                                successfulurlredirect: item.router_data.request.router_return_url.clone(),
+                                errorurlredirect: item.router_data.request.router_return_url.clone(),
+                                billingfirstname: item
+                                    .router_data
+                                    .get_optional_billing_first_name()
+                                    .map(|name| name.expose()),
+                                billinglastname: item
+                                    .router_data
+                                    .get_optional_billing_last_name()
+                                    .map(|name| name.expose()),
+                                billingcountryiso2a: item
+                                    .router_data
+                                    .get_optional_billing_country()
+                                    .map(|country| country.to_string()),
+                                billingemail: Some("abc@gmail.com".to_string()),
+                            }],
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank redirect method not supported for EPS".to_string(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for EPS".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     for TrustpaymentsPaymentsRequest
 {
@@ -405,6 +490,22 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     }],
                 })
             }
+
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            "EPS requests should use TrustpaymentsEpsRequest".to_string(),
+                        )
+                        .into())
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank redirect method not supported".to_string(),
+                    )
+                    .into()),
+                }
+            }
+
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method not supported".to_string(),
             )
@@ -468,6 +569,36 @@ pub struct TrustpaymentsPaymentResponseData {
     pub securityresponsesecuritycode: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsEpsResponse {
+    #[serde(alias = "response")]
+    pub responses: Vec<TrustpaymentsEpsResponseData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsEpsResponseData {
+    pub errorcode: TrustpaymentsErrorCode,
+    pub errormessage: String,
+    pub transactionreference: Option<String>,
+    pub requesttypedescription: String,
+    pub redirecturl: Option<String>,
+}
+
+impl TrustpaymentsEpsResponseData {
+    pub fn get_eps_status(&self) -> common_enums::AttemptStatus {
+        match self.errorcode {
+            TrustpaymentsErrorCode::Success => {
+                if self.redirecturl.is_some() {
+                    common_enums::AttemptStatus::AuthenticationPending
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            _ => self.errorcode.get_attempt_status(),
+        }
+    }
+}
+
 impl TrustpaymentsPaymentResponseData {
     pub fn get_payment_status(&self) -> common_enums::AttemptStatus {
         match self.errorcode {
@@ -489,6 +620,10 @@ impl TrustpaymentsPaymentResponseData {
                         Some(TrustpaymentsSettleStatus::Voided) => {
                             // settlestatus "3" = transaction has been cancelled
                             common_enums::AttemptStatus::Voided
+                        }
+                        Some(TrustpaymentsSettleStatus::EpsPending) => {
+                            // settlestatus "10" = EPS transaction pending
+                            common_enums::AttemptStatus::AuthenticationPending
                         }
                         None => common_enums::AttemptStatus::Authorized,
                     }
@@ -522,6 +657,10 @@ impl TrustpaymentsPaymentResponseData {
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
                             common_enums::AttemptStatus::Voided
+                        }
+                        Some(TrustpaymentsSettleStatus::EpsPending) => {
+                            // settlestatus "10" = EPS transaction pending
+                            common_enums::AttemptStatus::AuthenticationPending
                         }
                         None => common_enums::AttemptStatus::Authorized,
                     }
@@ -1338,6 +1477,7 @@ impl TrustpaymentsPaymentResponseData {
                 Some(TrustpaymentsSettleStatus::PendingSettlement) => enums::RefundStatus::Pending,
                 Some(TrustpaymentsSettleStatus::ManualCapture) => enums::RefundStatus::Failure,
                 Some(TrustpaymentsSettleStatus::Voided) => enums::RefundStatus::Failure,
+                Some(TrustpaymentsSettleStatus::EpsPending) => enums::RefundStatus::Pending,
                 None => enums::RefundStatus::Success,
             },
             TrustpaymentsErrorCode::Processing => enums::RefundStatus::Pending,
@@ -1345,3 +1485,88 @@ impl TrustpaymentsPaymentResponseData {
         }
     }
 }
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::Authorize,
+            TrustpaymentsEpsResponse,
+            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    >
+    for RouterData<
+        hyperswitch_domain_models::router_flow_types::payments::Authorize,
+        hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::Authorize,
+            TrustpaymentsEpsResponse,
+            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response_data = item
+            .response
+            .responses
+            .first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let status = response_data.get_eps_status();
+        let transaction_id = response_data
+            .transactionreference
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string());
+
+        if !response_data.errorcode.is_success() {
+            return Ok(Self {
+                status,
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: response_data.errorcode.to_string(),
+                    message: response_data.errormessage.clone(),
+                    reason: Some(response_data.errorcode.get_description().to_string()),
+                    status_code: item.http_code,
+                    attempt_status: Some(status),
+                    connector_transaction_id: response_data.transactionreference.clone(),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            });
+        }
+
+        let redirection_data = if let Some(redirect_url) = &response_data.redirecturl {
+            match url::Url::parse(redirect_url) {
+                Ok(parsed_url) => Some(hyperswitch_domain_models::router_response_types::RedirectForm::from((
+                    parsed_url,
+                    Method::Get,
+                ))),
+                Err(_) => None, 
+            }
+        } else {
+            None
+        };
+
+        Ok(Self {
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(transaction_id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+

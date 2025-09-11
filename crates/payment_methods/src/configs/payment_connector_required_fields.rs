@@ -2284,6 +2284,27 @@ fn get_bank_redirect_required_fields(
                         common: HashMap::new(),
                     },
                 ),
+                (
+                    Connector::Trustpayments,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            )
+                            .to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["AT"]).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (
