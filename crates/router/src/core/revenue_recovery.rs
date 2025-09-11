@@ -33,7 +33,6 @@ use crate::{
             transformers::GenerateResponse,
         },
         revenue_recovery::types::RevenueRecoveryOutgoingWebhook,
-        webhooks::get_trackers_response_for_payment_get_operation,
     },
     db::StorageInterface,
     logger,

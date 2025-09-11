@@ -571,7 +571,7 @@ async fn payments_incoming_webhook_flow(
     }
 }
 
-pub async fn get_trackers_response_for_payment_get_operation<F>(
+async fn get_trackers_response_for_payment_get_operation<F>(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,

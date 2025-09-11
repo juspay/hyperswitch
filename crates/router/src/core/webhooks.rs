@@ -25,7 +25,6 @@ pub(crate) use self::{
 };
 #[cfg(feature = "v2")]
 pub(crate) use self::{
-    incoming_v2::get_trackers_response_for_payment_get_operation,
     incoming_v2::incoming_webhooks_wrapper, outgoing_v2::create_event_and_trigger_outgoing_webhook,
 };
 
