@@ -6916,6 +6916,9 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
             Some(GooglePayPreDecryptFlow::ConnectorTokenization)
         )
     } else {
+        // Always return true for non–Google Pay pre-decrypt cases,
+        // because the filter is only relevant for Google Pay pre-decrypt tokenization.
+        // Returning true ensures that other payment methods or token types are not blocked.
         true
     }
 }

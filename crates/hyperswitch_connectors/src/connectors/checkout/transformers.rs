@@ -366,7 +366,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     token_type: "googlepay".to_string(),
                                     expiry_month,
                                     expiry_year,
-                                    eci: Some("06".to_string()),
+                                    eci: google_pay_decrypted_data.eci_indicator,
                                     cryptogram,
                                 },
                             )))
