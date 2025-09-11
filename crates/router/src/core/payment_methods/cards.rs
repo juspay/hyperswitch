@@ -4748,7 +4748,7 @@ pub async fn update_last_used_at(
 
     Ok(())
 }
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn get_bank_from_hs_locker(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
