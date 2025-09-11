@@ -446,8 +446,8 @@ pub async fn perform_payments_sync(
         .convert_back();
     let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
         payment_attempt.status.foreign_into();
-    
-    let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData{
+
+    let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData {
         psync_data: Some(psync_data),
         ..revenue_recovery_payment_data.clone()
     };
