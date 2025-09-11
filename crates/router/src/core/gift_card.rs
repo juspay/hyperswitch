@@ -1,8 +1,23 @@
+use std::marker::PhantomData;
+
+#[cfg(feature = "v2")]
+use api_models::payments::{GiftCardBalanceCheckResponse, PaymentsGiftCardBalanceCheckRequest};
+use common_enums::CallConnectorAction;
 #[cfg(feature = "v2")]
 use common_utils::id_type;
+use common_utils::types::MinorUnit;
+use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::HeaderPayload;
+use hyperswitch_domain_models::{
+    router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
+    router_flow_types::GiftCardBalanceCheck,
+    router_request_types::GiftCardBalanceCheckRequestData,
+    router_response_types::GiftCardBalanceCheckResponseData,
+};
+use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 
+use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
 use crate::{
     core::{
@@ -13,23 +28,6 @@ use crate::{
     services,
     types::{api, domain},
 };
-
-use common_utils::types::MinorUnit;
-
-use std::marker::PhantomData;
-
-use common_enums::CallConnectorAction;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
-    router_flow_types::GiftCardBalanceCheck,
-    router_request_types::GiftCardBalanceCheckRequestData,
-    router_response_types::GiftCardBalanceCheckResponseData,
-};
-
-use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-
-use crate::db::errors::StorageErrorExt;
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
