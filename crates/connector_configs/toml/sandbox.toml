@@ -6822,3 +6822,7 @@ label="Payment Method Account ID"
 placeholder="Enter Account ID"
 required=true
 type="Text"
+
+[peachpayments]
+[peachpayments.connector_auth.HeaderKey]
+api_key = "API Key"
