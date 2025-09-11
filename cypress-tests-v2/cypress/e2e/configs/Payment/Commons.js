@@ -583,7 +583,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    }), 
     "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
@@ -637,6 +637,9 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
       },
+    }),
+    Overcapture: getCustomExchange({
+      Request: {},
     }),
     PartialCapture: getCustomExchange({
       Request: {},
