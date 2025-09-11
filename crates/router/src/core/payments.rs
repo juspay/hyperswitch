@@ -60,7 +60,6 @@ pub use hyperswitch_domain_models::{
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
 };
-
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
@@ -2610,16 +2609,6 @@ pub async fn payments_check_gift_card_balance_core(
     _header_payload: HeaderPayload,
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<payments_api::GiftCardBalanceCheckResponse> {
-    use hyperswitch_domain_models::{
-        router_data_v2::{flow_common_types::GiftCardBalanceCheckFlowData, RouterDataV2},
-        router_flow_types::GiftCardBalanceCheck,
-        router_request_types::GiftCardBalanceCheckRequestData,
-        router_response_types::PaymentsResponseData,
-    };
-    use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-
-    use crate::db::errors::ConnectorErrorExt;
-
     let db = state.store.as_ref();
 
     let key_manager_state = &(&state).into();
@@ -2738,7 +2727,8 @@ pub async fn payments_check_gift_card_balance_core(
         None,
     )
     .await
-    .to_payment_failed_response()?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while calling gift card balance check connector api")?;
 
     let payment_method_balance = connector_response
         .payment_method_balance
