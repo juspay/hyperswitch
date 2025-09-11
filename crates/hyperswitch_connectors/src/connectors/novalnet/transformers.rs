@@ -687,7 +687,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             }
                         })),
                         connector_metadata: None,
-                        network_txn_id: None,
+                        network_txn_id: item.response.transaction.and_then(|data| {
+                            data.payment_data.and_then(|payment_data| match payment_data {
+                                NovalnetResponsePaymentData::Card(card) => card.scheme_tid.map(|tid| tid.expose()),
+                                NovalnetResponsePaymentData::Paypal(_) => None,
+                            })
+                        }),
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
@@ -1090,7 +1095,12 @@ impl<F>
                             }
                         })),
                         connector_metadata: None,
-                        network_txn_id: None,
+                        network_txn_id: item.response.transaction.and_then(|data| {
+                            data.payment_data.and_then(|payment_data| match payment_data {
+                                NovalnetResponsePaymentData::Card(card) => card.scheme_tid.map(|tid| tid.expose()),
+                                NovalnetResponsePaymentData::Paypal(_) => None,
+                            })
+                        }),
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
