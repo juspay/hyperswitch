@@ -187,7 +187,7 @@ impl PaysafePaymentMethodDetails {
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.three_ds.clone())
             .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
-                config: "Missing no_3ds account_id",
+                config: "Missing 3ds account_id",
             })
     }
 }
