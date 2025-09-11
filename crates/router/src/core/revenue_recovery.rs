@@ -479,13 +479,6 @@ pub async fn perform_calculate_workflow(
     let profile_id = revenue_recovery_payment_data.profile.get_id();
     let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
 
-    let mut revenue_recovery_metadata = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
-        .get_required_value("Payment Revenue Recovery Metadata")?
-        .convert_back();
-
     let event_class = common_enums::EventClass::Payments;
 
     let mut event_type: Option<common_enums::EventType> = None;
@@ -569,7 +562,6 @@ pub async fn perform_calculate_workflow(
                 state,
                 payment_intent,
                 revenue_recovery_payment_data,
-                revenue_recovery_metadata,
                 active_payment_attempt_id
             )).await?;
 
@@ -1062,9 +1054,14 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
     state: &SessionState,
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
-    mut revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
     active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
 ) -> Result<Option<()>, sch_errors::ProcessTrackerError> {
+    let mut revenue_recovery_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
     match active_payment_attempt_id {
         Some(_) => {
             // update the connector payment transmission field to Unsuccessful and unset active attempt id
