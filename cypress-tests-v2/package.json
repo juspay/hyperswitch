@@ -6,6 +6,7 @@
     "cypress": "npx cypress open",
     "cypress-e2e": "npx cypress run --e2e",
     "cypress:ci": "npx cypress run --headless",
+    "cypress:misc": "cypress run --headless --spec 'cypress/e2e/spec/Health/**/*'",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
