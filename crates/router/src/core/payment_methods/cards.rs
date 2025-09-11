@@ -1629,7 +1629,7 @@ pub async fn update_customer_payment_method(
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    // Currently update is supported only for cards
+    // Currently update is supported only for cards and wallets
     if let Some(card_update) = req.card.clone() {
         let db = state.store.as_ref();
 
@@ -1844,6 +1844,79 @@ pub async fn update_customer_payment_method(
         };
 
         Ok(services::ApplicationResponse::Json(response))
+    } else if let Some(wallet_update) = req.wallet.clone() {
+        let db = state.store.as_ref();
+
+        let pm = db
+            .find_payment_method(
+                &((&state).into()),
+                merchant_context.get_merchant_key_store(),
+                payment_method_id,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if let Some(cs) = &req.client_secret {
+            let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
+
+            if is_client_secret_expired {
+                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+            };
+        };
+
+        if pm.payment_method != Some(common_enums::PaymentMethod::Wallet) {
+            return Err((errors::ApiErrorResponse::InvalidRequestdata {
+                message: "The Payment Method is not wallet",
+            })
+            .into());
+        }
+
+        let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
+        let key_manager_state = (&state).into();
+        let pm_data_encrypted = create_encrypted_data(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            updated_pmd,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payment method data")?;
+
+        let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
+            payment_method_data: Some(pm_data_encrypted.into()),
+        };
+
+        db.update_payment_method(
+            &((&state).into()),
+            merchant_context.get_merchant_key_store(),
+            pm.clone(),
+            pm_update,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?;
+
+        Ok(services::ApplicationResponse::Json(
+            api::PaymentMethodResponse {
+                merchant_id: pm.merchant_id.to_owned(),
+                customer_id: Some(pm.customer_id.clone()),
+                payment_method_id: pm.payment_method_id.clone(),
+                payment_method: pm.get_payment_method_type(),
+                payment_method_type: pm.get_payment_method_subtype(),
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
+                card: None,
+                metadata: pm.metadata,
+                created: Some(pm.created_at),
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                last_used_at: Some(common_utils::date_time::now()),
+                client_secret: pm.client_secret.clone(),
+            },
+        ))
     } else {
         Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Payment method update for the given payment method is not supported".into()
