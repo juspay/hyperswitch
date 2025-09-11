@@ -14,9 +14,9 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
-use hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::flow_common_types::CreateCustomerData,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
         RefundsResponseData,
     },
     types::{
-        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, ConnectorCustomerRouterData,
+        ConnectorCustomerRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -727,7 +727,9 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::ConnectorCustomerType::get_url(self, req, connectors)?)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
                 .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
