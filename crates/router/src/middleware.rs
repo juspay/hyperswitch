@@ -7,6 +7,12 @@ use router_env::{
 
 use crate::{headers, routes::metrics};
 
+/// Helper function to record error information in the golden log span
+pub fn record_error_in_golden_log(error_type: &str, error_message: &str) {
+    router_env::tracing::Span::current().record("error_type", error_type);
+    router_env::tracing::Span::current().record("error_message", error_message);
+}
+
 /// Middleware to include request ID in response header.
 pub struct RequestId;
 
@@ -168,6 +174,8 @@ where
                     status_code = Empty,
                     flow = "UNKNOWN",
                     golden_log_line = Empty,
+                    error_type = Empty,
+                    error_message = Empty,
                     tenant_id = &tenant_id
                 )
                 .or_current(),
