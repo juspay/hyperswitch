@@ -38,10 +38,12 @@ pub async fn payments_check_gift_card_balance_core(
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     _req_state: ReqState,
-    req: payments_api::PaymentsGiftCardBalanceCheckRequest,
+    req: PaymentsGiftCardBalanceCheckRequest,
     _header_payload: HeaderPayload,
     payment_id: id_type::GlobalPaymentId,
-) -> RouterResponse<payments_api::GiftCardBalanceCheckResponse> {
+) -> RouterResponse<GiftCardBalanceCheckResponse> {
+    use api_models::payments::GiftCardBalanceCheckResponse;
+
     let db = state.store.as_ref();
 
     let key_manager_state = &(&state).into();
@@ -178,7 +180,7 @@ pub async fn payments_check_gift_card_balance_core(
         };
     let needs_additional_pm_data = remaining_amount.is_greater_than(0);
 
-    let resp = payments_api::GiftCardBalanceCheckResponse {
+    let resp = GiftCardBalanceCheckResponse {
         payment_id: payment_intent.id.clone(),
         balance,
         currency,
