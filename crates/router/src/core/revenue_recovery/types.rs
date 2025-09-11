@@ -139,7 +139,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         let used_token = get_payment_processor_token_id_from_payment_attempt(&payment_attempt);
 
         let retry_count = process_tracker.retry_count;
-        let event_class = common_enums::EventClass::Payments;
 
         let psync_response = revenue_recovery_payment_data
             .psync_data
@@ -198,7 +197,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
                 RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                     state,
-                    event_class,
+                    common_enums::EventClass::Payments,
                     event_status,
                     payment_intent,
                     &merchant_context,
@@ -466,8 +465,6 @@ impl Action {
                     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
                         payment_intent,
                     );
-
-                let event_class = common_enums::EventClass::Payments;
                 // handle proxy api's response
                 match response {
                     Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
@@ -540,7 +537,7 @@ impl Action {
 
                             RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
                                 state,
-                                event_class,
+                                common_enums::EventClass::Payments,
                                 event_status,
                                 payment_intent,
                                 &merchant_context,

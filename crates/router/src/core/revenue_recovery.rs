@@ -482,8 +482,6 @@ pub async fn perform_calculate_workflow(
     let profile_id = revenue_recovery_payment_data.profile.get_id();
     let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
 
-    let event_class = common_enums::EventClass::Payments;
-
     let mut event_type: Option<common_enums::EventType> = None;
 
     logger::info!(
@@ -721,7 +719,7 @@ pub async fn perform_calculate_workflow(
     .async_map(|(event_kind, response)| async move {
         let _ = RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
             state,
-            event_class,
+            common_enums::EventClass::Payments,
             event_kind,
             payment_intent,
             &merchant_context,
