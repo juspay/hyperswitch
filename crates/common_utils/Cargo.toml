@@ -47,6 +47,7 @@ rand = "0.8.5"
 regex = "1.11.1"
 reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
+rsa = {version = "0.9.8", features = ["sha2"]}
 rust_decimal = "1.37"
 rustc-hash = "1.1.0"
 semver = { version = "1.0.26", features = ["serde"] }
