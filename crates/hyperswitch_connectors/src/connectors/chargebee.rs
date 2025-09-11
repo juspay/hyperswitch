@@ -23,21 +23,22 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CreateConnectorCustomer,
         revenue_recovery::InvoiceRecordBack,
+        CreateConnectorCustomer,
     },
     router_request_types::{
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,revenue_recovery::InvoiceRecordBackRequest,
+        revenue_recovery::InvoiceRecordBackRequest, AccessTokenRequestData, ConnectorCustomerData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse, ConnectorInfo, PaymentsResponseData,
         RefundsResponseData,
     },
     types::{
-        CreateCustomerRouterData, InvoiceRecordBackRouterData,PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        CreateCustomerRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
