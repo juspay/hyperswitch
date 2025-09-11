@@ -6,26 +6,20 @@ use common_enums::CardNetwork;
 use common_utils::events::ApiEventMetric;
 use csv::Reader;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+use common_enums::PaymentMethodType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
-    #[serde(rename = "Binnumber")]
     pub bin_number: Option<Secret<String>>,
-    #[serde(rename = "Cardtype")]
     pub card_type: Option<String>,
-    #[serde(rename = "CustomerID_resp")]
     pub customer_id_resp: String,
-    #[serde(rename = "cnpTxnId")]
     pub connector_payment_id: Option<String>,
-    #[serde(rename = "Token")]
     pub token: Option<Secret<String>>,
-    #[serde(rename = "ExpiryDate")]
     pub exp_date: Option<Secret<String>>,
-    #[serde(rename = "CreditCardType.x")]
     pub card_network: Option<CardNetwork>,
-    #[serde(rename = "type")]
-    pub type_field: Option<String>,
+    pub type_field: Option<PaymentMethodType>,
     pub product_name: Option<String>,
     pub clean_bank_name: Option<String>,
     pub country_name: Option<String>,

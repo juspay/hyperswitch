@@ -4,7 +4,7 @@ use api_models::revenue_recovery_data_backfill::{
     BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
     RevenueRecoveryDataBackfillResponse,
 };
-use common_enums::CardNetwork;
+use common_enums::{CardNetwork, PaymentMethodType};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use router_env::{instrument, logger};
@@ -131,16 +131,6 @@ async fn process_payment_method_record(
     Ok(())
 }
 
-fn map_card_type(raw_type: &str) -> Result<String, BackfillError> {
-    match raw_type {
-        "Debit" => Ok("debit".to_string()),
-        "Credit" => Ok("credit".to_string()),
-        _ if raw_type.is_empty() || raw_type == "nan" => Err(BackfillError::InvalidCardType(
-            "Missing card type".to_string(),
-        )),
-        _ => Err(BackfillError::InvalidCardType(raw_type.to_string())),
-    }
-}
 
 /// Parse daily retry history JSON from CSV
 fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i32>> {
@@ -172,7 +162,7 @@ fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<ComprehensiveCardData, BackfillError> {
     // Extract card type from request, if not present then update it with 'card'
-    let card_type = Some(determine_card_type(&record.type_field));
+    let card_type = Some(determine_card_type(record.type_field));
 
     // Parse expiration date
     let (exp_month, exp_year) = parse_expiration_date(
@@ -217,18 +207,24 @@ fn build_comprehensive_card_data(
 }
 
 /// Determine card type with fallback logic: type_field if not present -> "Card"
-fn determine_card_type(type_field: &Option<String>) -> String {
-    // First try the type_field
-    if let Some(field) = type_field {
-        if let Ok(mapped_type) = map_card_type(field) {
-            logger::debug!("Using type_field '{}' -> '{}'", field, mapped_type);
-            return mapped_type;
+fn determine_card_type(type_field: Option<PaymentMethodType>) -> String {
+    match type_field {
+        Some(card_type_enum) => {
+            let mapped_type = match card_type_enum {
+                PaymentMethodType::Credit => "credit".to_string(),
+                PaymentMethodType::Debit => "debit".to_string(),
+                PaymentMethodType::Card => "card".to_string(),
+                // For all other payment method types, default to "card"
+                _ => "card".to_string(),
+            };
+            logger::debug!("Using type_field enum '{:?}' -> '{}'", card_type_enum, mapped_type);
+            mapped_type
+        }
+        None => {
+            logger::info!("In CSV type_field not present, defaulting to 'card'");
+            "card".to_string()
         }
     }
-
-    // default to "Card"
-    logger::info!("In CSV type_field not present or invalid, defaulting to 'Card'");
-    "card".to_string()
 }
 
 /// Parse expiration date
