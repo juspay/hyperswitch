@@ -30,6 +30,7 @@ pub trait DatabaseStore: Clone + Send + Sync {
 pub struct Store {
     pub master_pool: PgPool,
     pub accounts_pool: PgPool,
+    pub common_resources_pool: PgPool,
 }
 
 #[async_trait::async_trait]
@@ -46,6 +47,12 @@ impl DatabaseStore for Store {
             accounts_pool: diesel_make_pg_pool(
                 &config,
                 tenant_config.get_accounts_schema(),
+                test_transaction,
+            )
+            .await?,
+            common_resources_pool: diesel_make_pg_pool(
+                &config,
+                tenant_config.get_common_resources_schema(),
                 test_transaction,
             )
             .await?,
@@ -75,6 +82,8 @@ pub struct ReplicaStore {
     pub replica_pool: PgPool,
     pub accounts_master_pool: PgPool,
     pub accounts_replica_pool: PgPool,
+    pub common_resources_master_pool: PgPool,
+    pub common_resources_replica_pool: PgPool,
 }
 
 #[async_trait::async_trait]
@@ -97,6 +106,13 @@ impl DatabaseStore for ReplicaStore {
         )
         .await
         .attach_printable("failed to create accounts master pool")?;
+        let common_resources_master_pool = diesel_make_pg_pool(
+            &master_config,
+            tenant_config.get_common_resources_schema(),
+            test_transaction,
+        )
+        .await
+        .attach_printable("failed to create common resources pool")?;
         let replica_pool = diesel_make_pg_pool(
             &replica_config,
             tenant_config.get_schema(),
@@ -112,11 +128,20 @@ impl DatabaseStore for ReplicaStore {
         )
         .await
         .attach_printable("failed to create accounts pool")?;
+        let common_resources_replica_pool = diesel_make_pg_pool(
+            &replica_config,
+            tenant_config.get_common_resources_schema(),
+            test_transaction,
+        )
+        .await
+        .attach_printable("failed to create common resources replica pool")?;
         Ok(Self {
             master_pool,
             replica_pool,
             accounts_master_pool,
             accounts_replica_pool,
+            common_resources_master_pool,
+            common_resources_replica_pool,
         })
     }
 

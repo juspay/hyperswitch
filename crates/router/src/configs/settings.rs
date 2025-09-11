@@ -334,6 +334,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub accounts_schema: String,
+    pub common_resources_schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
     pub user: TenantUserConfig,
@@ -350,6 +351,9 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
     fn get_accounts_schema(&self) -> &str {
         self.accounts_schema.as_str()
+    }
+    fn get_common_resources_schema(&self) -> &str {
+        self.common_resources_schema.as_str()
     }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
@@ -377,6 +381,9 @@ impl storage_impl::config::TenantConfig for GlobalTenant {
         &self.tenant_id
     }
     fn get_accounts_schema(&self) -> &str {
+        self.schema.as_str()
+    }
+    fn get_common_resources_schema(&self) -> &str {
         self.schema.as_str()
     }
     fn get_schema(&self) -> &str {
@@ -1406,6 +1413,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             base_url: String,
             schema: String,
             accounts_schema: String,
+            common_resources_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
             user: TenantUserConfig,
@@ -1424,6 +1432,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             base_url: value.base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
+                            common_resources_schema: value.common_resources_schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
                             user: value.user,

@@ -147,6 +147,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             base_url: String,
             schema: String,
             accounts_schema: String,
+            common_resources_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
         }
@@ -164,6 +165,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             base_url: value.base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
+                            common_resources_schema: value.common_resources_schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
                         },
@@ -180,6 +182,7 @@ pub struct Tenant {
     pub base_url: String,
     pub schema: String,
     pub accounts_schema: String,
+    pub common_resources_schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
 }
