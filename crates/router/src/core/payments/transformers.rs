@@ -2390,6 +2390,7 @@ where
             customer_id: payment_intent.customer_id.clone(),
             connector: Some(connector),
             created: payment_intent.created_at,
+            modified_at: payment_intent.modified_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
@@ -2410,7 +2411,10 @@ where
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
-            feature_metadata: None,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2501,6 +2505,7 @@ where
                 .map(From::from),
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
             created: payment_intent.created_at,
+            modified_at: payment_intent.modified_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
@@ -2519,7 +2524,10 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
-            feature_metadata: None,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
