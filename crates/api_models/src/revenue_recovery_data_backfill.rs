@@ -1,16 +1,17 @@
-use std::{fs::File, io::BufReader};
+use std::{collections::HashMap, fs::File, io::BufReader};
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_enums::CardNetwork;
 use common_utils::events::ApiEventMetric;
 use csv::Reader;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
     #[serde(rename = "Binnumber")]
-    pub bin_number: Option<String>,
+    pub bin_number: Option<Secret<String>>,
     #[serde(rename = "Cardtype")]
     pub card_type: Option<String>,
     #[serde(rename = "CustomerID_resp")]
@@ -18,20 +19,16 @@ pub struct RevenueRecoveryBackfillRequest {
     #[serde(rename = "cnpTxnId")]
     pub connector_payment_id: Option<String>,
     #[serde(rename = "Token")]
-    pub token: Option<String>,
+    pub token: Option<Secret<String>>,
     #[serde(rename = "ExpiryDate")]
-    pub exp_date: Option<String>,
+    pub exp_date: Option<Secret<String>>,
     #[serde(rename = "CreditCardType.x")]
     pub card_network: Option<CardNetwork>,
     #[serde(rename = "type")]
     pub type_field: Option<String>,
-    #[serde(rename = "product_name")]
     pub product_name: Option<String>,
-    #[serde(rename = "clean_bank_name")]
     pub clean_bank_name: Option<String>,
-    #[serde(rename = "country_name")]
     pub country_name: Option<String>,
-    #[serde(rename = "daily_retry_history")]
     pub daily_retry_history: Option<String>,
 }
 
@@ -41,7 +38,43 @@ pub struct RevenueRecoveryDataBackfillResponse {
     pub failed_records: usize,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CsvParsingResult {
+    pub records: Vec<RevenueRecoveryBackfillRequest>,
+    pub failed_records: Vec<CsvParsingError>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CsvParsingError {
+    pub row_number: usize,
+    pub error: String,
+}
+
+/// Comprehensive card
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComprehensiveCardData {
+    pub card_type: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_network: Option<CardNetwork>,
+    pub card_issuer: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub daily_retry_history: Option<HashMap<String, i32>>,
+}
+
 impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for CsvParsingResult {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for CsvParsingError {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
@@ -85,24 +118,37 @@ pub struct RevenueRecoveryDataBackfillForm {
 }
 
 impl RevenueRecoveryDataBackfillForm {
-    pub fn validate_and_get_records(
-        &self,
-    ) -> Result<Vec<RevenueRecoveryBackfillRequest>, BackfillError> {
+    pub fn validate_and_get_records_with_errors(&self) -> Result<CsvParsingResult, BackfillError> {
         // Step 1: Open the file
         let file = File::open(self.file.file.path())
-            .map_err(|e| BackfillError::FileProcessingError(e.to_string()))?;
+            .map_err(|error| BackfillError::FileProcessingError(error.to_string()))?;
 
         let mut csv_reader = Reader::from_reader(BufReader::new(file));
 
         // Step 2: Parse CSV into typed records
         let mut records = Vec::new();
-        for record in csv_reader
+        let mut failed_records = Vec::new();
+
+        for (row_index, record_result) in csv_reader
             .deserialize::<RevenueRecoveryBackfillRequest>()
-            .flatten()
+            .enumerate()
         {
-            records.push(record);
+            match record_result {
+                Ok(record) => {
+                    records.push(record);
+                }
+                Err(err) => {
+                    failed_records.push(CsvParsingError {
+                        row_number: row_index + 2, // +2 because enumerate starts at 0 and CSV has header row
+                        error: err.to_string(),
+                    });
+                }
+            }
         }
 
-        Ok(records)
+        Ok(CsvParsingResult {
+            records,
+            failed_records,
+        })
     }
 }

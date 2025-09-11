@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse,
+    BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
+    RevenueRecoveryDataBackfillResponse,
 };
 use common_enums::CardNetwork;
 use hyperswitch_domain_models::api::ApplicationResponse;
+use masking::ExposeInterface;
 use router_env::{instrument, logger};
 
 use crate::{
@@ -68,11 +70,19 @@ async fn process_payment_method_record(
         Ok(data) => data,
         Err(e) => {
             logger::warn!(
-                "Failed to build card data for connector customer id: {}, error: {}. Using minimal data.",
+                "Failed to build card data for connector customer id: {}, error: {}.",
                 record.customer_id_resp,
                 e
             );
-            serde_json::json!({})
+            ComprehensiveCardData {
+                card_type: Some("card".to_string()),
+                card_exp_month: None,
+                card_exp_year: None,
+                card_network: None,
+                card_issuer: None,
+                card_issuing_country: None,
+                daily_retry_history: None,
+            }
         }
     };
     logger::info!(
@@ -81,18 +91,24 @@ async fn process_payment_method_record(
     );
 
     // Update Redis if token exists and is valid
-    match record.token.as_deref() {
+    match record.token.as_ref().map(|token| token.clone().expose()) {
         Some(token) if !token.is_empty() && token != "nan" => {
             logger::info!(
                 "Updating Redis for customer: {}, token: {}",
                 record.customer_id_resp,
                 token
             );
+
+            // Convert ComprehensiveCardData to JSON for Redis operations
+            let card_data_json = serde_json::to_value(&card_data).map_err(|e| {
+                BackfillError::CsvParsingError(format!("Failed to serialize card data: {}", e))
+            })?;
+
             RedisTokenManager::update_redis_token_comprehensive_data(
                 state,
                 &record.customer_id_resp,
-                token,
-                &card_data,
+                &token,
+                &card_data_json,
             )
             .await
             .map_err(|e| {
@@ -154,56 +170,50 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i
 /// Build comprehensive card data from CSV record
 fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
-) -> Result<serde_json::Value, BackfillError> {
-    let mut card_data = serde_json::Map::new();
-
+) -> Result<ComprehensiveCardData, BackfillError> {
     // Extract card type from request, if not present then update it with 'card'
-    let card_type = determine_card_type(&record.type_field);
-    card_data.insert(
-        "card_type".to_string(),
-        serde_json::Value::String(card_type),
-    );
+    let card_type = Some(determine_card_type(&record.type_field));
 
     // Parse expiration date
-    let (exp_month, exp_year) = parse_expiration_date(record.exp_date.as_deref())?;
-
-    [(exp_month, "card_exp_month"), (exp_year, "card_exp_year")]
-        .into_iter()
-        .filter_map(|(value, key)| value.map(|v| (key, serde_json::Value::String(v))))
-        .for_each(|(key, value)| {
-            card_data.insert(key.to_string(), value);
-        });
-
-    // Add card network
-    record
-        .card_network
-        .clone()
-        .and_then(|network| serde_json::to_value(network).ok())
-        .map(|network_value| card_data.insert("card_network".to_string(), network_value));
-
-    [
-        (&record.clean_bank_name, "card_issuer"),
-        (&record.country_name, "card_issuing_country"),
-    ]
-    .into_iter()
-    .filter_map(|(field, key)| {
-        field
+    let (exp_month, exp_year) = parse_expiration_date(
+        record
+            .exp_date
             .as_ref()
-            .filter(|value| !value.is_empty() && *value != "nan")
-            .map(|value| (key, serde_json::Value::String(value.clone())))
+            .map(|date| date.clone().expose())
+            .as_deref(),
+    )?;
+
+    let card_exp_month = exp_month.map(masking::Secret::new);
+    let card_exp_year = exp_year.map(masking::Secret::new);
+
+    // Extract card network
+    let card_network = record.card_network.clone();
+
+    // Extract card issuer and issuing country
+    let card_issuer = record
+        .clean_bank_name
+        .as_ref()
+        .filter(|value| !value.is_empty() && *value != "nan")
+        .cloned();
+
+    let card_issuing_country = record
+        .country_name
+        .as_ref()
+        .filter(|value| !value.is_empty() && *value != "nan")
+        .cloned();
+
+    // Parse daily retry history
+    let daily_retry_history = parse_daily_retry_history(record.daily_retry_history.as_deref());
+
+    Ok(ComprehensiveCardData {
+        card_type,
+        card_exp_month,
+        card_exp_year,
+        card_network,
+        card_issuer,
+        card_issuing_country,
+        daily_retry_history,
     })
-    .for_each(|(key, value)| {
-        card_data.insert(key.to_string(), value);
-    });
-
-    // Add daily retry history
-    parse_daily_retry_history(record.daily_retry_history.as_deref())
-        .and_then(|retry_history| serde_json::to_value(retry_history).ok())
-        .map(|retry_history_value| {
-            card_data.insert("daily_retry_history".to_string(), retry_history_value)
-        });
-
-    Ok(serde_json::Value::Object(card_data))
 }
 
 /// Determine card type with fallback logic: type_field if not present -> "Card"
@@ -216,7 +226,7 @@ fn determine_card_type(type_field: &Option<String>) -> String {
         }
     }
 
-    // Finally, default to "Card"
+    // default to "Card"
     logger::info!("In CSV type_field not present or invalid, defaulting to 'Card'");
     "card".to_string()
 }
@@ -255,7 +265,7 @@ fn parse_expiration_date(
             year
         );
 
-        // Validate and parse month using functional programming patterns
+        // Validate and parse month
         let month_num = month.parse::<u8>().map_err(|parse_err| {
             logger::warn!(
                 "Failed to parse month '{}' in expiration date '{}': {}",

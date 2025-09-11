@@ -18,7 +18,7 @@ pub async fn revenue_recovery_data_backfill(
 ) -> HttpResponse {
     let flow = Flow::RecoveryDataBackfill;
 
-    let records = match form.validate_and_get_records() {
+    let records = match form.validate_and_get_records_with_errors() {
         Ok(records) => records,
         Err(e) => {
             return HttpResponse::BadRequest().json(serde_json::json!({
@@ -33,7 +33,7 @@ pub async fn revenue_recovery_data_backfill(
         &req,
         records,
         |state, _, records, _req| {
-            revenue_recovery_data_backfill::revenue_recovery_data_backfill(state, records)
+            revenue_recovery_data_backfill::revenue_recovery_data_backfill(state, records.records)
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,

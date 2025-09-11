@@ -931,12 +931,15 @@ impl RedisTokenManager {
             })
             .collect();
 
-        if let Some(retry_history) = card_data.get("daily_retry_history") {
-            if let Some(token_obj) = token_data.as_object_mut() {
-                token_obj.insert("daily_retry_history".to_string(), retry_history.clone());
-                updated_fields.push("daily_retry_history: replaced".to_string());
-            }
-        }
+        // Handle daily retry history
+        card_data
+            .get("daily_retry_history")
+            .and_then(|retry_history| {
+                token_data.as_object_mut().map(|token_obj| {
+                    token_obj.insert("daily_retry_history".to_string(), retry_history.clone());
+                    updated_fields.push("daily_retry_history: replaced".to_string());
+                })
+            });
 
         if updated_fields.is_empty() {
             tracing::info!(
@@ -972,7 +975,7 @@ impl RedisTokenManager {
     }
 }
 
-/// Struct for optional Redis token update parameters
+/// Struct for Redis update parameters
 #[derive(Debug, Default)]
 pub struct RedisTokenUpdateParams {
     pub card_type: Option<Secret<String>>,
