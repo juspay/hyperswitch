@@ -806,17 +806,13 @@ impl Action {
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
-                    let is_hard_decline =
-                        revenue_recovery::check_hard_decline(state, &payment_attempt)
-                            .await
-                            .ok();
-
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     &None,
-                    &is_hard_decline,
+                    // Since this is succeeded, 'hard_decine' will be false.
+                    &Some(false),
                     used_token.as_deref(),
                 )
                 .await;
@@ -900,13 +896,25 @@ impl Action {
         logger::info!("Entering psync_response_handler");
 
         let db = &*state.store;
+
+        let connector_customer_id = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.payment_revenue_recovery_metadata.as_ref())
+            .map(|rr| {
+                rr.billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            });
+
         match self {
             Self::SyncPayment(payment_attempt) => {
                 //  get a schedule time for psync
                 // and retry the process if there is a schedule time
                 // if None mark the pt status as Retries Exceeded and finish the task
-                payment_sync::retry_sync_task(
-                    db,
+                payment_sync::recovery_retry_sync_task(
+                    state,
+                    connector_customer_id,
                     revenue_recovery_metadata.connector.to_string(),
                     revenue_recovery_payment_data
                         .merchant_account
@@ -1361,12 +1369,12 @@ async fn record_back_to_billing_connector(
     .attach_printable("invalid connector name received in billing merchant connector account")?;
 
     let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
-        router_flow_types::RecoveryRecordBack,
-        revenue_recovery_request::RevenueRecoveryRecordBackRequest,
-        revenue_recovery_response::RevenueRecoveryRecordBackResponse,
+        router_flow_types::InvoiceRecordBack,
+        revenue_recovery_request::InvoiceRecordBackRequest,
+        revenue_recovery_response::InvoiceRecordBackResponse,
     > = connector_data.connector.get_connector_integration();
 
-    let router_data = construct_recovery_record_back_router_data(
+    let router_data = construct_invoice_record_back_router_data(
         state,
         billing_mca,
         payment_attempt,
@@ -1396,13 +1404,13 @@ async fn record_back_to_billing_connector(
     Ok(())
 }
 
-pub fn construct_recovery_record_back_router_data(
+pub fn construct_invoice_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-) -> RecoveryResult<hyperswitch_domain_models::types::RevenueRecoveryRecordBackRouterData> {
-    logger::info!("Entering construct_recovery_record_back_router_data");
+) -> RecoveryResult<hyperswitch_domain_models::types::InvoiceRecordBackRouterData> {
+    logger::info!("Entering construct_invoice_record_back_router_data");
 
     let auth_type: types::ConnectorAuthType =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(billing_mca.clone()))
@@ -1433,11 +1441,11 @@ pub fn construct_recovery_record_back_router_data(
         ))?;
 
     let router_data = router_data_v2::RouterDataV2 {
-        flow: PhantomData::<router_flow_types::RecoveryRecordBack>,
+        flow: PhantomData::<router_flow_types::InvoiceRecordBack>,
         tenant_id: state.tenant.tenant_id.clone(),
-        resource_common_data: flow_common_types::RevenueRecoveryRecordBackData,
+        resource_common_data: flow_common_types::InvoiceRecordBackData,
         connector_auth_type: auth_type,
-        request: revenue_recovery_request::RevenueRecoveryRecordBackRequest {
+        request: revenue_recovery_request::InvoiceRecordBackRequest {
             merchant_reference_id,
             amount: payment_attempt.get_total_amount(),
             currency: payment_intent.amount_details.currency,
@@ -1451,10 +1459,9 @@ pub fn construct_recovery_record_back_router_data(
         },
         response: Err(types::ErrorResponse::default()),
     };
-    let old_router_data =
-        flow_common_types::RevenueRecoveryRecordBackData::to_old_router_data(router_data)
-            .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-            .attach_printable("Cannot construct record back router data")?;
+    let old_router_data = flow_common_types::InvoiceRecordBackData::to_old_router_data(router_data)
+        .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
+        .attach_printable("Cannot construct record back router data")?;
     Ok(old_router_data)
 }
 

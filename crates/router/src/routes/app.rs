@@ -17,7 +17,7 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeaders},
+    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -152,6 +152,10 @@ impl SessionState {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
+    }
+    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+        let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
+        GrpcHeadersUcs::builder().tenant_id(tenant_id)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -1428,6 +1432,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/migrate-batch")
                         .route(web::post().to(payment_methods::migrate_payment_methods)),
+                )
+                .service(
+                    web::resource("/update-batch")
+                        .route(web::post().to(payment_methods::update_payment_methods)),
                 )
                 .service(
                     web::resource("/tokenize-card")

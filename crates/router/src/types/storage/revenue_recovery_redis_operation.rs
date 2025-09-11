@@ -61,12 +61,22 @@ pub struct PaymentProcessorTokenWithRetryInfo {
     pub retry_wait_time_hours: i64,
     /// Number of retries remaining in the 30-day rolling window
     pub monthly_retry_remaining: i32,
+    // Current total retry count in 30-day window
+    pub total_30_day_retries: i32,
 }
 
 /// Redis-based token management struct
 pub struct RedisTokenManager;
 
 impl RedisTokenManager {
+    fn get_connector_customer_lock_key(connector_customer_id: &str) -> String {
+        format!("customer:{connector_customer_id}:status")
+    }
+
+    fn get_connector_customer_tokens_key(connector_customer_id: &str) -> String {
+        format!("customer:{connector_customer_id}:tokens")
+    }
+
     /// Lock connector customer
     #[instrument(skip_all)]
     pub async fn lock_connector_customer_status(
@@ -82,7 +92,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
         let result: bool = match redis_conn
@@ -109,6 +119,42 @@ impl RedisTokenManager {
 
         Ok(result)
     }
+    #[instrument(skip_all)]
+    pub async fn update_connector_customer_lock_ttl(
+        state: &SessionState,
+        connector_customer_id: &str,
+        exp_in_seconds: i64,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
+
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
+
+        let result: bool = redis_conn
+            .set_expiry(&lock_key.into(), exp_in_seconds)
+            .await
+            .map_or_else(
+                |error| {
+                    tracing::error!(operation = "update_lock_ttl", err = ?error);
+                    false
+                },
+                |_| true,
+            );
+
+        tracing::debug!(
+            connector_customer_id = connector_customer_id,
+            new_ttl_in_seconds = exp_in_seconds,
+            ttl_updated = %result,
+            "Connector customer lock TTL update with new expiry time"
+        );
+
+        Ok(result)
+    }
 
     /// Unlock connector customer status
     #[instrument(skip_all)]
@@ -124,7 +170,7 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = format!("customer:{connector_customer_id}:status");
+        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
 
         match redis_conn.delete_key(&lock_key.into()).await {
             Ok(DelReply::KeyDeleted) => {
@@ -158,7 +204,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         let get_hash_err =
             errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into());
@@ -209,7 +255,7 @@ impl RedisTokenManager {
                 .change_context(errors::StorageError::RedisError(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
-        let tokens_key = format!("customer:{connector_customer_id}:tokens");
+        let tokens_key = Self::get_connector_customer_tokens_key(connector_customer_id);
 
         // allocate capacity up-front to avoid rehashing
         let mut serialized_payment_processor_tokens: HashMap<String, String> =
@@ -312,15 +358,18 @@ impl RedisTokenManager {
             // Obtain network-specific limits and compute remaining monthly retries.
             let card_network_config = card_config.get_network_config(card_network);
 
-            let monthly_retry_remaining = card_network_config
-                .max_retry_count_for_thirty_day
-                .saturating_sub(retry_info.total_30_day_retries);
+            let monthly_retry_remaining = std::cmp::max(
+                0,
+                card_network_config.max_retry_count_for_thirty_day
+                    - retry_info.total_30_day_retries,
+            );
 
             // Build the per-token result struct.
             let token_with_retry_info = PaymentProcessorTokenWithRetryInfo {
                 token_status: payment_processor_token_status.clone(),
                 retry_wait_time_hours,
                 monthly_retry_remaining,
+                total_30_day_retries: retry_info.total_30_day_retries,
             };
 
             result.insert(payment_processor_token_id.clone(), token_with_retry_info);
@@ -367,6 +416,7 @@ impl RedisTokenManager {
         let monthly_wait_hours =
             if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
                 (0..RETRY_WINDOW_DAYS)
+                    .rev()
                     .map(|i| today - Duration::days(i.into()))
                     .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
                     .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))

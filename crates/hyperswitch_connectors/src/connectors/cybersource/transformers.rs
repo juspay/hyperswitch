@@ -564,9 +564,15 @@ pub struct MandatePaymentTokenizedCard {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MandateCard {
+    type_selection_indicator: Option<String>,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: CybersoucrePaymentInstrument,
     tokenized_card: MandatePaymentTokenizedCard,
+    card: Option<MandateCard>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2555,6 +2561,15 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
+        let mandate_card_information = match item.router_data.request.payment_method_type {
+            Some(enums::PaymentMethodType::Credit) | Some(enums::PaymentMethodType::Debit) => {
+                Some(MandateCard {
+                    type_selection_indicator: Some("1".to_owned()),
+                })
+            }
+            _ => None,
+        };
+
         let bill_to = item
             .router_data
             .get_optional_billing_email()
@@ -2567,6 +2582,7 @@ impl TryFrom<(&CybersourceRouterData<&PaymentsAuthorizeRouterData>, String)>
                 tokenized_card: MandatePaymentTokenizedCard {
                     transaction_type: TransactionType::StoredCredentials,
                 },
+                card: mandate_card_information,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
