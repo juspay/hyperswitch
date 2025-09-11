@@ -131,7 +131,6 @@ async fn process_payment_method_record(
     Ok(())
 }
 
-
 /// Parse daily retry history JSON from CSV
 fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i32>> {
     match json_str {
@@ -217,7 +216,11 @@ fn determine_card_type(type_field: Option<PaymentMethodType>) -> String {
                 // For all other payment method types, default to "card"
                 _ => "card".to_string(),
             };
-            logger::debug!("Using type_field enum '{:?}' -> '{}'", card_type_enum, mapped_type);
+            logger::debug!(
+                "Using type_field enum '{:?}' -> '{}'",
+                card_type_enum,
+                mapped_type
+            );
             mapped_type
         }
         None => {

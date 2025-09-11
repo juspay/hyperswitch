@@ -2,13 +2,11 @@ use std::{collections::HashMap, fs::File, io::BufReader};
 
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
-use common_enums::CardNetwork;
+use common_enums::{CardNetwork, PaymentMethodType};
 use common_utils::events::ApiEventMetric;
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
-
-use common_enums::PaymentMethodType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
