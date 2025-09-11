@@ -24,6 +24,7 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+pub mod gift_card;
 pub mod gsm;
 pub mod health_check;
 #[cfg(feature = "v1")]
