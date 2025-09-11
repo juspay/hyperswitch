@@ -837,25 +837,23 @@ impl<F, T>
             .response
             .list
             .into_iter()
-            .map(|prices| {
-                subscriptions::SubscriptionPlanPrices {
-                    price_id: prices.item_price.id,
-                    plan_id: prices.item_price.item_id,
-                    amount: prices.item_price.price,
-                    currency: prices.item_price.currency_code,
-                    interval: match prices.item_price.period_unit {
-                        ChargebeePeriodUnit::Day => subscriptions::PeriodUnit::Day,
-                        ChargebeePeriodUnit::Week => subscriptions::PeriodUnit::Week,
-                        ChargebeePeriodUnit::Month => subscriptions::PeriodUnit::Month,
-                        ChargebeePeriodUnit::Year => subscriptions::PeriodUnit::Year,
-                    },
-                    interval_count: prices.item_price.period,
-                    trial_period: prices.item_price.trial_period,
-                    trial_period_unit: match prices.item_price.trial_period_unit {
-                        ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
-                        ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
-                    },
-                }
+            .map(|prices| subscriptions::SubscriptionPlanPrices {
+                price_id: prices.item_price.id,
+                plan_id: prices.item_price.item_id,
+                amount: prices.item_price.price,
+                currency: prices.item_price.currency_code,
+                interval: match prices.item_price.period_unit {
+                    ChargebeePeriodUnit::Day => subscriptions::PeriodUnit::Day,
+                    ChargebeePeriodUnit::Week => subscriptions::PeriodUnit::Week,
+                    ChargebeePeriodUnit::Month => subscriptions::PeriodUnit::Month,
+                    ChargebeePeriodUnit::Year => subscriptions::PeriodUnit::Year,
+                },
+                interval_count: prices.item_price.period,
+                trial_period: prices.item_price.trial_period,
+                trial_period_unit: match prices.item_price.trial_period_unit {
+                    ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
+                    ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
+                },
             })
             .collect();
         Ok(Self {
