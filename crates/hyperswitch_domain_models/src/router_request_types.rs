@@ -1,6 +1,5 @@
 pub mod authentication;
 pub mod fraud_check;
-pub mod implementations;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
@@ -140,7 +139,7 @@ pub struct ExternalVaultProxyPaymentsData {
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
-    pub merchant_order_reference_id: Option<String>,
+    pub merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,

@@ -14,7 +14,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
-use common_utils::{id_type, ucs_interfaces};
+use common_utils::{id_type, ucs_types};
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -161,7 +161,7 @@ pub struct GrpcHeadersUcs {
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
-    merchant_reference_id: Option<ucs_interfaces::UcsReferenceId>,
+    merchant_reference_id: Option<ucs_types::UcsReferenceId>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
@@ -171,7 +171,7 @@ pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
     (String,),
     (),
     (Option<String>,),
-    (Option<ucs_interfaces::UcsReferenceId>,),
+    (Option<ucs_types::UcsReferenceId>,),
 )>;
 
 /// struct to represent set of Lineage ids

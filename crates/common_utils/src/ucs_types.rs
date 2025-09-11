@@ -36,21 +36,3 @@ impl UcsReferenceId {
         }
     }
 }
-
-/// A trait for extracting UCS reference IDs from request headers.
-///
-/// This trait defines a method to parse and extract a [`UcsReferenceId`] from
-/// incoming request headers. Implementations of this trait can be used for
-/// different request types to retrieve UCS-related reference information.
-pub trait UcsHeaderFromRequest {
-    /// Extracts the UCS reference ID from the request.
-    ///
-    /// This method should be implemented to parse the relevant headers from a request
-    /// and construct a [`UcsReferenceId`] if the necessary information is present.
-    ///
-    /// # Returns
-    ///
-    /// An `Option<UcsReferenceId>` which will be `Some(UcsReferenceId)` if a valid
-    /// reference ID can be extracted, or `None` otherwise.
-    fn get_ucs_reference_id(&self) -> Option<UcsReferenceId>;
-}

@@ -37,7 +37,7 @@ pub mod types;
 /// This module defines types and traits for interacting with the Unified Connector Service.
 /// It includes reference ID types for payments and refunds, and a trait for extracting
 /// UCS reference information from requests.
-pub mod ucs_interfaces;
+pub mod ucs_types;
 pub mod validation;
 
 pub use base64_serializer::Base64Serializer;

@@ -655,11 +655,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
-        merchant_order_reference_id: payment_data
-            .payment_intent
-            .merchant_reference_id
-            .as_ref()
-            .map(|reference_id| reference_id.get_string_repr().to_owned()),
+        merchant_order_reference_id: payment_data.payment_intent.merchant_reference_id.clone(),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
