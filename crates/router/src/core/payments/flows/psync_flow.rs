@@ -226,6 +226,18 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        if let Ok(Some(cached_access_token)) = state
+            .store
+            .get_access_token(merchant_id, &self.connector)
+            .await
+        {
+            self.access_token = Some(cached_access_token);
+            logger::debug!(
+                "Using cached access token for UCS psync call to connector: {}",
+                self.connector
+            );
+        }
         let connector_name = self.connector.clone();
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
             .change_context(ApiErrorResponse::IncorrectConnectorNameGiven)?;
@@ -248,7 +260,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             );
             return Ok(());
         }
-
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -289,6 +300,30 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
+
+                // Extract and store access token if present
+                if let Some(access_token) =
+                    crate::core::unified_connector_service::get_access_token_from_ucs_response(
+                        payment_get_response.state.as_ref(),
+                    )
+                {
+                    if let Err(error) =
+                        crate::core::unified_connector_service::set_access_token_for_ucs(
+                            state,
+                            merchant_context,
+                            &self.connector,
+                            access_token,
+                        )
+                        .await
+                    {
+                        logger::error!(
+                            ?error,
+                            "Failed to store UCS access token from psync response"
+                        );
+                    } else {
+                        logger::debug!("Successfully stored access token from UCS psync response");
+                    }
+                }
 
                 router_data.status = status;
                 router_data.response = router_data_response;
