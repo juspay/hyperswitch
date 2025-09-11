@@ -2,6 +2,7 @@
 
 use std::{collections::HashSet, sync::LazyLock};
 
+use ammonia::Builder as AmmoniaBuilder;
 use error_stack::report;
 use globset::Glob;
 use regex::Regex;
@@ -80,6 +81,37 @@ pub fn validate_domain_against_allowed_domains(
             })
             .unwrap_or(false)
     })
+}
+
+/// checks whether the input string contains potential XSS or SQL injection attack vectors
+pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
+    let decoded = urlencoding::decode(input).unwrap_or_else(|_| input.into());
+    // Check for suspicious percent-encoded patterns
+    static PERCENT_ENCODED: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"%[0-9A-Fa-f]{2}"));
+
+    if decoded.contains('%')
+        && PERCENT_ENCODED
+            .as_ref()
+            .is_ok_and(|re| re.is_match(&decoded))
+    {
+        return true;
+    }
+
+    let cleaned = AmmoniaBuilder::default()
+        .tags(HashSet::new())
+        .clean(&decoded)
+        .to_string();
+    if cleaned != decoded {
+        return true;
+    }
+    static SUSPICIOUS: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
+        Regex::new(
+            r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|<\s*(script|iframe|svg|math|object|embed)\b|</\s*script\s*>|(?:')\s*or\s*'?\d+'?=?\d*|union\s+select|insert\s+into|drop\s+table|information_schema|sleep\s*\(|--|;",
+        )
+    });
+
+    SUSPICIOUS.as_ref().is_ok_and(|re| re.is_match(&decoded))
 }
 
 #[cfg(test)]
