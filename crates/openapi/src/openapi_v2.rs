@@ -128,6 +128,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_connector_session,
         routes::payments::list_payment_methods,
         routes::payments::payments_list,
+        routes::payments::payment_check_gift_card_balance,
 
         //Routes for payment methods
         routes::payment_method::create_payment_method_api,
@@ -543,6 +544,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentRevenueRecoveryMetadata,
         api_models::payments::BillingConnectorPaymentDetails,
+        api_models::payments::GiftCardBalanceCheckResponse,
         api_models::enums::PaymentConnectorTransmission,
         api_models::enums::TriggeredBy,
         api_models::payments::PaymentAttemptResponse,

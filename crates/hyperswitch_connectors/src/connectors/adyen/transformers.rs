@@ -1810,11 +1810,29 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
 impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for AdyenBalanceRequest<'_> {
     type Error = Error;
     fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
-        let balance_pm = BalancePmData {
-            number: item.request.gift_card_number.clone(),
-            cvc: item.request.gift_card_cvc.clone(),
-        };
-        let payment_method = AdyenPaymentMethod::PaymentMethodBalance(Box::new(balance_pm));
+        let payment_method = match &item.request.payment_method_data {
+            PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
+                GiftCardData::Givex(gift_card_data) => {
+                    let balance_pm = BalancePmData {
+                        number: gift_card_data.number.clone(),
+                        cvc: gift_card_data.cvc.clone(),
+                    };
+                    Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
+                        balance_pm,
+                    )))
+                }
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
+            },
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Balance".to_string(),
+                connector: "adyen".to_string(),
+            }),
+        }?;
 
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {

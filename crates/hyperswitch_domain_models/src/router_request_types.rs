@@ -556,11 +556,7 @@ pub struct PaymentsPreProcessingData {
 
 #[derive(Debug, Clone)]
 pub struct GiftCardBalanceCheckRequestData {
-    pub payment_method_data: Option<PaymentMethodData>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-
-    pub gift_card_number: Secret<String>,
-    pub gift_card_cvc: Secret<String>,
+    pub payment_method_data: PaymentMethodData,
     pub currency: Option<storage_enums::Currency>,
     pub minor_amount: Option<MinorUnit>,
 }

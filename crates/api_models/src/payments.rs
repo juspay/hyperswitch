@@ -667,9 +667,17 @@ pub struct PaymentsIntentResponse {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GiftCardBalanceCheckResponse {
+    /// Global Payment Id for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
+    /// The balance of the gift card
     pub balance: MinorUnit,
+    /// The currency of the Gift Card
+    #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
     pub needs_additional_pm_data: bool,
+    /// Transaction amount left after subtracting gift card balance (Used for split payments)
     pub remaining_amount: MinorUnit,
 }
 
@@ -5785,9 +5793,7 @@ pub struct PaymentsConfirmIntentRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsGiftCardBalanceCheckRequest {
-    brand: Option<Secret<String>>,
-    pub number: Secret<String>,
-    pub cvc: Secret<String>,
+    pub gift_card_data: GiftCardData,
 }
 
 #[cfg(feature = "v2")]

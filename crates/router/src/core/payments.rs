@@ -2699,12 +2699,11 @@ pub async fn payments_check_gift_card_balance_core(
         tenant_id: state.tenant.tenant_id.clone(),
         connector_auth_type,
         request: GiftCardBalanceCheckRequestData {
-            payment_method_data: None,
-            payment_method_type: None,
-            gift_card_number: req.number,
-            gift_card_cvc: req.cvc,
-            currency: Some(common_enums::Currency::USD),
-            minor_amount: Some(MinorUnit::new(0)),
+            payment_method_data: domain::PaymentMethodData::GiftCard(Box::new(
+                req.gift_card_data.into(),
+            )),
+            currency: Some(payment_intent.amount_details.currency),
+            minor_amount: Some(payment_intent.amount_details.order_amount),
         },
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
     };
@@ -2712,9 +2711,8 @@ pub async fn payments_check_gift_card_balance_core(
     let old_router_data = GiftCardBalanceCheckFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
-            "Cannot construct router data for making the external vault create api call",
+            "Cannot construct router data for making the gift card balance check api call",
         )?;
-    // let mut
     let connector_integration: services::BoxedGiftCardBalanceCheckIntegrationInterface<
         GiftCardBalanceCheck,
         GiftCardBalanceCheckRequestData,
@@ -2737,7 +2735,8 @@ pub async fn payments_check_gift_card_balance_core(
         .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
             message: "Payment Method Balance cannot be None".to_string(),
         })
-        .attach_printable("Payment Method Balance cannot be None")?; // always get the connector name from this call
+        .attach_printable("Payment Method Balance cannot be None")?;
+
     let balance = payment_method_balance.amount;
     let currency = payment_method_balance.currency;
     let remaining_amount =
@@ -2749,6 +2748,7 @@ pub async fn payments_check_gift_card_balance_core(
     let needs_additional_pm_data = remaining_amount.is_greater_than(0);
 
     let resp = payments_api::GiftCardBalanceCheckResponse {
+        payment_id: payment_intent.id.clone(),
         balance,
         currency,
         needs_additional_pm_data,
