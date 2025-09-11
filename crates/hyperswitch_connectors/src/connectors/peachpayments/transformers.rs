@@ -403,12 +403,10 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                             // Convert message version to string, handling None case
                             let three_ds_version = auth_data.message_version.as_ref().map(|v| {
                                 let version_str = v.to_string();
-                                // Truncate version to match API spec (e.g., "2.2.0" -> "2.2")
-                                if version_str.len() > 3 && version_str.chars().nth(3) == Some('.')
-                                {
-                                    version_str[..3].to_string()
-                                } else {
-                                    version_str
+                                let mut parts = version_str.split('.');
+                                match (parts.next(), parts.next()) {
+                                    (Some(major), Some(minor)) => format!("{}.{}", major, minor),
+                                    _ => v.to_string(), // fallback if format unexpected
                                 }
                             })?;
 
