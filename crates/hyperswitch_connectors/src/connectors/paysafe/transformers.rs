@@ -435,7 +435,7 @@ impl<F>
             payment_handle_token: item.response.payment_handle_token.clone(),
         });
         Ok(Self {
-            status: common_enums::AttemptStatus::try_from(item.response.status.clone())?,
+            status: common_enums::AttemptStatus::try_from(item.response.status)?,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
