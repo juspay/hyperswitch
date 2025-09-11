@@ -301,9 +301,31 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = trustpayments::TrustpaymentsRouterData::from((amount, req));
-        let connector_req =
-            trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+
+        match &req.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+                bank_redirect_data,
+            ) => match bank_redirect_data {
+                hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
+                    let connector_req =
+                        trustpayments::TrustpaymentsEpsRequest::try_from(&connector_router_data)?;
+                    println!("This is an EPS payment");
+
+                    Ok(RequestContent::Json(Box::new(connector_req)))
+                }
+                _ => {
+                    let connector_req =
+                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
+                    Ok(RequestContent::Json(Box::new(connector_req)))
+                }
+            },
+            _ => {
+                let connector_req =
+                    trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
+        }
+
     }
 
     fn build_request(
@@ -334,17 +356,51 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: trustpayments::TrustpaymentsPaymentsResponse = res
-            .response
-            .parse_struct("Trustpayments PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match &data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+                bank_redirect_data,
+            ) => match bank_redirect_data {
+                hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
+                    let response: trustpayments::TrustpaymentsEpsResponse = res
+                        .response
+                        .parse_struct("Trustpayments EpsResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
+                    RouterData::try_from(ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                }
+                _ => {
+                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
+                        .response
+                        .parse_struct("Trustpayments PaymentsAuthorizeResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
+                    RouterData::try_from(ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                }
+            },
+            _ => {
+                let response: trustpayments::TrustpaymentsPaymentsResponse = res
+                    .response
+                    .parse_struct("Trustpayments PaymentsAuthorizeResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(

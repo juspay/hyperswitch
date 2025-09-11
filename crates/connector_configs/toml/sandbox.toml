@@ -6901,6 +6901,8 @@ key1 = "API Secret"
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]
   payment_method_type = "paysera"
+[[trustpayments.bank_redirect]]
+payment_method_type = "eps"
 [trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Password"
