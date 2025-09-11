@@ -638,6 +638,47 @@ function bankRedirectRedirection(
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.visit(redirectionUrl.href);
 
+  if (connectorId === "paysafe") {
+    cy.log("Starting Paysafe 3DS authentication flow");
+    
+    cy.get('input[formcontrolname="contactInfo"]', { timeout: CONSTANTS.TIMEOUT })
+      .clear()
+      .type("swangi@gmail.com");
+    
+    cy.wait(3000);
+    
+    cy.get('button[type="submit"]', { timeout: CONSTANTS.TIMEOUT })
+      .click();
+    
+    cy.log("Submitted email, waiting for OTP page...");
+    cy.wait(3000);
+    
+    cy.log("Waiting for OTP page to load...");
+    cy.wait(3000);
+    
+    cy.get('iframe', { timeout: CONSTANTS.TIMEOUT })
+      .first()
+      .its('0.contentDocument.body')
+      .should('not.be.empty')
+      .within(() => {
+        cy.get('input[placeholder="Enter Code Here"], input[type="text"], input[type="password"], input', { timeout: CONSTANTS.TIMEOUT })
+          .first()
+          .clear()
+          .type("1234");
+        
+        cy.wait(3000);
+        
+        cy.get('input.button.primary', { timeout: CONSTANTS.TIMEOUT })
+          .click();
+      });
+    
+    cy.log("Submitted OTP");
+    cy.wait(3000);
+    
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // Special handling for Airwallex which uses multiple domains in 3DS flow
   if (connectorId === "airwallex") {
     cy.log("Starting specialized Airwallex 3DS handling");
