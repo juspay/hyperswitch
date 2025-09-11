@@ -11,8 +11,8 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
-            ExternalVaultProxyFlowData, FilesFlowData, InvoiceRecordBackData, GetSubscriptionPlanPricesData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionPlanPricesData,
+            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
             UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
