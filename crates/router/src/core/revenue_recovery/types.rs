@@ -968,37 +968,6 @@ impl Action {
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
 
-                // update the connector payment transmission field to Unsuccessful and unset active attempt id
-                // revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
-                //     enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                // );
-
-                // let payment_update_req =
-                // PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                //     payment_intent
-                //         .feature_metadata
-                //         .clone()
-                //         .unwrap_or_default()
-                //         .convert_back()
-                //         .set_payment_revenue_recovery_metadata_using_api(
-                //             revenue_recovery_metadata.clone(),
-                //         ),
-                //     api_enums::UpdateActiveAttempt::Unset,
-                // );
-                // logger::info!(
-                //     "Call made to payments update intent api , with the request body {:?}",
-                //     payment_update_req
-                // );
-
-                // revenue_recovery_core::api::update_payment_intent_api(
-                //     state,
-                //     payment_intent.id.clone(),
-                //     revenue_recovery_payment_data,
-                //     payment_update_req,
-                // )
-                // .await
-                // .change_context(errors::RecoveryError::PaymentCallFailed)?;
-
                 // fetch the execute task
                 let task = revenue_recovery_core::EXECUTE_WORKFLOW;
                 let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
