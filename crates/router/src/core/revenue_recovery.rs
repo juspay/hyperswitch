@@ -671,8 +671,9 @@ async fn update_calculate_job_schedule_time(
     base_time: Option<time::PrimitiveDateTime>,
     connector_customer_id: &str,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
-    let new_schedule_time =
-        base_time.unwrap_or_else(common_utils::date_time::now) + additional_time;
+    let now = common_utils::date_time::now();
+
+    let new_schedule_time = base_time.filter(|&t| t > now).unwrap_or(now) + additional_time;
     logger::info!(
         new_schedule_time = %new_schedule_time,
         process_id = %process.id,

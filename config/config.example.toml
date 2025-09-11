@@ -1241,6 +1241,7 @@ initial_timestamp_in_seconds = 3600          # number of seconds added to start 
 job_schedule_buffer_time_in_seconds = 3600    # buffer time in seconds to schedule the job for Revenue Recovery
 reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
 max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to schedule the payment for Revenue Recovery
+redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs

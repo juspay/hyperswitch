@@ -322,6 +322,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
             split_txns_enabled: item.split_txns_enabled,
+            revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
         })
     }
 }
