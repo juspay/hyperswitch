@@ -80,6 +80,8 @@ use crate::{
     utils,
 };
 
+pub type BoxedCreateCustomerConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::CreateCustomerData, Req, Res>;
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
 pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =
@@ -127,8 +129,6 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
 pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
-pub type BoxedCreateCustomerConnectorIntegrationInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::CreateCustomerData, Req, Res>;
 
 /// Handle UCS webhook response processing
 fn handle_ucs_response<T, Req, Resp>(

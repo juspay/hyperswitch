@@ -117,9 +117,6 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 pub type InvoiceRecordBackRouterData =
     RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>;
 
-pub type CreateCustomerRouterData =
-    RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
-
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
 

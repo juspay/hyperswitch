@@ -13,10 +13,8 @@ use common_utils::{
 use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    revenue_recovery,
-    router_data_v2::{flow_common_types::CreateCustomerData, RouterDataV2},
-};
+use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
+use hyperswitch_domain_models::router_data_v2::flow_common_types::CreateCustomerData;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -37,7 +35,7 @@ use hyperswitch_domain_models::{
         RefundsResponseData,
     },
     types::{
-        CreateCustomerRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
+        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, ConnectorCustomerRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -47,6 +45,7 @@ use hyperswitch_interfaces::{
         ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -669,7 +668,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 {
     fn get_headers(
         &self,
-        req: &CreateCustomerRouterData,
+        req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -677,7 +676,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 
     fn get_url(
         &self,
-        req: &CreateCustomerRouterData,
+        req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
@@ -711,7 +710,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 
     fn get_request_body(
         &self,
-        req: &CreateCustomerRouterData,
+        req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = chargebee::ChargebeeRouterData::from((MinorUnit::new(0), req));
@@ -722,18 +721,18 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 
     fn build_request(
         &self,
-        req: &CreateCustomerRouterData,
+        req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::CreateCustomerType::get_url(self, req, connectors)?)
+                .url(&types::ConnectorCustomerType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::CreateCustomerType::get_headers(
+                .headers(types::ConnectorCustomerType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::CreateCustomerType::get_request_body(
+                .set_body(types::ConnectorCustomerType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -742,10 +741,10 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 
     fn handle_response(
         &self,
-        data: &CreateCustomerRouterData,
+        data: &ConnectorCustomerRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<CreateCustomerRouterData, errors::ConnectorError> {
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError> {
         let response: chargebee::ChargebeeCustomerCreateResponse = res
             .response
             .parse_struct("ChargebeeCustomerCreateResponse")
@@ -768,7 +767,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     }
 }
 
-#[cfg(all(feature = "v2", feature = "v1"))]
 impl
     ConnectorIntegrationV2<
         CreateConnectorCustomer,

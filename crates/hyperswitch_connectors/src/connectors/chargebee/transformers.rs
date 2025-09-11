@@ -787,13 +787,13 @@ pub struct ChargebeeCustomerCreateRequest {
     pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
-impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCustomerRouterData>>
+impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
     for ChargebeeCustomerCreateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::CreateCustomerRouterData>,
+        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
 
@@ -833,7 +833,7 @@ impl
             ConnectorCustomerData,
             PaymentsResponseData,
         >,
-    > for hyperswitch_domain_models::types::CreateCustomerRouterData
+    > for hyperswitch_domain_models::types::ConnectorCustomerRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 

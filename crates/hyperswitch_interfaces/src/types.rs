@@ -349,9 +349,6 @@ impl Default for Proxy {
         }
     }
 }
-/// Type alias for `ConnectorIntegration<CreateConnectorCustomer, CreateCustomerRequest, CreateCustomerResponse>`
-pub type CreateCustomerType =
-    dyn ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 
 /// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, CreateCustomerData, CreateCustomerRequest, CreateCustomerResponse>`
 pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
