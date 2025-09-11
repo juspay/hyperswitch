@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use common_types::payments::CustomerAcceptance;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
@@ -212,6 +212,22 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn call_unified_connector_service_with_external_vault_proxy<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()>
     where

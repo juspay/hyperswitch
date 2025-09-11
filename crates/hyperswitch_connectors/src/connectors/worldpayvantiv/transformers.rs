@@ -316,7 +316,7 @@ pub struct EnhancedData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub destination_country_code: Option<common_enums::CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub invoice_reference_number: Option<String>,
+    pub detail_tax: Option<DetailTax>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_item_data: Option<Vec<LineItemData>>,
 }
@@ -324,10 +324,11 @@ pub struct EnhancedData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DetailTax {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_included_in_total: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_amount: Option<MinorUnit>,
-    pub tax_rate: Option<String>,
-    pub tax_type_identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_acceptor_tax_id: Option<Secret<String>>,
 }
 
@@ -356,7 +357,6 @@ pub struct LineItemData {
     pub commodity_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_cost: Option<MinorUnit>,
-    // pub detail_tax: Option<DetailTax>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -938,7 +938,7 @@ where
 {
     let l2_l3_data = item.get_optional_l2_l3_data();
     if let Some(l2_l3_data) = l2_l3_data {
-        let line_item_data = l2_l3_data.order_details.map(|order_details| {
+        let line_item_data = l2_l3_data.order_details.as_ref().map(|order_details| {
             order_details
                 .iter()
                 .enumerate()
@@ -969,6 +969,25 @@ where
         let customer_reference =
             get_vantiv_customer_reference(&l2_l3_data.merchant_order_reference_id);
 
+        let detail_tax: Option<DetailTax> = if l2_l3_data.merchant_tax_registration_id.is_some()
+            && l2_l3_data.order_details.is_some()
+        {
+            Some(DetailTax {
+                tax_included_in_total: match tax_exempt {
+                    Some(false) => Some(true),
+                    Some(true) | None => Some(false),
+                },
+                card_acceptor_tax_id: l2_l3_data.merchant_tax_registration_id.clone(),
+                tax_amount: l2_l3_data.order_details.as_ref().map(|orders| {
+                    orders
+                        .iter()
+                        .filter_map(|order| order.total_tax_amount)
+                        .fold(MinorUnit::zero(), |acc, tax| acc + tax)
+                }),
+            })
+        } else {
+            None
+        };
         let enhanced_data = EnhancedData {
             customer_reference,
             sales_tax: l2_l3_data.order_tax_amount,
@@ -979,7 +998,7 @@ where
             ship_from_postal_code: l2_l3_data.shipping_origin_zip,
             destination_postal_code: l2_l3_data.shipping_destination_zip,
             destination_country_code: l2_l3_data.shipping_country,
-            invoice_reference_number: l2_l3_data.merchant_order_reference_id,
+            detail_tax,
             line_item_data,
         };
         Ok(Some(enhanced_data))

@@ -12,7 +12,7 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager,
 };
-use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
+pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use masking::ExposeInterface;
