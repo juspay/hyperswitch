@@ -192,7 +192,6 @@ impl PaysafePaymentMethodDetails {
     }
 }
 
-
 impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -209,7 +208,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
-                let currency = item.router_data.request.get_currency()?;
+        let currency = item.router_data.request.get_currency()?;
         match item.router_data.request.get_payment_method_data()?.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PaysafeCard {
