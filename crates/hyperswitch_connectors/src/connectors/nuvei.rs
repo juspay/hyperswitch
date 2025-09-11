@@ -553,10 +553,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        let nuvie_common_response: NuveiPaymentsResponse = response.into();
 
         RouterData::try_from(ResponseRouterData {
-            response: nuvie_common_response,
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
