@@ -759,9 +759,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     }
 }
 
-impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
-    for RevenueRecoveryRecordBackData
-{
+impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for InvoiceRecordBackData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
     ) -> CustomResult<RouterDataV2<T, Self, Req, Resp>, ConnectorError>

@@ -4,7 +4,7 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack, AccessTokenAuth,
+        mandate_revoke::MandateRevoke, revenue_recovery::InvoiceRecordBack, AccessTokenAuth,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, Authorize,
         AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
         CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
@@ -15,7 +15,7 @@ use crate::{
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -35,7 +35,7 @@ use crate::{
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
         },
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
@@ -151,11 +151,11 @@ pub type BillingConnectorPaymentsSyncRouterDataV2 = RouterDataV2<
     BillingConnectorPaymentsSyncResponse,
 >;
 
-pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
-    RecoveryRecordBack,
-    router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+pub type InvoiceRecordBackRouterDataV2 = RouterDataV2<
+    InvoiceRecordBack,
+    router_data_v2::flow_common_types::InvoiceRecordBackData,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
 >;
 
 pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;
