@@ -450,6 +450,16 @@ pub(crate) async fn fetch_raw_secrets(
         })
         .await;
 
+    #[cfg(feature = "superposition")]
+    #[allow(clippy::expect_used)]
+    let superposition =
+        external_services::superposition::SuperpositionClientConfig::convert_to_raw_secret(
+            conf.superposition,
+            secret_management_client,
+        )
+        .await
+        .expect("Failed to decrypt superposition config");
+
     Settings {
         server: conf.server,
         chat: conf.chat,
@@ -551,5 +561,7 @@ pub(crate) async fn fetch_raw_secrets(
         infra_values: conf.infra_values,
         enhancement: conf.enhancement,
         proxy_status_mapping: conf.proxy_status_mapping,
+        #[cfg(feature = "superposition")]
+        superposition,
     }
 }
