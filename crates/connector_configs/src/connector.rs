@@ -110,6 +110,21 @@ pub struct ConfigMerchantAdditionalDetails {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIdConfig {
+    pub three_ds: Option<Vec<InputData>>,
+    pub no_three_ds: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIDSupportedMethods {
+    card: HashMap<String, AccountIdConfig>,
+    apple_pay: HashMap<String, AccountIdConfig>,
+    interac: HashMap<String, AccountIdConfig>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
@@ -149,7 +164,7 @@ pub struct ConfigMetadata {
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
-    pub account_id: Option<InputData>,
+    pub account_id: Option<AccountIDSupportedMethods>,
 }
 
 #[serde_with::skip_serializing_none]
