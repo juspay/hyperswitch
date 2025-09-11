@@ -113,7 +113,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
-        psync_response: &PaymentStatusData<router_flow_types::PSync>,
     ) -> Result<(), errors::ProcessTrackerError> {
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
@@ -141,6 +140,12 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
         let retry_count = process_tracker.retry_count;
         let event_class = common_enums::EventClass::Payments;
+
+        let psync_response = revenue_recovery_payment_data
+            .psync_data
+            .as_ref()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Psync data not found in revenue recovery payment data")?;
 
         match self {
             Self::Succeeded => {

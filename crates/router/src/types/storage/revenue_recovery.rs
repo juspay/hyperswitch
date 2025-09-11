@@ -7,7 +7,7 @@ use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
     payment_method_data::{Card, PaymentMethodData},
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent, PaymentStatusData},
 };
 use masking::PeekInterface;
 use router_env::logger;
@@ -32,6 +32,7 @@ pub struct RevenueRecoveryPaymentData {
     pub key_store: merchant_key_store::MerchantKeyStore,
     pub billing_mca: merchant_connector_account::MerchantConnectorAccount,
     pub retry_algorithm: enums::RevenueRecoveryAlgorithmType,
+    pub psync_data: Option<PaymentStatusData<types::api::PSync>>,
 }
 impl RevenueRecoveryPaymentData {
     pub async fn get_schedule_time_based_on_retry_type(

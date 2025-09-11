@@ -457,7 +457,6 @@ pub async fn perform_payments_sync(
             revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
-            &psync_data,
         ),
     )
     .await?;

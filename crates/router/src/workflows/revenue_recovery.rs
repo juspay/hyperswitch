@@ -232,6 +232,7 @@ pub(crate) async fn extract_data_and_perform_action(
         retry_algorithm: profile
             .revenue_recovery_retry_algorithm_type
             .unwrap_or(tracking_data.revenue_recovery_retry),
+        psync_data: None,
     };
     Ok(pcr_payment_data)
 }
