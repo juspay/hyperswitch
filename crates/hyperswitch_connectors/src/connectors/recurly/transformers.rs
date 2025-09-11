@@ -316,27 +316,27 @@ pub struct RecurlyRecordBackResponse {
 impl
     TryFrom<
         ResponseRouterDataV2<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             RecurlyRecordBackResponse,
-            recovery_flow_common_types::RevenueRecoveryRecordBackData,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_flow_common_types::InvoiceRecordBackData,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2
+    > for recovery_router_data_types::InvoiceRecordBackRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterDataV2<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             RecurlyRecordBackResponse,
-            recovery_flow_common_types::RevenueRecoveryRecordBackData,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_flow_common_types::InvoiceRecordBackData,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = item.response.id;
         Ok(Self {
-            response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
+            response: Ok(recovery_response_types::InvoiceRecordBackResponse {
                 merchant_reference_id,
             }),
             ..item.data

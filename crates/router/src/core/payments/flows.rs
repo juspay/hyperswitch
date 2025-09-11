@@ -1,4 +1,5 @@
 pub mod approve_flow;
+pub mod authenticate_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod cancel_post_capture_flow;
@@ -8,6 +9,8 @@ pub mod complete_authorize_flow;
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
+pub mod postauthenticate_flow;
+pub mod preauthenticate_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
@@ -19,7 +22,7 @@ use async_trait::async_trait;
 use common_types::payments::CustomerAcceptance;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
@@ -209,6 +212,22 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn call_unified_connector_service_with_external_vault_proxy<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()>
     where

@@ -662,6 +662,22 @@ pub enum VoucherData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// The bank number associated with the boleto
+    pub bank_number: Option<Secret<String>>,
+    /// The type of document (e.g., CPF, CNPJ)
+    pub document_type: Option<common_enums::DocumentKind>,
+    /// The percentage of fine applied for late payment
+    pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
+    pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
+    pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
+    pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
+    pub messages: Option<Vec<String>>,
+    /// The date upon which the boleto is due and is of format: "YYYY-MM-DD"
+    pub due_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1483,6 +1499,14 @@ impl From<api_models::payments::VoucherData> for VoucherData {
             api_models::payments::VoucherData::Boleto(boleto_data) => {
                 Self::Boleto(Box::new(BoletoVoucherData {
                     social_security_number: boleto_data.social_security_number,
+                    bank_number: boleto_data.bank_number,
+                    document_type: boleto_data.document_type,
+                    fine_percentage: boleto_data.fine_percentage,
+                    fine_quantity_days: boleto_data.fine_quantity_days,
+                    interest_percentage: boleto_data.interest_percentage,
+                    write_off_quantity_days: boleto_data.write_off_quantity_days,
+                    messages: boleto_data.messages,
+                    due_date: boleto_data.due_date,
                 }))
             }
             api_models::payments::VoucherData::Alfamart(_) => {
@@ -1512,6 +1536,14 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
     fn from(value: Box<BoletoVoucherData>) -> Self {
         Self::new(api_models::payments::BoletoVoucherData {
             social_security_number: value.social_security_number,
+            bank_number: value.bank_number,
+            document_type: value.document_type,
+            fine_percentage: value.fine_percentage,
+            fine_quantity_days: value.fine_quantity_days,
+            interest_percentage: value.interest_percentage,
+            write_off_quantity_days: value.write_off_quantity_days,
+            messages: value.messages,
+            due_date: value.due_date,
         })
     }
 }

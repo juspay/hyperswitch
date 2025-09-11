@@ -662,6 +662,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_method_type = Option::<api_models::enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         payment_attempt.payment_method_type = payment_method_type
@@ -996,6 +997,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data.payment_attempt.payment_method,
                 payment_data.payment_attempt.payment_method_type,
             );
+        payment_data.payment_intent.enable_overcapture = payment_data
+            .payment_intent
+            .get_enable_overcapture_bool_if_connector_supports(
+                connector_data.connector_name,
+                business_profile.always_enable_overcapture,
+                &payment_data.payment_attempt.capture_method,
+            );
         Ok(())
     }
 
@@ -1227,7 +1235,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         mandate_type: Option<api_models::payments::MandateTransactionType>,
-        do_authorisation_confirmation: &bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let unified_authentication_service_flow =
             helpers::decide_action_for_unified_authentication_service(
@@ -1237,7 +1244,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data,
                 connector_call_type,
                 mandate_type,
-                do_authorisation_confirmation,
             )
             .await?;
 
@@ -1377,60 +1383,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             authentication
                         };
                         payment_data.authentication = Some(authentication_store);
-                },
-                helpers::UnifiedAuthenticationServiceFlow::ClickToPayConfirmation => {
-                    let authentication_product_ids = business_profile
-                    .authentication_product_ids
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                        message: "authentication_product_ids is not configured in business profile"
-                            .to_string(),
-                    })?;
-                    let click_to_pay_mca_id = authentication_product_ids
-                    .get_click_to_pay_connector_account_id()
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "click_to_pay_mca_id",
-                    })?;
-                    let key_manager_state = &(state).into();
-                    let merchant_id = &business_profile.merchant_id;
-
-                    let connector_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            key_manager_state,
-                            merchant_id,
-                            &click_to_pay_mca_id,
-                            key_store,
-                        )
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: click_to_pay_mca_id.get_string_repr().to_string(),
-                            },
-                        )?;
-
-                    let payment_method = payment_data.payment_attempt.payment_method.ok_or(
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method",
-                        },
-                    )?;
-
-                    ClickToPay::confirmation(
-                                            state,
-                                            key_store,
-                                            business_profile,
-                                            payment_data.payment_attempt.authentication_id.as_ref(),
-                                            payment_data.payment_intent.currency,
-                                            payment_data.payment_attempt.status,
-                                            payment_data.service_details.clone(),
-                                            &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
-                                            &connector_mca.connector_name,
-                                            payment_method,
-                                            payment_data.payment_attempt.net_amount.get_order_amount(),
-                                            Some(&payment_data.payment_intent.payment_id),
-                                            merchant_id,
-                                        )
-                                        .await?
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationInitiate {
                     acquirer_details,
@@ -2020,7 +1972,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
-
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
@@ -2073,6 +2024,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         enable_partial_authorization: payment_data
                             .payment_intent
                             .enable_partial_authorization,
+                        enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     })),
                     &m_key_store,
                     storage_scheme,

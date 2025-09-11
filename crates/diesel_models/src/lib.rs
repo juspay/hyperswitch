@@ -44,6 +44,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 pub mod types;
 pub mod unified_translations;
 

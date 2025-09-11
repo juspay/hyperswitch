@@ -758,6 +758,50 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wise {}
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Wise {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, ConnectorError> {
+        Ok(Box::new(common_utils::crypto::RsaSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
+        #[cfg(feature = "payouts")]
+        {
+            request
+                .headers
+                .get("X-Signature-SHA256")
+                .map(|header_value| header_value.as_bytes().to_vec())
+                .ok_or(ConnectorError::WebhookSignatureNotFound.into())
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
+        #[cfg(feature = "payouts")]
+        {
+            Ok(request.body.to_vec())
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,

@@ -300,15 +300,15 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegrationV2<
-        recovery_router_flows::RecoveryRecordBack,
-        recovery_flow_common_types::RevenueRecoveryRecordBackData,
-        recovery_request_types::RevenueRecoveryRecordBackRequest,
-        recovery_response_types::RevenueRecoveryRecordBackResponse,
+        recovery_router_flows::InvoiceRecordBack,
+        recovery_flow_common_types::InvoiceRecordBackData,
+        recovery_request_types::InvoiceRecordBackRequest,
+        recovery_response_types::InvoiceRecordBackResponse,
     > for Recurly
 {
     fn get_headers(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -321,7 +321,7 @@ impl
 
     fn get_url(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<String, errors::ConnectorError> {
         let invoice_id = req
             .request
@@ -344,16 +344,14 @@ impl
 
     fn build_request_v2(
         &self,
-        req: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        req: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
-                .url(&types::RevenueRecoveryRecordBackTypeV2::get_url(self, req)?)
+                .url(&types::InvoiceRecordBackTypeV2::get_url(self, req)?)
                 .attach_default_headers()
-                .headers(types::RevenueRecoveryRecordBackTypeV2::get_headers(
-                    self, req,
-                )?)
+                .headers(types::InvoiceRecordBackTypeV2::get_headers(self, req)?)
                 .header("Content-Length", "0")
                 .build(),
         ))
@@ -361,11 +359,11 @@ impl
 
     fn handle_response_v2(
         &self,
-        data: &recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        data: &recovery_router_data_types::InvoiceRecordBackRouterDataV2,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2,
+        recovery_router_data_types::InvoiceRecordBackRouterDataV2,
         errors::ConnectorError,
     > {
         let response: recurly::RecurlyRecordBackResponse = res
@@ -374,13 +372,11 @@ impl
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2::try_from(
-            ResponseRouterDataV2 {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        )
+        recovery_router_data_types::InvoiceRecordBackRouterDataV2::try_from(ResponseRouterDataV2 {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response_v2(

@@ -1,4 +1,5 @@
 pub mod cards;
+pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 #[cfg(feature = "v1")]

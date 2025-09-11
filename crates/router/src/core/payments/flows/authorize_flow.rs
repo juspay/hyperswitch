@@ -20,7 +20,7 @@ use crate::{
         unified_connector_service::{
             build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat,
+            handle_unified_connector_service_response_for_payment_repeat, ucs_logging_wrapper,
         },
     },
     logger,
@@ -523,20 +523,20 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
-            call_unified_connector_service_repeat_payment(
+            Box::pin(call_unified_connector_service_repeat_payment(
                 self,
                 state,
                 merchant_connector_account,
                 merchant_context,
-            )
+            ))
             .await
         } else {
-            call_unified_connector_service_authorize(
+            Box::pin(call_unified_connector_service_authorize(
                 self,
                 state,
                 merchant_connector_account,
                 merchant_context,
-            )
+            ))
             .await
         }
     }
@@ -853,33 +853,49 @@ async fn call_unified_connector_service_authorize(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
+    let headers_builder = state
+        .get_grpc_headers_ucs()
+        .external_vault_proxy_metadata(None);
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_authorize_request,
+        headers_builder,
+        |mut router_data, payment_authorize_request, grpc_headers| async move {
+            let response = client
+                .payment_authorize(
+                    payment_authorize_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to authorize payment")?;
 
-    let response = client
-        .payment_authorize(
-            payment_authorize_request,
-            connector_auth_metadata,
-            state.get_grpc_headers(),
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to authorize payment")?;
+            let payment_authorize_response = response.into_inner();
 
-    let payment_authorize_response = response.into_inner();
+            let (status, router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_authorize(
+                    payment_authorize_response.clone(),
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize UCS response")?;
 
-    let (status, router_data_response, status_code) =
-        handle_unified_connector_service_response_for_payment_authorize(
-            payment_authorize_response.clone(),
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize UCS response")?;
+            router_data.status = status;
+            router_data.response = router_data_response;
+            router_data.raw_connector_response = payment_authorize_response
+                .raw_connector_response
+                .clone()
+                .map(Secret::new);
+            router_data.connector_http_status_code = Some(status_code);
 
-    router_data.status = status;
-    router_data.response = router_data_response;
-    router_data.raw_connector_response = payment_authorize_response
-        .raw_connector_response
-        .map(Secret::new);
-    router_data.connector_http_status_code = Some(status_code);
+            Ok((router_data, payment_authorize_response))
+        },
+    ))
+    .await?;
 
+    // Copy back the updated data
+    *router_data = updated_router_data;
     Ok(())
 }
 
@@ -902,40 +918,56 @@ async fn call_unified_connector_service_repeat_payment(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_repeat_request =
-        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
+        payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(&*router_data)
             .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+            .attach_printable("Failed to construct Payment Repeat Request")?;
 
     let connector_auth_metadata =
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
+    let headers_builder = state
+        .get_grpc_headers_ucs()
+        .external_vault_proxy_metadata(None);
+    let updated_router_data = Box::pin(ucs_logging_wrapper(
+        router_data.clone(),
+        state,
+        payment_repeat_request,
+        headers_builder,
+        |mut router_data, payment_repeat_request, grpc_headers| async move {
+            let response = client
+                .payment_repeat(
+                    payment_repeat_request,
+                    connector_auth_metadata.clone(),
+                    grpc_headers,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to repeat payment")?;
 
-    let response = client
-        .payment_repeat(
-            payment_repeat_request,
-            connector_auth_metadata,
-            state.get_grpc_headers(),
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to authorize payment")?;
+            let payment_repeat_response = response.into_inner();
 
-    let payment_repeat_response = response.into_inner();
+            let (status, router_data_response, status_code) =
+                handle_unified_connector_service_response_for_payment_repeat(
+                    payment_repeat_response.clone(),
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize UCS response")?;
 
-    let (status, router_data_response, status_code) =
-        handle_unified_connector_service_response_for_payment_repeat(
-            payment_repeat_response.clone(),
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize UCS response")?;
+            router_data.status = status;
+            router_data.response = router_data_response;
+            router_data.raw_connector_response = payment_repeat_response
+                .raw_connector_response
+                .clone()
+                .map(Secret::new);
+            router_data.connector_http_status_code = Some(status_code);
 
-    router_data.status = status;
-    router_data.response = router_data_response;
-    router_data.raw_connector_response = payment_repeat_response
-        .raw_connector_response
-        .map(Secret::new);
-    router_data.connector_http_status_code = Some(status_code);
+            Ok((router_data, payment_repeat_response))
+        },
+    ))
+    .await?;
 
+    // Copy back the updated data
+    *router_data = updated_router_data;
     Ok(())
 }

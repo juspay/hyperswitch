@@ -1220,25 +1220,6 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
-    // Call to DE here
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.dynamic_routing_enabled && is_deleted {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    logger::error!("Failed to delete merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -3495,6 +3476,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
+            is_manual_retry_enabled: self.is_manual_retry_enabled,
+            always_enable_overcapture: self.always_enable_overcapture,
         }))
     }
 
@@ -3645,6 +3628,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
+            split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
         }))
     }
 }
@@ -3968,6 +3952,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                always_request_extended_authorization: self.always_request_extended_authorization,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
                 dynamic_routing_algorithm: dynamic_routing_algo_ref,
@@ -3989,6 +3974,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
+                is_manual_retry_enabled: self.is_manual_retry_enabled,
+                always_enable_overcapture: self.always_enable_overcapture,
             },
         )))
     }
@@ -4133,6 +4120,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
+                split_txns_enabled: self.split_txns_enabled,
             },
         )))
     }

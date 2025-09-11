@@ -1,29 +1,38 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
 use api_models::admin;
+#[cfg(feature = "v2")]
+use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
+#[cfg(feature = "v2")]
+use common_utils::consts::BASE64_ENGINE;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::{
-    ConnectorAuthMetadata, UnifiedConnectorServiceError,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
+use hyperswitch_domain_models::merchant_connector_account::{
+    ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
+};
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
 };
 
+#[cfg(feature = "v2")]
+use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
@@ -36,9 +45,9 @@ use crate::{
         },
         utils::get_flow_name,
     },
+    events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::transformers::ForeignTryFrom,
-    utils,
 };
 
 pub mod transformers;
@@ -507,6 +516,58 @@ pub fn build_unified_connector_service_auth_metadata(
     }
 }
 
+#[cfg(feature = "v2")]
+pub fn build_unified_connector_service_external_vault_proxy_metadata(
+    external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> CustomResult<String, UnifiedConnectorServiceError> {
+    let external_vault_metadata = external_vault_merchant_connector_account
+        .get_metadata()
+        .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to obtain ConnectorMetadata")?;
+
+    let connector_name = external_vault_merchant_connector_account
+        .get_connector_name()
+        .map(|connector| connector.to_string())
+        .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
+        .attach_printable("Missing connector name")?; // always get the connector name from this call
+
+    let external_vault_connector = api_enums::VaultConnectors::from_str(&connector_name)
+        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable("Failed to parse Vault connector")?;
+
+    let unified_service_vault_metdata = match external_vault_connector {
+        api_enums::VaultConnectors::Vgs => {
+            let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
+                .expose()
+                .parse_value("ExternalVaultConnectorMetadata")
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse Vgs connector metadata")?;
+
+            Some(external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                external_services::grpc_client::unified_connector_service::VgsMetadata {
+                    proxy_url: vgs_metadata.proxy_url,
+                    certificate: vgs_metadata.certificate,
+                }
+            ))
+        }
+        api_enums::VaultConnectors::HyperswitchVault => None,
+    };
+
+    match unified_service_vault_metdata {
+        Some(metdata) => {
+            let external_vault_metadata_bytes = serde_json::to_vec(&metdata)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to convert External vault metadata to bytes")?;
+
+            Ok(BASE64_ENGINE.encode(&external_vault_metadata_bytes))
+        }
+        None => Err(UnifiedConnectorServiceError::NotImplemented(
+            "External vault proxy metadata is not supported for {connector_name}".to_string(),
+        )
+        .into()),
+    }
+}
+
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
@@ -708,10 +769,13 @@ pub async fn call_unified_connector_service_for_webhook(
         })?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
-    };
+    let grpc_headers = state
+        .get_grpc_headers_ucs()
+        .lineage_ids(LineageIds::new(
+            merchant_context.get_merchant_account().get_id().clone(),
+        ))
+        .external_vault_proxy_metadata(None)
+        .build();
 
     // Make UCS call - client availability already verified
     match ucs_client
@@ -743,4 +807,129 @@ pub fn extract_webhook_content_from_ucs_response(
     transform_data: &WebhookTransformData,
 ) -> Option<&unified_connector_service_client::payments::WebhookResponseContent> {
     transform_data.webhook_content.as_ref()
+}
+
+/// UCS Event Logging Wrapper Function
+/// This function wraps UCS calls with comprehensive event logging.
+/// It logs the actual gRPC request/response data, timing, and error information.
+#[instrument(skip_all, fields(connector_name, flow_type, payment_id))]
+pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
+    router_data: RouterData<T, Req, Resp>,
+    state: &SessionState,
+    grpc_request: GrpcReq,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderIntermediate,
+    handler: F,
+) -> RouterResult<RouterData<T, Req, Resp>>
+where
+    T: std::fmt::Debug + Clone + Send + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    GrpcReq: serde::Serialize,
+    GrpcResp: serde::Serialize,
+    F: FnOnce(
+            RouterData<T, Req, Resp>,
+            GrpcReq,
+            external_services::grpc_client::GrpcHeadersUcs,
+        ) -> Fut
+        + Send,
+    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
+{
+    tracing::Span::current().record("connector_name", &router_data.connector);
+    tracing::Span::current().record("flow_type", std::any::type_name::<T>());
+    tracing::Span::current().record("payment_id", &router_data.payment_id);
+
+    // Capture request data for logging
+    let connector_name = router_data.connector.clone();
+    let payment_id = router_data.payment_id.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let refund_id = router_data.refund_id.clone();
+    let dispute_id = router_data.dispute_id.clone();
+    let grpc_header = grpc_header_builder
+        .lineage_ids(LineageIds::new(merchant_id.clone()))
+        .build();
+    // Log the actual gRPC request with masking
+    let grpc_request_body = masking::masked_serialize(&grpc_request)
+        .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+
+    // Update connector call count metrics for UCS operations
+    crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector_name.clone()),
+            (
+                "flow",
+                std::any::type_name::<T>()
+                    .split("::")
+                    .last()
+                    .unwrap_or_default()
+            ),
+        ),
+    );
+
+    // Execute UCS function and measure timing
+    let start_time = Instant::now();
+    let result = handler(router_data, grpc_request, grpc_header).await;
+    let external_latency = start_time.elapsed().as_millis();
+
+    // Create and emit connector event after UCS call
+    let (status_code, response_body, router_result) = match result {
+        Ok((updated_router_data, grpc_response)) => {
+            let status = updated_router_data
+                .connector_http_status_code
+                .unwrap_or(200);
+
+            // Log the actual gRPC response
+            let grpc_response_body = serde_json::to_value(&grpc_response).unwrap_or_else(
+                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+            );
+
+            (status, Some(grpc_response_body), Ok(updated_router_data))
+        }
+        Err(error) => {
+            // Update error metrics for UCS calls
+            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                1,
+                router_env::metric_attributes!(("connector", connector_name.clone(),)),
+            );
+
+            let error_body = serde_json::json!({
+                "error": error.to_string(),
+                "error_type": "ucs_call_failed"
+            });
+            (500, Some(error_body), Err(error))
+        }
+    };
+
+    let mut connector_event = ConnectorEvent::new(
+        state.tenant.tenant_id.clone(),
+        connector_name,
+        std::any::type_name::<T>(),
+        grpc_request_body,
+        "grpc://unified-connector-service".to_string(),
+        common_utils::request::Method::Post,
+        payment_id,
+        merchant_id,
+        state.request_id.as_ref(),
+        external_latency,
+        refund_id,
+        dispute_id,
+        status_code,
+    );
+
+    // Set response body based on status code
+    if let Some(body) = response_body {
+        match status_code {
+            400..=599 => {
+                connector_event.set_error_response_body(&body);
+            }
+            _ => {
+                connector_event.set_response_body(&body);
+            }
+        }
+    }
+
+    // Emit event
+    state.event_handler.log_event(&connector_event);
+
+    router_result
 }

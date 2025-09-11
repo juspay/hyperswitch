@@ -128,7 +128,6 @@ mod bool_wrappers {
             bool::from_sql(value).map(Self)
         }
     }
-
     /// Bool that represents if Cvv should be collected during payment or not. Default is true
     #[derive(
         Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
@@ -168,6 +167,152 @@ mod bool_wrappers {
         /// Default for `ShouldCollectCvvDuringPayment` is `true`
         fn default() -> Self {
             Self(true)
+        }
+    }
+
+    /// Bool that represents if overcapture should always be requested
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct AlwaysEnableOvercaptureBool(bool);
+    impl AlwaysEnableOvercaptureBool {
+        /// returns the inner bool value
+        pub fn is_true(&self) -> bool {
+            self.0
+        }
+    }
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for AlwaysEnableOvercaptureBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for AlwaysEnableOvercaptureBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
+        }
+    }
+
+    impl Default for AlwaysEnableOvercaptureBool {
+        /// Default for `AlwaysEnableOvercaptureBool` is `false`
+        fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    /// Bool that represents if overcapture is requested for this payment
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct EnableOvercaptureBool(bool);
+
+    impl From<bool> for EnableOvercaptureBool {
+        fn from(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl From<AlwaysEnableOvercaptureBool> for EnableOvercaptureBool {
+        fn from(item: AlwaysEnableOvercaptureBool) -> Self {
+            Self(item.is_true())
+        }
+    }
+
+    impl Deref for EnableOvercaptureBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for EnableOvercaptureBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for EnableOvercaptureBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
+        }
+    }
+
+    impl Default for EnableOvercaptureBool {
+        /// Default for `EnableOvercaptureBool` is `false`
+        fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    /// Bool that represents if overcapture is applied for a payment by the connector
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct OvercaptureEnabledBool(bool);
+
+    impl OvercaptureEnabledBool {
+        /// Creates a new instance of `OvercaptureEnabledBool`
+        pub fn new(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl Default for OvercaptureEnabledBool {
+        /// Default for `OvercaptureEnabledBool` is `false`
+        fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    impl Deref for OvercaptureEnabledBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for OvercaptureEnabledBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB> for OvercaptureEnabledBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
         }
     }
 }
@@ -235,7 +380,7 @@ mod u32_wrappers {
     }
 
     impl Default for DisputePollingIntervalInHours {
-        /// Default for `ShouldCollectCvvDuringPayment` is `true`
+        /// Default for `DisputePollingIntervalInHours` is `24`
         fn default() -> Self {
             Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
         }
