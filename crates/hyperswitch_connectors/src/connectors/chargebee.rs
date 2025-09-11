@@ -16,10 +16,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     revenue_recovery,
     router_data_v2::{flow_common_types::CreateCustomerData, RouterDataV2},
-    router_flow_types::revenue_recovery::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
 };
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -28,18 +24,19 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         CreateConnectorCustomer,
+        revenue_recovery::InvoiceRecordBack,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,revenue_recovery::InvoiceRecordBackRequest,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse, ConnectorInfo, PaymentsResponseData,
         RefundsResponseData,
     },
     types::{
-        CreateCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        CreateCustomerRouterData, InvoiceRecordBackRouterData,PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };

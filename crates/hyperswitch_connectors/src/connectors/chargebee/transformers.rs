@@ -17,10 +17,10 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
-        CreateConnectorCustomer, RecoveryRecordBack,
+        CreateConnectorCustomer, InvoiceRecordBack,
     },
     router_request_types::{
-        revenue_recovery::RevenueRecoveryRecordBackRequest, ConnectorCustomerData, ResponseId,
+        revenue_recovery::InvoiceRecordBackRequest, ConnectorCustomerData, ResponseId,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse, PaymentsResponseData, RefundsResponseData,
