@@ -984,6 +984,7 @@ impl RedisTokenManager {
         // Handle daily retry history
         card_data
             .get("daily_retry_history")
+            .filter(|retry_history| !retry_history.is_null())
             .and_then(|retry_history| {
                 token_data.as_object_mut().map(|token_obj| {
                     token_obj.insert("daily_retry_history".to_string(), retry_history.clone());

@@ -145,13 +145,13 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i
                 }
                 Err(e) => {
                     logger::warn!("Failed to parse daily_retry_history JSON '{}': {}", json, e);
-                    Some(HashMap::new())
+                    None
                 }
             }
         }
         _ => {
-            logger::debug!("Daily retry history not present or invalid");
-            Some(HashMap::new())
+            logger::debug!("Daily retry history not present or invalid, preserving existing data");
+            None
         }
     }
 }
