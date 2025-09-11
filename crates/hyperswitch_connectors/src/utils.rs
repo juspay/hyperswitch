@@ -2077,6 +2077,7 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2100,6 +2101,9 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
+    }
+    fn is_mandate_payment(&self) -> bool {
+        matches!(self.setup_future_usage, Some(FutureUsage::OffSession))
     }
 }
 
@@ -6323,8 +6327,9 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
-        payment_channel: None,
+        payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
+        enable_overcapture: None,
     }
 }
 

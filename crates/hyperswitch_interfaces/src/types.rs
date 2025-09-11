@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
             SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
-        revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
+        revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
         subscriptions::GetSubscriptionPlanPrices,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
         },
         subscriptions::GetSubscriptionPlanPricesRequest,
         unified_authentication_service::{
@@ -53,7 +53,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
         },
         subscriptions::GetSubscriptionPlanPricesResponse,
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
@@ -274,11 +274,11 @@ pub type UasAuthenticationType = dyn ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-/// Type alias for `ConnectorIntegration<RecoveryRecordBack, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type RevenueRecoveryRecordBackType = dyn ConnectorIntegration<
-    RecoveryRecordBack,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+/// Type alias for `ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type InvoiceRecordBackType = dyn ConnectorIntegration<
+    InvoiceRecordBack,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
@@ -295,12 +295,12 @@ pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
     BillingConnectorInvoiceSyncResponse,
 >;
 
-/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
-pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
-    RecoveryRecordBack,
-    flow_common_types::RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+/// Type alias for `ConnectorIntegrationV2<InvoiceRecordBack, InvoiceRecordBackData, InvoiceRecordBackRequest, InvoiceRecordBackResponse>`
+pub type InvoiceRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    InvoiceRecordBack,
+    flow_common_types::InvoiceRecordBackData,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
 >;
 
 /// Type alias for `ConnectorIntegrationV2<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`

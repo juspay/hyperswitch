@@ -853,18 +853,20 @@ async fn call_unified_connector_service_authorize(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-
+    let headers_builder = state
+        .get_grpc_headers_ucs()
+        .external_vault_proxy_metadata(None);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_authorize_request,
-        |mut router_data, payment_authorize_request| async move {
+        headers_builder,
+        |mut router_data, payment_authorize_request, grpc_headers| async move {
             let response = client
                 .payment_authorize(
                     payment_authorize_request,
                     connector_auth_metadata,
-                    None,
-                    state.get_grpc_headers(),
+                    grpc_headers,
                 )
                 .await
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -924,17 +926,20 @@ async fn call_unified_connector_service_repeat_payment(
         build_unified_connector_service_auth_metadata(merchant_connector_account, merchant_context)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
-
+    let headers_builder = state
+        .get_grpc_headers_ucs()
+        .external_vault_proxy_metadata(None);
     let updated_router_data = Box::pin(ucs_logging_wrapper(
         router_data.clone(),
         state,
         payment_repeat_request,
-        |mut router_data, payment_repeat_request| async move {
+        headers_builder,
+        |mut router_data, payment_repeat_request, grpc_headers| async move {
             let response = client
                 .payment_repeat(
                     payment_repeat_request,
                     connector_auth_metadata.clone(),
-                    state.get_grpc_headers(),
+                    grpc_headers,
                 )
                 .await
                 .change_context(ApiErrorResponse::InternalServerError)

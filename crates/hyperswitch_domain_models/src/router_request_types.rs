@@ -86,6 +86,7 @@ pub struct PaymentsAuthorizeData {
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Debug, Clone)]
@@ -706,6 +707,7 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 #[derive(Debug, Default, Clone)]

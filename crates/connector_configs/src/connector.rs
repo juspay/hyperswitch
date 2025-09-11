@@ -149,7 +149,7 @@ pub struct ConfigMetadata {
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
-    pub account_id: Option<String>,
+    pub account_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]

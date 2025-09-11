@@ -4,7 +4,7 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::RecoveryRecordBack,
+        mandate_revoke::MandateRevoke, revenue_recovery::InvoiceRecordBack,
         subscriptions::GetSubscriptionPlanPrices, AccessTokenAuth, AccessTokenAuthentication,
         Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
         BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
@@ -16,7 +16,7 @@ use crate::{
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            RevenueRecoveryRecordBackRequest,
+            InvoiceRecordBackRequest,
         },
         subscriptions::GetSubscriptionPlanPricesRequest,
         unified_authentication_service::{
@@ -37,7 +37,7 @@ use crate::{
     router_response_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackResponse,
         },
         subscriptions::GetSubscriptionPlanPricesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
@@ -117,11 +117,8 @@ pub type VerifyWebhookSourceRouterData = RouterData<
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
-pub type RevenueRecoveryRecordBackRouterData = RouterData<
-    RecoveryRecordBack,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
->;
+pub type InvoiceRecordBackRouterData =
+    RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
@@ -152,11 +149,11 @@ pub type BillingConnectorPaymentsSyncRouterDataV2 = RouterDataV2<
     BillingConnectorPaymentsSyncResponse,
 >;
 
-pub type RevenueRecoveryRecordBackRouterDataV2 = RouterDataV2<
-    RecoveryRecordBack,
-    router_data_v2::flow_common_types::RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+pub type InvoiceRecordBackRouterDataV2 = RouterDataV2<
+    InvoiceRecordBack,
+    router_data_v2::flow_common_types::InvoiceRecordBackData,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
 >;
 
 pub type GetSubscriptionPlanPricesRouterData = RouterData<
