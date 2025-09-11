@@ -415,6 +415,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 payu::transformers::PayuAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Peachpayments => {
+            //     peachpayments::transformers::PeachpaymentsAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Placetopay => {
                 placetopay::transformers::PlacetopayAuthType::try_from(self.auth_type)?;
                 Ok(())
