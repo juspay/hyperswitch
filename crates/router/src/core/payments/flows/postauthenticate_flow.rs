@@ -9,7 +9,6 @@ use hyperswitch_domain_models::{
     router_data::RouterData,
     router_flow_types::{PostAuthenticate, PreAuthenticate},
     router_request_types::PaymentsAuthorizeData,
-    router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
@@ -40,7 +39,11 @@ use crate::{
 
 #[async_trait]
 impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
-    for RouterData<PostAuthenticate, types::PaymentsPostAuthenticateData, PaymentsResponseData>
+    for RouterData<
+        PostAuthenticate,
+        types::PaymentsPostAuthenticateData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         mut self,
