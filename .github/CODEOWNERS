@@ -153,3 +153,26 @@ Dockerfile @juspay/hyperswitch-infra
 docker-compose.yml @juspay/hyperswitch-infra
 .dockerignore @juspay/hyperswitch-infra
 monitoring/ @juspay/hyperswitch-infra
+
+crates/router/src/core/revenue_recovery  @juspay/hyperswitch-revenue-recovery
+crates/router/src/core/payments/operations/proxy_payments_intent.rs @juspay/hyperswitch-revenue-recovery
+crates/router/src/core/payments/operations/payment_attempt_record.rs    @juspay/hyperswitch-revenue-recovery
+crates/router/src/core/revenue_recovery.rs  @juspay/hyperswitch-revenue-recovery
+crates/router/src/core/webhooks/recovery_incoming.rs  @juspay/hyperswitch-revenue-recovery
+crates/router/src/types/storage/revenue_recovery.rs  @juspay/hyperswitch-revenue-recovery
+crates/router/src/workflows/revenue_recovery.rs   @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/chargebee.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/stripebilling.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/chargebee/transformers.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/stripebilling/transformers.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/recurly.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_connectors/src/connectors/recurly/transformers.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_domain_models/src/revenue_recovery.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_domain_models/src/router_response_types/revenue_recovery.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_domain_models/src/router_flow_types/revenue_recovery.rs  @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_domain_models/src/router_request_types/revenue_recovery.rs   @juspay/hyperswitch-revenue-recovery
+crates/api_models/src/events/revenue_recovery.rs    @juspay/hyperswitch-revenue-recovery
+crates/api_models/src/process_tracker/revenue_recovery.rs   @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_interfaces/src/api/revenue_recovery.rs   @juspay/hyperswitch-revenue-recovery
+crates/hyperswitch_interfaces/src/api/revenue_recovery_v2.rs    @juspay/hyperswitch-revenue-recovery
+crates/openapi/src/routes/revenue_recovery.rs   @juspay/hyperswitch-revenue-recovery
