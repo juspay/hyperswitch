@@ -511,6 +511,21 @@ async fn process_webhook_business_logic(
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
 
+    // Early validation - check if webhook is valid (resource exists and profile_id matches)
+    let is_valid = helper_utils::is_webhook_valid(
+        state,
+        object_ref_id.clone(),
+        merchant_context,
+        connector_name,
+    )
+    .await
+    .unwrap_or(false); // If validation fails, treat as invalid
+
+    if !is_valid {
+        logger::info!("Webhook validation failed - resource doesn't exist or profile_id mismatch");
+        return Ok(WebhookResponseTracker::NoEffect);
+    }
+
     let merchant_connector_account = match Box::pin(helper_utils::get_mca_from_object_reference_id(
         state,
         object_ref_id.clone(),
