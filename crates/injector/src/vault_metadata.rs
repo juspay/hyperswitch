@@ -92,7 +92,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         );
 
         // Validate and set proxy URL from VGS metadata
-        self.validate_proxy_url()?;
         let proxy_url_str = self.proxy_url.as_str().to_string();
         connection_config.proxy_url = Some(Secret::new(proxy_url_str.clone()));
 
@@ -104,7 +103,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         );
 
         // Validate and decode certificate from VGS metadata
-        self.validate_certificate()?;
         let cert_content = self.certificate.clone().expose();
 
         logger::debug!(
