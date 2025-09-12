@@ -4233,6 +4233,14 @@ pub enum RedirectForm {
         form_fields: std::collections::HashMap<String, String>,
         collection_id: Option<String>,
     },
+    AciThreeDSFlow {
+        precondition_url: String,
+        precondition_method: String,
+        precondition_form_fields: std::collections::HashMap<String, String>,
+        authentication_url: String,
+        authentication_method: String,
+        authentication_form_fields: std::collections::HashMap<String, String>,
+    },
 }
 
 common_utils::impl_to_sql_from_sql_json!(RedirectForm);

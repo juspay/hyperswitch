@@ -313,6 +313,14 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    AciThreeDSFlow {
+        precondition_url: String,
+        precondition_method: String,
+        precondition_form_fields: HashMap<String, String>,
+        authentication_url: String,
+        authentication_method: String,
+        authentication_form_fields: HashMap<String, String>,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -428,6 +436,21 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            } => Self::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            },
         }
     }
 }
@@ -484,9 +507,10 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
-            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
-                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
-            }
+            diesel_models::payment_attempt::RedirectForm::DeutschebankThreeDSChallengeFlow {
+                acs_url,
+                creq,
+            } => Self::DeutschebankThreeDSChallengeFlow { acs_url, creq },
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,
@@ -527,6 +551,21 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 method,
                 form_fields,
                 collection_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
+            } => Self::AciThreeDSFlow {
+                precondition_url,
+                precondition_method,
+                precondition_form_fields,
+                authentication_url,
+                authentication_method,
+                authentication_form_fields,
             },
         }
     }
