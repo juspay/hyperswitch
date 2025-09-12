@@ -291,7 +291,13 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_reference_id: router_data
+                .request
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|merchant_order_reference_id| {
+                    merchant_order_reference_id.get_string_repr().to_string()
+                }),
             shipping_cost: router_data
                 .request
                 .shipping_cost
