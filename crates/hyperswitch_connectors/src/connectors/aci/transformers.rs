@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
@@ -94,6 +94,13 @@ impl TryFrom<&ConnectorAuthType> for AciAuthType {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AciRecurringType {
+    Initial,
+    Repeated,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
@@ -104,6 +111,10 @@ pub struct AciPaymentsRequest {
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
     pub shopper_result_url: Option<String>,
+    #[serde(rename = "customParameters[3DS2_enrolled]")]
+    pub three_ds_two_enrolled: Option<bool>,
+    #[serde(rename = "recurringType")]
+    pub recurring_type: Option<AciRecurringType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -655,6 +666,8 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            recurring_type: None,
         })
     }
 }
@@ -681,6 +694,8 @@ impl
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            recurring_type: None,
         })
     }
 }
@@ -699,6 +714,8 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            recurring_type: None,
         })
     }
 }
@@ -713,12 +730,20 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
+        let recurring_type = get_recurring_type(item);
+        let three_ds_two_enrolled = if item.router_data.is_three_ds() {
+            Some(item.router_data.request.enrolled_for_3ds)
+        } else {
+            None
+        };
 
         Ok(Self {
             txn_details,
             payment_method,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled,
+            recurring_type,
         })
     }
 }
@@ -746,6 +771,8 @@ impl
             payment_method,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            recurring_type: None,
         })
     }
 }
@@ -766,12 +793,15 @@ impl
         let (item, _mandate_data) = value;
         let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
+        let recurring_type = get_recurring_type(item);
 
         Ok(Self {
             txn_details,
             payment_method: PaymentDetails::Mandate,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            recurring_type,
         })
     }
 }
@@ -796,7 +826,9 @@ fn get_transaction_details(
 fn get_instruction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<Instruction> {
-    if item.router_data.request.setup_mandate_details.is_some() {
+    if item.router_data.request.customer_acceptance.is_some()
+        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
+    {
         return Some(Instruction {
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
@@ -812,6 +844,20 @@ fn get_instruction_details(
         });
     }
     None
+}
+
+fn get_recurring_type(
+    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<AciRecurringType> {
+    if item.router_data.request.mandate_id.is_some() {
+        Some(AciRecurringType::Repeated)
+    } else if item.router_data.request.customer_acceptance.is_some()
+        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
+    {
+        Some(AciRecurringType::Initial)
+    } else {
+        None
+    }
 }
 
 impl TryFrom<&PaymentsCancelRouterData> for AciCancelRequest {
@@ -992,11 +1038,19 @@ where
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
-            let form_fields = std::collections::HashMap::<_, _>::from_iter(
+            let mut form_fields = std::collections::HashMap::<_, _>::from_iter(
                 data.parameters
                     .iter()
                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
             );
+
+            if let Some(preconditions) = data.preconditions {
+                if let Some(first_precondition) = preconditions.first() {
+                    for param in &first_precondition.parameters {
+                        form_fields.insert(param.name.clone(), param.value.clone());
+                    }
+                }
+            }
 
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
@@ -1009,12 +1063,16 @@ where
             }
         });
 
-        let mandate_reference = item.response.registration_id.map(|id| MandateReference {
-            connector_mandate_id: Some(id.expose()),
-            payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
-        });
+        let mandate_reference = item
+            .response
+            .registration_id
+            .clone()
+            .map(|id| MandateReference {
+                connector_mandate_id: Some(id.expose()),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            });
 
         let auto_capture = matches!(
             item.data.request.get_capture_method(),
@@ -1030,9 +1088,21 @@ where
             )
         };
 
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
@@ -1041,7 +1111,12 @@ where
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
