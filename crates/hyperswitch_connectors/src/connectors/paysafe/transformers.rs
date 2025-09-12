@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
+use common_types::payments::ApplePayPaymentData;
 use common_utils::{
     pii::{IpAddress, SecretSerdeValue},
     request::Method,
@@ -9,7 +11,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{ApplePayWalletData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -29,8 +31,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        self, missing_field_err, to_connector_meta, BrowserInformationData, CardData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 
@@ -56,12 +59,19 @@ pub struct PaysafeConnectorMetadataObject {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<Currency, CardAccountId>>,
+    pub apple_pay: Option<HashMap<Currency, ApplePayAccountDetails>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CardAccountId {
     no_three_ds: Option<Secret<String>>,
     three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ApplePayAccountDetails {
+    encrypt: Option<Secret<String>>,
+    decrypt: Option<Secret<String>>,
 }
 
 impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
@@ -134,6 +144,135 @@ pub struct PaysafePaymentHandleRequest {
 #[serde(untagged)]
 pub enum PaysafePaymentMethod {
     Card { card: PaysafeCard },
+    Wallet(Box<PaysafeWallet>),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum PaysafeWallet {
+    ApplePay {
+        #[serde(rename = "applePay")]
+        apple_pay: PaysafeApplepayPayment,
+    },
+    /* TODO:
+    GooglePay {
+        #[serde(rename = "googlePay")]
+        google_pay: GooglePayWallet,
+    },
+    */
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplepayPayment {
+    pub label: Option<String>,
+    pub request_billing_address: Option<bool>,
+    #[serde(rename = "applePayPaymentToken")]
+    pub apple_pay_payment_token: PaysafeApplePayPaymentToken,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentToken {
+    pub token: PaysafeApplePayToken,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_contact: Option<PaysafeApplePayBillingContact>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayToken {
+    pub payment_data: PaysafeApplePayPaymentData,
+    pub payment_method: PaysafeApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum PaysafeApplePayPaymentData {
+    Encrypted(PaysafeApplePayEncryptedData),
+    Decrypted(PaysafeApplePayDecryptedDataWrapper),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: PaysafeApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedDataWrapper {
+    pub decrypted_data: PaysafeApplePayDecryptedData,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedData {
+    pub application_primary_account_number: CardNumber,
+    pub application_expiration_date: Secret<String>,
+    pub currency_code: Option<Currency>,
+    pub transaction_amount: Option<MinorUnit>,
+    pub cardholder_name: Option<Secret<String>>,
+    pub device_manufacturer_identifier: Option<String>,
+    pub payment_data_type: Option<String>,
+    pub payment_data: PaysafeApplePayDecryptedPaymentData,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedPaymentData {
+    pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayHeader {
+    pub public_key_hash: String,
+    pub ephemeral_public_key: String,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayBillingContact {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address_lines: Option<Vec<Secret<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_locality: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -154,6 +293,7 @@ pub enum LinkType {
 
 #[derive(Debug, Serialize)]
 pub enum PaysafePaymentType {
+    // For Apple Pay and Google Pay, paymentType is 'CARD' as per Paysafe docs and is not reserved for card payments only
     #[serde(rename = "CARD")]
     Card,
 }
@@ -190,6 +330,32 @@ impl PaysafePaymentMethodDetails {
                 config: "Missing 3ds account_id",
             })
     }
+
+    pub fn get_wallet_encrypt_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.apple_pay
+            .as_ref()
+            .and_then(|apple_pay| apple_pay.get(&currency))
+            .and_then(|flow| flow.encrypt.clone())
+            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing ApplePay encrypt account_id",
+            })
+    }
+
+    pub fn get_wallet_decrypt_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.apple_pay
+            .as_ref()
+            .and_then(|apple_pay| apple_pay.get(&currency))
+            .and_then(|flow| flow.decrypt.clone())
+            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing ApplePay decrypt account_id",
+            })
+    }
 }
 
 impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePaymentHandleRequest {
@@ -197,20 +363,49 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
     fn try_from(
         item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Paysafe",
-            })?
-        };
         let metadata: PaysafeConnectorMetadataObject =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
-        let currency = item.router_data.request.get_currency()?;
+        let currency_code = item.router_data.request.get_currency()?;
+        let amount = item.amount;
+        let settle_with_auth = matches!(
+            item.router_data.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+        let payment_type = PaysafePaymentType::Card;
+        let transaction_type = TransactionType::Payment;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
+
+        let return_links = vec![
+            ReturnLink {
+                rel: LinkType::Default,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCompleted,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnFailed,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCancelled,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+        ];
+
         match item.router_data.request.get_payment_method_data()?.clone() {
             PaymentMethodData::Card(req_card) => {
+                let account_id = metadata
+                    .account_id
+                    .get_no_three_ds_account_id(currency_code)?;
                 let card = PaysafeCard {
                     card_num: req_card.card_number.clone(),
                     card_expiry: PaysafeCardExpiry {
@@ -226,43 +421,13 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                 };
 
                 let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
-                let account_id = metadata.account_id.get_no_three_ds_account_id(currency)?;
-                let amount = item.amount;
-                let payment_type = PaysafePaymentType::Card;
-                let transaction_type = TransactionType::Payment;
-                let redirect_url = item.router_data.request.get_router_return_url()?;
-                let return_links = vec![
-                    ReturnLink {
-                        rel: LinkType::Default,
-                        href: redirect_url.clone(),
-                        method: Method::Get.to_string(),
-                    },
-                    ReturnLink {
-                        rel: LinkType::OnCompleted,
-                        href: redirect_url.clone(),
-                        method: Method::Get.to_string(),
-                    },
-                    ReturnLink {
-                        rel: LinkType::OnFailed,
-                        href: redirect_url.clone(),
-                        method: Method::Get.to_string(),
-                    },
-                    ReturnLink {
-                        rel: LinkType::OnCancelled,
-                        href: redirect_url.clone(),
-                        method: Method::Get.to_string(),
-                    },
-                ];
 
                 Ok(Self {
                     merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
                     amount,
-                    settle_with_auth: matches!(
-                        item.router_data.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
-                    ),
+                    settle_with_auth,
                     payment_method,
-                    currency_code: currency,
+                    currency_code,
                     payment_type,
                     transaction_type,
                     return_links,
@@ -270,6 +435,81 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     three_ds: None,
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(applepay_data) => {
+                    let is_encrypted = matches!(
+                        applepay_data.payment_data,
+                        ApplePayPaymentData::Encrypted(_)
+                    );
+
+                    let account_id = if is_encrypted {
+                        metadata
+                            .account_id
+                            .get_wallet_encrypt_account_id(currency_code)?
+                    } else {
+                        metadata
+                            .account_id
+                            .get_wallet_decrypt_account_id(currency_code)?
+                    };
+
+                    let applepay_payment =
+                        PaysafeApplepayPayment::try_from((&applepay_data, item))?;
+
+                    let payment_method =
+                        PaysafePaymentMethod::Wallet(Box::new(PaysafeWallet::ApplePay {
+                            apple_pay: applepay_payment,
+                        }));
+
+                    Ok(Self {
+                        merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
+                        amount,
+                        settle_with_auth,
+                        payment_method,
+                        currency_code,
+                        payment_type,
+                        transaction_type,
+                        return_links,
+                        account_id,
+                        three_ds: None,
+                    })
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePay(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nuvei"),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))?,
@@ -347,6 +587,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            status: enums::AttemptStatus::try_from(item.response.status)?,
             preprocessing_id: Some(
                 item.response
                     .payment_handle_token
@@ -422,15 +663,17 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let url = match item.response.links.as_ref().and_then(|links| links.first()) {
-            Some(link) => link.href.clone(),
-            None => return Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-        };
-        let redirection_data = Some(RedirectForm::Form {
-            endpoint: url,
-            method: Method::Get,
-            form_fields: Default::default(),
-        });
+        let redirection_data = item
+            .response
+            .links
+            .as_ref()
+            .and_then(|links| links.first())
+            .map(|link| RedirectForm::Form {
+                endpoint: link.href.clone(),
+                method: Method::Get,
+                form_fields: Default::default(),
+            });
+
         let connector_metadata = serde_json::json!(PaysafeMeta {
             payment_handle_token: item.response.payment_handle_token.clone(),
         });
@@ -503,6 +746,99 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct DecryptedApplePayTokenData {
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: DecryptedApplePayTokenHeader,
+    version: Secret<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DecryptedApplePayTokenHeader {
+    public_key_hash: String,
+    ephemeral_public_key: String,
+    transaction_id: String,
+}
+
+impl
+    TryFrom<(
+        &ApplePayWalletData,
+        &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+    )> for PaysafeApplepayPayment
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (wallet_data, item): (
+            &ApplePayWalletData,
+            &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let apple_pay_payment_token = PaysafeApplePayPaymentToken {
+            token: PaysafeApplePayToken {
+                payment_data: match &wallet_data.payment_data {
+                    ApplePayPaymentData::Decrypted(applepay_predecrypt_data) => {
+                        PaysafeApplePayPaymentData::Decrypted(PaysafeApplePayDecryptedDataWrapper {
+                            decrypted_data: PaysafeApplePayDecryptedData {
+                                application_primary_account_number: applepay_predecrypt_data.application_primary_account_number.clone(),
+                                application_expiration_date: applepay_predecrypt_data.get_expiry_date_as_yymm().change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "application_expiration_date",
+                                })?,
+                                currency_code: item.router_data.request.currency,
+                                transaction_amount: Some(item.amount),
+                                cardholder_name: None,
+                                device_manufacturer_identifier: Some("Apple".to_string()),
+                                payment_data_type: Some("3DSecure".to_string()),
+                                payment_data: PaysafeApplePayDecryptedPaymentData {
+                                    online_payment_cryptogram: applepay_predecrypt_data.payment_data.online_payment_cryptogram.clone(),
+                                    eci_indicator: applepay_predecrypt_data.payment_data.eci_indicator.clone()
+                                        .ok_or_else(missing_field_err("payment_method_data.wallet.apple_pay.payment_data.eci_indicator"))?,
+                                }
+                            }
+                        })
+                    }
+                    ApplePayPaymentData::Encrypted(applepay_encrypt_data) => {
+                                let decoded_data = base64::prelude::BASE64_STANDARD.decode(applepay_encrypt_data)
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "apple_pay_encrypted_data",
+                                    })?;
+
+                                let apple_pay_token: DecryptedApplePayTokenData = serde_json::from_slice(&decoded_data)
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "apple_pay_token_json",
+                                    })?;
+
+                                PaysafeApplePayPaymentData::Encrypted(PaysafeApplePayEncryptedData {
+                                    data: apple_pay_token.data,
+                                    signature: apple_pay_token.signature,
+                                    header: PaysafeApplePayHeader {
+                                        public_key_hash: apple_pay_token.header.public_key_hash,
+                                        ephemeral_public_key: apple_pay_token.header.ephemeral_public_key,
+                                        transaction_id: apple_pay_token.header.transaction_id,
+                                    },
+                                    version: apple_pay_token.version,
+                                })
+                    }
+                },
+                payment_method: PaysafeApplePayPaymentMethod {
+                    display_name: Secret::new(wallet_data.payment_method.display_name.clone()),
+                        network: Secret::new(wallet_data.payment_method.network.clone()),
+                    method_type: Secret::new(wallet_data.payment_method.pm_type.clone()),
+                },
+                transaction_identifier: wallet_data.transaction_identifier.clone(),
+            },
+            billing_contact: None,
+        };
+
+        Ok(Self {
+            label: None,
+            request_billing_address: Some(false),
+            apple_pay_payment_token,
+        })
+    }
+}
+
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -515,6 +851,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 })?;
         let redirect_url_success = item.router_data.request.get_complete_authorize_url()?;
         let redirect_url = item.router_data.request.get_router_return_url()?;
+
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -544,6 +881,8 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             Some(enums::CaptureMethod::Automatic) | None
         );
         let transaction_type = TransactionType::Payment;
+        let payment_type = PaysafePaymentType::Card;
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = PaysafeCard {
@@ -560,7 +899,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     holder_name: item.router_data.get_optional_billing_full_name(),
                 };
                 let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
-                let payment_type = PaysafePaymentType::Card;
                 let headers = item.router_data.header_payload.clone();
                 let platform = headers
                     .as_ref()
