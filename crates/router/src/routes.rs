@@ -50,6 +50,8 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod subscription;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "olap")]
@@ -96,7 +98,7 @@ pub use self::app::{
     User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
+pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(all(feature = "stripe", feature = "v1"))]

@@ -43,6 +43,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
         },
+        Subscription: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
         ThreeDsDecisionManager: {
             scopes: [Read, Write],
             entities: [Merchant, Profile]
@@ -123,6 +127,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
             Some("Payment Processors, Payout Processors, Fraud & Risk Managers")
         }
         (Resource::Routing, _) => Some("Routing"),
+        (Resource::Subscription, _) => Some("Subscription"),
         (Resource::RevenueRecovery, _) => Some("Revenue Recovery"),
         (Resource::ThreeDsDecisionManager, _) => Some("3DS Decision Manager"),
         (Resource::SurchargeDecisionManager, _) => Some("Surcharge Decision Manager"),
