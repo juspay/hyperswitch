@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -94,6 +94,38 @@ impl TryFrom<&ConnectorAuthType> for AciAuthType {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AciRecurringType {
+    Initial,
+    Repeated,
+    RegistrationBased,
+}
+
+fn get_str(key: &str, metadata: &serde_json::Value) -> Option<String> {
+    metadata
+        .get(key)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+fn determine_recurring_type_for_3ds(
+    item: &PaymentsAuthorizeRouterData,
+) -> Option<AciRecurringType> {
+    if let Some(metadata) = item.connector_meta_data.as_ref() {
+        let metadata_value = metadata.peek();
+        if let Some(recurring_type) = get_str("recurring_type", metadata_value) {
+            return match recurring_type.as_str() {
+                "repeated" => Some(AciRecurringType::Repeated),
+                "initial" => Some(AciRecurringType::Initial),
+                "registration_based" => Some(AciRecurringType::RegistrationBased),
+                _ => None,
+            };
+        }
+    }
+    None
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
@@ -104,6 +136,40 @@ pub struct AciPaymentsRequest {
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
     pub shopper_result_url: Option<String>,
+    #[serde(rename = "customParameters[3DS2_enrolled]")]
+    pub three_ds_two_enrolled: Option<bool>,
+    #[serde(rename = "customParameters[3DS2_flow]")]
+    pub three_ds_two_flow: Option<String>,
+    #[serde(rename = "threeDSecure.challengeIndicator")]
+    pub challenge_indicator: Option<String>,
+    #[serde(rename = "recurringType")]
+    pub recurring_type: Option<AciRecurringType>,
+}
+
+fn get_three_ds_data(
+    item: &PaymentsAuthorizeRouterData,
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<bool>,
+    Option<AciRecurringType>,
+) {
+    if item.is_three_ds() {
+        let metadata = item.connector_meta_data.as_ref();
+        let three_ds_two_flow = metadata.and_then(|meta| get_str("three_ds_flow", meta.peek()));
+        let challenge_indicator =
+            metadata.and_then(|meta| get_str("challenge_indicator", meta.peek()));
+        let three_ds_two_enrolled = Some(item.request.enrolled_for_3ds);
+        let recurring_type = determine_recurring_type_for_3ds(item);
+        (
+            three_ds_two_flow,
+            challenge_indicator,
+            three_ds_two_enrolled,
+            recurring_type,
+        )
+    } else {
+        (None, None, None, None)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -655,6 +721,10 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            three_ds_two_flow: None,
+            challenge_indicator: None,
+            recurring_type: None,
         })
     }
 }
@@ -681,6 +751,10 @@ impl
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            three_ds_two_flow: None,
+            challenge_indicator: None,
+            recurring_type: None,
         })
     }
 }
@@ -699,6 +773,10 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             payment_method,
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            three_ds_two_flow: None,
+            challenge_indicator: None,
+            recurring_type: None,
         })
     }
 }
@@ -713,12 +791,18 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
+        let (three_ds_two_flow, challenge_indicator, three_ds_two_enrolled, recurring_type) =
+            get_three_ds_data(item.router_data);
 
         Ok(Self {
             txn_details,
             payment_method,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled,
+            three_ds_two_flow,
+            challenge_indicator,
+            recurring_type,
         })
     }
 }
@@ -746,6 +830,10 @@ impl
             payment_method,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            three_ds_two_flow: None,
+            challenge_indicator: None,
+            recurring_type: None,
         })
     }
 }
@@ -772,6 +860,10 @@ impl
             payment_method: PaymentDetails::Mandate,
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
+            three_ds_two_enrolled: None,
+            three_ds_two_flow: None,
+            challenge_indicator: None,
+            recurring_type: None,
         })
     }
 }
@@ -935,6 +1027,52 @@ pub struct AciPaymentsResponse {
     pub(super) redirect: Option<AciRedirectionData>,
 }
 
+fn build_3ds_redirect_form(redirect_data: AciRedirectionData) -> RedirectForm {
+    if let Some(preconditions) = redirect_data.preconditions {
+        if let Some(first_precondition) = preconditions.first() {
+            let precondition_form_fields = std::collections::HashMap::<_, _>::from_iter(
+                first_precondition
+                    .parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+            );
+
+            let authentication_form_fields = std::collections::HashMap::<_, _>::from_iter(
+                redirect_data
+                    .parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+            );
+
+            return RedirectForm::AciThreeDSFlow {
+                precondition_url: first_precondition.url.to_string(),
+                precondition_method: first_precondition
+                    .method
+                    .clone()
+                    .unwrap_or(Method::Post)
+                    .to_string(),
+                precondition_form_fields,
+                authentication_url: redirect_data.url.to_string(),
+                authentication_method: redirect_data.method.unwrap_or(Method::Post).to_string(),
+                authentication_form_fields,
+            };
+        }
+    }
+
+    let form_fields = std::collections::HashMap::<_, _>::from_iter(
+        redirect_data
+            .parameters
+            .iter()
+            .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+    );
+
+    RedirectForm::Form {
+        endpoint: redirect_data.url.to_string(),
+        method: redirect_data.method.unwrap_or(Method::Post),
+        form_fields,
+    }
+}
+
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciErrorResponse {
@@ -991,23 +1129,7 @@ where
     fn try_from(
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.redirect.map(|data| {
-            let form_fields = std::collections::HashMap::<_, _>::from_iter(
-                data.parameters
-                    .iter()
-                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
-            );
-
-            // If method is Get, parameters are appended to URL
-            // If method is post, we http Post the method to URL
-            RedirectForm::Form {
-                endpoint: data.url.to_string(),
-                // Handles method for Bank redirects currently.
-                // 3DS response have method within preconditions. That would require replacing below line with a function.
-                method: data.method.unwrap_or(Method::Post),
-                form_fields,
-            }
-        });
+        let redirection_data = item.response.redirect.map(build_3ds_redirect_form);
 
         let mandate_reference = item.response.registration_id.map(|id| MandateReference {
             connector_mandate_id: Some(id.expose()),

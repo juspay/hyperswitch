@@ -2117,6 +2117,85 @@ pub fn build_redirection_form(
                 }
             }
         },
+        RedirectForm::AciThreeDSFlow {
+            precondition_url,
+            precondition_method: _,
+            precondition_form_fields,
+            authentication_url,
+            authentication_method: _,
+            authentication_form_fields,
+        } => {
+            // Build the redirect JSON object that matches ACI's response format for JavaScript
+            let precondition_params = precondition_form_fields
+                .iter()
+                .map(|(name, value)| format!(r#"{{"name": "{}", "value": "{}"}}"#, name, value))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let auth_params = authentication_form_fields
+                .iter()
+                .map(|(name, value)| format!(r#"{{"name": "{}", "value": "{}"}}"#, name, value))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let redirect_json = format!(
+                r#"{{"url": "{}", "parameters": [{}], "preconditions": [{{"url": "{}", "parameters": [{}]}}]}}"#,
+                authentication_url, auth_params, precondition_url, precondition_params
+            );
+
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                        title { "3DS Authentication" }
+                    }
+                    body {
+                        script {
+                            (PreEscaped(format!(r#"
+                                window.onload = async () => {{
+                                    const redirect = {};
+                                    console.log("ACI 3DS Redirect data", redirect);
+                                    if (redirect.url === undefined) {{
+                                        console.error("No redirect data found");
+                                        return;
+                                    }}
+                                    if (redirect.preconditions && redirect.preconditions.length > 0) {{
+                                        await loadIframe("preconditionsFrame", redirect.preconditions[0].url, redirect.preconditions[0].parameters);
+                                    }}
+                                    await loadIframe("authenticationFrame", redirect.url, redirect.parameters);
+                                }};
+                                async function loadIframe(iframeId, url, parameters) {{
+                                    console.log("Loading ACI 3DS iframe", iframeId, url, parameters);
+                                    const form = document.createElement("form");
+                                    form.name = "";
+                                    form.action = url;
+                                    form.method = "POST";
+                                    
+                                    parameters.forEach(param => {{
+                                        const input = document.createElement("input");
+                                        input.type = "hidden";
+                                        input.name = param.name;
+                                        input.value = param.value;
+                                        form.appendChild(input);
+                                    }});
+                                        
+                                    const frm = document.getElementById(iframeId);
+                                    frm.contentDocument.body.appendChild(form);
+                                    const p = new Promise((resolve, reject) => {{
+                                        frm.onload = () => resolve();
+                                    }});
+                                    form.submit();
+                                    return p;
+                                }}
+                                "#, redirect_json)))
+                        }
+                        div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background-color: #ffffff;" {
+                            iframe style="width: 100%; height: 10%; border: none;" id="preconditionsFrame" {}
+                            iframe style="width: 100%; height: 90%; border: none;" id="authenticationFrame" {}
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
