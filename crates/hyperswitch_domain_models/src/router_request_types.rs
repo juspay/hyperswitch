@@ -86,6 +86,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone)]
@@ -206,6 +207,8 @@ pub struct PaymentsPostSessionTokensData {
 pub struct PaymentsUpdateMetadataData {
     pub metadata: pii::SecretSerdeValue,
     pub connector_transaction_id: String,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -848,6 +851,7 @@ pub struct PaymentsCancelData {
     pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1045,6 +1049,7 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
