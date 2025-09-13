@@ -7,16 +7,26 @@ use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_data_v2::flow_common_types as recovery_flow_common_types;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
-    router_flow_types::unified_authentication_service::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    router_flow_types::{
+        subscriptions::SubscriptionCreate,
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
     },
-    router_request_types::unified_authentication_service::{
-        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+    router_request_types::{
+        subscriptions as subscriptions_request_types,
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
     },
+    router_response_types::subscriptions as subscriptions_response_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -131,6 +141,17 @@ impl
 }
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCreate,
+        recovery_flow_common_types::SubscriptionCreateData,
+        subscriptions_request_types::SubscriptionCreateRequest,
+        subscriptions_response_types::SubscriptionCreateResponse,
+    > for Recurly
+{
+}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
