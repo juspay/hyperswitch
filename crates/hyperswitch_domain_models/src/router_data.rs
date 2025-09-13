@@ -1814,3 +1814,65 @@ impl
         }
     }
 }
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        payments::PaymentCancelData<router_flow_types::Void>,
+    >
+    for RouterData<
+        router_flow_types::Void,
+        router_request_types::PaymentsCancelData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        let intent_status = common_enums::IntentStatus::from(self.status);
+        PaymentIntentUpdate::VoidUpdate {
+            status: intent_status,
+            updated_by: storage_scheme.to_string(),
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        PaymentAttemptUpdate::VoidUpdate {
+            status: self.status,
+            cancellation_reason: payment_data.payment_attempt.cancellation_reason.clone(),
+            updated_by: storage_scheme.to_string(),
+        }
+    }
+
+    fn get_amount_capturable(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is capturable
+        Some(MinorUnit::zero())
+    }
+
+    fn get_captured_amount(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> Option<MinorUnit> {
+        // For void operations, no amount is captured
+        Some(MinorUnit::zero())
+    }
+
+    fn get_attempt_status_for_db_update(
+        &self,
+        _payment_data: &payments::PaymentCancelData<router_flow_types::Void>,
+    ) -> common_enums::AttemptStatus {
+        // For void operations, return Voided status
+        common_enums::AttemptStatus::Voided
+    }
+}
