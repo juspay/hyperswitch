@@ -1566,6 +1566,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
             ),
         ),
+        (
+            Connector::Trustpayments,
+            fields(vec![], vec![], card_basic()),
+        ),
         (Connector::Tsys, fields(vec![], card_basic(), vec![])),
         (
             Connector::Wellsfargo,
