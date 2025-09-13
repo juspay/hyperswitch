@@ -3,6 +3,7 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 use std::collections::HashMap;
 
+use api_models::payments::AddressDetails;
 use common_utils::{pii, request::Method, types::MinorUnit};
 pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
@@ -56,6 +57,9 @@ pub enum PaymentsResponseData {
 
     ConnectorCustomerResponse {
         connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
     },
 
     ThreeDSEnrollmentResponse {

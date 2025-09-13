@@ -154,6 +154,9 @@ impl<F>
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.customers.id.expose(),
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..item.data
         })

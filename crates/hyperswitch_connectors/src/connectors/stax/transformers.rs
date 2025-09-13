@@ -198,6 +198,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxCustomerResponse, T, PaymentsRespon
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id.expose(),
+                name: None,
+                email: None,
+                billing_address: None,
             }),
             ..item.data
         })

@@ -9,14 +9,22 @@ use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::UasFlowData,
-    router_flow_types::unified_authentication_service::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    router_data_v2::{flow_common_types as customer_flow_common_types, UasFlowData},
+    router_flow_types::{
+        payments::CreateConnectorCustomer as CreateCustomerFlow,
+        unified_authentication_service::{
+            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
     },
-    router_request_types::unified_authentication_service::{
-        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
-        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+    router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationRequestData, UasAuthenticationResponseData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
+        ConnectorCustomerData,
     },
+    router_response_types::PaymentsResponseData,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -137,6 +145,19 @@ impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 impl api::revenue_recovery_v2::BillingConnectorPaymentsSyncIntegrationV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::BillingConnectorInvoiceSyncIntegrationV2 for Recurly {}
+
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::CustomerCreateV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        CreateCustomerFlow,
+        customer_flow_common_types::CreateCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
+    > for Recurly
+{
+}
 
 impl ConnectorCommon for Recurly {
     fn id(&self) -> &'static str {

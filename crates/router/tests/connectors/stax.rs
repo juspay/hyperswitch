@@ -94,6 +94,7 @@ async fn create_customer_and_get_token() -> Option<String> {
     let connector_customer_id = match customer_response.response.unwrap() {
         PaymentsResponseData::ConnectorCustomerResponse {
             connector_customer_id,
+            ..
         } => Some(connector_customer_id),
         _ => None,
     };
@@ -470,6 +471,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let connector_customer_id = match customer_response.response.unwrap() {
         PaymentsResponseData::ConnectorCustomerResponse {
             connector_customer_id,
+            ..
         } => Some(connector_customer_id),
         _ => None,
     };
@@ -513,6 +515,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let connector_customer_id = match customer_response.response.unwrap() {
         PaymentsResponseData::ConnectorCustomerResponse {
             connector_customer_id,
+            ..
         } => Some(connector_customer_id),
         _ => None,
     };
@@ -556,6 +559,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let connector_customer_id = match customer_response.response.unwrap() {
         PaymentsResponseData::ConnectorCustomerResponse {
             connector_customer_id,
+            ..
         } => Some(connector_customer_id),
         _ => None,
     };

@@ -62,6 +62,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
         Ok(response) => match response {
             types::PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id,
+                ..
             } => Some(connector_customer_id),
             _ => None,
         },
