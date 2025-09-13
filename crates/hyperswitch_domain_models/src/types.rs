@@ -4,19 +4,21 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::InvoiceRecordBack, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, Authorize,
-        AuthorizeSessionToken, BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
-        CalculateTax, Capture, CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute,
-        ExternalVaultProxy, IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate,
-        PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing, RSync,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        mandate_revoke::MandateRevoke, revenue_recovery::InvoiceRecordBack,
+        subscriptions::GetSubscriptionPlanPrices, AccessTokenAuth, AccessTokenAuthentication,
+        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
+        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
+        subscriptions::GetSubscriptionPlanPricesRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -38,6 +40,7 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
+        subscriptions::GetSubscriptionPlanPricesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
         TaxCalculationResponseData, VaultResponseData, VerifyWebhookSourceResponseData,
     },
@@ -158,6 +161,12 @@ pub type InvoiceRecordBackRouterDataV2 = RouterDataV2<
     router_data_v2::flow_common_types::InvoiceRecordBackData,
     InvoiceRecordBackRequest,
     InvoiceRecordBackResponse,
+>;
+
+pub type GetSubscriptionPlanPricesRouterData = RouterData<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >;
 
 pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;

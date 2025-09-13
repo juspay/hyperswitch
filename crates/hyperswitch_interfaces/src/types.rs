@@ -16,6 +16,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
+        subscriptions::GetSubscriptionPlanPrices,
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -31,6 +32,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
+        subscriptions::GetSubscriptionPlanPricesRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -54,6 +56,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
+        subscriptions::GetSubscriptionPlanPricesResponse,
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
         SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
@@ -169,6 +172,13 @@ pub type IncrementalAuthorizationType = dyn ConnectorIntegration<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
+>;
+
+/// Type alias for ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>
+pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`

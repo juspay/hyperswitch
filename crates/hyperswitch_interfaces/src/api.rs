@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 
@@ -79,8 +81,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -104,6 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + Subscriptions
 {
 }
 
@@ -126,7 +129,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + Subscriptions,
     > Connector for T
 {
 }
