@@ -1044,6 +1044,9 @@ delay_between_retries_in_milliseconds = 500
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
+[payment_link]
+sdk_url = "http://localhost:9050/HyperLoader.js"
+
 [merchant_id_auth]
 merchant_id_auth_enabled = false
 
