@@ -511,36 +511,56 @@ async fn process_webhook_business_logic(
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
 
-    // Early validation - check if webhook is valid (resource exists and profile_id matches)
-    let is_valid = helper_utils::is_webhook_valid(
-        state,
-        object_ref_id.clone(),
-        merchant_context,
-        connector_name,
-    )
-    .await
-    .unwrap_or(false); // If validation fails, treat as invalid
-
-    if !is_valid {
-        logger::info!("Webhook validation failed - resource doesn't exist or profile_id mismatch");
-        return Ok(WebhookResponseTracker::NoEffect);
-    }
-
-    let merchant_connector_account = match Box::pin(helper_utils::get_mca_from_object_reference_id(
-        state,
-        object_ref_id.clone(),
-        merchant_context,
-        connector_name,
-    ))
-    .await
-    {
-        Ok(mca) => mca,
-        Err(error) => {
-            let result =
-                handle_incoming_webhook_error(error, connector, connector_name, request_details);
-            match result {
-                Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
-                Err(e) => return Err(e),
+    let merchant_connector_account = if connector_name == "adyen" {
+        match helper_utils::get_mca_from_object_reference_id_for_adyen(
+            state,
+            object_ref_id.clone(),
+            merchant_context,
+            connector_name,
+        )
+        .await
+        {
+            Ok(Some(mca)) => mca, // Resource exists, MCA exists, profile matches
+            Ok(None) => {
+                logger::info!("Adyen webhook: resource doesn't exist or profile_id mismatch");
+                return Ok(WebhookResponseTracker::NoEffect);
+            }
+            Err(error) => {
+                // MCA doesn't exist - handle error same as current logic
+                let result = handle_incoming_webhook_error(
+                    error,
+                    connector,
+                    connector_name,
+                    request_details,
+                );
+                match result {
+                    Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+    } else {
+        // For other connectors: use existing logic directly (no is_webhook_valid call)
+        match helper_utils::get_mca_from_object_reference_id(
+            state,
+            object_ref_id.clone(),
+            merchant_context,
+            connector_name,
+        )
+        .await
+        {
+            Ok(mca) => mca,
+            Err(error) => {
+                let result = handle_incoming_webhook_error(
+                    error,
+                    connector,
+                    connector_name,
+                    request_details,
+                );
+                match result {
+                    Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
+                    Err(e) => return Err(e),
+                }
             }
         }
     };
