@@ -11,14 +11,13 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
-        RecoveryRecordBack,
+        InvoiceRecordBack,
     },
-    router_request_types::{revenue_recovery::RevenueRecoveryRecordBackRequest, ResponseId},
+    router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::RevenueRecoveryRecordBackResponse, PaymentsResponseData,
-        RefundsResponseData,
+        revenue_recovery::InvoiceRecordBackResponse, PaymentsResponseData, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, RevenueRecoveryRecordBackRouterData},
+    types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -613,6 +612,7 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             retry_count,
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
+            metadata: None,
         })
     }
 }
@@ -673,13 +673,10 @@ pub enum ChargebeeRecordStatus {
     Failure,
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl TryFrom<&ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>>
-    for ChargebeeRecordPaymentRequest
-{
+impl TryFrom<&ChargebeeRouterData<&InvoiceRecordBackRouterData>> for ChargebeeRecordPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>,
+        item: &ChargebeeRouterData<&InvoiceRecordBackRouterData>,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
         Ok(Self {
@@ -694,7 +691,6 @@ impl TryFrom<&ChargebeeRouterData<&RevenueRecoveryRecordBackRouterData>>
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(status: enums::AttemptStatus) -> Result<Self, Self::Error> {
@@ -748,25 +744,25 @@ pub struct ChargebeeRecordbackInvoice {
 impl
     TryFrom<
         ResponseRouterData<
-            RecoveryRecordBack,
+            InvoiceRecordBack,
             ChargebeeRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackRequest,
+            InvoiceRecordBackResponse,
         >,
-    > for RevenueRecoveryRecordBackRouterData
+    > for InvoiceRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            RecoveryRecordBack,
+            InvoiceRecordBack,
             ChargebeeRecordbackResponse,
-            RevenueRecoveryRecordBackRequest,
-            RevenueRecoveryRecordBackResponse,
+            InvoiceRecordBackRequest,
+            InvoiceRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = item.response.invoice.id;
         Ok(Self {
-            response: Ok(RevenueRecoveryRecordBackResponse {
+            response: Ok(InvoiceRecordBackResponse {
                 merchant_reference_id,
             }),
             ..item.data
