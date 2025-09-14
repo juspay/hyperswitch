@@ -1,7 +1,4 @@
-import { configs } from "../../../fixtures/imports";
-import { cardRequiredField, customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
-
+import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // TrustPayments Visa test card
@@ -11,15 +8,13 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-
 const failedCardDetails = {
-  card_number: "4000000000000002", // Generic declined card
+  card_number: "5555666666662222", // Generic declined card
   card_exp_month: "12",
   card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
-
 
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
@@ -39,66 +34,6 @@ const multiUseMandateData = {
       currency: "USD",
     },
   },
-};
-
-
-// ===== PAYMENT METHOD DATA =====
-
-const payment_method_data = {
-  card: {
-    last4: "1111",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "John Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
-const payment_method_data_failed = {
-  card: {
-    last4: "0002",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
-    card_isin: "400000",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "John Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
-// ===== REQUIRED FIELDS =====
-
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["trustpayments"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 // ===== MAIN CONNECTOR DETAILS =====
@@ -173,7 +108,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "failed",
         },
       },
     },
@@ -359,7 +294,6 @@ export const connectorDetails = {
       },
     },
 
-
     // ===== MANDATE SCENARIOS (NOT SUPPORTED - SKIP) =====
 
     MandateSingleUseNo3DSAutoCapture: {
@@ -377,7 +311,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "succeeded",
         },
       },
     },
@@ -397,7 +331,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "requires_capture",
         },
       },
     },
@@ -417,8 +351,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
-        }
+          status: "succeeded",
+        },
       },
     },
 
@@ -437,13 +371,13 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "requires_capture",
         },
       },
     },
     MITManualCapture: {
       Configs: {
-        TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
+        TRIGGER_SKIP: true, // Skip if TrustPayments doesn't support mandates
       },
       Request: {
         payment_method: "card",
@@ -483,7 +417,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "succeeded",
         },
       },
     },
@@ -513,7 +447,6 @@ export const connectorDetails = {
       },
     },
 
-
     // ===== ZERO AUTH SCENARIOS (NOT SUPPORTED - SKIP) =====
 
     ZeroAuthPaymentIntent: {
@@ -528,7 +461,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "requires_payment_method",
         },
       },
     },
@@ -573,7 +506,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "processing",
         },
       },
     },
@@ -628,7 +561,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "requires_payment_method",
         },
       },
     },
@@ -647,9 +580,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          
+          status: "succeeded",
         },
       },
     },
@@ -667,9 +600,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          
+          status: "requires_capture",
         },
       },
     },
@@ -713,9 +646,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          
+          status: "succeeded",
         },
       },
     },
@@ -736,35 +669,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          
+          status: "requires_capture",
         },
       },
-    },
-
-
-    // ===== SESSION TOKEN SCENARIO =====
-
-    SessionToken: {
-      Response: {
-        status: 200,
-        body: {
-          session_token: [
-            
-          ],
-        },
-      },
-    },
-  },
-
-  pm_list: {
-    PmListResponse: {
-      PmListNull: {
-        payment_methods: [],
-      },
-      pmListDynamicFieldWithoutBilling: requiredFields,
-      pmListDynamicFieldWithBilling: requiredFields,
-      pmListDynamicFieldWithNames: requiredFields,
-      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
