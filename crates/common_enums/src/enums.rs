@@ -1764,6 +1764,22 @@ impl IntentStatus {
     }
 }
 
+/// Represents the overall status of a recovery payment intent.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1785,6 +1801,7 @@ pub enum RecoveryStatus {
     Unrecoverable,
     /// The payment is being monitored for potential recovery.
     /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    #[default]
     Monitoring,
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
     /// This status indicates the payment is in the initial queuing phase of the recovery process.

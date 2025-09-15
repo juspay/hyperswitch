@@ -79,6 +79,10 @@ pub use session_operation::payments_session_core;
 use strum::IntoEnumIterator;
 use time;
 
+#[cfg(feature = "v2")]
+use crate::core::revenue_recovery::get_workflow_entries;
+use crate::core::revenue_recovery::map_to_recovery_payment_item;
+
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
@@ -7841,8 +7845,34 @@ pub async fn revenue_recovery_list_payments(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            // Create futures for all workflow lookups
+            let workflow_futures: Vec<_> = list
+                .iter()
+                .map(|(payment_intent, _)| {
+                    get_workflow_entries(&state, &payment_intent.id)
+                })
+                .collect();
+
+            // Execute all futures concurrently
+            let workflow_results = join_all(workflow_futures).await;
+
             let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> =
-                list.into_iter().map(ForeignFrom::foreign_from).collect();
+                list
+                .into_iter()    
+                .zip(workflow_results.into_iter())
+                .map(|((payment_intent, payment_attempt),workflow_result)| {
+                    // Get workflow entries
+                    let (calculate_workflow, execute_workflow) = workflow_result.unwrap_or((None, None));
+                    
+                    // Use custom mapping function
+                    map_to_recovery_payment_item(
+                        payment_intent,
+                        payment_attempt,
+                        calculate_workflow,
+                        execute_workflow,
+                    )
+                }).collect();
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
