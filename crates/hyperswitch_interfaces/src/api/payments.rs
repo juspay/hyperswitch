@@ -8,17 +8,19 @@ use hyperswitch_domain_models::{
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
             SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
-        CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck,
+        Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
+        PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -172,6 +174,24 @@ pub trait ConnectorCustomer:
 /// trait PaymentsPreProcessing
 pub trait PaymentsPreProcessing:
     api::ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPreAuthenticate
+pub trait PaymentsPreAuthenticate:
+    api::ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsAuthenticate
+pub trait PaymentsAuthenticate:
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPostAuthenticate
+pub trait PaymentsPostAuthenticate:
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
 {
 }
 
