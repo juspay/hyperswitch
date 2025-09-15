@@ -1023,6 +1023,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.mandate_id,
         )?;
 
+        helpers::validate_overcapture_request(
+            &request.enable_overcapture,
+            &request.capture_method,
+        )?;
+
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
@@ -1389,6 +1394,7 @@ impl PaymentCreate {
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
                 network_transaction_id:None,
+                network_details:None,
             },
             additional_pm_data,
 
@@ -1632,6 +1638,7 @@ impl PaymentCreate {
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
+            enable_overcapture: request.enable_overcapture,
         })
     }
 

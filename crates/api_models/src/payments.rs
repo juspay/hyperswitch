@@ -1255,6 +1255,11 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Boolean indicating whether to enable overcapture for this payment
+    #[remove_in(PaymentsConfirmRequest)]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2029,6 +2034,11 @@ impl Default for MandateType {
     fn default() -> Self {
         Self::MultiUse(None)
     }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq, ToSchema)]
+pub struct NetworkDetails {
+    pub network_advice_code: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5561,6 +5571,18 @@ pub struct PaymentsResponse {
 
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for this payment
+    #[schema(value_type = Option<bool>)]
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean indicating whether overcapture is effectively enabled for this payment
+    #[schema(value_type = Option<bool>)]
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+
+    /// Contains card network response details (e.g., Visa/Mastercard advice codes).
+    #[schema(value_type = Option<NetworkDetails>)]
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -6148,6 +6170,11 @@ pub struct PaymentsResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
 
+    /// Time when the payment was last modified
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
@@ -6230,6 +6257,10 @@ pub struct PaymentsResponse {
 
     /// Additional data that might be required by hyperswitch based on the additional features.
     pub feature_metadata: Option<FeatureMetadata>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -9640,6 +9671,10 @@ pub struct RecoveryPaymentsCreate {
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 /// Error details for the payment

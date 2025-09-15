@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1121,6 +1121,26 @@ pub fn validate_recurring_details_and_token(
             message: "Expected one out of recurring_details and mandate_id but got both".into()
         }))
     })?;
+
+    Ok(())
+}
+
+pub fn validate_overcapture_request(
+    enable_overcapture: &Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    capture_method: &Option<common_enums::CaptureMethod>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(overcapture) = enable_overcapture {
+        utils::when(
+            *overcapture.deref()
+                && !matches!(*capture_method, Some(common_enums::CaptureMethod::Manual)),
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid overcapture request: supported only with manual capture"
+                        .into()
+                }))
+            },
+        )?;
+    }
 
     Ok(())
 }
@@ -3899,6 +3919,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3983,6 +4004,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4065,6 +4087,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4665,6 +4688,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_details: None,
         }
     }
 

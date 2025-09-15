@@ -2,19 +2,23 @@
 
 use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
-    router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+    router_flow_types::{
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        },
+        Authenticate, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
-        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -194,6 +198,39 @@ pub trait PaymentsPreProcessingV2:
     PreProcessing,
     PaymentFlowData,
     PaymentsPreProcessingData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsPreAuthenticateV2
+pub trait PaymentsPreAuthenticateV2:
+    ConnectorIntegrationV2<
+    PreAuthenticate,
+    PaymentFlowData,
+    PaymentsPreAuthenticateData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsAuthenticateV2
+pub trait PaymentsAuthenticateV2:
+    ConnectorIntegrationV2<
+    Authenticate,
+    PaymentFlowData,
+    PaymentsAuthenticateData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsPostAuthenticateV2
+pub trait PaymentsPostAuthenticateV2:
+    ConnectorIntegrationV2<
+    PostAuthenticate,
+    PaymentFlowData,
+    PaymentsPostAuthenticateData,
     PaymentsResponseData,
 >
 {
