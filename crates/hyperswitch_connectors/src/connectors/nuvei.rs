@@ -1008,8 +1008,6 @@ impl IncomingWebhook for Nuvei {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(&request.body)
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-
         let signature = match webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
                 notification.advance_response_checksum.ok_or(errors::ConnectorError::WebhookSignatureNotFound)?

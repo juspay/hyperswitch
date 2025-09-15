@@ -828,6 +828,18 @@ pub fn encode_payload(
     Ok(hex::encode(digest))
 }
 
+impl TryFrom<NuveiPaymentSyncResponse> for NuveiPaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: NuveiPaymentSyncResponse,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) =>  Ok(NuveiPaymentsResponse::from(payment_dmn_notification)),
+            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => Ok(NuveiPaymentsResponse::from(nuvei_transaction_sync_response)),
+        }
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -2142,157 +2154,6 @@ pub struct NuveiPaymentsResponse {
     pub version: Option<String>,
     pub client_request_id: Option<String>,
     pub merchant_advice_code: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NuveiTxnPartialApproval {
-    requested_amount: Option<StringMajorUnit>,
-    requested_currency: Option<enums::Currency>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NuveiTransactionSyncResponseDetails {
-    gw_error_code: Option<i64>,
-    gw_error_reason: Option<String>,
-    gw_extended_error_code: Option<i64>,
-    transaction_id: Option<String>,
-    transaction_status: Option<NuveiTransactionStatus>,
-    transaction_type: Option<NuveiTransactionType>,
-    auth_code: Option<String>,
-    processed_amount: Option<StringMajorUnit>,
-    processed_currency: Option<enums::Currency>,
-    acquiring_bank_name: Option<String>,
-}
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NuveiTransactionSyncResponse {
-    // pub user_details: Option<String>,
-    pub payment_option: Option<PaymentOption>,
-    pub partial_approval: Option<NuveiTxnPartialApproval>,
-    pub is_currency_converted: Option<bool>,
-    pub transaction_details: Option<NuveiTransactionSyncResponseDetails>,
-    pub fraud_details: Option<FraudDetails>,
-    pub client_unique_id: Option<String>,
-    pub internal_request_id: Option<i64>,
-    pub status: NuveiPaymentStatus,
-    pub err_code: Option<i64>,
-    pub reason: Option<String>,
-    pub merchant_id: Option<Secret<String>>,
-    pub merchant_site_id: Option<Secret<String>>,
-    pub version: Option<String>,
-    pub client_request_id: Option<String>,
-    pub merchant_advice_code: Option<String>,
-}
-
-impl From<NuveiTransactionSyncResponse> for NuveiPaymentsResponse {
-    fn from(value: NuveiTransactionSyncResponse) -> Self {
-        let transaction_details = value.transaction_details;
-
-        // Map partial approval if required fields are present
-        let partial_approval = match value.partial_approval {
-            Some(partial_approval) => match (
-                partial_approval.requested_amount,
-                partial_approval.requested_currency,
-                transaction_details
-                    .as_ref()
-                    .map_or(None, |txn| txn.processed_amount.clone()),
-                transaction_details
-                    .as_ref()
-                    .map_or(None, |txn| txn.processed_currency.clone()),
-            ) {
-                (
-                    Some(requested_amount),
-                    Some(requested_currency),
-                    Some(processed_amount),
-                    Some(processed_currency),
-                ) => Some(NuveiPartialApproval {
-                    requested_amount,
-                    requested_currency,
-                    processed_amount,
-                    processed_currency,
-                }),
-                _ => None,
-            },
-            None => None,
-        };
-
-        let NuveiTransactionSyncResponse {
-            client_unique_id,
-            internal_request_id,
-            status,
-            err_code,
-            reason,
-            merchant_id,
-            merchant_site_id,
-            version,
-            client_request_id,
-            merchant_advice_code,
-            fraud_details,
-            ..
-        } = value;
-
-        let (
-            transaction_status,
-            transaction_id,
-            transaction_type,
-            auth_code,
-            gw_error_reason,
-            gw_extended_error_code,
-            gw_error_code,
-        ) = match transaction_details {
-            Some(transaction_details) => (
-                transaction_details.transaction_status,
-                transaction_details.transaction_id,
-                transaction_details.transaction_type,
-                transaction_details.auth_code,
-                transaction_details.gw_error_reason,
-                transaction_details.gw_extended_error_code,
-                transaction_details.gw_error_code,
-            ),
-            None => (None, None, None, None, None, None, None),
-        };
-        Self {
-            // Map transaction details
-            transaction_status,
-            transaction_id,
-            transaction_type,
-            auth_code,
-
-            // Map error information
-            gw_error_reason,
-            gw_extended_error_code,
-            gw_error_code,
-            // Map payment option
-            payment_option: value.payment_option,
-
-            // Set partial approval
-            partial_approval,
-
-            // Set status
-            status,
-            order_id: None,
-            user_token_id: None,
-            issuer_decline_code: None,
-            issuer_decline_reason: None,
-            external_transaction_id: None,
-            custom_data: None,
-            fraud_details,
-            external_scheme_transaction_id: None,
-            client_unique_id,
-            internal_request_id,
-            err_code,
-            reason,
-            merchant_id,
-            merchant_site_id,
-            version,
-            client_request_id,
-            merchant_advice_code,
-            session_token: None,
-            // Set remaining fields to default values
-        }
-    }
 }
 
 impl NuveiPaymentsResponse {
