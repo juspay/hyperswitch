@@ -45,13 +45,13 @@ pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(rename = "subscription_items[quantity][0]")]
     pub quantity: Option<u32>,
     #[serde(rename = "billing_address[line1]")]
-    pub billing_address_line1: Option<String>,
+    pub billing_address_line1: Option<Secret<String>>,
     #[serde(rename = "billing_address[city]")]
     pub billing_address_city: Option<String>,
     #[serde(rename = "billing_address[state]")]
-    pub billing_address_state: Option<String>,
+    pub billing_address_state: Option<Secret<String>>,
     #[serde(rename = "billing_address[zip]")]
-    pub billing_address_zip: Option<String>,
+    pub billing_address_zip: Option<Secret<String>>,
     #[serde(rename = "billing_address[country]")]
     pub billing_address_country: Option<String>,
     #[serde(rename = "auto_collection")]
@@ -83,12 +83,12 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
             billing_address_line1: address
-                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone().expose())),
+                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone())),
             billing_address_city: address.and_then(|addr| addr.city.clone()),
             billing_address_state: address
-                .and_then(|addr| addr.state.as_ref().map(|state| state.clone().expose())),
+                .and_then(|addr| addr.state.as_ref().map(|state| state.clone())),
             billing_address_zip: address
-                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone().expose())),
+                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone())),
             billing_address_country: address
                 .and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
