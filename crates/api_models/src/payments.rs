@@ -5749,8 +5749,8 @@ pub struct RecoveryPaymentsListResponseItem {
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// Status of the payment
-    #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
-    pub status: api_enums::IntentStatus,
+    #[schema(value_type = RecoveryStatus, example = "failed", default = "requires_confirmation")]
+    pub status: api_enums::RecoveryStatus,
 
     /// Amount related information for this payment and attempt
     pub amount: PaymentAmountDetailsResponse,

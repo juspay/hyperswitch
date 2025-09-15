@@ -1764,6 +1764,33 @@ impl IntentStatus {
     }
 }
 
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RecoveryStatus {
+    /// The payment has been successfully recovered through retry mechanisms.
+    /// This indicates that a previously failed payment has been completed.
+    Recovered,
+    /// The payment is scheduled for retry and will be processed automatically.
+    /// This status is shown when a retry is queued but not yet picked up for processing.
+    Scheduled,
+    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
+    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
+    NoPicked,
+    /// The payment is currently being processed with the payment gateway.
+    /// This status is shown during active retry attempts.
+    Processing,
+    /// The payment cannot be recovered due to terminal failure conditions.
+    /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
+    Unrecoverable,
+    /// The payment is being monitored for potential recovery.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    Monitoring,
+    /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
+    /// This status indicates the payment is in the initial queuing phase of the recovery process.
+    Queued,
+}
+
 /// Specifies how the payment method can be used for future payments.
 /// - `off_session`: The payment method can be used for future payments when the customer is not present.
 /// - `on_session`: The payment method is intended for use only when the customer is present during checkout.

@@ -3778,6 +3778,35 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
     }
 }
 
+fn map_recovery_status(
+    intent_status: IntentStatus,
+    attempt_count: u16,
+) -> RecoveryStatus {
+    match intent_status {
+        // Only Failed payments are eligible for recovery
+        IntentStatus::Failed => RecoveryStatus::Unrecoverable,
+        
+        // For all other intent statuses, return the mapped recovery status
+        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Cancelled => RecoveryStatus::Unrecoverable,
+        IntentStatus::CancelledPostCapture => RecoveryStatus::Unrecoverable,
+        IntentStatus::Processing => RecoveryStatus::Processing,
+        IntentStatus::Conflicted => RecoveryStatus::Unrecoverable,
+        IntentStatus::Expired => RecoveryStatus::Unrecoverable,
+        
+        // For statuses that don't need recovery
+        IntentStatus::RequiresCustomerAction => RecoveryStatus::Monitoring,
+        IntentStatus::RequiresMerchantAction => RecoveryStatus::Monitoring,
+        IntentStatus::RequiresPaymentMethod => RecoveryStatus::Monitoring,
+        IntentStatus::RequiresConfirmation => RecoveryStatus::Monitoring,
+        IntentStatus::RequiresCapture => RecoveryStatus::Monitoring,
+        IntentStatus::PartiallyCaptured => RecoveryStatus::Monitoring,
+        IntentStatus::PartiallyCapturedAndCapturable => RecoveryStatus::Monitoring,
+        IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Monitoring,
+    }
+}
+
+
 #[cfg(feature = "v2")]
 impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
     for api_models::payments::RecoveryPaymentsListResponseItem
