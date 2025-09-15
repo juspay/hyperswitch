@@ -801,6 +801,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodSessionResponse,
         api_models::payment_methods::AuthenticationDetails,
         api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
+        api_models::enums::RevenueRecoveryAlgorithmType,
         api_models::enums::ProcessTrackerStatus,
         api_models::proxy::ProxyRequest,
         api_models::proxy::ProxyResponse,
