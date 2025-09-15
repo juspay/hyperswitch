@@ -80,8 +80,6 @@ use crate::{
     utils,
 };
 
-pub type BoxedCreateCustomerConnectorIntegrationInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::CreateCustomerData, Req, Res>;
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::PaymentFlowData, Req, Resp>;
 pub type BoxedRefundConnectorIntegrationInterface<T, Req, Resp> =

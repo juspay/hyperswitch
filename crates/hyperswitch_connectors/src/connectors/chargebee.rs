@@ -16,7 +16,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::flow_common_types::CreateCustomerData,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -45,7 +44,6 @@ use hyperswitch_interfaces::{
         ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -769,16 +767,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     }
 }
 
-impl
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        CreateCustomerData,
-        ConnectorCustomerData,
-        PaymentsResponseData,
-    > for Chargebee
-{
-    // Not implemented (R)
-}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Chargebee {

@@ -350,10 +350,10 @@ impl Default for Proxy {
     }
 }
 
-/// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, CreateCustomerData, CreateCustomerRequest, CreateCustomerResponse>`
+/// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, PaymentsResponseData>`
 pub type CreateCustomerTypeV2 = dyn ConnectorIntegrationV2<
     CreateConnectorCustomer,
-    flow_common_types::CreateCustomerData,
+    flow_common_types::PaymentFlowData,
     ConnectorCustomerData,
     PaymentsResponseData,
 >;
