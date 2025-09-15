@@ -1576,7 +1576,7 @@ where
 
             ..Default::default()
         })?;
-        let return_url = item.request.get_return_url_required()?;
+        let return_url = "https://baf141b098ed.ngrok-free.app".to_string(); // item.request.get_return_url_required()?;
 
         let amount_details = match item.request.get_order_tax_amount()? {
             Some(tax) => Some(NuvieAmountDetails {
@@ -2054,6 +2054,20 @@ impl TryFrom<&ConnectorAuthType> for NuveiAuthType {
     }
 }
 
+
+impl TryFrom<NuveiPaymentSyncResponse> for NuveiPaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: NuveiPaymentSyncResponse,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) =>  Ok(NuveiPaymentsResponse::from(payment_dmn_notification)),
+            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => Ok(NuveiPaymentsResponse::from(nuvei_transaction_sync_response)),
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NuveiPaymentStatus {
@@ -2129,6 +2143,158 @@ pub struct NuveiPaymentsResponse {
     pub client_request_id: Option<String>,
     pub merchant_advice_code: Option<String>,
 }
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiTxnPartialApproval {
+    requested_amount: Option<StringMajorUnit>,
+    requested_currency: Option<enums::Currency>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiTransactionSyncResponseDetails {
+    gw_error_code: Option<i64>,
+    gw_error_reason: Option<String>,
+    gw_extended_error_code: Option<i64>,
+    transaction_id: Option<String>,
+    transaction_status: Option<NuveiTransactionStatus>,
+    transaction_type: Option<NuveiTransactionType>,
+    auth_code: Option<String>,
+    processed_amount: Option<StringMajorUnit>,
+    processed_currency: Option<enums::Currency>,
+    acquiring_bank_name: Option<String>,
+}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiTransactionSyncResponse {
+    // pub user_details: Option<String>,
+    pub payment_option: Option<PaymentOption>,
+    pub partial_approval: Option<NuveiTxnPartialApproval>,
+    pub is_currency_converted: Option<bool>,
+    pub transaction_details: Option<NuveiTransactionSyncResponseDetails>,
+    pub fraud_details: Option<FraudDetails>,
+    pub client_unique_id: Option<String>,
+    pub internal_request_id: Option<i64>,
+    pub status: NuveiPaymentStatus,
+    pub err_code: Option<i64>,
+    pub reason: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
+    pub merchant_site_id: Option<Secret<String>>,
+    pub version: Option<String>,
+    pub client_request_id: Option<String>,
+    pub merchant_advice_code: Option<String>,
+}
+
+impl From<NuveiTransactionSyncResponse> for NuveiPaymentsResponse {
+    fn from(value: NuveiTransactionSyncResponse) -> Self {
+        let transaction_details = value.transaction_details;
+
+        // Map partial approval if required fields are present
+        let partial_approval = match value.partial_approval {
+            Some(partial_approval) => match (
+                partial_approval.requested_amount,
+                partial_approval.requested_currency,
+                transaction_details
+                    .as_ref()
+                    .map_or(None, |txn| txn.processed_amount.clone()),
+                transaction_details
+                    .as_ref()
+                    .map_or(None, |txn| txn.processed_currency.clone()),
+            ) {
+                (
+                    Some(requested_amount),
+                    Some(requested_currency),
+                    Some(processed_amount),
+                    Some(processed_currency),
+                ) => Some(NuveiPartialApproval {
+                    requested_amount,
+                    requested_currency,
+                    processed_amount,
+                    processed_currency,
+                }),
+                _ => None,
+            },
+            None => None,
+        };
+
+        let NuveiTransactionSyncResponse {
+            client_unique_id,
+            internal_request_id,
+            status,
+            err_code,
+            reason,
+            merchant_id,
+            merchant_site_id,
+            version,
+            client_request_id,
+            merchant_advice_code,
+            fraud_details,
+            ..
+        } = value;
+
+        let (
+            transaction_status,
+            transaction_id,
+            transaction_type,
+            auth_code,
+            gw_error_reason,
+            gw_extended_error_code,
+            gw_error_code,
+        ) = match transaction_details {
+            Some(transaction_details) => (
+                transaction_details.transaction_status,
+                transaction_details.transaction_id,
+                transaction_details.transaction_type,
+                transaction_details.auth_code,
+                transaction_details.gw_error_reason,
+                transaction_details.gw_extended_error_code,
+                transaction_details.gw_error_code,
+            ),
+            None => (None, None, None, None, None, None, None),
+        };
+        Self {
+            // Map transaction details
+            transaction_status,
+            transaction_id,
+            transaction_type,
+            auth_code,
+
+            // Map error information
+            gw_error_reason,
+            gw_extended_error_code,
+            gw_error_code,
+            // Map payment option
+            payment_option: value.payment_option,
+
+            // Set partial approval
+            partial_approval,
+
+            // Set status
+            status,
+            order_id: None,
+            user_token_id: None,
+            issuer_decline_code: None,
+            issuer_decline_reason: None,
+            external_transaction_id: None,
+            custom_data: None,
+            fraud_details,
+            external_scheme_transaction_id: None,
+            client_unique_id,
+            internal_request_id,
+            err_code,
+            reason,
+            merchant_id,
+            merchant_site_id,
+            version,
+            client_request_id,
+            merchant_advice_code,
+            session_token: None,
+            // Set remaining fields to default values
+        }
+    }
+}
+
 impl NuveiPaymentsResponse {
     /// returns amount_captured and minor_amount_capturable
     pub fn get_amount_captured(
@@ -2467,7 +2633,7 @@ impl
             .and_then(|browser_info| browser_info.ip_address.map(|ip| ip.to_string()));
 
         Ok(Self {
-            status,
+            status: enums::AttemptStatus::Pending,
             response: if let Some(err) = build_error_response(&item.response, item.http_code) {
                 Err(err)
             } else {
@@ -2744,6 +2910,16 @@ pub enum NuveiWebhook {
     Chargeback(ChargebackNotification),
 }
 
+
+
+/// Represents Psync Response from Nuvei.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NuveiPaymentSyncResponse{
+    NuveiDmn(NuveiWebhook),
+    NuveiApi(NuveiTransactionSyncResponse),
+}
+
 /// Represents the status of a chargeback event.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ChargebackStatus {
@@ -2788,7 +2964,18 @@ pub struct ChargebackNotification {
 #[serde(rename_all = "UPPERCASE")]
 pub enum DmnStatus {
     Success,
+    Approved,
     Error,
+    Pending,
+    Declined,
+}
+
+/// Represents the transaction status of the DMN
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DmnTransactionStatus {
+    Ok,
+    Fail,
     Pending,
 }
 
@@ -2823,35 +3010,29 @@ pub enum PaymentTransactionType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentDmnNotification {
+    #[serde(rename = "ppp_status")]
+    pub ppp_status: DmnTransactionStatus,
     #[serde(rename = "PPP_TransactionID")]
-    pub ppp_transaction_id: Option<String>,
+    pub ppp_transaction_id: String,
+    pub total_amount: String,
+    pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
+    #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
+    pub transaction_type: Option<PaymentTransactionType>,
     #[serde(rename = "ErrCode")]
     pub err_code: Option<String>,
     #[serde(rename = "ExErrCode")]
     pub ex_err_code: Option<String>,
-    pub desc: Option<String>,
-    pub merchant_unique_id: Option<String>,
-    pub custom_data: Option<String>,
-    pub product_id: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub email: Option<String>,
-    pub total_amount: Option<String>,
-    pub currency: Option<String>,
-    pub fee: Option<String>,
-    #[serde(rename = "AuthCode")]
-    pub auth_code: Option<String>,
-    pub transaction_status: Option<TransactionStatus>,
-    pub transaction_type: Option<PaymentTransactionType>,
+    pub err_apm_code: Option<String>,
+    pub err_apm_description: Option<String>,
     #[serde(rename = "user_token_id")]
     pub user_token_id: Option<String>,
     #[serde(rename = "payment_method")]
     pub payment_method: Option<String>,
     #[serde(rename = "responseTimeStamp")]
-    pub response_time_stamp: Option<String>,
+    pub response_time_stamp: String,
     #[serde(rename = "invoice_id")]
     pub invoice_id: Option<String>,
     #[serde(rename = "merchant_id")]
@@ -2862,6 +3043,7 @@ pub struct PaymentDmnNotification {
     pub response_checksum: Option<String>,
     #[serde(rename = "advanceResponseChecksum")]
     pub advance_response_checksum: Option<String>,
+    pub product_id: Option<String>,
 }
 
 // For backward compatibility with existing code
@@ -2879,7 +3061,7 @@ impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
                 ppp_transaction_id: notification.ppp_transaction_id.clone().unwrap_or_default(),
             },
             NuveiWebhook::PaymentDmn(notification) => Self {
-                ppp_transaction_id: notification.ppp_transaction_id.clone().unwrap_or_default(),
+                ppp_transaction_id: notification.ppp_transaction_id.clone(),
             },
         }
     }
@@ -2908,12 +3090,11 @@ impl From<NuveiWebhook> for NuveiPaymentsResponse {
                 });
 
                 Self {
-                    transaction_status: notification.transaction_status.map(|ts| match ts {
-                        TransactionStatus::Approved => NuveiTransactionStatus::Approved,
-                        TransactionStatus::Declined => NuveiTransactionStatus::Declined,
-                        TransactionStatus::Error => NuveiTransactionStatus::Error,
-                        TransactionStatus::Settled => NuveiTransactionStatus::Approved,
-                        _ => NuveiTransactionStatus::Processing,
+                    transaction_status: notification.status.map(|ts| match ts {
+                        DmnStatus::Success |  DmnStatus::Approved => NuveiTransactionStatus::Approved,
+                        DmnStatus::Declined => NuveiTransactionStatus::Declined,
+                        DmnStatus::Error => NuveiTransactionStatus::Error,
+                        DmnStatus::Pending =>  NuveiTransactionStatus::Processing,
                     }),
                     transaction_id: notification.transaction_id,
                     transaction_type,
@@ -3024,5 +3205,47 @@ fn convert_to_additional_payment_method_connector_response(
             domestic_network: None,
         }),
         Err(_) => None,
+    }
+}
+
+pub fn map_notification_to_event(
+    status: DmnStatus,
+    transaction_type: PaymentTransactionType,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>> {
+    match (status, transaction_type) {
+        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Auth | PaymentTransactionType::Auth3D) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Sale | PaymentTransactionType::Sale3D | PaymentTransactionType::Verif) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Settle) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Void) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Auth | PaymentTransactionType::Auth3D) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Sale | PaymentTransactionType::Sale3D | PaymentTransactionType::Verif) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Settle) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Void) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+        }
+        (DmnStatus::Pending , PaymentTransactionType::Auth |  PaymentTransactionType::Auth3D |  PaymentTransactionType::Sale |  PaymentTransactionType::Sale3D |  PaymentTransactionType::Verif|  PaymentTransactionType::Settle) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
+        }
+        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()), 
     }
 }
