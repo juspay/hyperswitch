@@ -4,10 +4,15 @@ use common_enums::enums;
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, Card, PayLaterData, PaymentMethodData, WalletData},
+    network_tokenization::NetworkTokenNumber,
+    payment_method_data::{
+        BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
+    },
     router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::SetupMandate,
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -25,7 +30,10 @@ use url::Url;
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PhoneDetailsData, RouterData as _},
+    utils::{
+        self, CardData, NetworkTokenData as NetworkTokenDataTrait, PaymentsAuthorizeRequestData,
+        PhoneDetailsData, RouterData as _,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -54,8 +62,8 @@ impl GetCaptureMethod for PaymentsCancelData {
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
-    amount: StringMajorUnit,
-    router_data: T,
+    pub amount: StringMajorUnit,
+    pub router_data: T,
 }
 
 impl<T> From<(StringMajorUnit, T)> for AciRouterData<T> {
@@ -114,6 +122,24 @@ pub struct AciCancelRequest {
     pub payment_type: AciPaymentType,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciMandateRequest {
+    pub entity_id: Secret<String>,
+    pub payment_brand: PaymentBrand,
+    #[serde(flatten)]
+    pub payment_details: PaymentDetails,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciMandateResponse {
+    pub id: String,
+    pub result: ResultCode,
+    pub build_number: String,
+    pub timestamp: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum PaymentDetails {
@@ -123,6 +149,7 @@ pub enum PaymentDetails {
     Wallet(Box<WalletPMData>),
     Klarna,
     Mandate,
+    AciNetworkToken(Box<AciNetworkTokenData>),
 }
 
 impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
@@ -321,19 +348,115 @@ impl
     }
 }
 
+fn get_aci_payment_brand(
+    card_network: Option<common_enums::CardNetwork>,
+    is_network_token_flow: bool,
+) -> Result<PaymentBrand, Error> {
+    match card_network {
+        Some(common_enums::CardNetwork::Visa) => Ok(PaymentBrand::Visa),
+        Some(common_enums::CardNetwork::Mastercard) => Ok(PaymentBrand::Mastercard),
+        Some(common_enums::CardNetwork::AmericanExpress) => Ok(PaymentBrand::AmericanExpress),
+        Some(common_enums::CardNetwork::JCB) => Ok(PaymentBrand::Jcb),
+        Some(common_enums::CardNetwork::DinersClub) => Ok(PaymentBrand::DinersClub),
+        Some(common_enums::CardNetwork::Discover) => Ok(PaymentBrand::Discover),
+        Some(common_enums::CardNetwork::UnionPay) => Ok(PaymentBrand::UnionPay),
+        Some(common_enums::CardNetwork::Maestro) => Ok(PaymentBrand::Maestro),
+        Some(unsupported_network) => Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "Card network {:?} is not supported by ACI",
+                unsupported_network
+            ),
+            connector: "ACI",
+        })?,
+        None => {
+            if is_network_token_flow {
+                Ok(PaymentBrand::Visa)
+            } else {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "card.card_network",
+                }
+                .into())
+            }
+        }
+    }
+}
+
 impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     type Error = Error;
     fn try_from(
         (card_data, card_holder_name): (Card, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
+        let card_expiry_year = card_data.get_expiry_year_4_digit();
+
+        let payment_brand = get_aci_payment_brand(card_data.card_network, false)?;
+
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
-            card_holder: card_holder_name.unwrap_or(Secret::new("".to_string())),
-            card_expiry_month: card_data.card_exp_month,
-            card_expiry_year: card_data.card_exp_year,
+            card_holder: card_holder_name.ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            })?,
+            card_expiry_month: card_data.card_exp_month.clone(),
+            card_expiry_year,
             card_cvv: card_data.card_cvc,
+            payment_brand,
         })))
     }
+}
+
+impl
+    TryFrom<(
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
+        &NetworkTokenData,
+    )> for PaymentDetails
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
+            &NetworkTokenData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (_item, network_token_data) = value;
+        let token_number = network_token_data.get_network_token();
+        let payment_brand = get_aci_payment_brand(network_token_data.card_network.clone(), true)?;
+        let aci_network_token_data = AciNetworkTokenData {
+            token_type: AciTokenAccountType::Network,
+            token_number,
+            token_expiry_month: network_token_data.get_network_token_expiry_month(),
+            token_expiry_year: network_token_data.get_expiry_year_4_digit(),
+            token_cryptogram: Some(
+                network_token_data
+                    .get_cryptogram()
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            payment_brand,
+        };
+        Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AciTokenAccountType {
+    Network,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciNetworkTokenData {
+    #[serde(rename = "tokenAccount.type")]
+    pub token_type: AciTokenAccountType,
+    #[serde(rename = "tokenAccount.number")]
+    pub token_number: NetworkTokenNumber,
+    #[serde(rename = "tokenAccount.expiryMonth")]
+    pub token_expiry_month: Secret<String>,
+    #[serde(rename = "tokenAccount.expiryYear")]
+    pub token_expiry_year: Secret<String>,
+    #[serde(rename = "tokenAccount.cryptogram")]
+    pub token_cryptogram: Option<Secret<String>>,
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -365,7 +488,7 @@ pub struct WalletPMData {
     account_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
     Eps,
@@ -379,6 +502,23 @@ pub enum PaymentBrand {
     Mbway,
     #[serde(rename = "ALIPAY")]
     AliPay,
+    // Card network brands
+    #[serde(rename = "VISA")]
+    Visa,
+    #[serde(rename = "MASTER")]
+    Mastercard,
+    #[serde(rename = "AMEX")]
+    AmericanExpress,
+    #[serde(rename = "JCB")]
+    Jcb,
+    #[serde(rename = "DINERS")]
+    DinersClub,
+    #[serde(rename = "DISCOVER")]
+    Discover,
+    #[serde(rename = "UNIONPAY")]
+    UnionPay,
+    #[serde(rename = "MAESTRO")]
+    Maestro,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -393,6 +533,8 @@ pub struct CardDetails {
     pub card_expiry_year: Secret<String>,
     #[serde(rename = "card.cvv")]
     pub card_cvv: Secret<String>,
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -460,6 +602,9 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
     fn try_from(item: &AciRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+            PaymentMethodData::NetworkToken(ref network_token_data) => {
+                Self::try_from((item, network_token_data))
+            }
             PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
             PaymentMethodData::PayLater(ref pay_later_data) => {
                 Self::try_from((item, pay_later_data))
@@ -487,7 +632,6 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
@@ -574,7 +718,34 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             txn_details,
             payment_method,
             instruction,
-            shopper_result_url: None,
+            shopper_result_url: item.router_data.request.router_return_url.clone(),
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &AciRouterData<&PaymentsAuthorizeRouterData>,
+        &NetworkTokenData,
+    )> for AciPaymentsRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &AciRouterData<&PaymentsAuthorizeRouterData>,
+            &NetworkTokenData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, network_token_data) = value;
+        let txn_details = get_transaction_details(item)?;
+        let payment_method = PaymentDetails::try_from((item, network_token_data))?;
+        let instruction = get_instruction_details(item);
+
+        Ok(Self {
+            txn_details,
+            payment_method,
+            instruction,
+            shopper_result_url: item.router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -609,11 +780,16 @@ fn get_transaction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<TransactionDetails, error_stack::Report<errors::ConnectorError>> {
     let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
+    let payment_type = if item.router_data.request.is_auto_capture()? {
+        AciPaymentType::Debit
+    } else {
+        AciPaymentType::Preauthorization
+    };
     Ok(TransactionDetails {
         entity_id: auth.entity_id,
         amount: item.amount.to_owned(),
         currency: item.router_data.request.currency.to_string(),
-        payment_type: AciPaymentType::Debit,
+        payment_type,
     })
 }
 
@@ -650,6 +826,61 @@ impl TryFrom<&PaymentsCancelRouterData> for AciCancelRequest {
     }
 }
 
+impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>>
+    for AciMandateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+
+        let (payment_brand, payment_details) = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let brand = get_aci_payment_brand(card_data.card_network.clone(), false)?;
+                match brand {
+                    PaymentBrand::Visa
+                    | PaymentBrand::Mastercard
+                    | PaymentBrand::AmericanExpress => {}
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Payment method not supported for mandate setup".to_string(),
+                        connector: "ACI",
+                    })?,
+                }
+
+                let details = PaymentDetails::AciCard(Box::new(CardDetails {
+                    card_number: card_data.card_number.clone(),
+                    card_expiry_month: card_data.card_exp_month.clone(),
+                    card_expiry_year: card_data.get_expiry_year_4_digit(),
+                    card_cvv: card_data.card_cvc.clone(),
+                    card_holder: card_data.card_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_holder_name",
+                        },
+                    )?,
+                    payment_brand: brand.clone(),
+                }));
+
+                (brand, details)
+            }
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: "Payment method not supported for mandate setup".to_string(),
+                    connector: "ACI",
+                }
+                .into());
+            }
+        };
+
+        Ok(Self {
+            entity_id: auth.entity_id,
+            payment_brand,
+            payment_details,
+        })
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AciPaymentStatus {
@@ -674,6 +905,7 @@ fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::
         AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
     }
 }
+
 impl FromStr for AciPaymentStatus {
     type Err = error_stack::Report<errors::ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -696,10 +928,8 @@ impl FromStr for AciPaymentStatus {
 pub struct AciPaymentsResponse {
     id: String,
     registration_id: Option<Secret<String>>,
-    // ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,
-    // Number useful for support purposes.
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
@@ -717,15 +947,24 @@ pub struct AciErrorResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRedirectionData {
-    method: Option<Method>,
-    parameters: Vec<Parameters>,
-    url: Url,
+    pub method: Option<Method>,
+    pub parameters: Vec<Parameters>,
+    pub url: Url,
+    pub preconditions: Option<Vec<PreconditionData>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreconditionData {
+    pub method: Option<Method>,
+    pub parameters: Vec<Parameters>,
+    pub url: Url,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Parameters {
-    name: String,
-    value: String,
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -863,10 +1102,43 @@ pub struct AciCaptureResultDetails {
     extended_description: String,
     #[serde(rename = "clearingInstituteName")]
     clearing_institute_name: String,
-    connector_tx_id1: String,
-    connector_tx_id3: String,
-    connector_tx_id2: String,
+    connector_tx_i_d1: String,
+    connector_tx_i_d3: String,
+    connector_tx_i_d2: String,
     acquirer_response: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub enum AciCaptureStatus {
+    Succeeded,
+    Failed,
+    #[default]
+    Pending,
+}
+
+impl FromStr for AciCaptureStatus {
+    type Err = error_stack::Report<errors::ConnectorError>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if FAILURE_CODES.contains(&s) {
+            Ok(Self::Failed)
+        } else if PENDING_CODES.contains(&s) {
+            Ok(Self::Pending)
+        } else if SUCCESSFUL_CODES.contains(&s) {
+            Ok(Self::Succeeded)
+        } else {
+            Err(report!(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(s.to_owned())
+            )))
+        }
+    }
+}
+
+fn map_aci_capture_status(item: AciCaptureStatus) -> enums::AttemptStatus {
+    match item {
+        AciCaptureStatus::Succeeded => enums::AttemptStatus::Charged,
+        AciCaptureStatus::Failed => enums::AttemptStatus::Failure,
+        AciCaptureStatus::Pending => enums::AttemptStatus::Pending,
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>>
@@ -877,10 +1149,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: map_aci_attempt_status(
-                AciPaymentStatus::from_str(&item.response.result.code)?,
-                false,
-            ),
+            status: map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?),
             reference_id: Some(item.response.referenced_id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -963,7 +1232,6 @@ impl From<AciRefundStatus> for enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundResponse {
     id: String,
-    //ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,
     build_number: String,
@@ -981,6 +1249,58 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
                 refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(
                     &item.response.result.code,
                 )?),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            SetupMandate,
+            AciMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            SetupMandate,
+            AciMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(item.response.id.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
+
+        let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
+            enums::AttemptStatus::Charged
+        } else if FAILURE_CODES.contains(&item.response.result.code.as_str()) {
+            enums::AttemptStatus::Failure
+        } else {
+            enums::AttemptStatus::Pending
+        };
+
+        Ok(Self {
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                charges: None,
             }),
             ..item.data
         })
