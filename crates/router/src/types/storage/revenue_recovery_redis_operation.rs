@@ -907,8 +907,10 @@ impl RedisTokenManager {
         card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
     ) -> CustomResult<(), errors::StorageError> {
         let update_params = RedisTokenUpdateParams::from_comprehensive_card_data(card_data);
-        
-        let retry_history_json = card_data.daily_retry_history.as_ref()
+
+        let retry_history_json = card_data
+            .daily_retry_history
+            .as_ref()
             .map(|history| serde_json::to_value(history))
             .transpose()
             .change_context(errors::StorageError::SerializationFailed)
@@ -1104,8 +1106,14 @@ impl RedisTokenUpdateParams {
             card_type: card_data.card_type.as_ref().map(|s| Secret::new(s.clone())),
             expiry_month: card_data.card_exp_month.clone(),
             expiry_year: card_data.card_exp_year.clone(),
-            card_issuer: card_data.card_issuer.as_ref().map(|s| Secret::new(s.clone())),
-            card_network: card_data.card_network.as_ref().map(|network| Secret::new(network.to_string())),
+            card_issuer: card_data
+                .card_issuer
+                .as_ref()
+                .map(|s| Secret::new(s.clone())),
+            card_network: card_data
+                .card_network
+                .as_ref()
+                .map(|network| Secret::new(network.to_string())),
             last_four_digits: None,
         }
     }

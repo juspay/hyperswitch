@@ -136,12 +136,16 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<Date, i32
                 Ok(string_retry_history) => {
                     // Convert string dates to Date objects
                     let format = format_description::parse("[year]-[month]-[day]")
-                        .map_err(|e| BackfillError::CsvParsingError(
-                            format!("Invalid date format configuration: {}", e)
-                        )).ok()?;
-                    
+                        .map_err(|e| {
+                            BackfillError::CsvParsingError(format!(
+                                "Invalid date format configuration: {}",
+                                e
+                            ))
+                        })
+                        .ok()?;
+
                     let mut date_retry_history = HashMap::new();
-                    
+
                     for (date_str, count) in string_retry_history {
                         match Date::parse(&date_str, &format) {
                             Ok(date) => {
@@ -150,12 +154,13 @@ fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<Date, i32
                             Err(e) => {
                                 logger::warn!(
                                     "Failed to parse date '{}' in daily_retry_history: {}",
-                                    date_str, e
+                                    date_str,
+                                    e
                                 );
                             }
                         }
                     }
-                    
+
                     logger::debug!(
                         "Successfully parsed daily_retry_history with {} entries",
                         date_retry_history.len()
