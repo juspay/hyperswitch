@@ -277,6 +277,7 @@ pub trait PaymentV2:
     + ConnectorSpecifications
     + ConnectorValidation
     + PaymentAuthorizeV2
+    + PaymentAuthorizeSessionTokenV2
     + PaymentsCompleteAuthorizeV2
     + PaymentSyncV2
     + PaymentCaptureV2
