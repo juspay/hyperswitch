@@ -193,7 +193,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -317,7 +317,7 @@ impl
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -447,6 +447,16 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        let payment_method_type = router_data
+            .request
+            .payment_method_type
+            .map(|payment_method_type| {
+                unified_connector_service::build_unified_connector_service_payment_method_type(
+                    payment_method_type,
+                )
+            })
+            .transpose()?;
+
         let mandate_reference = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
@@ -499,8 +509,8 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            test_mode: None,
-            payment_method_type: None,
+            test_mode: router_data.test_mode,
+            payment_method_type: payment_method_type.map(|payment_method_type| payment_method_type.into()),
         })
     }
 }

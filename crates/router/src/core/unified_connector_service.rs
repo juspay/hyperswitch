@@ -20,6 +20,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
+    payment_method_data::WalletData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::PaymentsResponseData,
 };
@@ -27,8 +28,9 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod, wallet_payment_method_type::WalletType,
+    CardDetails, CardPaymentMethodType, PaymentServiceAuthorizeResponse, RewardPaymentMethodType,
+    WalletPaymentMethodType,
 };
 
 #[cfg(feature = "v2")]
@@ -365,8 +367,269 @@ pub fn build_unified_connector_service_payment_method(
                 .into()),
             }
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+            match wallet_data {
+                WalletData::ApplePay(apple_pay_wallet_data) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::ApplePay(payments_grpc::AppleWallet {
+                                payment_data: Some(payments_grpc::apple_wallet::PaymentData {
+                                    payment_data: match &apple_pay_wallet_data.payment_data {
+                                        common_types::payments::ApplePayPaymentData::Encrypted(encrypted_data) => {
+                                            Some(payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(
+                                                encrypted_data.clone()
+                                            ))
+                                        }
+                                        common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                                            Some(payments_grpc::apple_wallet::payment_data::PaymentData::DecryptedData(
+                                                payments_grpc::ApplePayPredecryptData {
+                                                    application_primary_account_number: decrypted_data.application_primary_account_number.get_card_no(),
+                                                    application_expiration_month: decrypted_data.application_expiration_month.as_ref().peek().to_string(),
+                                                    application_expiration_year: decrypted_data.application_expiration_year.as_ref().peek().to_string(),
+                                                    payment_data: Some(payments_grpc::ApplePayCryptogramData {
+                                                        online_payment_cryptogram: decrypted_data.payment_data.online_payment_cryptogram.as_ref().peek().to_string(),
+                                                        eci_indicator: decrypted_data.payment_data.eci_indicator.clone().unwrap_or_default(),
+                                                    }),
+                                                }
+                                            ))
+                                        }
+                                    },
+                                }),
+                                payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
+                                    display_name: apple_pay_wallet_data.payment_method.display_name,
+                                    network: apple_pay_wallet_data.payment_method.network,
+                                    r#type: apple_pay_wallet_data.payment_method.pm_type,
+                                }),
+                                transaction_identifier: apple_pay_wallet_data.transaction_identifier,
+                            })),
+                        })),
+                    })
+                }
+                WalletData::GooglePay(google_pay_wallet_data) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::GooglePay(payments_grpc::GoogleWallet {
+                                r#type: google_pay_wallet_data.pm_type,
+                                description: google_pay_wallet_data.description,
+                                info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
+                                    card_network: google_pay_wallet_data.info.card_network,
+                                    card_details: google_pay_wallet_data.info.card_details,
+                                    assurance_details: google_pay_wallet_data.info.assurance_details.map(|details| {
+                                        payments_grpc::google_wallet::payment_method_info::AssuranceDetails {
+                                            card_holder_authenticated: details.card_holder_authenticated,
+                                            account_verified: details.account_verified,
+                                        }
+                                    }),
+                                }),
+                                tokenization_data: Some(payments_grpc::google_wallet::TokenizationData {
+                                    tokenization_data: match &google_pay_wallet_data.tokenization_data {
+                                        common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => {
+                                            Some(payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(
+                                                payments_grpc::GpayEncryptedTokenizationData {
+                                                    token_type: encrypted_data.token_type.clone(),
+                                                    token: encrypted_data.token.clone(),
+                                                }
+                                            ))
+                                        }
+                                        common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                                            Some(payments_grpc::google_wallet::tokenization_data::TokenizationData::DecryptedData(
+                                                payments_grpc::GPayPredecryptData {
+                                                    card_exp_month: decrypted_data.card_exp_month.as_ref().peek().to_string(),
+                                                    card_exp_year: decrypted_data.card_exp_year.as_ref().peek().to_string(),
+                                                    application_primary_account_number: decrypted_data.application_primary_account_number.get_card_no(),
+                                                    cryptogram: decrypted_data.cryptogram.as_ref().map(|c| c.clone().expose()).unwrap_or_default(),
+                                                    eci_indicator: decrypted_data.eci_indicator.clone(),
+                                                }
+                                            ))
+                                        }
+                                    },
+                                }),
+                            })),
+                        })),
+                    })
+                }
+                WalletData::PaypalRedirect(paypal_redirection) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::PaypalRedirect(payments_grpc::PaypalRedirectWallet {
+                                email: paypal_redirection.email.map(|e| e.expose().expose()),
+                            })),
+                        })),
+                    })
+                }
+                WalletData::AliPayRedirect(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::AliPayRedirect(payments_grpc::AliPayRedirectWallet {})),
+                        })),
+                    })
+                }
+                WalletData::CashappQr(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::CashappQr(payments_grpc::CashappQrWallet {})),
+                        })),
+                    })
+                }
+                WalletData::AmazonPayRedirect(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::AmazonPayRedirect(payments_grpc::AmazonPayRedirectWallet {})),
+                        })),
+                    })
+                }
+                WalletData::WeChatPayQr(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::WeChatPayQr(payments_grpc::WeChatPayQrWallet {})),
+                        })),
+                    })
+                }
+                WalletData::RevolutPay(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::RevolutPay(payments_grpc::RevolutPayWallet {})),
+                        })),
+                    })
+                }
+                _ => {
+                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented payment method subtype: {payment_method_type:?}"
+                    ))
+                    .into());
+                }
+            }
+        }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
+        ))
+        .into()),
+    }
+}
+
+pub fn build_unified_connector_service_payment_method_type(
+    payment_method_type: PaymentMethodType,
+) -> CustomResult<payments_grpc::PaymentMethodType, UnifiedConnectorServiceError> {
+    match payment_method_type {
+        PaymentMethodType::Ach => Ok(payments_grpc::PaymentMethodType::Ach),
+        PaymentMethodType::Affirm => Ok(payments_grpc::PaymentMethodType::Affirm),
+        PaymentMethodType::AfterpayClearpay => {
+            Ok(payments_grpc::PaymentMethodType::AfterpayClearpay)
+        }
+        PaymentMethodType::Alfamart => Ok(payments_grpc::PaymentMethodType::Alfamart),
+        PaymentMethodType::AliPay => Ok(payments_grpc::PaymentMethodType::AliPay),
+        PaymentMethodType::AliPayHk => Ok(payments_grpc::PaymentMethodType::AliPayHk),
+        PaymentMethodType::Alma => Ok(payments_grpc::PaymentMethodType::Alma),
+        PaymentMethodType::AmazonPay => Ok(payments_grpc::PaymentMethodType::AmazonPay),
+        PaymentMethodType::ApplePay => Ok(payments_grpc::PaymentMethodType::ApplePay),
+        PaymentMethodType::Atome => Ok(payments_grpc::PaymentMethodType::Atome),
+        PaymentMethodType::Bacs => Ok(payments_grpc::PaymentMethodType::Bacs),
+        PaymentMethodType::BancontactCard => Ok(payments_grpc::PaymentMethodType::BancontactCard),
+        PaymentMethodType::BcaBankTransfer => Ok(payments_grpc::PaymentMethodType::BcaBankTransfer),
+        PaymentMethodType::Becs => Ok(payments_grpc::PaymentMethodType::Becs),
+        PaymentMethodType::Benefit => Ok(payments_grpc::PaymentMethodType::Benefit),
+        PaymentMethodType::Bizum => Ok(payments_grpc::PaymentMethodType::Bizum),
+        PaymentMethodType::Blik => Ok(payments_grpc::PaymentMethodType::Blik),
+        PaymentMethodType::BniVa => Ok(payments_grpc::PaymentMethodType::BniVa),
+        PaymentMethodType::Boleto => Ok(payments_grpc::PaymentMethodType::Boleto),
+        PaymentMethodType::BriVa => Ok(payments_grpc::PaymentMethodType::BriVa),
+        PaymentMethodType::CardRedirect => Ok(payments_grpc::PaymentMethodType::CardRedirect),
+        PaymentMethodType::Cashapp => Ok(payments_grpc::PaymentMethodType::Cashapp),
+        PaymentMethodType::CimbVa => Ok(payments_grpc::PaymentMethodType::CimbVa),
+        PaymentMethodType::ClassicReward => Ok(payments_grpc::PaymentMethodType::ClassicReward),
+        PaymentMethodType::Credit => Ok(payments_grpc::PaymentMethodType::Credit),
+        PaymentMethodType::CryptoCurrency => Ok(payments_grpc::PaymentMethodType::CryptoCurrency),
+        PaymentMethodType::Dana => Ok(payments_grpc::PaymentMethodType::Dana),
+        PaymentMethodType::DanamonVa => Ok(payments_grpc::PaymentMethodType::DanamonVa),
+        PaymentMethodType::Debit => Ok(payments_grpc::PaymentMethodType::Debit),
+        PaymentMethodType::DirectCarrierBilling => {
+            Ok(payments_grpc::PaymentMethodType::DirectCarrierBilling)
+        }
+        PaymentMethodType::DuitNow => Ok(payments_grpc::PaymentMethodType::DuitNow),
+        PaymentMethodType::Efecty => Ok(payments_grpc::PaymentMethodType::Efecty),
+        PaymentMethodType::Eft => Ok(payments_grpc::PaymentMethodType::Eft),
+        PaymentMethodType::Eps => Ok(payments_grpc::PaymentMethodType::Eps),
+        PaymentMethodType::Evoucher => Ok(payments_grpc::PaymentMethodType::Evoucher),
+        PaymentMethodType::FamilyMart => Ok(payments_grpc::PaymentMethodType::FamilyMart),
+        PaymentMethodType::Fps => Ok(payments_grpc::PaymentMethodType::Fps),
+        PaymentMethodType::Gcash => Ok(payments_grpc::PaymentMethodType::Gcash),
+        PaymentMethodType::Giropay => Ok(payments_grpc::PaymentMethodType::Giropay),
+        PaymentMethodType::Givex => Ok(payments_grpc::PaymentMethodType::Givex),
+        PaymentMethodType::GooglePay => Ok(payments_grpc::PaymentMethodType::GooglePay),
+        PaymentMethodType::GoPay => Ok(payments_grpc::PaymentMethodType::GoPay),
+        PaymentMethodType::Ideal => Ok(payments_grpc::PaymentMethodType::Ideal),
+        PaymentMethodType::Indomaret => Ok(payments_grpc::PaymentMethodType::Indomaret),
+        PaymentMethodType::Interac => Ok(payments_grpc::PaymentMethodType::Interac),
+        PaymentMethodType::KakaoPay => Ok(payments_grpc::PaymentMethodType::KakaoPay),
+        PaymentMethodType::Knet => Ok(payments_grpc::PaymentMethodType::Knet),
+        PaymentMethodType::Lawson => Ok(payments_grpc::PaymentMethodType::Lawson),
+        PaymentMethodType::LocalBankRedirect => {
+            Ok(payments_grpc::PaymentMethodType::LocalBankRedirect)
+        }
+        PaymentMethodType::LocalBankTransfer => {
+            Ok(payments_grpc::PaymentMethodType::LocalBankTransfer)
+        }
+        PaymentMethodType::MandiriVa => Ok(payments_grpc::PaymentMethodType::MandiriVa),
+        PaymentMethodType::MbWay => Ok(payments_grpc::PaymentMethodType::MbWay),
+        PaymentMethodType::MiniStop => Ok(payments_grpc::PaymentMethodType::MiniStop),
+        PaymentMethodType::MobilePay => Ok(payments_grpc::PaymentMethodType::MobilePay),
+        PaymentMethodType::Momo => Ok(payments_grpc::PaymentMethodType::Momo),
+        PaymentMethodType::MomoAtm => Ok(payments_grpc::PaymentMethodType::MomoAtm),
+        PaymentMethodType::Multibanco => Ok(payments_grpc::PaymentMethodType::Multibanco),
+        PaymentMethodType::OnlineBankingCzechRepublic => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingCzechRepublic)
+        }
+        PaymentMethodType::OnlineBankingFinland => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingFinland)
+        }
+        PaymentMethodType::OnlineBankingFpx => Ok(payments_grpc::PaymentMethodType::OnlineBankingFpx),
+        PaymentMethodType::OnlineBankingPoland => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingPoland)
+        }
+        PaymentMethodType::OnlineBankingSlovakia => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingSlovakia)
+        }
+        PaymentMethodType::OnlineBankingThailand => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingThailand)
+        }
+        PaymentMethodType::OpenBankingPIS => Ok(payments_grpc::PaymentMethodType::OpenBankingPis),
+        PaymentMethodType::OpenBankingUk => Ok(payments_grpc::PaymentMethodType::OpenBankingUk),
+        PaymentMethodType::Oxxo => Ok(payments_grpc::PaymentMethodType::Oxxo),
+        PaymentMethodType::PagoEfectivo => Ok(payments_grpc::PaymentMethodType::PagoEfectivo),
+        PaymentMethodType::PayBright => Ok(payments_grpc::PaymentMethodType::PayBright),
+        PaymentMethodType::PayEasy => Ok(payments_grpc::PaymentMethodType::PayEasy),
+        PaymentMethodType::Paypal => Ok(payments_grpc::PaymentMethodType::PayPal),
+        PaymentMethodType::PaySafeCard => Ok(payments_grpc::PaymentMethodType::PaySafeCard),
+        PaymentMethodType::Paze => Ok(payments_grpc::PaymentMethodType::Paze),
+        PaymentMethodType::PermataBankTransfer => {
+            Ok(payments_grpc::PaymentMethodType::PermataBankTransfer)
+        }
+        PaymentMethodType::Pix => Ok(payments_grpc::PaymentMethodType::Pix),
+        PaymentMethodType::PromptPay => Ok(payments_grpc::PaymentMethodType::PromptPay),
+        PaymentMethodType::Przelewy24 => Ok(payments_grpc::PaymentMethodType::Przelewy24),
+        PaymentMethodType::Pse => Ok(payments_grpc::PaymentMethodType::Pse),
+        PaymentMethodType::RedCompra => Ok(payments_grpc::PaymentMethodType::RedCompra),
+        PaymentMethodType::RedPagos => Ok(payments_grpc::PaymentMethodType::RedPagos),
+        PaymentMethodType::RevolutPay => Ok(payments_grpc::PaymentMethodType::RevolutPay),
+        PaymentMethodType::SamsungPay => Ok(payments_grpc::PaymentMethodType::SamsungPay),
+        PaymentMethodType::Seicomart => Ok(payments_grpc::PaymentMethodType::Seicomart),
+        PaymentMethodType::Sepa => Ok(payments_grpc::PaymentMethodType::Sepa),
+        PaymentMethodType::SepaBankTransfer => Ok(payments_grpc::PaymentMethodType::SepaBankTransfer),
+        PaymentMethodType::SevenEleven => Ok(payments_grpc::PaymentMethodType::SevenEleven),
+        PaymentMethodType::Sofort => Ok(payments_grpc::PaymentMethodType::Sofort),
+        PaymentMethodType::Swish => Ok(payments_grpc::PaymentMethodType::Swish),
+        PaymentMethodType::TouchNGo => Ok(payments_grpc::PaymentMethodType::TouchNGo),
+        PaymentMethodType::Trustly => Ok(payments_grpc::PaymentMethodType::Trustly),
+        PaymentMethodType::Twint => Ok(payments_grpc::PaymentMethodType::Twint),
+        PaymentMethodType::UpiCollect => Ok(payments_grpc::PaymentMethodType::UpiCollect),
+        PaymentMethodType::UpiIntent => Ok(payments_grpc::PaymentMethodType::UpiIntent),
+        PaymentMethodType::Venmo => Ok(payments_grpc::PaymentMethodType::Venmo),
+        PaymentMethodType::VietQr => Ok(payments_grpc::PaymentMethodType::VietQr),
+        PaymentMethodType::Vipps => Ok(payments_grpc::PaymentMethodType::Vipps),
+        PaymentMethodType::Walley => Ok(payments_grpc::PaymentMethodType::Walley),
+        PaymentMethodType::WeChatPay => Ok(payments_grpc::PaymentMethodType::WeChatPay),
+        _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+            "Unimplemented payment method type: {payment_method_type:?}"
         ))
         .into()),
     }
