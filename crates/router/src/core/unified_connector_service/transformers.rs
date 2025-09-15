@@ -510,7 +510,8 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .map(|e| e.expose().expose().into()),
             browser_info,
             test_mode: router_data.test_mode,
-            payment_method_type: payment_method_type.map(|payment_method_type| payment_method_type.into()),
+            payment_method_type: payment_method_type
+                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }

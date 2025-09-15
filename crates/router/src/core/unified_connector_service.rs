@@ -582,7 +582,9 @@ pub fn build_unified_connector_service_payment_method_type(
         PaymentMethodType::OnlineBankingFinland => {
             Ok(payments_grpc::PaymentMethodType::OnlineBankingFinland)
         }
-        PaymentMethodType::OnlineBankingFpx => Ok(payments_grpc::PaymentMethodType::OnlineBankingFpx),
+        PaymentMethodType::OnlineBankingFpx => {
+            Ok(payments_grpc::PaymentMethodType::OnlineBankingFpx)
+        }
         PaymentMethodType::OnlineBankingPoland => {
             Ok(payments_grpc::PaymentMethodType::OnlineBankingPoland)
         }
@@ -614,7 +616,9 @@ pub fn build_unified_connector_service_payment_method_type(
         PaymentMethodType::SamsungPay => Ok(payments_grpc::PaymentMethodType::SamsungPay),
         PaymentMethodType::Seicomart => Ok(payments_grpc::PaymentMethodType::Seicomart),
         PaymentMethodType::Sepa => Ok(payments_grpc::PaymentMethodType::Sepa),
-        PaymentMethodType::SepaBankTransfer => Ok(payments_grpc::PaymentMethodType::SepaBankTransfer),
+        PaymentMethodType::SepaBankTransfer => {
+            Ok(payments_grpc::PaymentMethodType::SepaBankTransfer)
+        }
         PaymentMethodType::SevenEleven => Ok(payments_grpc::PaymentMethodType::SevenEleven),
         PaymentMethodType::Sofort => Ok(payments_grpc::PaymentMethodType::Sofort),
         PaymentMethodType::Swish => Ok(payments_grpc::PaymentMethodType::Swish),
