@@ -1046,7 +1046,7 @@ connectors_with_delayed_session_response = "trustpay,payme"
 connectors_with_webhook_source_verification_call = "paypal"
 
 [webhook_ack_connectors]
-connectors_with_webhook_ack = "adyen"
+connectors_with_webhook_ack = "adyen,adyenplatform"
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"

@@ -306,7 +306,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     let webhook_effect = match process_webhook_further {
         true => {
-            let business_logic_result = process_webhook_business_logic(
+            let business_logic_result = Box::pin(process_webhook_business_logic(
                 &state,
                 req_state,
                 &merchant_context,
@@ -317,7 +317,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
-            )
+            ))
             .await;
 
             match business_logic_result {
@@ -516,15 +516,15 @@ async fn process_webhook_business_logic(
         .connectors_with_webhook_ack
         .contains(&connector_enum)
     {
-        match helper_utils::get_mca_for_webhook_ack_connectors(
+        match Box::pin(helper_utils::get_mca_for_webhook_ack_connectors(
             state,
             object_ref_id.clone(),
             merchant_context,
             connector_name,
-        )
+        ))
         .await
         {
-            Ok(Some(mca)) => mca, // Resource exists, MCA exists, profile matches
+            Ok(Some(mca)) => mca,
             Ok(None) => {
                 logger::info!("Webhook resource doesn't exist or profile_id mismatch");
                 return Ok(WebhookResponseTracker::NoEffect);
@@ -543,13 +543,12 @@ async fn process_webhook_business_logic(
             }
         }
     } else {
-        // For other connectors: use existing logic directly (no is_webhook_valid call)
-        match helper_utils::get_mca_from_object_reference_id(
+        match Box::pin(helper_utils::get_mca_from_object_reference_id(
             state,
             object_ref_id.clone(),
             merchant_context,
             connector_name,
-        )
+        ))
         .await
         {
             Ok(mca) => mca,
