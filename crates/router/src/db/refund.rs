@@ -1405,13 +1405,13 @@ impl RefundInterface for MockDb {
                 refund_details
                     .payment_id
                     .clone()
-                    .map_or(true, |id| id == refund.payment_id)
+                    .is_none_or(|id| id == refund.payment_id)
             })
             .filter(|refund| {
                 refund_details
                     .refund_id
                     .clone()
-                    .map_or(true, |id| id == refund.refund_id)
+                    .is_none_or(|id| id == refund.refund_id)
             })
             .filter(|refund| {
                 refund.profile_id.as_ref().is_some_and(|profile_id| {
@@ -1432,15 +1432,11 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
-                refund_details
-                    .amount_filter
-                    .as_ref()
-                    .map_or(true, |amount| {
-                        refund.refund_amount
-                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
-                            && refund.refund_amount
-                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
-                    })
+                refund_details.amount_filter.as_ref().is_none_or(|amount| {
+                    refund.refund_amount >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                        && refund.refund_amount
+                            <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                })
             })
             .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
@@ -1513,13 +1509,13 @@ impl RefundInterface for MockDb {
                 refund_details
                     .payment_id
                     .clone()
-                    .map_or(true, |id| id == refund.payment_id)
+                    .is_none_or(|id| id == refund.payment_id)
             })
             .filter(|refund| {
                 refund_details
                     .refund_id
                     .clone()
-                    .map_or(true, |id| id == refund.id)
+                    .is_none_or(|id| id == refund.id)
             })
             .filter(|refund| {
                 refund
@@ -1541,15 +1537,11 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
-                refund_details
-                    .amount_filter
-                    .as_ref()
-                    .map_or(true, |amount| {
-                        refund.refund_amount
-                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
-                            && refund.refund_amount
-                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
-                    })
+                refund_details.amount_filter.as_ref().is_none_or(|amount| {
+                    refund.refund_amount >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                        && refund.refund_amount
+                            <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                })
             })
             .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
@@ -1720,13 +1712,13 @@ impl RefundInterface for MockDb {
                 refund_details
                     .payment_id
                     .clone()
-                    .map_or(true, |id| id == refund.payment_id)
+                    .is_none_or(|id| id == refund.payment_id)
             })
             .filter(|refund| {
                 refund_details
                     .refund_id
                     .clone()
-                    .map_or(true, |id| id == refund.refund_id)
+                    .is_none_or(|id| id == refund.refund_id)
             })
             .filter(|refund| {
                 refund.profile_id.as_ref().is_some_and(|profile_id| {
@@ -1747,15 +1739,11 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
-                refund_details
-                    .amount_filter
-                    .as_ref()
-                    .map_or(true, |amount| {
-                        refund.refund_amount
-                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
-                            && refund.refund_amount
-                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
-                    })
+                refund_details.amount_filter.as_ref().is_none_or(|amount| {
+                    refund.refund_amount >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                        && refund.refund_amount
+                            <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                })
             })
             .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
@@ -1826,13 +1814,13 @@ impl RefundInterface for MockDb {
                 refund_details
                     .payment_id
                     .clone()
-                    .map_or(true, |id| id == refund.payment_id)
+                    .is_none_or(|id| id == refund.payment_id)
             })
             .filter(|refund| {
                 refund_details
                     .refund_id
                     .clone()
-                    .map_or(true, |id| id == refund.id)
+                    .is_none_or(|id| id == refund.id)
             })
             .filter(|refund| {
                 refund
@@ -1854,15 +1842,11 @@ impl RefundInterface for MockDb {
                             })
             })
             .filter(|refund| {
-                refund_details
-                    .amount_filter
-                    .as_ref()
-                    .map_or(true, |amount| {
-                        refund.refund_amount
-                            >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
-                            && refund.refund_amount
-                                <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
-                    })
+                refund_details.amount_filter.as_ref().is_none_or(|amount| {
+                    refund.refund_amount >= MinorUnit::new(amount.start_amount.unwrap_or(i64::MIN))
+                        && refund.refund_amount
+                            <= MinorUnit::new(amount.end_amount.unwrap_or(i64::MAX))
+                })
             })
             .filter(|refund| {
                 unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
