@@ -367,65 +367,54 @@ pub async fn find_mca_from_authentication_id_type(
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_authentication_and_mca(
+pub async fn get_authentication_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
     merchant_context: &domain::MerchantContext,
-) -> (
-    CustomResult<Authentication, errors::ApiErrorResponse>,
-    CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse>,
-) {
+) -> CustomResult<Authentication, errors::ApiErrorResponse> {
     let db = &*state.store;
-
-    let authentication_result = match authentication_id_type {
+    let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_context.get_merchant_account().get_id(),
                 &authentication_id,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError),
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
             db.find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_context.get_merchant_account().get_id().clone(),
                 connector_authentication_id,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
+    Ok(authentication)
+}
 
-    let authentication = match &authentication_result {
-        Ok(auth) => auth,
-        Err(_) => {
-            return (
-                authentication_result,
-                Err(error_stack::report!(
-                    errors::ApiErrorResponse::InternalServerError
-                )),
-            )
-        }
-    };
-
-    let mca_result = match &authentication.merchant_connector_id {
-        Some(mca_id) => db
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &state.into(),
-                merchant_context.get_merchant_account().get_id(),
-                mca_id,
-                merchant_context.get_merchant_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: mca_id.get_string_repr().to_string(),
-            }),
-        None => Err(error_stack::report!(
-            errors::ApiErrorResponse::InternalServerError
-        ))
-        .attach_printable("merchant_connector_id not present in authentication record"),
-    };
-
-    (authentication_result, mca_result)
+#[cfg(feature = "v1")]
+pub async fn get_mca_from_authentication(
+    state: &SessionState,
+    authentication: &Authentication,
+    merchant_context: &domain::MerchantContext,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let mca_id = authentication
+        .merchant_connector_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("merchant_connector_id not present in authentication record")?;
+    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &state.into(),
+        merchant_context.get_merchant_account().get_id(),
+        &mca_id,
+        merchant_context.get_merchant_key_store(),
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        id: mca_id.get_string_repr().to_string(),
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -607,21 +596,16 @@ pub async fn get_mca_from_payout_attempt(
 }
 
 #[cfg(feature = "payouts")]
-pub async fn get_payout_attempt_and_mca(
+pub async fn get_payout_attempt_from_payout_id_type(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
     payout_id_type: webhooks::PayoutIdType,
-    connector_name: &str,
-) -> (
-    CustomResult<
-        hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
-        errors::ApiErrorResponse,
-    >,
-    CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse>,
-) {
+    merchant_context: &domain::MerchantContext,
+) -> CustomResult<
+    hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    errors::ApiErrorResponse,
+> {
     let db = &*state.store;
-
-    let payout_result = match payout_id_type {
+    let payout_attempt = match payout_id_type {
         webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_context.get_merchant_account().get_id(),
@@ -629,7 +613,7 @@ pub async fn get_payout_attempt_and_mca(
                 merchant_context.get_merchant_account().storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound),
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
         webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
             .find_payout_attempt_by_merchant_id_connector_payout_id(
                 merchant_context.get_merchant_account().get_id(),
@@ -637,23 +621,21 @@ pub async fn get_payout_attempt_and_mca(
                 merchant_context.get_merchant_account().storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound),
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
     };
+    Ok(payout_attempt)
+}
 
-    let payout = match &payout_result {
-        Ok(payout) => payout,
-        Err(_) => {
-            return (
-                payout_result,
-                Err(error_stack::report!(
-                    errors::ApiErrorResponse::PayoutNotFound
-                )),
-            )
-        }
-    };
-
+#[cfg(feature = "payouts")]
+pub async fn get_mca_from_payout_attempt_object(
+    state: &SessionState,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    merchant_context: &domain::MerchantContext,
+    connector_name: &str,
+) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    let db = &*state.store;
     let key_manager_state: &KeyManagerState = &state.into();
-    let mca_result = match &payout.merchant_connector_id {
+    match &payout_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
@@ -685,7 +667,7 @@ pub async fn get_payout_attempt_and_mca(
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
-                    &payout.profile_id,
+                    &payout_attempt.profile_id,
                     connector_name,
                     merchant_context.get_merchant_key_store(),
                 )
@@ -694,7 +676,7 @@ pub async fn get_payout_attempt_and_mca(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: format!(
                             "profile_id {} and connector_name {}",
-                            payout.profile_id.get_string_repr(),
+                            payout_attempt.profile_id.get_string_repr(),
                             connector_name
                         ),
                     },
@@ -705,9 +687,7 @@ pub async fn get_payout_attempt_and_mca(
                 todo!()
             }
         }
-    };
-
-    (payout_result, mca_result)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -716,6 +696,7 @@ pub async fn get_mca_for_webhook_ack_connectors(
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_context: &domain::MerchantContext,
     connector_name: &str,
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
 ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     match &object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
@@ -731,21 +712,19 @@ pub async fn get_mca_for_webhook_ack_connectors(
                 Err(_) => return Ok(None),
             };
 
-            let mca = get_mca_from_payment_intent(
-                state,
-                merchant_context,
-                payment_intent.clone(),
-                connector_name,
-            )
-            .await?;
-
-            if let Some(resource_profile_id) = &payment_intent.profile_id {
-                if *resource_profile_id != mca.profile_id {
-                    return Ok(None);
+            match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                _ => {
+                    let mca = get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        payment_intent.clone(),
+                        connector_name,
+                    )
+                    .await?;
+                    Ok(Some(mca))
                 }
             }
-
-            Ok(Some(mca))
         }
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
             let payment_intent = find_payment_intent_from_refund_id_type(
@@ -761,21 +740,19 @@ pub async fn get_mca_for_webhook_ack_connectors(
                 Err(_) => return Ok(None),
             };
 
-            let mca = get_mca_from_payment_intent(
-                state,
-                merchant_context,
-                payment_intent.clone(),
-                connector_name,
-            )
-            .await?;
-
-            if let Some(resource_profile_id) = &payment_intent.profile_id {
-                if *resource_profile_id != mca.profile_id {
-                    return Ok(None);
+            match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                _ => {
+                    let mca = get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        payment_intent.clone(),
+                        connector_name,
+                    )
+                    .await?;
+                    Ok(Some(mca))
                 }
             }
-
-            Ok(Some(mca))
         }
         webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
             let payment_intent = find_payment_intent_from_mandate_id_type(
@@ -790,61 +767,67 @@ pub async fn get_mca_for_webhook_ack_connectors(
                 Err(_) => return Ok(None),
             };
 
-            let mca = get_mca_from_payment_intent(
-                state,
-                merchant_context,
-                payment_intent.clone(),
-                connector_name,
-            )
-            .await?;
-
-            if let Some(resource_profile_id) = &payment_intent.profile_id {
-                if *resource_profile_id != mca.profile_id {
-                    return Ok(None);
+            match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                _ => {
+                    let mca = get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        payment_intent.clone(),
+                        connector_name,
+                    )
+                    .await?;
+                    Ok(Some(mca))
                 }
             }
-
-            Ok(Some(mca))
         }
         webhooks::ObjectReferenceId::ExternalAuthenticationID(auth_id_type) => {
-            let (authentication, merchant_connector_account) =
-                get_authentication_and_mca(state, auth_id_type.clone(), merchant_context).await;
+            let authentication = match get_authentication_from_authentication_id_type(
+                state,
+                auth_id_type.clone(),
+                merchant_context,
+            )
+            .await
+            {
+                Ok(auth) => auth,
+                Err(_) => return Ok(None),
+            };
 
-            let (authentication, merchant_connector_account) =
-                match (authentication, merchant_connector_account) {
-                    (Ok(auth), Ok(mca)) => (auth, mca),
-                    (Err(_), _) => return Ok(None),
-                    (_, Err(error)) => return Err(error),
-                };
-
-            if authentication.profile_id != merchant_connector_account.profile_id {
-                return Ok(None);
+            match merchant_connector_account.zip(Some(&authentication.profile_id)) {
+                Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                _ => {
+                    let mca = get_mca_from_authentication(state, &authentication, merchant_context)
+                        .await?;
+                    Ok(Some(mca))
+                }
             }
-
-            Ok(Some(merchant_connector_account))
         }
         #[cfg(feature = "payouts")]
         webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
-            let (payout_attempt, merchant_connector_account) = get_payout_attempt_and_mca(
+            let payout_attempt = match get_payout_attempt_from_payout_id_type(
                 state,
-                merchant_context,
                 payout_id_type.clone(),
-                connector_name,
+                merchant_context,
             )
-            .await;
+            .await
+            {
+                Ok(attempt) => attempt,
+                Err(_) => return Ok(None),
+            };
 
-            let (payout_attempt, merchant_connector_account) =
-                match (payout_attempt, merchant_connector_account) {
-                    (Ok(payout), Ok(mca)) => (payout, mca),
-                    (Err(_), _) => return Ok(None),
-                    (_, Err(error)) => return Err(error),
-                };
-
-            if payout_attempt.profile_id != merchant_connector_account.profile_id {
-                return Ok(None);
+            match merchant_connector_account.zip(Some(&payout_attempt.profile_id)) {
+                Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                _ => {
+                    let mca = get_mca_from_payout_attempt_object(
+                        state,
+                        &payout_attempt,
+                        merchant_context,
+                        connector_name,
+                    )
+                    .await?;
+                    Ok(Some(mca))
+                }
             }
-
-            Ok(Some(merchant_connector_account))
         }
     }
 }

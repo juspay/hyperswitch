@@ -243,7 +243,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &connector_name,
                 &body,
                 &request_details,
-                merchant_connector_account.as_ref(),
+                merchant_connector_account.clone().as_ref(),
             )
             .await?
         } else {
@@ -253,6 +253,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     &request_details,
                     merchant_context.get_merchant_account().get_id(),
                     merchant_connector_account
+                        .clone()
                         .and_then(|mca| mca.connector_webhook_details.clone()),
                     &connector_name,
                 )
@@ -317,6 +318,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
+                merchant_connector_account.as_ref(),
             ))
             .await;
 
@@ -499,6 +501,7 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -512,7 +515,7 @@ async fn process_webhook_business_logic(
     let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
     let connectors_with_webhook_ack = &state.conf.webhook_ack_connectors;
 
-    let merchant_connector_account = if connectors_with_webhook_ack
+    let payment_resource_mca = if connectors_with_webhook_ack
         .connectors_with_webhook_ack
         .contains(&connector_enum)
     {
@@ -521,6 +524,7 @@ async fn process_webhook_business_logic(
             object_ref_id.clone(),
             merchant_context,
             connector_name,
+            merchant_connector_account,
         ))
         .await
         {
@@ -580,7 +584,7 @@ async fn process_webhook_business_logic(
                 connector.clone(),
                 state,
                 merchant_context,
-                merchant_connector_account.clone(),
+                payment_resource_mca.clone(),
                 connector_name,
                 request_details,
             )
@@ -600,8 +604,8 @@ async fn process_webhook_business_logic(
                 .verify_webhook_source(
                     request_details,
                     merchant_context.get_merchant_account().get_id(),
-                    merchant_connector_account.connector_webhook_details.clone(),
-                    merchant_connector_account.connector_account_details.clone(),
+                    payment_resource_mca.connector_webhook_details.clone(),
+                    payment_resource_mca.connector_account_details.clone(),
                     connector_name,
                 )
                 .await
@@ -669,7 +673,7 @@ async fn process_webhook_business_logic(
             )?,
     };
 
-    let profile_id = &merchant_connector_account.profile_id;
+    let profile_id = &payment_resource_mca.profile_id;
     let key_manager_state = &(state).into();
 
     let business_profile = state
@@ -797,7 +801,7 @@ async fn process_webhook_business_logic(
                     connector,
                     object_ref_id,
                     business_profile,
-                    merchant_connector_account,
+                    payment_resource_mca,
                 ))
                 .await
                 .attach_printable("Incoming webhook flow for external authentication failed")
