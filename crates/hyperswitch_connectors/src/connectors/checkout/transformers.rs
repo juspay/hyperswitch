@@ -1712,19 +1712,16 @@ impl From<String> for utils::ErrorCodeAndMessage {
 fn convert_to_additional_payment_method_connector_response(
     source: Option<&Source>,
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
-    match source {
-        None => None,
-        Some(code) => {
-            let payment_checks = serde_json::json!({
-                "avs_result": code.avs_check,
-                "card_validation_result": code.cvv_check,
-            });
-            Some(AdditionalPaymentMethodConnectorResponse::Card {
-                authentication_data: None,
-                payment_checks: Some(payment_checks),
-                card_network: None,
-                domestic_network: None,
-            })
+    source.map(|code| {
+        let payment_checks = serde_json::json!({
+            "avs_result": code.avs_check,
+            "card_validation_result": code.cvv_check,
+        });
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: Some(payment_checks),
+            card_network: None,
+            domestic_network: None,
         }
-    }
+    })
 }
