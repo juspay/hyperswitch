@@ -17,7 +17,7 @@ use crate::{
     types::domain,
 };
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn create_subscription(
     state: web::Data<AppState>,

@@ -14,7 +14,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 ///
 /// This struct captures details required to create a subscription,
 /// including plan, profile, merchant connector, and optional customer info.
-#[derive(Debug, Clone, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// Unique identifier for the subscription (optional, generated if missing).
     pub subscription_id: Option<String>,
@@ -91,14 +91,14 @@ pub struct CreateSubscriptionResponse {
 /// - `InActive`: Subscription is inactive (e.g., cancelled or expired).
 #[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
 pub enum SubscriptionStatus {
-    /// Subscription is created but not yet active.
-    Created,
-
     /// Subscription is active.
     Active,
-
+    /// Subscription is created but not yet active.
+    Created,
     /// Subscription is inactive.
     InActive,
+    /// Subscription is in pending state.
+    Pending,
 }
 
 impl CreateSubscriptionResponse {
@@ -134,9 +134,15 @@ impl CreateSubscriptionResponse {
 pub fn map_customer_resp_to_details(response: &CustomerResponse) -> CustomerDetailsResponse {
     CustomerDetailsResponse {
         id: Some(response.customer_id.clone()),
-        name: response.name.as_ref().map(|n| n.clone().into_inner()),
-        email: response.email.as_ref().map(|e| pii::Email::from(e.clone())),
-        phone: response.phone.as_ref().map(|p| p.clone().into_inner()),
+        name: response.name.as_ref().map(|name| name.clone().into_inner()),
+        email: response
+            .email
+            .as_ref()
+            .map(|email| pii::Email::from(email.clone())),
+        phone: response
+            .phone
+            .as_ref()
+            .map(|phone| phone.clone().into_inner()),
         phone_country_code: response.phone_country_code.clone(),
     }
 }

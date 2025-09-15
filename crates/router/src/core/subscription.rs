@@ -10,7 +10,6 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
     router_request_types::CustomerDetails,
 };
-use payment_methods::helpers::StorageErrorExt;
 use utils::get_or_create_customer;
 
 use super::errors::{self, RouterResponse};
@@ -62,7 +61,7 @@ pub async fn create_subscription(
     } else {
         request.customer_id.clone()
     }
-    .ok_or(errors::ApiErrorResponse::CustomerNotFound)
+    .ok_or(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("subscriptions: unable to create a customer")?;
 
     // If provided we can strore plan_id, coupon_code etc as metadata
@@ -82,7 +81,7 @@ pub async fn create_subscription(
     response.client_secret = Some(subscription.generate_and_set_client_secret());
     db.insert_subscription_entry(subscription)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("subscriptions: unable to insert subscription entry to database")?;
 
     Ok(ApplicationResponse::Json(response))
