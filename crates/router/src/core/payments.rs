@@ -847,6 +847,8 @@ where
 
                     let operation = Box::new(PaymentResponse);
 
+                    let router_data_clone = router_data.clone();
+
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
                     //add connector http status code metrics
@@ -857,7 +859,7 @@ where
                         .update_tracker(
                             state,
                             payment_data,
-                            router_data,
+                            router_data_clone,
                             merchant_context.get_merchant_key_store(),
                             merchant_context.get_merchant_account().storage_scheme,
                             &locale,
