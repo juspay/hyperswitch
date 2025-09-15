@@ -2739,10 +2739,9 @@ fn process_nuvei_payment_response(
             }),
     };
 
-    let connector_response_data = convert_to_additional_payment_method_connector_response(
-        data.payment_option.clone(),
-    )
-    .map(ConnectorResponseData::with_additional_payment_method_data);
+    let connector_response_data =
+        convert_to_additional_payment_method_connector_response(data.payment_option.clone())
+            .map(ConnectorResponseData::with_additional_payment_method_data);
     let status = get_payment_status(
         data.amount,
         data.is_post_capture_void,
