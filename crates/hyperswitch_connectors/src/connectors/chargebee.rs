@@ -767,7 +767,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     }
 }
 
-
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Chargebee {
     fn get_webhook_source_verification_signature(

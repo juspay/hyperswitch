@@ -10,17 +10,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
-    router_flow_types::{
-        unified_authentication_service::{
-            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-        },
+    router_flow_types::unified_authentication_service::{
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
-    router_request_types::{
-        unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
-        },
+    router_request_types::unified_authentication_service::{
+        UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

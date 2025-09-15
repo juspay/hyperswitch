@@ -150,7 +150,6 @@ pub struct FilesFlowData {
 #[derive(Debug, Clone)]
 pub struct InvoiceRecordBackData;
 
-
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
