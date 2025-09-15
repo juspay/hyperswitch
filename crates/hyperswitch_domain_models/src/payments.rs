@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use api_models::payments::{SessionToken, VaultSessionDetails};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+    AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
 };
 use common_utils::{
     self,
@@ -123,6 +123,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<EnableOvercaptureBool>,
 }
 
 impl PaymentIntent {
@@ -198,6 +199,27 @@ impl PaymentIntent {
             None
         }
         .map(RequestExtendedAuthorizationBool::from)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_enable_overcapture_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_enable_overcapture: Option<
+            common_types::primitive_wrappers::AlwaysEnableOvercaptureBool,
+        >,
+        capture_method: &Option<common_enums::CaptureMethod>,
+    ) -> Option<EnableOvercaptureBool> {
+        let is_overcapture_supported_by_connector =
+            connector.is_overcapture_supported_by_connector();
+        if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
+            && is_overcapture_supported_by_connector
+        {
+            self.enable_overcapture
+                .or_else(|| always_enable_overcapture.map(EnableOvercaptureBool::from))
+        } else {
+            None
+        }
     }
 
     #[cfg(feature = "v2")]
@@ -942,7 +964,7 @@ impl<F: Clone> PaymentConfirmData<F> {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentStatusData<F>
 where
     F: Clone,

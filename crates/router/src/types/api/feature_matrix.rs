@@ -274,6 +274,9 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payone::new())))
                 }
                 enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(connector::Payu::new()))),
+                enums::Connector::Peachpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Peachpayments::new(),
+                ))),
                 enums::Connector::Placetopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
@@ -342,6 +345,9 @@ impl FeatureMatrixConnectorData {
                 // }
                 enums::Connector::Paypal => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
+                }
+                enums::Connector::Paysafe => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paysafe::new())))
                 }
                 enums::Connector::Paystack => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
