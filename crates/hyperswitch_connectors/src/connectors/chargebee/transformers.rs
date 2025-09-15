@@ -26,7 +26,7 @@ use hyperswitch_domain_models::{
     router_response_types::subscriptions::SubscriptionCreateResponse,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -82,12 +82,10 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             subscription_id: req.subscription_id.clone(),
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: address
-                .and_then(|addr| addr.line1.as_ref().map(|line1| line1.clone())),
+            billing_address_line1: address.and_then(|addr| addr.line1.clone()),
             billing_address_city: address.and_then(|addr| addr.city.clone()),
-            billing_address_state: address
-                .and_then(|addr| addr.state.as_ref().map(|state| state.clone())),
-            billing_address_zip: address.and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone())),
+            billing_address_state: address.and_then(|addr| addr.state.clone()),
+            billing_address_zip: address.and_then(|addr| addr.zip.clone()),
             billing_address_country: address
                 .and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
@@ -103,14 +101,43 @@ pub struct ChargebeeSubscriptionCreateResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionDetails {
     pub id: String,
-    pub status: String,
-    pub customer_id: String,
+    pub status: ChargebeeSubscriptionStatus,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub currency_code: enums::Currency,
     pub total_dues: Option<MinorUnit>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub next_billing_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub created_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeSubscriptionStatus {
+    Future,
+    InTrial,
+    Active,
+    NonRenewing,
+    Paused,
+    Cancelled,
+    Transferred,
+}
+
+#[cfg(feature = "v1")]
+impl From<ChargebeeSubscriptionStatus>
+    for hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus
+{
+    fn from(status: ChargebeeSubscriptionStatus) -> Self {
+        match status {
+            ChargebeeSubscriptionStatus::Future => Self::Future,
+            ChargebeeSubscriptionStatus::InTrial => Self::InTrial,
+            ChargebeeSubscriptionStatus::Active => Self::Active,
+            ChargebeeSubscriptionStatus::NonRenewing => Self::NonRenewing,
+            ChargebeeSubscriptionStatus::Paused => Self::Paused,
+            ChargebeeSubscriptionStatus::Cancelled => Self::Cancelled,
+            ChargebeeSubscriptionStatus::Transferred => Self::Transferred,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -137,7 +164,7 @@ impl
         Ok(Self {
             response: Ok(SubscriptionCreateResponse {
                 subscription_id: subscription.id.clone(),
-                status: subscription.status.clone(),
+                status: subscription.status.clone().into(),
                 customer_id: subscription.customer_id.clone(),
                 currency_code: subscription.currency_code,
                 total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),

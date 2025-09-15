@@ -15,12 +15,11 @@ pub struct SubscriptionCreateResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SubscriptionStatus {
-    Created,
-    PaymentInProgress,
+    Future,
+    InTrial,
     Active,
-    PaymentFailed,
-    Cancelled,
-    Expired,
+    NonRenewing,
     Paused,
-    PendingConfirmation,
+    Cancelled,
+    Transferred,
 }
