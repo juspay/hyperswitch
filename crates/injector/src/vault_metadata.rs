@@ -162,7 +162,6 @@ impl VaultMetadataProcessor for VgsMetadata {
     }
 }
 
-
 impl VaultMetadataProcessor for ExternalVaultProxyMetadata {
     fn process_metadata(
         &self,
