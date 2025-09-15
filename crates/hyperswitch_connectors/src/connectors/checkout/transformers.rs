@@ -8,7 +8,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{Execute, RSync, SetupMandate},
     router_request_types::{ResponseId, SetupMandateRequestData},
     router_response_types::{
@@ -801,8 +804,9 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             None
         };
 
-        let additional_information = convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                                                        .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -972,8 +976,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
-        let additional_information = convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                                                        .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
