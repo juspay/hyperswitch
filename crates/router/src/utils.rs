@@ -878,7 +878,7 @@ pub async fn is_webhook_valid(
 }
 
 #[cfg(feature = "v1")]
-pub async fn get_mca_from_object_reference_id_for_adyen(
+pub async fn get_mca_for_webhook_ack_connectors(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_context: &domain::MerchantContext,

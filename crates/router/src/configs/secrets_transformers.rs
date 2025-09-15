@@ -495,6 +495,7 @@ pub(crate) async fn fetch_raw_secrets(
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
+        webhook_ack_connectors: conf.webhook_ack_connectors,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
         payment_method_auth,

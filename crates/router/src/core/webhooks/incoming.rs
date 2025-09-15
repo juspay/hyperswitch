@@ -510,9 +510,13 @@ async fn process_webhook_business_logic(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+    let connectors_with_webhook_ack = &state.conf.webhook_ack_connectors;
 
-    let merchant_connector_account = if connector_name == "adyen" {
-        match helper_utils::get_mca_from_object_reference_id_for_adyen(
+    let merchant_connector_account = if connectors_with_webhook_ack
+        .connectors_with_webhook_ack
+        .contains(&connector_enum)
+    {
+        match helper_utils::get_mca_for_webhook_ack_connectors(
             state,
             object_ref_id.clone(),
             merchant_context,
@@ -522,11 +526,10 @@ async fn process_webhook_business_logic(
         {
             Ok(Some(mca)) => mca, // Resource exists, MCA exists, profile matches
             Ok(None) => {
-                logger::info!("Adyen webhook: resource doesn't exist or profile_id mismatch");
+                logger::info!("Webhook resource doesn't exist or profile_id mismatch");
                 return Ok(WebhookResponseTracker::NoEffect);
             }
             Err(error) => {
-                // MCA doesn't exist - handle error same as current logic
                 let result = handle_incoming_webhook_error(
                     error,
                     connector,
