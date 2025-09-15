@@ -868,14 +868,13 @@ pub fn encode_payload(
     Ok(hex::encode(digest))
 }
 
-impl TryFrom<NuveiPaymentSyncResponse> for NuveiPaymentsResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
+impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {    
+    fn from(
         value: NuveiPaymentSyncResponse,
-    ) -> Result<Self, Self::Error> {
+    ) -> Self {
         match value {
-            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) =>  Ok(NuveiPaymentsResponse::from(payment_dmn_notification)),
-            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => Ok(NuveiPaymentsResponse::from(nuvei_transaction_sync_response)),
+            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => NuveiTransactionSyncResponse::from(payment_dmn_notification),
+            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => nuvei_transaction_sync_response,
         }
     }
 }
@@ -2198,18 +2197,6 @@ impl TryFrom<&ConnectorAuthType> for NuveiAuthType {
 }
 
 
-impl TryFrom<NuveiPaymentSyncResponse> for NuveiPaymentsResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        value: NuveiPaymentSyncResponse,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) =>  Ok(NuveiPaymentsResponse::from(payment_dmn_notification)),
-            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => Ok(NuveiPaymentsResponse::from(nuvei_transaction_sync_response)),
-        }
-    }
-}
-
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -2307,6 +2294,7 @@ pub struct NuveiTransactionSyncResponseDetails {
     gw_error_reason: Option<String>,
     gw_extended_error_code: Option<i64>,
     transaction_id: Option<String>,
+    // Status of the payment 
     transaction_status: Option<NuveiTransactionStatus>,
     transaction_type: Option<NuveiTransactionType>,
     auth_code: Option<String>,
@@ -2324,6 +2312,7 @@ pub struct NuveiTransactionSyncResponse {
     pub fraud_details: Option<FraudDetails>,
     pub client_unique_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    // API response status
     pub status: NuveiPaymentStatus,
     pub err_code: Option<i64>,
     pub reason: Option<String>,
@@ -3202,7 +3191,7 @@ pub enum NuveiWebhook {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NuveiPaymentSyncResponse{
-    NuveiDmn(NuveiWebhook),
+    NuveiDmn(PaymentDmnNotification),
     NuveiApi(NuveiTransactionSyncResponse),
 }
 
@@ -3259,7 +3248,7 @@ pub enum DmnStatus {
 /// Represents the transaction status of the DMN
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum DmnTransactionStatus {
+pub enum DmnApiTransactionStatus {
     Ok,
     Fail,
     Pending,
@@ -3296,23 +3285,25 @@ pub enum PaymentTransactionType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentDmnNotification {
+    // Status of the Api transaction
     #[serde(rename = "ppp_status")]
-    pub ppp_status: DmnTransactionStatus,
+    pub ppp_status: DmnApiTransactionStatus,
     #[serde(rename = "PPP_TransactionID")]
     pub ppp_transaction_id: String,
     pub total_amount: String,
     pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
+    // Status of the Payment
     #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
     pub transaction_type: Option<PaymentTransactionType>,
     #[serde(rename = "ErrCode")]
     pub err_code: Option<String>,
-    #[serde(rename = "ExErrCode")]
-    pub ex_err_code: Option<String>,
-    pub err_apm_code: Option<String>,
-    pub err_apm_description: Option<String>,
+    #[serde(rename = "Reason")]
+    pub reason: Option<String>,
+    #[serde(rename = "ReasonCode")]
+    pub reason_code: Option<String>,
     #[serde(rename = "user_token_id")]
     pub user_token_id: Option<String>,
     #[serde(rename = "payment_method")]
@@ -3322,14 +3313,19 @@ pub struct PaymentDmnNotification {
     #[serde(rename = "invoice_id")]
     pub invoice_id: Option<String>,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     #[serde(rename = "merchant_site_id")]
-    pub merchant_site_id: Option<String>,
+    pub merchant_site_id: Option<Secret<String>>,
     #[serde(rename = "responsechecksum")]
     pub response_checksum: Option<String>,
     #[serde(rename = "advanceResponseChecksum")]
     pub advance_response_checksum: Option<String>,
     pub product_id: Option<String>,
+    pub merchant_advice_code: Option<String>,
+    #[serde(rename = "AuthCode")]
+    pub auth_code: Option<String>,
+    pub acquirer_bank: Option<String>,
+    pub client_request_id: Option<String>,
 }
 
 // For backward compatibility with existing code
@@ -3354,16 +3350,8 @@ impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
 }
 
 // Convert webhook to payments response for further processing
-impl From<NuveiWebhook> for NuveiPaymentsResponse {
-    fn from(webhook: NuveiWebhook) -> Self {
-        match webhook {
-            NuveiWebhook::Chargeback(notification) => Self {
-                transaction_status: Some(NuveiTransactionStatus::Processing),
-                transaction_id: notification.transaction_id,
-                transaction_type: Some(NuveiTransactionType::Credit), // Using Credit as placeholder for chargeback
-                ..Default::default()
-            },
-            NuveiWebhook::PaymentDmn(notification) => {
+impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
+    fn from(notification: PaymentDmnNotification) -> Self {
                 let transaction_type = notification.transaction_type.map(|tt| match tt {
                     PaymentTransactionType::Auth => NuveiTransactionType::Auth,
                     PaymentTransactionType::Sale => NuveiTransactionType::Sale,
@@ -3376,19 +3364,36 @@ impl From<NuveiWebhook> for NuveiPaymentsResponse {
                 });
 
                 Self {
-                    transaction_status: notification.status.map(|ts| match ts {
-                        DmnStatus::Success |  DmnStatus::Approved => NuveiTransactionStatus::Approved,
-                        DmnStatus::Declined => NuveiTransactionStatus::Declined,
-                        DmnStatus::Error => NuveiTransactionStatus::Error,
-                        DmnStatus::Pending =>  NuveiTransactionStatus::Processing,
+                    status: match notification.ppp_status{
+                        DmnApiTransactionStatus::Ok => NuveiPaymentStatus::Success,
+                        DmnApiTransactionStatus::Fail => NuveiPaymentStatus::Failed,
+                        DmnApiTransactionStatus::Pending =>  NuveiPaymentStatus::Processing,
+                    },
+                    err_code: notification.err_code.and_then(|code| code.parse::<i64>().ok()),
+                    reason: notification.reason.clone(),
+                    transaction_details: Some(NuveiTransactionSyncResponseDetails {
+                        gw_error_code:  notification.reason_code.and_then(|code| code.parse::<i64>().ok()),
+                        gw_error_reason: notification.reason.clone(),
+                        gw_extended_error_code: None,
+                        transaction_id: notification.transaction_id,
+                        transaction_status: notification.status.map(|ts| match ts {
+                            DmnStatus::Success |  DmnStatus::Approved => NuveiTransactionStatus::Approved,
+                            DmnStatus::Declined => NuveiTransactionStatus::Declined,
+                            DmnStatus::Pending =>  NuveiTransactionStatus::Pending,
+                            DmnStatus::Error => NuveiTransactionStatus::Error,
+                        }),
+                        transaction_type,
+                        auth_code: notification.auth_code,
+                        processed_amount: None,
+                        processed_currency:  None,
+                        acquiring_bank_name: notification.acquirer_bank
                     }),
-                    transaction_id: notification.transaction_id,
-                    transaction_type,
+                    merchant_id: notification.merchant_id,
+                    merchant_site_id: notification.merchant_site_id,
+                    merchant_advice_code: notification.merchant_advice_code,
                     ..Default::default()
                 }
             }
-        }
-    }
 }
 
 fn get_cvv2_response_description(code: &str) -> Option<&str> {

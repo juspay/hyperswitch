@@ -553,10 +553,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        let nuvie_common_response = NuveiPaymentsResponse::try_from(response)?;
+        let nuvie_psync_common_response = NuveiTransactionSyncResponse::from(response);
 
         RouterData::try_from(ResponseRouterData {
-            response,
+            response: nuvie_psync_common_response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -1086,18 +1086,16 @@ impl IncomingWebhook for Nuvei {
 
 
         // Extract transaction ID from the webhook
-        let transaction_id = match &webhook {
+        match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                notification.transaction_id.clone().unwrap_or_default()
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone())
+                ))
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
-                notification.ppp_transaction_id.clone().unwrap_or_default()
+                Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
             }
-        };
-
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            PaymentIdType::ConnectorTransactionId(transaction_id),
-        ))
+        } 
     }
 
     fn get_webhook_event_type(
