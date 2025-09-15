@@ -2499,3 +2499,56 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
         }
     }
 }
+
+#[cfg(feature = "v1")]
+impl From<(payment_methods::CardDetail, Option<&CardToken>, Option<payment_methods::CoBadgedCardData>)> for Card {
+
+    fn from(value: (payment_methods::CardDetail, Option<&CardToken>, Option<payment_methods::CoBadgedCardData>)) -> Self {
+
+        let (payment_methods::CardDetail {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            nick_name,
+            card_network,
+            card_issuer,
+            card_issuing_country,
+            card_type,
+        }, card_token_data, co_badged_card_data) = value;
+
+        // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+            let name_on_card = if let Some(name) = card_holder_name.clone() {
+                use masking::ExposeInterface;
+
+                if name.clone().expose().is_empty() {
+                    card_token_data
+                        .and_then(|token_data| token_data.card_holder_name.clone())
+                        .or(Some(name))
+                } else {
+                    card_holder_name
+                }
+            } else {
+                card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+            };
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name: name_on_card,
+            card_cvc: card_token_data
+                    .cloned()
+                    .unwrap_or_default()
+                    .card_cvc
+                    .unwrap_or_default(),
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            bank_code: None,
+            nick_name,
+            co_badged_card_data,
+        }
+    }
+}

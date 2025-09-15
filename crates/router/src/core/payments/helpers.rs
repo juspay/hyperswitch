@@ -2377,13 +2377,12 @@ pub async fn fetch_card_details_from_locker(
     payment_method_info: domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Card> {
-    if is_external_vault_enabled
-        && payment_method_info
-            .vault_type
-            .unwrap_or(enums::VaultType::Internal)
-            == enums::VaultType::External
-    {
-        fetch_card_details_from_external_vault(
+    match is_external_vault_enabled
+        && matches!(
+        payment_method_info.vault_type,
+        Some(enums::VaultType::External)
+    ){
+        true => fetch_card_details_from_external_vault(
             state,
             merchant_id,
             card_token_data,
@@ -2391,9 +2390,8 @@ pub async fn fetch_card_details_from_locker(
             payment_method_info,
             merchant_key_store,
         )
-        .await
-    } else {
-        fetch_card_details_from_internal_locker(
+        .await,
+        false => fetch_card_details_from_internal_locker(
             state,
             customer_id,
             merchant_id,
@@ -2402,6 +2400,7 @@ pub async fn fetch_card_details_from_locker(
             co_badged_card_data,
         )
         .await
+
     }
 }
 
@@ -2503,36 +2502,7 @@ pub async fn fetch_card_details_from_external_vault(
 
     match vault_resp {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => {
-            // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-            let name_on_card = if let Some(name) = card.card_holder_name.clone() {
-                if name.clone().expose().is_empty() {
-                    card_token_data
-                        .and_then(|token_data| token_data.card_holder_name.clone())
-                        .or(Some(name))
-                } else {
-                    card.card_holder_name
-                }
-            } else {
-                card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
-            };
-            let api_card = api::Card {
-                card_number: card.card_number,
-                card_holder_name: name_on_card,
-                card_exp_month: card.card_exp_month,
-                card_exp_year: card.card_exp_year,
-                card_cvc: card_token_data
-                    .cloned()
-                    .unwrap_or_default()
-                    .card_cvc
-                    .unwrap_or_default(),
-                card_issuer: None,
-                nick_name: card.nick_name,
-                card_network: card.card_network, 
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-            };
-            Ok(domain::Card::from((api_card, co_badged_card_data)))
+            Ok(domain::Card::from((card, card_token_data, co_badged_card_data)))
         }
     }
 }

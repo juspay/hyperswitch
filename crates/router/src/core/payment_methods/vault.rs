@@ -1401,7 +1401,7 @@ pub async fn retrieve_payment_method_from_vault_external(
 
     let router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_account,
+        merchant_account.get_id(),
         &merchant_connector_account,
         None,
         connector_vault_id,
@@ -1749,7 +1749,7 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     let router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_account,
+        merchant_account.get_id(),
         &merchant_connector_account,
         None,
         Some(connector_vault_id),
@@ -1888,7 +1888,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
 ) -> RouterResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData> {
     let connector_vault_id = pm.locker_id.clone().map(|id| id.to_string());
 
-    let router_data = core_utils::construct_vault_router_data_for_ext_v1(
+    let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_id,
         &merchant_connector_account,
