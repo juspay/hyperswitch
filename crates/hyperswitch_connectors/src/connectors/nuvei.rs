@@ -678,7 +678,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
-
+        router_env::logger::info!(connector_request=?connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

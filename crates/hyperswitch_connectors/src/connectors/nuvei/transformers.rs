@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, CardNetwork, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
 use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
 use common_utils::{
     crypto::{self, GenerateDigest},
@@ -48,7 +48,7 @@ use crate::{
     },
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
-        BrowserInformationData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
@@ -551,6 +551,63 @@ pub enum NuveiBIC {
     Moneyou,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NuveiCardType {
+    Visa,
+    MasterCard,
+    AmericanExpress,
+    Discover,
+    DinersClub,
+    Interac,
+    JCB,
+    UnionPay,
+    CartesBancaires,
+}
+
+impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::MasterCard),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::AmericanExpress),
+            common_enums::CardNetwork::Discover => Ok(Self::Discover),
+            common_enums::CardNetwork::DinersClub => Ok(Self::DinersClub),
+            common_enums::CardNetwork::JCB => Ok(Self::JCB),
+            common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::Interac => Ok(Self::Interac),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Card network".to_string(),
+                connector: "nuvei",
+            }
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&utils::CardIssuer> for NuveiCardType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(card_issuer: &utils::CardIssuer) -> Result<Self, Self::Error> {
+        match card_issuer {
+            utils::CardIssuer::Visa => Ok(Self::Visa),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::AmericanExpress => Ok(Self::AmericanExpress),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
+            utils::CardIssuer::JCB => Ok(Self::JCB),
+            utils::CardIssuer::CartesBancaires => Ok(Self::CartesBancaires),
+            &utils::CardIssuer::UnionPay => Ok(Self::UnionPay),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Card network".to_string(),
+                connector: "nuvei",
+            }
+            .into()),
+        }
+    }
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -644,7 +701,7 @@ impl From<&Address> for BillingAddress {
             address: address_details.and_then(|address| address.get_optional_line1()),
             street_number: None,
             zip: address_details.and_then(|details| details.get_optional_zip()),
-            state: address_details.and_then(|address| address.get_optional_state()),
+            state: address_details.and_then(|details| details.to_state_code_as_optional().ok()?),
             cell: None,
             address_match: None,
             address_line2: address_details.and_then(|address| address.get_optional_line2()),
@@ -938,7 +995,7 @@ struct GooglePayInfoCamelCase {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalSchemeDetails {
     transaction_id: Secret<String>, // This is sensitive information
-    brand: Option<CardNetwork>,
+    brand: Option<NuveiCardType>,
 }
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -1423,6 +1480,11 @@ fn get_ntid_card_info<F, Req>(
 where
     Req: NuveiAuthorizePreprocessingCommon,
 {
+    let card_type = match data.card_network.clone() {
+        Some(card_type) => NuveiCardType::try_from(card_type)?,
+        None => NuveiCardType::try_from(&data.get_card_issuer()?)?,
+    };
+
     let external_scheme_details = Some(ExternalSchemeDetails {
         transaction_id: router_data
             .request
@@ -1430,10 +1492,7 @@ where
             .ok_or_else(missing_field_err("network_transaction_id"))
             .attach_printable("Nuvei unable to find NTID for MIT")?
             .into(),
-        brand: Some(
-            data.card_network
-                .ok_or_else(missing_field_err("recurring_details.data.card_network"))?,
-        ),
+        brand: Some(card_type),
     });
     let payment_option: PaymentOption = PaymentOption {
         card: Some(Card {
@@ -3087,28 +3146,6 @@ fn get_avs_response_description(code: &str) -> Option<&str> {
     }
 }
 
-fn get_merchant_advice_code_description(code: &str) -> Option<&str> {
-    match code {
-        "01" => Some("New Account Information Available"),
-        "02" => Some("Cannot approve at this time, try again later"),
-        "03" => Some("Do Not Try Again"),
-        "04" => Some("Token requirements not fulfilled for this token type"),
-        "21" => Some("Payment Cancellation, do not try again"),
-        "24" => Some("Retry after 1 hour"),
-        "25" => Some("Retry after 24 hours"),
-        "26" => Some("Retry after 2 days"),
-        "27" => Some("Retry after 4 days"),
-        "28" => Some("Retry after 6 days"),
-        "29" => Some("Retry after 8 days"),
-        "30" => Some("Retry after 10 days"),
-        "40" => Some("Card is a consumer non-reloadable prepaid card"),
-        "41" => Some("Card is a consumer single-use virtual card number"),
-        "42" => Some("Transaction type exceeds issuer's risk threshold. Please retry with another payment account."),
-        "43" => Some("Card is a consumer multi-use virtual card number"),
-        _ => None,
-    }
-}
-
 /// Concatenates a vector of strings without any separator
 /// This is useful for creating verification messages for webhooks
 pub fn concat_strings(strings: &[String]) -> String {
@@ -3125,20 +3162,15 @@ fn convert_to_additional_payment_method_connector_response(
         .as_ref()?;
     let avs_code = card.avs_code.as_ref();
     let cvv2_code = card.cvv2_reply.as_ref();
-    let merchant_advice_code = transaction_response.merchant_advice_code.as_ref();
 
     let avs_description = avs_code.and_then(|code| get_avs_response_description(code));
     let cvv_description = cvv2_code.and_then(|code| get_cvv2_response_description(code));
-    let merchant_advice_description =
-        merchant_advice_code.and_then(|code| get_merchant_advice_code_description(code));
 
     let payment_checks = serde_json::json!({
         "avs_result": avs_code,
         "avs_description": avs_description,
-        "cvv_2_reply": cvv2_code,
-        "cvv_2_description": cvv_description,
-        "merchant_advice_code": merchant_advice_code,
-        "merchant_advice_code_description": merchant_advice_description
+        "card_validation_result": cvv2_code,
+        "card_validation_description": cvv_description,
     });
 
     let card_network = card.brand.clone();
