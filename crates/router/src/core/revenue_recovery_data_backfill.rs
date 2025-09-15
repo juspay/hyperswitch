@@ -8,6 +8,7 @@ use common_enums::{CardNetwork, PaymentMethodType};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use router_env::{instrument, logger};
+use time::{format_description, Date};
 
 use crate::{
     connection,
@@ -92,23 +93,19 @@ async fn process_payment_method_record(
 
     // Update Redis if token exists and is valid
     match record.token.as_ref().map(|token| token.clone().expose()) {
-        Some(token) if !token.is_empty() && token != "nan" => {
+        Some(token) if !token.is_empty() => {
             logger::info!(
                 "Updating Redis for customer: {}, token: {}",
                 record.customer_id_resp,
                 token
             );
 
-            // Convert ComprehensiveCardData to JSON for Redis operations
-            let card_data_json = serde_json::to_value(&card_data).map_err(|e| {
-                BackfillError::CsvParsingError(format!("Failed to serialize card data: {}", e))
-            })?;
-
-            RedisTokenManager::update_redis_token_comprehensive_data(
+            // Use efficient direct method without JSON conversion
+            RedisTokenManager::update_redis_token_with_comprehensive_card_data(
                 state,
                 &record.customer_id_resp,
                 &token,
-                &card_data_json,
+                &card_data,
             )
             .await
             .map_err(|e| {
@@ -132,16 +129,38 @@ async fn process_payment_method_record(
 }
 
 /// Parse daily retry history JSON from CSV
-fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<String, i32>> {
+fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<Date, i32>> {
     match json_str {
-        Some(json) if !json.is_empty() && json != "nan" => {
+        Some(json) if !json.is_empty() => {
             match serde_json::from_str::<HashMap<String, i32>>(json) {
-                Ok(retry_history) => {
+                Ok(string_retry_history) => {
+                    // Convert string dates to Date objects
+                    let format = format_description::parse("[year]-[month]-[day]")
+                        .map_err(|e| BackfillError::CsvParsingError(
+                            format!("Invalid date format configuration: {}", e)
+                        )).ok()?;
+                    
+                    let mut date_retry_history = HashMap::new();
+                    
+                    for (date_str, count) in string_retry_history {
+                        match Date::parse(&date_str, &format) {
+                            Ok(date) => {
+                                date_retry_history.insert(date, count);
+                            }
+                            Err(e) => {
+                                logger::warn!(
+                                    "Failed to parse date '{}' in daily_retry_history: {}",
+                                    date_str, e
+                                );
+                            }
+                        }
+                    }
+                    
                     logger::debug!(
                         "Successfully parsed daily_retry_history with {} entries",
-                        retry_history.len()
+                        date_retry_history.len()
                     );
-                    Some(retry_history)
+                    Some(date_retry_history)
                 }
                 Err(e) => {
                     logger::warn!("Failed to parse daily_retry_history JSON '{}': {}", json, e);

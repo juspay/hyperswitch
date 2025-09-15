@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models;
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -870,29 +871,60 @@ impl RedisTokenManager {
         Ok(())
     }
 
-    /// Update Redis token with comprehensive card data
+    // /// Update Redis token with comprehensive card data (legacy JSON method)
+    // #[instrument(skip_all)]
+    // pub async fn update_redis_token_comprehensive_data(
+    //     state: &SessionState,
+    //     customer_id: &str,
+    //     token: &str,
+    //     card_data: &serde_json::Value,
+    // ) -> CustomResult<(), errors::StorageError> {
+    //     let update_params = RedisTokenUpdateParams::from_card_data(card_data).map_err(|err| {
+    //         tracing::error!(
+    //             customer_id = customer_id,
+    //             token = token,
+    //             error = %err,
+    //             "Failed to parse card data for Redis token update"
+    //         );
+    //         errors::StorageError::SerializationFailed
+    //     })?;
+    //     Self::update_redis_token_with_params_and_retry_history(
+    //         state,
+    //         customer_id,
+    //         token,
+    //         update_params,
+    //         card_data,
+    //     )
+    //     .await
+    // }
+
+    /// Update Redis token with comprehensive card data (efficient direct method)
     #[instrument(skip_all)]
-    pub async fn update_redis_token_comprehensive_data(
+    pub async fn update_redis_token_with_comprehensive_card_data(
         state: &SessionState,
         customer_id: &str,
         token: &str,
-        card_data: &serde_json::Value,
+        card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
     ) -> CustomResult<(), errors::StorageError> {
-        let update_params = RedisTokenUpdateParams::from_card_data(card_data).map_err(|err| {
-            tracing::error!(
-                customer_id = customer_id,
-                token = token,
-                error = %err,
-                "Failed to parse card data for Redis token update"
-            );
-            errors::StorageError::SerializationFailed
-        })?;
+        let update_params = RedisTokenUpdateParams::from_comprehensive_card_data(card_data);
+        
+        let retry_history_json = card_data.daily_retry_history.as_ref()
+            .map(|history| serde_json::to_value(history))
+            .transpose()
+            .change_context(errors::StorageError::SerializationFailed)
+            .attach_printable("Failed to serialize daily retry history")?
+            .unwrap_or(serde_json::Value::Null);
+
+        let card_data_json = serde_json::json!({
+            "daily_retry_history": retry_history_json
+        });
+
         Self::update_redis_token_with_params_and_retry_history(
             state,
             customer_id,
             token,
             update_params,
-            card_data,
+            &card_data_json,
         )
         .await
     }
@@ -1038,29 +1070,43 @@ pub struct RedisTokenUpdateParams {
 }
 
 impl RedisTokenUpdateParams {
-    /// Create update params from card data JSON
-    pub fn from_card_data(card_data: &serde_json::Value) -> Result<Self, String> {
-        fn get_str_field(
-            obj: &serde_json::Map<String, serde_json::Value>,
-            key: &str,
-        ) -> Option<Secret<String>> {
-            obj.get(key)
-                .filter(|v| !v.is_null())
-                .and_then(|v| v.as_str())
-                .map(|s| Secret::new(s.to_string()))
+    // / Create update params from card data JSON
+    // pub fn from_card_data(card_data: &serde_json::Value) -> Result<Self, String> {
+    //     fn get_str_field(
+    //         obj: &serde_json::Map<String, serde_json::Value>,
+    //         key: &str,
+    //     ) -> Option<Secret<String>> {
+    //         obj.get(key)
+    //             .filter(|v| !v.is_null())
+    //             .and_then(|v| v.as_str())
+    //             .map(|s| Secret::new(s.to_string()))
+    //     }
+
+    //     let obj = card_data
+    //         .as_object()
+    //         .ok_or("Card data is not a valid JSON object")?;
+
+    //     Ok(Self {
+    //         card_type: get_str_field(obj, "card_type"),
+    //         expiry_month: get_str_field(obj, "card_exp_month"),
+    //         expiry_year: get_str_field(obj, "card_exp_year"),
+    //         card_issuer: get_str_field(obj, "card_issuer"),
+    //         card_network: get_str_field(obj, "card_network"),
+    //         last_four_digits: get_str_field(obj, "last4"),
+    //     })
+    // }
+
+    /// Create update params from ComprehensiveCardData
+    pub fn from_comprehensive_card_data(
+        card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
+    ) -> Self {
+        Self {
+            card_type: card_data.card_type.as_ref().map(|s| Secret::new(s.clone())),
+            expiry_month: card_data.card_exp_month.clone(),
+            expiry_year: card_data.card_exp_year.clone(),
+            card_issuer: card_data.card_issuer.as_ref().map(|s| Secret::new(s.clone())),
+            card_network: card_data.card_network.as_ref().map(|network| Secret::new(network.to_string())),
+            last_four_digits: None,
         }
-
-        let obj = card_data
-            .as_object()
-            .ok_or("Card data is not a valid JSON object")?;
-
-        Ok(Self {
-            card_type: get_str_field(obj, "card_type"),
-            expiry_month: get_str_field(obj, "card_exp_month"),
-            expiry_year: get_str_field(obj, "card_exp_year"),
-            card_issuer: get_str_field(obj, "card_issuer"),
-            card_network: get_str_field(obj, "card_network"),
-            last_four_digits: get_str_field(obj, "last4"),
-        })
     }
 }

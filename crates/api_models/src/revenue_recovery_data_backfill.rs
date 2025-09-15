@@ -7,6 +7,7 @@ use common_utils::events::ApiEventMetric;
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
+use time::Date;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
@@ -49,7 +50,7 @@ pub struct ComprehensiveCardData {
     pub card_network: Option<CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub daily_retry_history: Option<HashMap<String, i32>>,
+    pub daily_retry_history: Option<HashMap<Date, i32>>,
 }
 
 impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
