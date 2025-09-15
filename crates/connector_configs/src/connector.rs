@@ -486,7 +486,7 @@ impl ConnectorConfig {
             Connector::Paysafe => Ok(connector_data.paysafe),
             Connector::Paystack => Ok(connector_data.paystack),
             Connector::Payu => Ok(connector_data.payu),
-            // Connector::Peachpayments => Ok(connector_data.peachpayments),
+            Connector::Peachpayments => Ok(connector_data.peachpayments),
             Connector::Placetopay => Ok(connector_data.placetopay),
             Connector::Plaid => Ok(connector_data.plaid),
             Connector::Powertranz => Ok(connector_data.powertranz),
