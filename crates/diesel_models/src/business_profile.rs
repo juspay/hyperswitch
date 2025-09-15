@@ -77,6 +77,9 @@ pub struct Profile {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -134,6 +137,8 @@ pub struct ProfileNew {
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -191,6 +196,9 @@ pub struct ProfileUpdateInternal {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -245,6 +253,9 @@ impl ProfileUpdateInternal {
             acquirer_config_map,
             merchant_category_code,
             merchant_country_code,
+            dispute_polling_interval,
+            is_manual_retry_enabled,
+            always_enable_overcapture,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -330,6 +341,10 @@ impl ProfileUpdateInternal {
             acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
+            dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
+            is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
+            always_enable_overcapture: always_enable_overcapture
+                .or(source.always_enable_overcapture),
         }
     }
 }
@@ -393,6 +408,9 @@ pub struct Profile {
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -402,10 +420,11 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
-    pub is_external_vault_enabled: Option<bool>,
-    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 impl Profile {
@@ -481,6 +500,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -540,6 +560,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 }
 
 #[cfg(feature = "v2")]
@@ -596,6 +617,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details,
             merchant_category_code,
             merchant_country_code,
+            split_txns_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -691,6 +713,10 @@ impl ProfileUpdateInternal {
             acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
+            dispute_polling_interval: None,
+            split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
+            is_manual_retry_enabled: None,
+            always_enable_overcapture: None,
         }
     }
 }

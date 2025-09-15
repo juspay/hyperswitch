@@ -3,7 +3,6 @@ use common_enums::MerchantCategoryCode;
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
-use time::PrimitiveDateTime;
 
 use crate::address::Address;
 
@@ -29,6 +28,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
+    pub notification_url: Option<url::Url>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -68,8 +68,9 @@ pub struct PaymentDetails {
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_token_number: Secret<String>,
+    pub card_token_number: Option<Secret<String>>,
     pub account_type: Option<common_enums::PaymentMethodType>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
@@ -126,6 +127,10 @@ pub struct AuthenticationDetails {
     pub connector_metadata: Option<serde_json::Value>,
     pub ds_trans_id: Option<String>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -134,6 +139,8 @@ pub struct PostAuthenticationDetails {
     pub token_details: Option<TokenDetails>,
     pub dynamic_data_details: Option<DynamicData>,
     pub trans_status: Option<common_enums::TransactionStatus>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -161,7 +168,7 @@ pub struct UasConfirmationRequestData {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub confirmation_timestamp: Option<String>,
     // Authorisation code associated with an approved transaction.
     pub network_authorization_code: Option<String>,
     // The unique authorisation related tracing value assigned by a Payment Network and provided in an authorisation response. Required only when checkoutEventType=01. If checkoutEventType=01 and the value of networkTransactionIdentifier is unknown, please pass UNAVLB

@@ -308,8 +308,7 @@ pub struct KlarnaData {
 #[derive(Debug, Serialize)]
 pub struct KlarnaDetails {
     country_code: enums::CountryAlpha2,
-    language: Option<String>,
-    billing: Billing,
+    billing: Option<Billing>,
 }
 
 #[derive(Debug, Serialize)]
@@ -319,7 +318,7 @@ pub struct Billing {
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
     phone_number: Option<Secret<String>>,
-    address: AddressAirwallex,
+    address: Option<AddressAirwallex>,
 }
 
 #[derive(Debug, Serialize)]
@@ -643,23 +642,19 @@ fn get_paylater_details(
                             field_name: "country_code",
                         }
                     })?,
-                    language: item
-                        .router_data
-                        .request
-                        .get_optional_language_from_browser_info(),
-                    billing: Billing {
+                    billing: Some(Billing {
                         date_of_birth: None,
                         first_name: item.router_data.get_optional_billing_first_name(),
                         last_name: item.router_data.get_optional_billing_last_name(),
                         email: item.router_data.get_optional_billing_email(),
                         phone_number: item.router_data.get_optional_billing_phone_number(),
-                        address: AddressAirwallex {
+                        address: Some(AddressAirwallex {
                             country_code: item.router_data.get_optional_billing_country(),
                             city: item.router_data.get_optional_billing_city(),
                             street: item.router_data.get_optional_billing_line1(),
                             postcode: item.router_data.get_optional_billing_zip(),
-                        },
-                    },
+                        }),
+                    }),
                 },
                 payment_method_type: AirwallexPaymentType::Klarna,
             })))
@@ -722,11 +717,9 @@ fn get_bankredirect_details(
                 payment_method_type: AirwallexPaymentType::Blik,
             }))
         }
-        BankRedirectData::Ideal { bank_name } => {
+        BankRedirectData::Ideal { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(IdealData {
-                ideal: IdealDetails {
-                    bank_name: *bank_name,
-                },
+                ideal: IdealDetails { bank_name: None },
                 payment_method_type: AirwallexPaymentType::Ideal,
             }))
         }
@@ -743,11 +736,16 @@ fn get_wallet_details(
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
         WalletData::GooglePay(gpay_details) => {
+            let token = gpay_details
+                .tokenization_data
+                .get_encrypted_google_pay_token()
+                .attach_printable("Failed to get gpay wallet token")
+                .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                    field_name: "gpay wallet_token",
+                })?;
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {
                 googlepay: GooglePayDetails {
-                    encrypted_payment_token: Secret::new(
-                        gpay_details.tokenization_data.token.clone(),
-                    ),
+                    encrypted_payment_token: Secret::new(token.clone()),
                     payment_data_type: GpayPaymentDataType::EncryptedPaymentToken,
                 },
                 payment_method_type: AirwallexPaymentType::Googlepay,
@@ -811,7 +809,9 @@ fn get_wallet_details(
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)
         | WalletData::GcashRedirect(_)
+        | WalletData::AmazonPay(_)
         | WalletData::ApplePay(_)
+        | WalletData::BluecodeRedirect {}
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}

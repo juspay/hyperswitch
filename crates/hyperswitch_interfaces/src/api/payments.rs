@@ -5,17 +5,18 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, UpdateMetadata, Void,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+            SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
-        CreateOrder,
+        Authenticate, CreateOrder, ExternalVaultProxy, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
@@ -35,6 +36,7 @@ pub trait Payment:
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentPostCaptureVoid
     + PaymentApprove
     + PaymentReject
     + MandateSetup
@@ -48,6 +50,7 @@ pub trait Payment:
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
+    + ExternalVaultProxyPaymentsCreateV1
 {
 }
 
@@ -84,6 +87,12 @@ pub trait PaymentSync:
 /// trait PaymentVoid
 pub trait PaymentVoid:
     api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoid
+pub trait PaymentPostCaptureVoid:
+    api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
 }
 
@@ -163,6 +172,24 @@ pub trait PaymentsPreProcessing:
 {
 }
 
+/// trait PaymentsPreAuthenticate
+pub trait PaymentsPreAuthenticate:
+    api::ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsAuthenticate
+pub trait PaymentsAuthenticate:
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPostAuthenticate
+pub trait PaymentsPostAuthenticate:
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsPostProcessing
 pub trait PaymentsPostProcessing:
     api::ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
@@ -172,5 +199,11 @@ pub trait PaymentsPostProcessing:
 /// trait PaymentsCreateOrder
 pub trait PaymentsCreateOrder:
     api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+{
+}
+
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreateV1:
+    api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
 {
 }

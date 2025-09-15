@@ -141,7 +141,13 @@ fn fetch_payment_instrument(
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
-                wallet_token: Secret::new(data.tokenization_data.token),
+                wallet_token: Secret::new(
+                    data.tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token",
+                        })?,
+                ),
                 ..WalletPayment::default()
             })),
             WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
@@ -152,12 +158,14 @@ fn fetch_payment_instrument(
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPay(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
@@ -794,6 +802,7 @@ impl<F, T>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -807,6 +816,7 @@ impl<F, T>
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
+                connector_metadata: None,
             }),
         };
         Ok(Self {

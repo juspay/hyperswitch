@@ -232,6 +232,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
+            dispute_polling_interval: item.dispute_polling_interval,
+            is_manual_retry_enabled: item.is_manual_retry_enabled,
+            always_enable_overcapture: item.always_enable_overcapture,
         })
     }
 }
@@ -318,6 +321,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignInto::foreign_into),
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
+            split_txns_enabled: item.split_txns_enabled,
+            revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
         })
     }
 }
@@ -487,5 +492,8 @@ pub async fn create_profile_from_merchant_account(
             .unwrap_or_default(),
         merchant_category_code: request.merchant_category_code,
         merchant_country_code: request.merchant_country_code,
+        dispute_polling_interval: request.dispute_polling_interval,
+        is_manual_retry_enabled: request.is_manual_retry_enabled,
+        always_enable_overcapture: request.always_enable_overcapture,
     }))
 }

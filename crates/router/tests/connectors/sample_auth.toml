@@ -11,7 +11,8 @@ key1 = "MerchantId"
 api_secret = "Secondary key"
 
 [amazonpay]
-api_key="API Key"
+api_key="Private Key"
+key1="Public Key"
 
 [archipel]
 api_key="CA Certificate PEM"
@@ -289,6 +290,7 @@ api_key = "API Key"
 [nordea]
 api_key = "Client Secret"
 key1 = "Client ID"
+api_secret = "eIDAS Private Key"
 
 [novalnet]
 api_key="API Key"
@@ -364,3 +366,7 @@ api_key="API Key"
 
 [bluecode]
 api_key="EOrder Token"
+
+[peachpayments]
+api_key="API Key"
+key1="Tenant ID"

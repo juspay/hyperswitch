@@ -66,6 +66,9 @@ impl VerifyConnectorData {
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
+            enable_partial_authorization: None,
+            enable_overcapture: None,
         }
     }
 
@@ -130,6 +133,8 @@ impl VerifyConnectorData {
             psd2_sca_exemption_type: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
         }
     }
 }

@@ -227,6 +227,12 @@ async fn payments_create_core() {
         issuer_error_message: None,
         is_iframe_redirection_enabled: None,
         whole_connector_response: None,
+        payment_channel: None,
+        network_transaction_id: None,
+        enable_partial_authorization: None,
+        is_overcapture_enabled: None,
+        enable_overcapture: None,
+        network_details: None,
     };
 
     let expected_response =
@@ -513,6 +519,12 @@ async fn payments_create_core_adyen_no_redirect() {
             issuer_error_message: None,
             is_iframe_redirection_enabled: None,
             whole_connector_response: None,
+            payment_channel: None,
+            network_transaction_id: None,
+            enable_partial_authorization: None,
+            is_overcapture_enabled: None,
+            enable_overcapture: None,
+            network_details: None,
         },
         vec![],
     ));

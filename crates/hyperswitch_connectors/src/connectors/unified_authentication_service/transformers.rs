@@ -1,8 +1,7 @@
 use common_enums::{enums, MerchantCategoryCode};
 use common_types::payments::MerchantCountryCode;
-use common_utils::types::FloatMajorUnit;
+use common_utils::{ext_traits::OptionExt as _, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    ext_traits::OptionExt,
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{
         authentication::{AuthNFlowType, ChallengeParams},
@@ -67,7 +66,7 @@ pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub confirmation_timestamp: Option<String>,
     pub network_authorization_code: Option<String>,
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
@@ -114,8 +113,9 @@ pub struct PaymentDetails {
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_token_number: Secret<String>,
+    pub card_token_number: Option<Secret<String>>,
     pub account_type: Option<common_enums::PaymentMethodType>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -197,6 +197,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
+    pub notification_url: Option<url::Url>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -363,8 +364,8 @@ impl<F, T>
                 .and_then(|three_ds_eligibility_response| {
                     three_ds_eligibility_response
                         .three_ds_method_data_form
-                        .three_ds_method_data
-                        .clone()
+                        .as_ref()
+                        .and_then(|form| form.three_ds_method_data.clone())
                 });
         let three_ds_method_url = max_acs_protocol_version
             .and_then(|acs_protocol_version| acs_protocol_version.three_ds_method_url);
@@ -406,8 +407,9 @@ pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuthenticationDetails {
     pub eci: Option<String>,
-    pub token_details: UasTokenDetails,
+    pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -465,28 +467,14 @@ impl<F, T>
             response: Ok(UasAuthenticationResponseData::PostAuthentication {
                 authentication_details: PostAuthenticationDetails {
                     eci: item.response.authentication_details.eci,
-                    token_details: Some(TokenDetails {
-                        payment_token: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_token,
-                        payment_account_reference: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_account_reference,
-                        token_expiration_month: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_month,
-                        token_expiration_year: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_year,
-                    }),
+                    token_details: item.response.authentication_details.token_details.map(
+                        |token_details| TokenDetails {
+                            payment_token: token_details.payment_token,
+                            payment_account_reference: token_details.payment_account_reference,
+                            token_expiration_month: token_details.token_expiration_month,
+                            token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
                     dynamic_data_details: item
                         .response
                         .authentication_details
@@ -496,7 +484,9 @@ impl<F, T>
                             dynamic_data_type: dynamic_data.dynamic_data_type,
                             ds_trans_id: dynamic_data.ds_trans_id,
                         }),
-                    trans_status: None,
+                    trans_status: item.response.authentication_details.trans_status,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
                 },
             }),
             ..item.data
@@ -536,7 +526,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
             checkout_event_status: item.router_data.request.checkout_event_status.clone(),
             confirmation_status: item.router_data.request.confirmation_status.clone(),
             confirmation_reason: item.router_data.request.confirmation_reason.clone(),
-            confirmation_timestamp: item.router_data.request.confirmation_timestamp,
+            confirmation_timestamp: item.router_data.request.confirmation_timestamp.clone(),
             network_authorization_code: item.router_data.request.network_authorization_code.clone(),
             network_transaction_identifier: item
                 .router_data
@@ -549,6 +539,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     }
 }
 
+// ThreeDs request
 impl TryFrom<&UasPreAuthenticationRouterData>
     for UnifiedAuthenticationServicePreAuthenticateRequest
 {
@@ -578,6 +569,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             three_ds_requestor_id: merchant_data.three_ds_requestor_id,
             three_ds_requestor_name: merchant_data.three_ds_requestor_name,
             configuration_id: None,
+            notification_url: merchant_data.notification_url,
         };
 
         let acquirer = Acquirer {
@@ -643,6 +635,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                     account_type: details.account_type,
                     card_expiry_month: details.card_expiry_month,
                     card_expiry_year: details.card_expiry_year,
+                    card_cvc: details.card_cvc,
                 }),
             auth_creds: auth_type,
             transaction_details: None,
@@ -662,6 +655,7 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    NoKey,
 }
 
 impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
@@ -678,6 +672,7 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
                 certificate: certificate.clone(),
                 private_key: private_key.clone(),
             }),
+            ConnectorAuthType::NoKey => Ok(Self::NoKey),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -737,7 +732,7 @@ pub struct ThreeDsEligibilityResponse {
     pub scheme_id: Option<String>,
     pub acs_protocol_versions: Option<Vec<AcsProtocolVersion>>,
     pub ds_protocol_versions: Option<Vec<String>>,
-    pub three_ds_method_data_form: ThreeDsMethodDataForm,
+    pub three_ds_method_data_form: Option<ThreeDsMethodDataForm>,
     pub three_ds_method_data: Option<ThreeDsMethodData>,
     pub error_details: Option<String>,
     pub is_card_found_in_2x_ranges: bool,
@@ -829,6 +824,10 @@ pub struct ThreeDsAuthDetails {
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy, Deserialize)]
@@ -997,6 +996,10 @@ impl<F, T>
                         connector_metadata: None,
                         ds_trans_id: Some(auth_response.three_ds_auth_response.ds_trans_id),
                         eci: auth_response.three_ds_auth_response.eci,
+                        challenge_code: auth_response.three_ds_auth_response.challenge_code,
+                        challenge_cancel: auth_response.three_ds_auth_response.challenge_cancel,
+                        challenge_code_reason: auth_response.three_ds_auth_response.challenge_code_reason,
+                        message_extension:  auth_response.three_ds_auth_response.message_extension,
                     },
                 })
             }
@@ -1011,6 +1014,7 @@ impl<F, T>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
         };

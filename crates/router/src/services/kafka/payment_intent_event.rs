@@ -74,11 +74,11 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a common_types::Url>,
     pub metadata: Option<&'a Secret<Value>>,
     pub statement_descriptor: Option<&'a common_types::StatementDescriptor>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
@@ -96,8 +96,9 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub authorization_count: Option<i32>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub session_expiry: OffsetDateTime,
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     pub frm_metadata: Option<Secret<&'a Value>>,
@@ -221,6 +222,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -277,6 +279,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             updated_by,
             surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
+            split_txns_enabled: *split_txns_enabled,
             authorization_count: *authorization_count,
             session_expiry: session_expiry.assume_utc(),
             request_external_three_ds_authentication: *request_external_three_ds_authentication,

@@ -29,7 +29,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -58,7 +58,7 @@ use crate::{
         api::{self, payments as payment_api_types, payouts},
         domain,
         storage::{self, PaymentRoutingInfo},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -66,7 +66,7 @@ use crate::{
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
 pub struct PayoutData {
-    pub billing_address: Option<domain::Address>,
+    pub billing_address: Option<domain_models::address::Address>,
     pub business_profile: domain::Profile,
     pub customer_details: Option<domain::Customer>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
@@ -78,6 +78,7 @@ pub struct PayoutData {
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
     pub payment_method: Option<PaymentMethod>,
+    pub connector_transfer_method_id: Option<String>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -629,9 +630,14 @@ pub async fn payouts_cancel_core(
             .attach_printable("Connector not found for payout cancellation")?,
         };
 
-        cancel_payout(&state, &merchant_context, &connector_data, &mut payout_data)
-            .await
-            .attach_printable("Payout cancellation failed for given Payout request")?;
+        Box::pin(cancel_payout(
+            &state,
+            &merchant_context,
+            &connector_data,
+            &mut payout_data,
+        ))
+        .await
+        .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
     Ok(services::ApplicationResponse::Json(
@@ -688,27 +694,8 @@ pub async fn payouts_fulfill_core(
         .attach_printable("Connector not found for payout fulfillment")?,
     };
 
-    // Trigger fulfillment
-    let customer_id = payout_data
-        .payouts
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")?;
-    payout_data.payout_method_data = Some(
-        helpers::make_payout_method_data(
-            &state,
-            None,
-            payout_attempt.payout_token.as_deref(),
-            &customer_id,
-            &payout_attempt.merchant_id,
-            payout_data.payouts.payout_type,
-            merchant_context.get_merchant_key_store(),
-            Some(&mut payout_data),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await?
-        .get_required_value("payout_method_data")?,
-    );
+    helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &merchant_context)
+        .await?;
     Box::pin(fulfill_payout(
         &state,
         &merchant_context,
@@ -825,7 +812,7 @@ pub async fn payouts_list_core(
                     })
                     .ok()
                     .as_ref()
-                    .map(hyperswitch_domain_models::address::Address::from)
+                    .map(domain_models::address::Address::from)
                     .map(payment_enums::Address::from)
                 });
 
@@ -1067,28 +1054,17 @@ pub async fn call_connector_payout(
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
-        let customer_id = payouts
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")?;
-        payout_data.payout_method_data = Some(
-            helpers::make_payout_method_data(
-                state,
-                payout_data.payout_method_data.to_owned().as_ref(),
-                payout_attempt.payout_token.as_deref(),
-                &customer_id,
-                &payout_attempt.merchant_id,
-                payouts.payout_type,
-                merchant_context.get_merchant_key_store(),
-                Some(payout_data),
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await?
-            .get_required_value("payout_method_data")?,
-        );
+        helpers::fetch_payout_method_data(state, payout_data, connector_data, merchant_context)
+            .await?;
     }
     // Eligibility flow
-    complete_payout_eligibility(state, merchant_context, connector_data, payout_data).await?;
+    Box::pin(complete_payout_eligibility(
+        state,
+        merchant_context,
+        connector_data,
+        payout_data,
+    ))
+    .await?;
     // Create customer flow
     Box::pin(complete_create_recipient(
         state,
@@ -1380,9 +1356,14 @@ pub async fn complete_payout_eligibility(
             .connector_name
             .supports_payout_eligibility(payout_data.payouts.payout_type)
     {
-        check_payout_eligibility(state, merchant_context, connector_data, payout_data)
-            .await
-            .attach_printable("Eligibility failed for given Payout request")?;
+        Box::pin(check_payout_eligibility(
+            state,
+            merchant_context,
+            connector_data,
+            payout_data,
+        ))
+        .await
+        .attach_printable("Eligibility failed for given Payout request")?;
     }
 
     utils::when(
@@ -1492,7 +1473,13 @@ pub async fn check_payout_eligibility(
                 consts::PAYOUT_FLOW_STR,
             )
             .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            .map_or(
+                (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                ),
+                |gsm| (gsm.unified_code, gsm.unified_message),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -1708,7 +1695,13 @@ pub async fn create_payout(
                 consts::PAYOUT_FLOW_STR,
             )
             .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            .map_or(
+                (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                ),
+                |gsm| (gsm.unified_code, gsm.unified_message),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -1907,7 +1900,13 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     consts::PAYOUT_FLOW_STR,
                 )
                 .await
-                .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+                .map_or(
+                    (
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                    ),
+                    |gsm| (gsm.unified_code, gsm.unified_message),
+                );
                 storage::PayoutAttemptUpdate::StatusUpdate {
                     connector_payout_id: payout_response_data.connector_payout_id.clone(),
                     status,
@@ -1986,8 +1985,7 @@ pub async fn complete_create_recipient_disburse_account(
         && connector_data
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
-        && helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?
-            .is_none()
+        && helpers::should_create_connector_transfer_method(payout_data, connector_data)?.is_none()
     {
         Box::pin(create_recipient_disburse_account(
             state,
@@ -2152,7 +2150,13 @@ pub async fn create_recipient_disburse_account(
                 consts::PAYOUT_FLOW_STR,
             )
             .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            .map_or(
+                (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                ),
+                |gsm| (gsm.unified_code, gsm.unified_message),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status: storage_enums::PayoutStatus::Failed,
@@ -2270,7 +2274,13 @@ pub async fn cancel_payout(
                 consts::PAYOUT_FLOW_STR,
             )
             .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            .map_or(
+                (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                ),
+                |gsm| (gsm.unified_code, gsm.unified_message),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -2441,7 +2451,13 @@ pub async fn fulfill_payout(
                 consts::PAYOUT_FLOW_STR,
             )
             .await
-            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+            .map_or(
+                (
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                    Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                ),
+                |gsm| (gsm.unified_code, gsm.unified_message),
+            );
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
                 status,
@@ -2521,10 +2537,7 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-    let billing = billing_address
-        .as_ref()
-        .map(hyperswitch_domain_models::address::Address::from)
-        .map(From::from);
+    let billing = billing_address.map(From::from);
 
     let translated_unified_message = helpers::get_translated_unified_code_and_message(
         state,
@@ -2656,29 +2669,17 @@ pub async fn payout_create_db_entries(
         _ => None,
     };
 
-    // We have to do this because the function that is being used to create / get address is from payments
-    // which expects a payment_id
-    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
-        payout_id.get_string_repr().to_string(),
-    ))
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "payout_id contains invalid data".to_string(),
-    })
-    .attach_printable("Error converting payout_id to PaymentId type")?;
-
-    // Get or create address
-    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+    // Get or create billing address
+    let (billing_address, address_id) = helpers::resolve_billing_address_for_payout(
         state,
         req.billing.as_ref(),
         None,
-        merchant_id,
+        payment_method.as_ref(),
+        merchant_context,
         customer_id.as_ref(),
-        merchant_context.get_merchant_key_store(),
-        &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        payout_id,
     )
     .await?;
-    let address_id = billing_address.to_owned().map(|address| address.address_id);
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
@@ -2690,12 +2691,29 @@ pub async fn payout_create_db_entries(
                 .map(|pm| pm.payment_method_id.clone()),
             Some(api_enums::PayoutType::foreign_from(payout_method_data)),
         ),
-        None => (
-            payment_method
-                .as_ref()
-                .map(|pm| pm.payment_method_id.clone()),
-            req.payout_type.to_owned(),
-        ),
+        None => {
+            (
+                payment_method
+                    .as_ref()
+                    .map(|pm| pm.payment_method_id.clone()),
+                match req.payout_type {
+                    None => payment_method
+                        .as_ref()
+                        .and_then(|pm| pm.payment_method)
+                        .map(|payment_method_enum| {
+                            api_enums::PayoutType::foreign_try_from(payment_method_enum)
+                                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: format!(
+                                        "PaymentMethod {payment_method_enum:?} is not supported for payouts"
+                                    ),
+                                })
+                                .attach_printable("Failed to convert PaymentMethod to PayoutType")
+                        })
+                        .transpose()?,
+                    payout_type => payout_type,
+                },
+            )
+        }
     };
 
     let client_secret = utils::generate_id(
@@ -2821,6 +2839,7 @@ pub async fn payout_create_db_entries(
         payout_link,
         current_locale: locale.to_string(),
         payment_method,
+        connector_transfer_method_id: None,
     })
 }
 
@@ -2897,7 +2916,8 @@ pub async fn make_payout_data(
         &payout_id_as_payment_id_type,
         merchant_context.get_merchant_account().storage_scheme,
     )
-    .await?;
+    .await?
+    .map(|addr| domain_models::address::Address::from(&addr));
 
     let payout_id = &payouts.payout_id;
 
@@ -3015,11 +3035,10 @@ pub async fn make_payout_data(
         .await
         .transpose()?;
 
-    let payout_method_id = payouts.payout_method_id.clone();
-    let mut payment_method: Option<PaymentMethod> = None;
-
-    if let Some(pm_id) = payout_method_id {
-        payment_method = Some(
+    let payment_method = payouts
+        .payout_method_id
+        .clone()
+        .async_map(|pm_id| async move {
             db.find_payment_method(
                 &(state.into()),
                 merchant_context.get_merchant_key_store(),
@@ -3028,9 +3047,10 @@ pub async fn make_payout_data(
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Unable to find payment method")?,
-        );
-    }
+            .attach_printable("Unable to find payment method")
+        })
+        .await
+        .transpose()?;
 
     Ok(PayoutData {
         billing_address,
@@ -3045,6 +3065,7 @@ pub async fn make_payout_data(
         payout_link,
         current_locale: locale.to_string(),
         payment_method,
+        connector_transfer_method_id: None,
     })
 }
 

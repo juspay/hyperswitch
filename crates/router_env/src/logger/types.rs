@@ -118,6 +118,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Payment methods batch update flow.
+    PaymentMethodsBatchUpdate,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
@@ -156,6 +158,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments cancel post capture flow.
+    PaymentsCancelPostCapture,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -259,6 +263,8 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Create dynamic routing
+    CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
     ToggleDynamicRouting,
     /// Update dynamic routing config
@@ -469,6 +475,8 @@ pub enum Flow {
     PaymentsAuthorize,
     /// Create Role
     CreateRole,
+    /// Create Role V2
+    CreateRoleV2,
     /// Update Role
     UpdateRole,
     /// User email flow start
@@ -618,6 +626,10 @@ pub enum Flow {
     AuthenticationCreate,
     /// Authentication Eligibility flow
     AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
     /// Authentication Authenticate flow
     AuthenticationAuthenticate,
     ///Proxy Flow
@@ -634,6 +646,10 @@ pub enum Flow {
     DecisionEngineDecideGatewayCall,
     /// Decision Engine Gateway Feedback Call
     DecisionEngineGatewayFeedbackCall,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
+    /// Tokenization delete flow
+    TokenizationDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric

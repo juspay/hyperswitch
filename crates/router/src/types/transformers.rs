@@ -17,6 +17,8 @@ use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "v2")]
+use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
     core::errors,
     headers::{
@@ -161,6 +163,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::AutoRefunded
@@ -168,6 +171,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::PartiallyAuthorized
             | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
@@ -290,11 +294,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::KakaoPay
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
-            | api_enums::PaymentMethodType::RevolutPay => Self::Wallet,
+            | api_enums::PaymentMethodType::RevolutPay
+            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::Flexiti
             | api_enums::PaymentMethodType::PayBright
             | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley
@@ -364,9 +370,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
-                Self::GiftCard
-            }
+            api_enums::PaymentMethodType::Givex
+            | api_enums::PaymentMethodType::PaySafeCard
+            | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
             api_enums::PaymentMethodType::Benefit
             | api_enums::PaymentMethodType::Knet
             | api_enums::PaymentMethodType::MomoAtm
@@ -524,6 +530,7 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
+                origin_zip: address.origin_zip.clone().map(Encryptable::into_inner),
             })
         };
 
@@ -570,6 +577,7 @@ impl ForeignFrom<domain::Address> for api_types::Address {
                 zip: address.zip.clone().map(Encryptable::into_inner),
                 first_name: address.first_name.clone().map(Encryptable::into_inner),
                 last_name: address.last_name.clone().map(Encryptable::into_inner),
+                origin_zip: address.origin_zip.clone().map(Encryptable::into_inner),
             })
         };
 
@@ -1245,6 +1253,24 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(value: api_enums::PaymentMethod) -> Result<Self, Self::Error> {
+        match value {
+            api_enums::PaymentMethod::Card => Ok(Self::Card),
+            api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
+            api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
+            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("PaymentMethod {value:?} is not supported for payouts"),
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert PaymentMethod to PayoutType"),
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -1542,6 +1568,7 @@ impl From<domain::Address> for payments::AddressDetails {
             state: addr.state.map(Encryptable::into_inner),
             first_name: addr.first_name.map(Encryptable::into_inner),
             last_name: addr.last_name.map(Encryptable::into_inner),
+            origin_zip: addr.origin_zip.map(Encryptable::into_inner),
         }
     }
 }
@@ -1585,42 +1612,129 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     }
 }
 
-impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
+impl ForeignFrom<gsm_api_types::GsmCreateRequest>
+    for hyperswitch_domain_models::gsm::GatewayStatusMap
+{
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
+        let inferred_feature_data = common_types::domain::GsmFeatureData::foreign_from(&value);
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible,
+            feature_data: value.feature_data.unwrap_or(inferred_feature_data),
+            feature: value.feature.unwrap_or(api_enums::GsmFeature::Retry),
         }
     }
 }
 
-impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
-    fn foreign_from(value: storage::GatewayStatusMap) -> Self {
+impl ForeignFrom<&gsm_api_types::GsmCreateRequest> for common_types::domain::GsmFeatureData {
+    fn foreign_from(value: &gsm_api_types::GsmCreateRequest) -> Self {
+        // Defaulting alternate_network_possible to false as it is provided only in the Retry feature
+        // If the retry feature is not used, we assume alternate network as false
+        let alternate_network_possible = false;
+
+        match value.feature {
+            Some(api_enums::GsmFeature::Retry) | None => {
+                Self::Retry(common_types::domain::RetryFeatureData {
+                    step_up_possible: value.step_up_possible,
+                    clear_pan_possible: value.clear_pan_possible,
+                    alternate_network_possible,
+                    decision: value.decision,
+                })
+            }
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &gsm_api_types::GsmUpdateRequest,
+        hyperswitch_domain_models::gsm::GatewayStatusMap,
+    )> for (api_enums::GsmFeature, common_types::domain::GsmFeatureData)
+{
+    fn foreign_from(
+        (gsm_update_request, gsm_db_record): (
+            &gsm_api_types::GsmUpdateRequest,
+            hyperswitch_domain_models::gsm::GatewayStatusMap,
+        ),
+    ) -> Self {
+        let gsm_db_record_inferred_feature = match gsm_db_record.feature_data.get_decision() {
+            api_enums::GsmDecision::Retry | api_enums::GsmDecision::DoDefault => {
+                api_enums::GsmFeature::Retry
+            }
+        };
+
+        let gsm_feature = gsm_update_request
+            .feature
+            .unwrap_or(gsm_db_record_inferred_feature);
+
+        match gsm_feature {
+            api_enums::GsmFeature::Retry => {
+                let gsm_db_record_retry_feature_data =
+                    gsm_db_record.feature_data.get_retry_feature_data();
+
+                let retry_feature_data = common_types::domain::GsmFeatureData::Retry(
+                    common_types::domain::RetryFeatureData {
+                        step_up_possible: gsm_update_request
+                            .step_up_possible
+                            .or(gsm_db_record_retry_feature_data
+                                .clone()
+                                .map(|data| data.step_up_possible))
+                            .unwrap_or_default(),
+                        clear_pan_possible: gsm_update_request
+                            .clear_pan_possible
+                            .or(gsm_db_record_retry_feature_data
+                                .clone()
+                                .map(|data| data.clear_pan_possible))
+                            .unwrap_or_default(),
+                        alternate_network_possible: gsm_db_record_retry_feature_data
+                            .map(|data| data.alternate_network_possible)
+                            .unwrap_or_default(),
+                        decision: gsm_update_request
+                            .decision
+                            .or(Some(gsm_db_record.feature_data.get_decision()))
+                            .unwrap_or_default(),
+                    },
+                );
+                (api_enums::GsmFeature::Retry, retry_feature_data)
+            }
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::gsm::GatewayStatusMap> for gsm_api_types::GsmResponse {
+    fn foreign_from(value: hyperswitch_domain_models::gsm::GatewayStatusMap) -> Self {
         Self {
             connector: value.connector.to_string(),
             flow: value.flow,
             sub_flow: value.sub_flow,
             code: value.code,
             message: value.message,
-            decision: value.decision.to_string(),
+            decision: value.feature_data.get_decision(),
             status: value.status,
             router_error: value.router_error,
-            step_up_possible: value.step_up_possible,
+            step_up_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_step_up_possible())
+                .unwrap_or(false),
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
-            clear_pan_possible: value.clear_pan_possible,
+            clear_pan_possible: value
+                .feature_data
+                .get_retry_feature_data()
+                .map(|data| data.is_clear_pan_possible())
+                .unwrap_or(false),
+            feature_data: Some(value.feature_data),
+            feature: value.feature,
         }
     }
 }
@@ -2116,6 +2230,33 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
+    for payments::AdditionalCardInfo
+{
+    fn foreign_from(value: &revenue_recovery_redis_operation::PaymentProcessorTokenStatus) -> Self {
+        let card_info = &value.payment_processor_token_details;
+        // TODO! All other card info fields needs to be populated in redis.
+        Self {
+            card_issuer: card_info.card_issuer.to_owned(),
+            card_network: card_info.card_network.to_owned(),
+            card_type: card_info.card_type.to_owned(),
+            card_issuing_country: None,
+            bank_code: None,
+            last4: card_info.last_four_digits.to_owned(),
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: card_info.expiry_month.to_owned(),
+            card_exp_year: card_info.expiry_year.to_owned(),
+            card_holder_name: None,
+            payment_checks: None,
+            authentication_data: None,
+            is_regulated: None,
+            signature_network: None,
         }
     }
 }
