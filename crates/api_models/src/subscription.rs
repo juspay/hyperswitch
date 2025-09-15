@@ -32,7 +32,7 @@ pub struct CreateSubscriptionRequest {
     pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 
     /// Whether to immediately confirm the subscription on creation.
-    pub confirm: bool,
+    pub confirm: Option<bool>,
 
     /// Optional customer ID associated with this subscription.
     pub customer_id: Option<common_utils::id_type::CustomerId>,
