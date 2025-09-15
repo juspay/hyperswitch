@@ -14,6 +14,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
+use common_utils::id_type;
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -22,8 +23,10 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
+use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
+use typed_builder::TypedBuilder;
 
 #[cfg(feature = "revenue_recovery")]
 pub use self::revenue_recovery::{
@@ -146,6 +149,38 @@ pub struct GrpcHeaders {
     pub tenant_id: String,
     /// Request id
     pub request_id: Option<String>,
+}
+
+/// Contains grpc headers for Ucs
+#[derive(Debug, TypedBuilder)]
+pub struct GrpcHeadersUcs {
+    /// Tenant id
+    tenant_id: String,
+    /// Lineage ids
+    lineage_ids: LineageIds,
+    /// External vault proxy metadata
+    external_vault_proxy_metadata: Option<String>,
+}
+/// Type aliase for GrpcHeaders builder in initial stage
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), ())>;
+/// Type aliase for GrpcHeaders builder in intermediate stage
+pub type GrpcHeadersUcsBuilderIntermediate =
+    GrpcHeadersUcsBuilder<((String,), (), (Option<String>,))>;
+
+/// struct to represent set of Lineage ids
+#[derive(Debug, serde::Serialize)]
+pub struct LineageIds {
+    merchant_id: id_type::MerchantId,
+}
+impl LineageIds {
+    /// constructor for LineageIds
+    pub fn new(merchant_id: id_type::MerchantId) -> Self {
+        Self { merchant_id }
+    }
+    /// get url encoded string representation of LineageIds
+    pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {
+        serde_urlencoded::to_string(&self)
+    }
 }
 
 #[cfg(feature = "dynamic_routing")]
