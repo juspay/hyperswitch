@@ -1062,6 +1062,7 @@ impl Vault {
         Ok(lookup_key)
     }
 
+    /// Stores paymnt method data in temporary locker
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     pub async fn store_payment_method_data_in_locker(
@@ -1080,7 +1081,7 @@ impl Vault {
         let value2 = payment_method
             .get_value2(customer_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value12 for locker")?;
+            .attach_printable("Error getting Value2 for locker")?;
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 

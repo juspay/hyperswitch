@@ -550,7 +550,7 @@ pub async fn retrieve_payment_method_with_token(
         | storage::PaymentTokenData::AuthBankDebit(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
-                    "PermanentCard and AuthBankDebit Token not implemented".to_string(),
+                    "Only TemporaryGeneric Token is implemented".to_string(),
                 ),
             })?
         }
