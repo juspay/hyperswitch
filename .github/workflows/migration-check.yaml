@@ -55,7 +55,6 @@ jobs:
       - uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: diesel_cli
-          version: 2.2.12
           features: postgres
           args: --no-default-features
 
@@ -63,6 +62,9 @@ jobs:
         with:
           tool: just
           checksum: true
+
+      - name: Install rustfmt
+        run: rustup component add rustfmt
 
       - name: Create database
         shell: bash
