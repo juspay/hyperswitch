@@ -7699,4 +7699,3 @@ pub async fn get_merchant_connector_account_v2(
         .attach_printable("merchant_connector_id is not provided"),
     }
 }
-

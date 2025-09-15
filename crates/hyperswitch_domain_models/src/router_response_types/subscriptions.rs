@@ -1,7 +1,6 @@
 use common_enums::enums;
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
-use common_utils::id_type;
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {

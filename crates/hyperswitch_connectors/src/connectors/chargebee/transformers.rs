@@ -87,8 +87,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             billing_address_city: address.and_then(|addr| addr.city.clone()),
             billing_address_state: address
                 .and_then(|addr| addr.state.as_ref().map(|state| state.clone())),
-            billing_address_zip: address
-                .and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone())),
+            billing_address_zip: address.and_then(|addr| addr.zip.as_ref().map(|zip| zip.clone())),
             billing_address_country: address
                 .and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
             auto_collection: req.auto_collection.clone(),
