@@ -9017,6 +9017,7 @@ default_imp_for_subscriptions!(
     connectors::Payme,
     connectors::Payone,
     connectors::Placetopay,
+    connectors::Peachpayments,
     connectors::Plaid,
     connectors::Rapyd,
     connectors::Razorpay,
