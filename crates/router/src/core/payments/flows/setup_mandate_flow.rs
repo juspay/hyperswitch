@@ -263,6 +263,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        _call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client

@@ -4249,7 +4249,7 @@ where
     record_time_taken_with(|| async {
         if !matches!(
             call_connector_action,
-            CallConnectorAction::UCSHandleResponse(_)
+            CallConnectorAction::UCSConsumeResponse(_)
         ) && !matches!(
             call_connector_action,
             CallConnectorAction::HandleResponse(_),
@@ -4260,6 +4260,10 @@ where
             Some(payment_data),
         )
         .await?
+            || matches!(
+                call_connector_action,
+                CallConnectorAction::UCSHandleResponse(_)
+            )
         {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
@@ -4309,6 +4313,7 @@ where
                     state,
                     merchant_connector_account.clone(),
                     merchant_context,
+                    call_connector_action,
                 )
                 .await?;
 

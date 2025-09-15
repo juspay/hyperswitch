@@ -3550,14 +3550,13 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=142cb5a23d302e5d39c4da8d280edababe0691fe#142cb5a23d302e5d39c4da8d280edababe0691fe"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=e692c3b8e)",
  "prost",
  "prost-build",
  "prost-types",
@@ -4862,7 +4861,7 @@ dependencies = [
 [[package]]
 name = "masking"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=v1.116.0#672d749e20bec7800613878e36a0ab3885177326"
+source = "git+https://github.com/juspay/hyperswitch?rev=e692c3b8e#e692c3b8e80bef2787e2708a043c3f4f238fbeb3"
 dependencies = [
  "bytes 1.10.1",
  "diesel",
@@ -6985,7 +6984,6 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=142cb5a23d302e5d39c4da8d280edababe0691fe#142cb5a23d302e5d39c4da8d280edababe0691fe"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9392,11 +9390,10 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=142cb5a23d302e5d39c4da8d280edababe0691fe#142cb5a23d302e5d39c4da8d280edababe0691fe"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=e692c3b8e)",
  "prost",
  "regex",
  "serde",
@@ -9408,7 +9405,6 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=142cb5a23d302e5d39c4da8d280edababe0691fe#142cb5a23d302e5d39c4da8d280edababe0691fe"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -9419,7 +9415,6 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=142cb5a23d302e5d39c4da8d280edababe0691fe#142cb5a23d302e5d39c4da8d280edababe0691fe"
 dependencies = [
  "anyhow",
  "blake3",
@@ -9428,7 +9423,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=v1.116.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=e692c3b8e)",
  "md5",
  "nanoid",
  "once_cell",

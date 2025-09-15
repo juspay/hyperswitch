@@ -157,6 +157,9 @@ where
         Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
             Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
         },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete response but payment processing was expected".to_string().into())).into())
+        },
         None => {
             Err(errors::ConnectorError::ResponseDeserializationFailed)
                 .attach_printable("UCS webhook content missing payments_response")
@@ -242,8 +245,16 @@ where
             };
             connector_integration.handle_response(req, None, response)
         }
-        payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes) => {
+        payments::CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
             handle_ucs_response(router_data, transform_data_bytes)
+        }
+        payments::CallConnectorAction::UCSHandleResponse(_) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                "Should call UCS for second step to process webhook"
+                    .to_string()
+                    .into(),
+            ))
+            .into())
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {

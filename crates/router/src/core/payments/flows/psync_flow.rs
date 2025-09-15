@@ -225,6 +225,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        call_connector_action: common_enums::CallConnectorAction,
     ) -> RouterResult<()> {
         let connector_name = self.connector.clone();
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -256,9 +257,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let payment_get_request = payments_grpc::PaymentServiceGetRequest::foreign_try_from(&*self)
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct Payment Get Request")?;
+        let payment_get_request = payments_grpc::PaymentServiceGetRequest::foreign_try_from((
+            &*self,
+            call_connector_action,
+        ))
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata = build_unified_connector_service_auth_metadata(
             merchant_connector_account,
