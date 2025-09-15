@@ -868,13 +868,15 @@ pub fn encode_payload(
     Ok(hex::encode(digest))
 }
 
-impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {    
-    fn from(
-        value: NuveiPaymentSyncResponse,
-    ) -> Self {
+impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {
+    fn from(value: NuveiPaymentSyncResponse) -> Self {
         match value {
-            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => NuveiTransactionSyncResponse::from(payment_dmn_notification),
-            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => nuvei_transaction_sync_response,
+            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => {
+                NuveiTransactionSyncResponse::from(payment_dmn_notification)
+            }
+            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => {
+                nuvei_transaction_sync_response
+            }
         }
     }
 }
@@ -2196,8 +2198,6 @@ impl TryFrom<&ConnectorAuthType> for NuveiAuthType {
     }
 }
 
-
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NuveiPaymentStatus {
@@ -2294,7 +2294,7 @@ pub struct NuveiTransactionSyncResponseDetails {
     gw_error_reason: Option<String>,
     gw_extended_error_code: Option<i64>,
     transaction_id: Option<String>,
-    // Status of the payment 
+    // Status of the payment
     transaction_status: Option<NuveiTransactionStatus>,
     transaction_type: Option<NuveiTransactionType>,
     auth_code: Option<String>,
@@ -3185,12 +3185,10 @@ pub enum NuveiWebhook {
     Chargeback(ChargebackNotification),
 }
 
-
-
 /// Represents Psync Response from Nuvei.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum NuveiPaymentSyncResponse{
+pub enum NuveiPaymentSyncResponse {
     NuveiDmn(PaymentDmnNotification),
     NuveiApi(NuveiTransactionSyncResponse),
 }
@@ -3352,48 +3350,52 @@ impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
 // Convert webhook to payments response for further processing
 impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
     fn from(notification: PaymentDmnNotification) -> Self {
-                let transaction_type = notification.transaction_type.map(|tt| match tt {
-                    PaymentTransactionType::Auth => NuveiTransactionType::Auth,
-                    PaymentTransactionType::Sale => NuveiTransactionType::Sale,
-                    PaymentTransactionType::Settle => NuveiTransactionType::Settle,
-                    PaymentTransactionType::Credit => NuveiTransactionType::Credit,
-                    PaymentTransactionType::Void => NuveiTransactionType::Void,
-                    PaymentTransactionType::Auth3D => NuveiTransactionType::Auth3D,
-                    PaymentTransactionType::Sale3D => NuveiTransactionType::Auth3D, // Map to closest equivalent
-                    PaymentTransactionType::Verif => NuveiTransactionType::Auth, // Map to closest equivalent
-                });
+        let transaction_type = notification.transaction_type.map(|tt| match tt {
+            PaymentTransactionType::Auth => NuveiTransactionType::Auth,
+            PaymentTransactionType::Sale => NuveiTransactionType::Sale,
+            PaymentTransactionType::Settle => NuveiTransactionType::Settle,
+            PaymentTransactionType::Credit => NuveiTransactionType::Credit,
+            PaymentTransactionType::Void => NuveiTransactionType::Void,
+            PaymentTransactionType::Auth3D => NuveiTransactionType::Auth3D,
+            PaymentTransactionType::Sale3D => NuveiTransactionType::Auth3D, // Map to closest equivalent
+            PaymentTransactionType::Verif => NuveiTransactionType::Auth, // Map to closest equivalent
+        });
 
-                Self {
-                    status: match notification.ppp_status{
-                        DmnApiTransactionStatus::Ok => NuveiPaymentStatus::Success,
-                        DmnApiTransactionStatus::Fail => NuveiPaymentStatus::Failed,
-                        DmnApiTransactionStatus::Pending =>  NuveiPaymentStatus::Processing,
-                    },
-                    err_code: notification.err_code.and_then(|code| code.parse::<i64>().ok()),
-                    reason: notification.reason.clone(),
-                    transaction_details: Some(NuveiTransactionSyncResponseDetails {
-                        gw_error_code:  notification.reason_code.and_then(|code| code.parse::<i64>().ok()),
-                        gw_error_reason: notification.reason.clone(),
-                        gw_extended_error_code: None,
-                        transaction_id: notification.transaction_id,
-                        transaction_status: notification.status.map(|ts| match ts {
-                            DmnStatus::Success |  DmnStatus::Approved => NuveiTransactionStatus::Approved,
-                            DmnStatus::Declined => NuveiTransactionStatus::Declined,
-                            DmnStatus::Pending =>  NuveiTransactionStatus::Pending,
-                            DmnStatus::Error => NuveiTransactionStatus::Error,
-                        }),
-                        transaction_type,
-                        auth_code: notification.auth_code,
-                        processed_amount: None,
-                        processed_currency:  None,
-                        acquiring_bank_name: notification.acquirer_bank
-                    }),
-                    merchant_id: notification.merchant_id,
-                    merchant_site_id: notification.merchant_site_id,
-                    merchant_advice_code: notification.merchant_advice_code,
-                    ..Default::default()
-                }
-            }
+        Self {
+            status: match notification.ppp_status {
+                DmnApiTransactionStatus::Ok => NuveiPaymentStatus::Success,
+                DmnApiTransactionStatus::Fail => NuveiPaymentStatus::Failed,
+                DmnApiTransactionStatus::Pending => NuveiPaymentStatus::Processing,
+            },
+            err_code: notification
+                .err_code
+                .and_then(|code| code.parse::<i64>().ok()),
+            reason: notification.reason.clone(),
+            transaction_details: Some(NuveiTransactionSyncResponseDetails {
+                gw_error_code: notification
+                    .reason_code
+                    .and_then(|code| code.parse::<i64>().ok()),
+                gw_error_reason: notification.reason.clone(),
+                gw_extended_error_code: None,
+                transaction_id: notification.transaction_id,
+                transaction_status: notification.status.map(|ts| match ts {
+                    DmnStatus::Success | DmnStatus::Approved => NuveiTransactionStatus::Approved,
+                    DmnStatus::Declined => NuveiTransactionStatus::Declined,
+                    DmnStatus::Pending => NuveiTransactionStatus::Pending,
+                    DmnStatus::Error => NuveiTransactionStatus::Error,
+                }),
+                transaction_type,
+                auth_code: notification.auth_code,
+                processed_amount: None,
+                processed_currency: None,
+                acquiring_bank_name: notification.acquirer_bank,
+            }),
+            merchant_id: notification.merchant_id,
+            merchant_site_id: notification.merchant_site_id,
+            merchant_advice_code: notification.merchant_advice_code,
+            ..Default::default()
+        }
+    }
 }
 
 fn get_cvv2_response_description(code: &str) -> Option<&str> {
@@ -3498,14 +3500,19 @@ fn convert_to_additional_payment_method_connector_response(
 pub fn map_notification_to_event(
     status: DmnStatus,
     transaction_type: PaymentTransactionType,
-) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>> {
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
     match (status, transaction_type) {
-        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Auth | PaymentTransactionType::Auth3D) => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
-        }
-        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Sale | PaymentTransactionType::Sale3D | PaymentTransactionType::Verif) => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
-        }
+        (
+            DmnStatus::Success | DmnStatus::Approved,
+            PaymentTransactionType::Auth | PaymentTransactionType::Auth3D,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
+        (
+            DmnStatus::Success | DmnStatus::Approved,
+            PaymentTransactionType::Sale
+            | PaymentTransactionType::Sale3D
+            | PaymentTransactionType::Verif,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
         (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
         }
@@ -3515,12 +3522,16 @@ pub fn map_notification_to_event(
         (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Credit) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
         }
-        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Auth | PaymentTransactionType::Auth3D) => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
-        }
-        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Sale | PaymentTransactionType::Sale3D | PaymentTransactionType::Verif) => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
-        }
+        (
+            DmnStatus::Error | DmnStatus::Declined,
+            PaymentTransactionType::Auth | PaymentTransactionType::Auth3D,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure),
+        (
+            DmnStatus::Error | DmnStatus::Declined,
+            PaymentTransactionType::Sale
+            | PaymentTransactionType::Sale3D
+            | PaymentTransactionType::Verif,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
         (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
         }
@@ -3530,9 +3541,15 @@ pub fn map_notification_to_event(
         (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Credit) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
         }
-        (DmnStatus::Pending , PaymentTransactionType::Auth |  PaymentTransactionType::Auth3D |  PaymentTransactionType::Sale |  PaymentTransactionType::Sale3D |  PaymentTransactionType::Verif|  PaymentTransactionType::Settle) => {
-            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
-        }
-        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()), 
+        (
+            DmnStatus::Pending,
+            PaymentTransactionType::Auth
+            | PaymentTransactionType::Auth3D
+            | PaymentTransactionType::Sale
+            | PaymentTransactionType::Sale3D
+            | PaymentTransactionType::Verif
+            | PaymentTransactionType::Settle,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
+        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
     }
 }

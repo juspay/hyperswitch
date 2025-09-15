@@ -1005,11 +1005,11 @@ impl IncomingWebhook for Nuvei {
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(&request.body)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let signature = match webhook {
-            nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                notification.advance_response_checksum.ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
-            },
+            nuvei::NuveiWebhook::PaymentDmn(notification) => notification
+                .advance_response_checksum
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?,
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 Err(errors::ConnectorError::WebhookResponseEncodingFailed)?
             }
@@ -1025,8 +1025,8 @@ impl IncomingWebhook for Nuvei {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         // Parse the webhook payload
         let webhook = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(&request.body)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    router_env::logger::info!(sssssssssss=?webhook);
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        router_env::logger::info!(sssssssssss=?webhook);
 
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -1084,18 +1084,17 @@ impl IncomingWebhook for Nuvei {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         router_env::logger::info!(sssssssssss=?webhook);
 
-
         // Extract transaction ID from the webhook
         match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone())
+                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone()),
                 ))
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
             }
-        } 
+        }
     }
 
     fn get_webhook_event_type(
@@ -1104,16 +1103,18 @@ impl IncomingWebhook for Nuvei {
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         // Parse the webhook payload
         let webhook = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(&request.body)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         // Map webhook type to event type
         match webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                if let Some((status, transaction_type)) = notification.status.zip(notification.transaction_type) {
-                 nuvei::map_notification_to_event(status, transaction_type)
+                if let Some((status, transaction_type)) =
+                    notification.status.zip(notification.transaction_type)
+                {
+                    nuvei::map_notification_to_event(status, transaction_type)
                 } else {
                     Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-                } 
+                }
             }
             nuvei::NuveiWebhook::Chargeback(_) => {
                 // Chargeback notifications always map to dispute opened
@@ -1128,7 +1129,7 @@ impl IncomingWebhook for Nuvei {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         // Parse the webhook payload
         let webhook = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(&request.body)
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(webhook))
     }
 }
