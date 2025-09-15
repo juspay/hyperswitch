@@ -3996,10 +3996,7 @@ impl
         Ok(Self {
             response: Ok(GiftCardBalanceCheckResponseData {
                 balance: item.response.balance.value,
-            }),
-            payment_method_balance: Some(PaymentMethodBalance {
                 currency: item.response.balance.currency,
-                amount: item.response.balance.value,
             }),
             ..item.data
         })

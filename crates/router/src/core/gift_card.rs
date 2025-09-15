@@ -161,15 +161,15 @@ pub async fn payments_check_gift_card_balance_core(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed while calling gift card balance check connector api")?;
 
-    let payment_method_balance = connector_response
-        .payment_method_balance
-        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Payment Method Balance cannot be None".to_string(),
+    let gift_card_balance = connector_response
+        .response
+        .map_err(|_| errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Error while fetching gift card balance".to_string(),
         })
-        .attach_printable("Payment Method Balance cannot be None")?;
+        .attach_printable("Connector returned invalid response")?;
 
-    let balance = payment_method_balance.amount;
-    let currency = payment_method_balance.currency;
+    let balance = gift_card_balance.balance;
+    let currency = gift_card_balance.currency;
     let remaining_amount =
         if (payment_intent.amount_details.order_amount - balance).is_greater_than(0) {
             payment_intent.amount_details.order_amount - balance
