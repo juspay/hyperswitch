@@ -8,7 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{self, Email, IpAddress},
     request::Method,
-    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector, FloatMajorUnit},
+    types::{FloatMajorUnit, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -3228,8 +3228,8 @@ pub struct ChargebackData {
     pub chargeback_status_category: ChargebackStatusCategory,
     #[serde(rename = "Type")]
     pub webhook_type: ChargebackType,
-    pub status: Option<String>, 
-    pub amount:  FloatMajorUnit,
+    pub status: Option<String>,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub reported_amount: FloatMajorUnit,
     pub reported_currency: String,
@@ -3242,7 +3242,7 @@ pub struct ChargebackData {
     pub dispute_unified_status_code: Option<DisputeUnifiedStatusCode>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, strum::Display,)]
+#[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
 pub enum DisputeUnifiedStatusCode {
     #[serde(rename = "FC")]
     FirstChargebackInitiatedByIssuer,
@@ -3743,59 +3743,74 @@ pub fn map_dispute_notification_to_event(
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
     match dispute_code {
-        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer 
-        |DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
-        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer 
-        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall 
-        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened),
+        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+        | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+        }
         DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
-        |DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
-        |DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll 
-        |DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant 
-        |DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed 
-        |DisputeUnifiedStatusCode::Rdr
-        |DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant 
-        |DisputeUnifiedStatusCode::McCollaborationAutomaticAccept 
-        |DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
-        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant 
-        |DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant 
-        |DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant 
-        |DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant 
-        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted),
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+        | DisputeUnifiedStatusCode::Rdr
+        | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+        | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+        | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+        }
         DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
-        |DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
-        |DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
-        |DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour 
-        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost), 
-        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant 
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically 
+        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+        | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
         | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
         | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
         | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant  =>  Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged),
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
+        }
         DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
-        |DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired 
-        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired  
-        |DisputeUnifiedStatusCode::McCollaborationExpired 
-        |DisputeUnifiedStatusCode::InquiryExpired 
-        |DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired 
-        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired),
-        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer 
-        |DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer 
-        |DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour 
-        |DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon),
-        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer 
-        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund 
-        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall 
-        |DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled),
+        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+        | DisputeUnifiedStatusCode::McCollaborationExpired
+        | DisputeUnifiedStatusCode::InquiryExpired
+        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
+        }
+        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+        | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+        | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+        | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+        | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+        }
 
         DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
-        |DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
-        |DisputeUnifiedStatusCode::InquiryAutomaticallyRejected 
-        |DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
-        |DisputeUnifiedStatusCode::InquiryUpdated 
-         => Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+        | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+        | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+        | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+        | DisputeUnifiedStatusCode::InquiryUpdated => {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+        }
     }
 }
 
@@ -3812,7 +3827,7 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
             | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
             | DisputeUnifiedStatusCode::InquiryUpdated => common_enums::DisputeStage::PreDispute,
-        
+
             // --- Dispute ---
             DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
             | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
@@ -3839,8 +3854,10 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
             | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
             | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour
-            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => common_enums::DisputeStage::Dispute,
-        
+            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => {
+                common_enums::DisputeStage::Dispute
+            }
+
             // --- PreArbitration ---
             DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
             | DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
@@ -3856,10 +3873,14 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
             | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
             | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
-            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => common_enums::DisputeStage::PreArbitration,
-        
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+                common_enums::DisputeStage::PreArbitration
+            }
+
             // --- DisputeReversal ---
-            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => common_enums::DisputeStage::DisputeReversal,
+            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
+                common_enums::DisputeStage::DisputeReversal
+            }
         }
     }
 }

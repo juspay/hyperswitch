@@ -9,7 +9,10 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     id_type,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -44,7 +47,7 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
-    errors, disputes,
+    disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
@@ -62,15 +65,17 @@ use crate::{
 #[derive(Clone)]
 pub struct Nuvei {
     pub amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-    amount_converter_string_minor_unit: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
-    amount_converter_float_major_unit: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 impl Nuvei {
     pub fn new() -> &'static Self {
         &Self {
             amount_convertor: &StringMajorUnitForConnector,
             amount_converter_string_minor_unit: &StringMinorUnitForConnector,
-            amount_converter_float_major_unit: &FloatMajorUnitForConnector
+            amount_converter_float_major_unit: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -1011,19 +1016,16 @@ impl IncomingWebhook for Nuvei {
         let webhook = get_webhook_object_from_body(request.body)?;
 
         let nuvei_notification_signature = match webhook {
-            nuvei::NuveiWebhook::PaymentDmn(notification) => {
-            notification
+            nuvei::NuveiWebhook::PaymentDmn(notification) => notification
                 .advance_response_checksum
-                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
-            },
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?,
             nuvei::NuveiWebhook::Chargeback(_) => {
                 utils::get_header_key_value("Checksum", request.headers)?.to_string()
             }
         };
 
         hex::decode(nuvei_notification_signature)
-        .change_context(errors::ConnectorError::WebhookSignatureNotFound)
-        
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
 
     fn get_webhook_source_verification_message(
@@ -1065,7 +1067,8 @@ impl IncomingWebhook for Nuvei {
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 // For chargeback notifications, use a different format based on Nuvei's documentation
                 // Note: This is a placeholder - you'll need to adjust based on Nuvei's actual chargeback signature format
-             let response = serde_json::to_string(&notification) .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                let response = serde_json::to_string(&notification)
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
                 let to_sign = format!("{secret_str}{response}");
                 Ok(to_sign.into_bytes())
@@ -1087,14 +1090,20 @@ impl IncomingWebhook for Nuvei {
         match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone().ok_or(errors::ConnectorError::MissingConnectorTransactionID)?)
+                    PaymentIdType::ConnectorTransactionId(
+                        notification
+                            .transaction_id
+                            .clone()
+                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                    ),
                 ))
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(notification.transaction_details.transaction_id.to_string())
+                    PaymentIdType::ConnectorTransactionId(
+                        notification.transaction_details.transaction_id.to_string(),
+                    ),
                 ))
-
             }
         }
     }
@@ -1131,7 +1140,7 @@ impl IncomingWebhook for Nuvei {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let  notification = get_webhook_object_from_body(request.body)?;
+        let notification = get_webhook_object_from_body(request.body)?;
         Ok(Box::new(notification))
     }
 
@@ -1139,23 +1148,42 @@ impl IncomingWebhook for Nuvei {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
-        let webhook = request.body.parse_struct::<nuvei::ChargebackNotification>("ChargebackNotification")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let currency = webhook.chargeback.reported_currency.to_uppercase().parse::<enums::Currency>().map_err(|_|errors::ConnectorError::ResponseDeserializationFailed)?;
-        let amount_minorunit = utils::convert_back_amount_to_minor_units(self.amount_converter_float_major_unit, webhook.chargeback.reported_amount, currency)?;
+        let webhook = request
+            .body
+            .parse_struct::<nuvei::ChargebackNotification>("ChargebackNotification")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let currency = webhook
+            .chargeback
+            .reported_currency
+            .to_uppercase()
+            .parse::<enums::Currency>()
+            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+        let amount_minorunit = utils::convert_back_amount_to_minor_units(
+            self.amount_converter_float_major_unit,
+            webhook.chargeback.reported_amount,
+            currency,
+        )?;
 
         let amount = utils::convert_amount(
             self.amount_converter_string_minor_unit,
             amount_minorunit,
-            currency
+            currency,
         )?;
-        let dispute_unified_status_code = webhook.chargeback.dispute_unified_status_code.ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let connector_dispute_id = webhook.chargeback.dispute_id.ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let dispute_unified_status_code = webhook
+            .chargeback
+            .dispute_unified_status_code
+            .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let connector_dispute_id = webhook
+            .chargeback
+            .dispute_id
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(disputes::DisputePayload {
             amount,
             currency,
-            dispute_stage: api_models::enums::DisputeStage::from(dispute_unified_status_code.clone()),
+            dispute_stage: api_models::enums::DisputeStage::from(
+                dispute_unified_status_code.clone(),
+            ),
             connector_dispute_id,
             connector_reason: webhook.chargeback.chargeback_reason,
             connector_reason_code: webhook.chargeback.chargeback_reason_category,
@@ -1169,16 +1197,16 @@ impl IncomingWebhook for Nuvei {
 
 fn get_webhook_object_from_body(
     body: &[u8],
-) -> CustomResult<nuvei::NuveiWebhook,  errors::ConnectorError> {
-    let payments_response =
-    serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(body)
+) -> CustomResult<nuvei::NuveiWebhook, errors::ConnectorError> {
+    let payments_response = serde_urlencoded::from_bytes::<nuvei::NuveiWebhook>(body)
         .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
-match payments_response {
-    Ok(webhook) => Ok(webhook),
-    Err(_) => body.parse_struct::<nuvei::NuveiWebhook>("NuveiWebhook")
-    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
-}
+    match payments_response {
+        Ok(webhook) => Ok(webhook),
+        Err(_) => body
+            .parse_struct::<nuvei::NuveiWebhook>("NuveiWebhook")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed),
+    }
 }
 
 impl ConnectorRedirectResponse for Nuvei {
@@ -1378,7 +1406,8 @@ static NUVEI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 
-static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [enums::EventClass::Payments, enums::EventClass::Disputes];
+static NUVEI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Disputes];
 
 impl ConnectorSpecifications for Nuvei {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
