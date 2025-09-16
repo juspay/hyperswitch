@@ -287,6 +287,7 @@ impl
                         acs_trans_id: Some(response_auth.acs_trans_id.clone()),
                         three_dsserver_trans_id: Some(response_auth.three_ds_server_trans_id),
                         acs_signed_content: None,
+                        challenge_request_key: None,
                     }))
                 } else {
                     AuthNFlowType::Frictionless

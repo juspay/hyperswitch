@@ -155,6 +155,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 breadpay::transformers::BreadpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Cardinal => Ok(()),
             api_enums::Connector::Cashtocode => {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())

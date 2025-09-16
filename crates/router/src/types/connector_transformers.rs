@@ -28,6 +28,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Breadpay => Self::Breadpay,
+            api_enums::Connector::Cardinal => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "cardinal is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Cashtocode => Self::Cashtocode,
             api_enums::Connector::Celero => Self::Celero,
             api_enums::Connector::Chargebee => Self::Chargebee,

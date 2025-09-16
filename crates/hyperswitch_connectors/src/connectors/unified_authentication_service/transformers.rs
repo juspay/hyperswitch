@@ -655,6 +655,11 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     NoKey,
 }
 
@@ -664,6 +669,11 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self::HeaderKey {
                 api_key: api_key.clone(),
+            }),
+            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self::SignatureKey {
+                api_key: api_key.clone(),
+                key1: key1.clone(),
+                api_secret: api_secret.clone(),
             }),
             ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -821,6 +831,7 @@ pub struct ThreeDsAuthDetails {
     pub message_version: String,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
@@ -972,6 +983,9 @@ impl<F, T>
                             challenge_request: auth_response
                                 .three_ds_auth_response
                                 .challenge_request,
+                            challenge_request_key: auth_response
+                                .three_ds_auth_response
+                                .challenge_request_key,
                             acs_reference_number: Some(
                                 auth_response.three_ds_auth_response.acs_reference_number,
                             ),
