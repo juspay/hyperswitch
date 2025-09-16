@@ -5665,7 +5665,7 @@ where
             match primary_result {
                 Ok(data) => data,
                 Err(primary_error) => {
-                    // After the payment processing certificate is rotated for a new one, there will be a 20 minutes window before the old certificate is completely revoked.
+                    // After the payment processing certificate is rotated for a new one, there will be around 20 minutes window before the old certificate is completely revoked.
                     // During this period, Apple Pay tokens might still be encrypted with the old certificate.
                     // To handle this, we attempt to decrypt the token using the transitional (old) certificate if the primary decryption (with the new certificate) fails.
                     if let (Some(ppc_backup), Some(ppc_key_backup)) = (
