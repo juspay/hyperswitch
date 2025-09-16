@@ -225,6 +225,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -514,6 +515,7 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
             api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
             api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
+            api_models::enums::PaymentMethodType::AmazonPay => Self::AmazonPayMetadata,
             _ => Self::Connector,
         }
     }

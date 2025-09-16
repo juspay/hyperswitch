@@ -535,6 +535,8 @@ pub struct AdyenWebhookResponse {
     refusal_code_raw: Option<String>,
     // Raw acquirer refusal reason
     refusal_reason_raw: Option<String>,
+    recurring_detail_reference: Option<Secret<String>>,
+    recurring_shopper_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -552,6 +554,7 @@ pub struct RedirectionErrorResponse {
 pub struct RedirectionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     psp_reference: Option<String>,
@@ -567,6 +570,7 @@ pub struct PresentToShopperResponse {
     psp_reference: Option<String>,
     result_code: AdyenStatus,
     action: AdyenPtsAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     merchant_reference: Option<String>,
@@ -579,6 +583,7 @@ pub struct PresentToShopperResponse {
 pub struct QrCodeResponseResponse {
     result_code: AdyenStatus,
     action: AdyenQrCodeAction,
+    amount: Option<Amount>,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
@@ -1804,7 +1809,13 @@ impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
     fn from(item: &PaymentsAuthorizeRouterData) -> Self {
         match item.request.off_session {
             Some(true) => Self::ContinuedAuthentication,
-            _ => Self::Ecommerce,
+            _ => match item.request.payment_channel {
+                Some(common_enums::PaymentChannel::Ecommerce)
+                | None
+                | Some(common_enums::PaymentChannel::Other(_)) => Self::Ecommerce,
+                Some(common_enums::PaymentChannel::MailOrder)
+                | Some(common_enums::PaymentChannel::TelephoneOrder) => Self::Moto,
+            },
         }
     }
 }
@@ -2358,6 +2369,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::BluecodeRedirect {}
+            | WalletData::AmazonPay(_)
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
@@ -3927,6 +3939,7 @@ pub fn get_adyen_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -3996,7 +4009,10 @@ pub fn get_adyen_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_webhook_response(
@@ -4009,6 +4025,7 @@ pub fn get_webhook_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4042,6 +4059,8 @@ pub fn get_webhook_response(
         None
     };
 
+    let txn_amount = response.amount.as_ref().map(|amount| amount.value);
+
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
             utils::construct_captures_response_hashmap(vec![response])?;
@@ -4051,8 +4070,18 @@ pub fn get_webhook_response(
             PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
             },
+            txn_amount,
         ))
     } else {
+        let mandate_reference = response
+            .recurring_detail_reference
+            .as_ref()
+            .map(|mandate_id| MandateReference {
+                connector_mandate_id: Some(mandate_id.clone().expose()),
+                payment_method_id: response.recurring_shopper_reference.clone(),
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(
                 response
@@ -4060,14 +4089,15 @@ pub fn get_webhook_response(
                     .unwrap_or(response.transaction_id),
             ),
             redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
             charges: None,
         };
-        Ok((status, error, payments_response_data))
+
+        Ok((status, error, payments_response_data, txn_amount))
     }
 }
 
@@ -4081,6 +4111,7 @@ pub fn get_redirection_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4154,7 +4185,10 @@ pub fn get_redirection_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_present_to_shopper_response(
@@ -4167,6 +4201,7 @@ pub fn get_present_to_shopper_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4223,7 +4258,9 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_qr_code_response(
@@ -4236,6 +4273,7 @@ pub fn get_qr_code_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4291,7 +4329,10 @@ pub fn get_qr_code_response(
         incremental_authorization_allowed: None,
         charges,
     };
-    Ok((status, error, payments_response_data))
+
+    let txn_amount = response.amount.map(|amount| amount.value);
+
+    Ok((status, error, payments_response_data, txn_amount))
 }
 
 pub fn get_redirection_error_response(
@@ -4304,6 +4345,7 @@ pub fn get_redirection_error_response(
         storage_enums::AttemptStatus,
         Option<ErrorResponse>,
         PaymentsResponseData,
+        Option<MinorUnit>,
     ),
     errors::ConnectorError,
 > {
@@ -4347,7 +4389,7 @@ pub fn get_redirection_error_response(
         charges: None,
     };
 
-    Ok((status, error, payments_response_data))
+    Ok((status, error, payments_response_data, None))
 }
 
 pub fn get_qr_metadata(
@@ -4506,6 +4548,8 @@ pub fn get_present_to_shopper_metadata(
                 reference,
                 download_url: response.action.download_url.clone(),
                 instructions_url: response.action.instructions_url.clone(),
+                entry_date: None,
+                digitable_line: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -4602,7 +4646,7 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
-        let (status, error, payment_response_data) = match item.response {
+        let (status, error, payment_response_data, amount) = match item.response {
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
             }
@@ -4626,9 +4670,18 @@ impl<F, Req>
             )?,
         };
 
+        let minor_amount_captured = match status {
+            enums::AttemptStatus::Charged
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::PartialChargedAndChargeable => amount,
+            _ => None,
+        };
+
         Ok(Self {
             status,
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
             response: error.map_or_else(|| Ok(payment_response_data), Err),
+            minor_amount_captured,
             ..item.data
         })
     }
@@ -4842,11 +4895,17 @@ pub struct AdyenAdditionalDataWH {
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
     pub recurring_detail_reference: Option<Secret<String>>,
+    #[serde(rename = "recurring.shopperReference")]
+    pub recurring_shopper_reference: Option<String>,
     pub network_tx_reference: Option<Secret<String>>,
     /// [only for cards] Enable raw acquirer from Adyen dashboard to receive this (https://docs.adyen.com/development-resources/raw-acquirer-responses/#search-modal)
     pub refusal_reason_raw: Option<String>,
     /// [only for cards] This is only available for Visa and Mastercard
     pub refusal_code_raw: Option<String>,
+    #[serde(rename = "shopperEmail")]
+    pub shopper_email: Option<String>,
+    #[serde(rename = "shopperReference")]
+    pub shopper_reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4874,6 +4933,7 @@ pub enum WebhookEventCode {
     PrearbitrationWon,
     PrearbitrationLost,
     OfferClosed,
+    RecurringContract,
     #[cfg(feature = "payouts")]
     PayoutThirdparty,
     #[cfg(feature = "payouts")]
@@ -4889,7 +4949,9 @@ pub enum WebhookEventCode {
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
-        WebhookEventCode::Authorisation | WebhookEventCode::OfferClosed
+        WebhookEventCode::Authorisation
+            | WebhookEventCode::OfferClosed
+            | WebhookEventCode::RecurringContract
     )
 }
 
@@ -5010,6 +5072,13 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::OfferClosed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
         }
+        WebhookEventCode::RecurringContract => {
+            if is_success_scenario(is_success) {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            } else {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+        }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
             api_models::webhooks::IncomingWebhookEvent::PayoutCreated
@@ -5090,6 +5159,13 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::AuthorisationFailed
                     }
                 }
+                WebhookEventCode::RecurringContract => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
+                    } else {
+                        AdyenWebhookStatus::AuthorisationFailed
+                    }
+                }
                 WebhookEventCode::Cancellation => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Cancelled
@@ -5142,6 +5218,8 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
             event_code: notif.event_code,
             refusal_code_raw: notif.additional_data.refusal_code_raw,
             refusal_reason_raw: notif.additional_data.refusal_reason_raw,
+            recurring_detail_reference: notif.additional_data.recurring_detail_reference,
+            recurring_shopper_reference: notif.additional_data.recurring_shopper_reference,
         }
     }
 }

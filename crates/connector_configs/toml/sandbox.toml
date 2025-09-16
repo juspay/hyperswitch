@@ -533,6 +533,26 @@ key1 = "Merchant ID"
 [authipay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[amazonpay]
+[[amazonpay.wallet]]
+payment_method_type = "amazon_pay"
+[amazonpay.connector_auth.BodyKey]
+api_key="Public Key"
+key1="Private Key"
+
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="merchant_id"
+label="Merchant ID"
+placeholder="Enter Merchant ID"
+required=true
+type="Text"
+[[amazonpay.connector_wallets_details.amazon_pay]]
+name="store_id"
+label="Store ID"
+placeholder="Enter Store ID"
+required=true
+type="Text"
+
 [authorizedotnet]
 [[authorizedotnet.credit]]
 payment_method_type = "Mastercard"
@@ -1028,10 +1048,64 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[barclaycard.wallet]]
   payment_method_type = "google_pay"
+[[barclaycard.wallet]]
+  payment_method_type = "apple_pay"
 [barclaycard.connector_auth.SignatureKey]
 api_key = "Key"
 key1 = "Merchant ID"
 api_secret = "Shared Secret"
+
+[[barclaycard.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[barclaycard.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[barclaycard.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[barclaycard.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [[barclaycard.metadata.google_pay]]
 name = "merchant_name"
@@ -6408,7 +6482,7 @@ type = "Text"
   placeholder="Enter Beneficiary Account Type e.g. IBAN"
   required=true
   type="Text"
-[nordea.metadata.account_value]
+[nordea.metadata.destination_account_number]
   name="destination_account_number"
   label="Creditor Account Number"
   placeholder="Enter Beneficiary Account Number"
@@ -6514,6 +6588,12 @@ required = true
 type = "Select"
 options = []
 
+[santander]
+[[santander.voucher]]
+  payment_method_type = "boleto"
+[[santander.bank_transfer]]
+  payment_method_type = "pix"  
+
 [santander.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
@@ -6552,6 +6632,20 @@ label = "Merchant Name"
 placeholder = "Enter the merchant name"
 required = true
 type = "Text"
+
+[santander.metadata.workspace_id]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
+
+[santander.metadata.covenant_code]
+name="covenant_code"
+label="Covenant Code"
+placeholder="Enter the covenant code"
+required=true
+type="Text"
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
@@ -6681,5 +6775,182 @@ api_key = "Password"
 key1 = "Username"
 
 [paysafe]
-[paysafe.connector_auth.HeaderKey]
-api_key = "API Key"
+[[paysafe.credit]]
+payment_method_type = "Mastercard"
+[[paysafe.credit]]
+payment_method_type = "Visa"
+[[paysafe.credit]]
+payment_method_type = "Interac"
+[[paysafe.credit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.credit]]
+payment_method_type = "JCB"
+[[paysafe.credit]]
+payment_method_type = "DinersClub"
+[[paysafe.credit]]
+payment_method_type = "Discover"
+[[paysafe.credit]]
+payment_method_type = "CartesBancaires"
+[[paysafe.credit]]
+payment_method_type = "UnionPay"
+[[paysafe.debit]]
+payment_method_type = "Mastercard"
+[[paysafe.debit]]
+payment_method_type = "Visa"
+[[paysafe.debit]]
+payment_method_type = "Interac"
+[[paysafe.debit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.debit]]
+payment_method_type = "JCB"
+[[paysafe.debit]]
+payment_method_type = "DinersClub"
+[[paysafe.debit]]
+payment_method_type = "Discover"
+[[paysafe.debit]]
+payment_method_type = "CartesBancaires"
+[[paysafe.debit]]
+payment_method_type = "UnionPay"
+[paysafe.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[paysafe.connector_webhook_details]
+merchant_secret = "Source verification key"
+[[paysafe.metadata.account_id.card.USD.three_ds]]
+name="account_id"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
+required=true
+type="Number"
+[[paysafe.metadata.account_id.card.USD.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Number"
+[[paysafe.metadata.account_id.card.EUR.three_ds]]
+name="account_id"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
+required=true
+type="Number"
+[[paysafe.metadata.account_id.card.EUR.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Number"
+
+
+
+[peachpayments]
+[[peachpayments.credit]]
+  payment_method_type = "Mastercard"
+[[peachpayments.credit]]
+  payment_method_type = "Visa"
+[[peachpayments.credit]]
+  payment_method_type = "AmericanExpress"
+[[peachpayments.debit]]
+  payment_method_type = "Mastercard"
+[[peachpayments.debit]]
+  payment_method_type = "Visa"
+[[peachpayments.debit]]
+  payment_method_type = "AmericanExpress"
+[peachpayments.connector_auth.BodyKey]
+api_key="API Key"
+key1="Tenant ID"
+[peachpayments.connector_webhook_details]
+merchant_secret="Webhook Secret"
+
+[peachpayments.metadata.merchant_name]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter Merchant Name"
+required=true
+type="Text"
+[peachpayments.metadata.mcc]
+name="mcc"
+label="Merchant Category Code"
+placeholder="Enter MCC (e.g., 5411)"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_phone]
+name="merchant_phone"
+label="Merchant Phone"
+placeholder="Enter merchant phone (e.g., +27123456789)"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_email]
+name="merchant_email"
+label="Merchant Email"
+placeholder="Enter merchant email"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_mobile]
+name="merchant_mobile"
+label="Merchant Mobile"
+placeholder="Enter merchant mobile (e.g., +27123456789)"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_address]
+name="merchant_address"
+label="Merchant Address"
+placeholder="Enter merchant address"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_city]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter merchant city"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_postal_code]
+name="merchant_postal_code"
+label="Merchant Postal Code"
+placeholder="Enter postal code"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_region_code]
+name="merchant_region_code"
+label="Merchant Region Code"
+placeholder="Enter region code (e.g., WC)"
+required=true
+type="Text"
+[peachpayments.metadata.merchant_type]
+name="merchant_type"
+label="Merchant Type"
+placeholder="Select merchant type"
+required=true
+type="Select"
+options=["direct", "sub"]
+[peachpayments.metadata.merchant_website]
+name="merchant_website"
+label="Merchant Website"
+placeholder="Enter merchant website URL"
+required=true
+type="Text"
+[peachpayments.metadata.routing_mid]
+name="routing_mid"
+label="Routing MID"
+placeholder="Enter routing MID"
+required=true
+type="Text"
+[peachpayments.metadata.routing_tid]
+name="routing_tid"
+label="Routing TID"
+placeholder="Enter routing TID"
+required=true
+type="Text"
+[peachpayments.metadata.routing_route]
+name="routing_route"
+label="Routing Route"
+placeholder="Select routing route"
+required=true
+type="Select"
+options=["cardgateway_emulator", "exipay_emulator", "absa_base24", "nedbank_postbridge"]
+[peachpayments.metadata.amex_id]
+name="amex_id"
+label="AmEx ID"
+placeholder="Enter AmEx ID for routing"
+required=false
+type="Text"

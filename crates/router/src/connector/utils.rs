@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    ops::Deref,
     str::FromStr,
     sync::LazyLock,
 };
@@ -115,6 +116,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&hyperswitch_domain_models::address::Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -178,9 +180,34 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
+                let is_overcapture_enabled = *payment_data
+                    .payment_attempt
+                    .is_overcapture_enabled
+                    .as_deref()
+                    .unwrap_or(&false);
+
+                if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
+                    || (is_overcapture_enabled
+                        && captured_amount.is_some_and(|captured_amount| {
+                            MinorUnit::new(captured_amount) > total_capturable_amount
+                        }))
+                {
                     Ok(enums::AttemptStatus::Charged)
-                } else if captured_amount.is_some() {
+                } else if captured_amount.is_some_and(|captured_amount| {
+                    MinorUnit::new(captured_amount) > total_capturable_amount
+                }) {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "captured_amount is greater than the total_capturable_amount"
+                            .to_string(),
+                        field_names: "captured_amount".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
+                } else if captured_amount.is_some_and(|captured_amount| {
+                    MinorUnit::new(captured_amount) < total_capturable_amount
+                }) {
                     Ok(enums::AttemptStatus::PartialCharged)
                 } else {
                     Ok(self.status)
@@ -193,25 +220,49 @@ where
                     amount_capturable,
                     payment_data.payment_attempt.status,
                 );
-                if Some(payment_data.payment_attempt.get_total_amount())
-                    == capturable_amount.map(MinorUnit::new)
+                let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
+                let is_overcapture_enabled = *payment_data
+                    .payment_attempt
+                    .is_overcapture_enabled
+                    .unwrap_or_default()
+                    .deref();
+
+                if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
+                    || (capturable_amount.is_some_and(|capturable_amount| {
+                        MinorUnit::new(capturable_amount) > total_capturable_amount
+                    }) && is_overcapture_enabled)
                 {
                     Ok(enums::AttemptStatus::Authorized)
-                } else if capturable_amount.is_some()
-                    && payment_data
-                        .payment_intent
-                        .enable_partial_authorization
-                        .is_some_and(|val| val)
+                } else if capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) < total_capturable_amount
+                }) && payment_data
+                    .payment_intent
+                    .enable_partial_authorization
+                    .is_some_and(|val| val)
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
-                } else if capturable_amount.is_some()
-                    && !payment_data
-                        .payment_intent
-                        .enable_partial_authorization
-                        .is_some_and(|val| val)
+                } else if capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) < total_capturable_amount
+                }) && !payment_data
+                    .payment_intent
+                    .enable_partial_authorization
+                    .is_some_and(|val| val)
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is less than the total attempt amount"
+                            .to_string(),
+                        field_names: "amount_capturable".to_string(),
+                        connector_transaction_id: payment_data
+                            .payment_attempt
+                            .connector_transaction_id
+                            .clone(),
+                    })?
+                } else if capturable_amount.is_some_and(|capturable_amount| {
+                    MinorUnit::new(capturable_amount) > total_capturable_amount
+                }) && !is_overcapture_enabled
+                {
+                    Err(ApiErrorResponse::IntegrityCheckFailed {
+                        reason: "capturable_amount is greater than the total attempt amount"
                             .to_string(),
                         field_names: "amount_capturable".to_string(),
                         connector_transaction_id: payment_data
@@ -361,6 +412,15 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                 .clone()
                 .address
                 .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
         })
     }
 
@@ -2492,6 +2552,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Paysera,
     Skrill,
@@ -2622,6 +2683,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::AliPayQr(_) => Self::AliPayQr,
                 domain::payments::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
                 domain::payments::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                domain::payments::WalletData::AmazonPay(_) => Self::AmazonPay,
                 domain::payments::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 domain::payments::WalletData::Paysera(_) => Self::Paysera,
                 domain::payments::WalletData::Skrill(_) => Self::Skrill,

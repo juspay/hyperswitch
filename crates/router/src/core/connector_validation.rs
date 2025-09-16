@@ -88,6 +88,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Amazonpay => {
+                amazonpay::transformers::AmazonpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Archipel => {
                 archipel::transformers::ArchipelAuthType::try_from(self.auth_type)?;
                 archipel::transformers::ArchipelConfigData::try_from(self.connector_meta_data)?;
@@ -392,6 +396,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paypal::transformers::PaypalAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Paysafe => {
+                paysafe::transformers::PaysafeAuthType::try_from(self.auth_type)?;
+                paysafe::transformers::PaysafeConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Payone => {
                 payone::transformers::PayoneAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -402,6 +413,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payu => {
                 payu::transformers::PayuAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Peachpayments => {
+                peachpayments::transformers::PeachpaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Placetopay => {
