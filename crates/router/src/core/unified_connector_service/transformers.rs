@@ -32,7 +32,6 @@ use crate::{
     types::transformers::ForeignTryFrom,
 };
 
-
 pub fn convert_grpc_access_token_to_domain(grpc_token: &payments_grpc::AccessToken) -> AccessToken {
     AccessToken {
         token: masking::Secret::new(grpc_token.token.clone()),
