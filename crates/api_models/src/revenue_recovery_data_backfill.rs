@@ -24,6 +24,11 @@ pub struct RevenueRecoveryBackfillRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct UnlockStatusResponse {
+    pub unlocked: bool,
+}
+
+#[derive(Debug, Serialize)]
 pub struct RevenueRecoveryDataBackfillResponse {
     pub processed_records: usize,
     pub failed_records: usize,
@@ -54,6 +59,12 @@ pub struct ComprehensiveCardData {
 }
 
 impl ApiEventMetric for RevenueRecoveryDataBackfillResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UnlockStatusResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
