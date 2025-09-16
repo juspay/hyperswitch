@@ -1,13 +1,11 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::GetSubscriptionPlansData,
-    router_flow_types::subscriptions::GetSubscriptionPlans,
-    router_request_types::subscriptions::GetSubscriptionPlansRequest,
-    router_response_types::subscriptions::GetSubscriptionPlansResponse,
-    router_data_v2::flow_common_types::SubscriptionCreateData,
-    router_flow_types::SubscriptionCreate,
-    router_request_types::subscriptions::SubscriptionCreateRequest,
-    router_response_types::subscriptions::SubscriptionCreateResponse,
+    router_data_v2::flow_common_types::{GetSubscriptionPlansData, SubscriptionCreateData},
+    router_flow_types::{subscriptions::GetSubscriptionPlans, SubscriptionCreate},
+    router_request_types::subscriptions::{GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+    router_response_types::subscriptions::{
+        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+    },
 };
 
 use crate::connector_integration_v2::ConnectorIntegrationV2;

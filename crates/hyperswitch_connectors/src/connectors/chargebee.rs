@@ -28,13 +28,15 @@ use hyperswitch_domain_models::{
         subscriptions::{GetSubscriptionPlans, SubscriptionCreate},
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest, subscriptions::{GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{GetSubscriptionPlansRequest, SubscriptionCreateRequest},
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{

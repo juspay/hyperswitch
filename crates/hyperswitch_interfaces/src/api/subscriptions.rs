@@ -2,10 +2,10 @@
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::GetSubscriptionPlans,
-    router_request_types::subscriptions::GetSubscriptionPlansRequest,
-    router_response_types::subscriptions::GetSubscriptionPlansResponse,
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
+    router_request_types::subscriptions::GetSubscriptionPlansRequest,
     router_request_types::subscriptions::SubscriptionCreateRequest,
+    router_response_types::subscriptions::GetSubscriptionPlansResponse,
     router_response_types::subscriptions::SubscriptionCreateResponse,
 };
 
@@ -41,7 +41,6 @@ pub trait Subscriptions {}
 /// trait GetSubscriptionPlansFlow (disabled when not V1)
 #[cfg(not(feature = "v1"))]
 pub trait GetSubscriptionPlansFlow {}
-
 
 /// trait SubscriptionCreate
 #[cfg(not(feature = "v1"))]
