@@ -203,6 +203,7 @@ impl FilteredPaymentMethodsEnabled {
 
         if let Some(gift_card_mca) = gift_card_connector_id {
             let gc_key = payment_id.get_gift_card_connector_key();
+            let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
             let redis_conn = db
                 .get_redis_conn()
@@ -210,9 +211,10 @@ impl FilteredPaymentMethodsEnabled {
                 .ok();
 
             if let Some(rc) = redis_conn {
-                rc.set_key(
+                rc.set_key_with_expiry(
                     &gc_key.as_str().into(),
                     gift_card_mca.get_string_repr().to_string(),
+                    redis_expiry,
                 )
                 .await
                 .attach_printable("Failed to store gift card mca_id in redis")
