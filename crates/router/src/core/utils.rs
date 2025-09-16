@@ -19,11 +19,12 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
-};
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+    merchant_connector_account::MerchantConnectorAccount,
+    payment_address::PaymentAddress,
+    router_data::ErrorResponse,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_request_types,
+    types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]

@@ -11,12 +11,12 @@ use common_utils::{
     pii, type_name,
     types::keymanager,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ExternalVaultConnectorDetails, ProfileUpdateInternal, WebhookDetails,
 };
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 

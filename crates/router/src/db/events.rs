@@ -1292,7 +1292,7 @@ mod tests {
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
             is_external_vault_enabled: None,
-            external_vault_connector_details: None
+            external_vault_connector_details: None,
         });
 
         let business_profile = state

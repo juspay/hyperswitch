@@ -79,7 +79,7 @@ use crate::{
     consts,
     core::{
         errors::{ProcessTrackerError, RouterResult},
-        payments::{self as payments_core,  helpers as payment_helpers},
+        payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
@@ -905,7 +905,6 @@ pub async fn create_payment_method_core(
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use common_utils::ext_traits::ValueExt;
-
 
     req.validate()?;
 
@@ -2101,8 +2100,8 @@ fn convert_from_saved_payment_method_data(
 ) -> RouterResult<domain::ExternalVaultPaymentMethodData> {
     match vault_additional_data {
         payment_methods::PaymentMethodsData::Card(card_details) => {
-            Ok(domain::ExternalVaultPaymentMethodData::Card(
-                Box::new(domain::ExternalVaultCard {
+            Ok(domain::ExternalVaultPaymentMethodData::Card(Box::new(
+                domain::ExternalVaultCard {
                     card_number: external_vault_token_data.tokenized_card_number,
                     card_exp_month: card_details.expiry_month.ok_or(
                         errors::ApiErrorResponse::MissingRequiredField {
@@ -2125,8 +2124,8 @@ fn convert_from_saved_payment_method_data(
                     card_cvc: vault_token.card_cvc,
                     co_badged_card_data: None, // Co-badged data is not supported in external vault
                     bank_code: None,           // Bank code is not stored in external vault
-                }),
-            ))
+                },
+            )))
         }
         payment_methods::PaymentMethodsData::BankDetails(_)
         | payment_methods::PaymentMethodsData::WalletDetails(_) => {
@@ -2195,16 +2194,12 @@ pub async fn create_pm_additional_data_update(
     let encrypted_payment_method_data = pmd
         .map(
             |payment_method_vaulting_data| match payment_method_vaulting_data {
-                domain::PaymentMethodVaultingData::Card(card) => {
-                    domain::PaymentMethodsData::Card(
-                        domain::CardDetailsPaymentMethod::from(card.clone()),
-                    )
-                }
+                domain::PaymentMethodVaultingData::Card(card) => domain::PaymentMethodsData::Card(
+                    domain::CardDetailsPaymentMethod::from(card.clone()),
+                ),
                 domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
                     domain::PaymentMethodsData::NetworkToken(
-                        domain::NetworkTokenDetailsPaymentMethod::from(
-                            network_token.clone(),
-                        ),
+                        domain::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
                     )
                 }
             },
@@ -3853,9 +3848,9 @@ async fn create_single_use_tokenization_flow(
     })?;
 
     let value = domain::SingleUsePaymentMethodToken::get_single_use_token_from_payment_method_token(
-                                                       token_response.clone().into(),
-                                                connector_id.clone()
-                                            );
+        token_response.clone().into(),
+        connector_id.clone(),
+    );
 
     let key = domain::SingleUseTokenKey::store_key(&payment_method.id);
 

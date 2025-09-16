@@ -12,11 +12,9 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_flow_types::{
     ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow,
 };
-
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
-
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};

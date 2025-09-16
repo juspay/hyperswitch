@@ -72,7 +72,8 @@ async fn save_in_locker(
             payment_method_request,
             card_detail,
             business_profile,
-        ).await
+        )
+        .await
     } else {
         // Use internal vault (locker)
         save_in_locker_internal(state, merchant_context, payment_method_request, card_detail).await
@@ -467,7 +468,7 @@ where
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
                                                 Some(external_vault_mca_id),
-                                                vault_type,                  
+                                                vault_type,
                                             )
                                             .await
                                     } else {
@@ -587,8 +588,8 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
-                                                    Some(external_vault_mca_id), 
-                                                    vault_type,                  
+                                                    Some(external_vault_mca_id),
+                                                    vault_type,
                                                 )
                                                 .await
                                         } else {
@@ -811,7 +812,7 @@ where
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                     Some(external_vault_mca_id),
-                                    vault_type,                  
+                                    vault_type,
                                 )
                                 .await?;
 

@@ -75,13 +75,11 @@ impl ConnectorData {
             merchant_connector_id: connector_id,
         })
     }
-    
+
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
-        #[cfg(feature = "v1")]
-        connector: String,
-        #[cfg(feature = "v2")]
-        connector: &enums::Connector,
+        #[cfg(feature = "v1")] connector: String,
+        #[cfg(feature = "v2")] connector: &enums::Connector,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {

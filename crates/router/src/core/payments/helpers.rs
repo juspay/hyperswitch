@@ -2316,7 +2316,6 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     merchant_key_store,
                                 ))
                                 .await
-
                             })
                             .await?,
                     ))
@@ -2399,28 +2398,31 @@ pub async fn fetch_card_details_from_locker(
 ) -> RouterResult<domain::Card> {
     match is_external_vault_enabled
         && matches!(
-        payment_method_info.vault_type,
-        Some(enums::VaultType::External)
-    ){
-        true => fetch_card_details_from_external_vault(
-            state,
-            merchant_id,
-            card_token_data,
-            co_badged_card_data,
-            payment_method_info,
-            merchant_key_store,
-        )
-        .await,
-        false => fetch_card_details_from_internal_locker(
-            state,
-            customer_id,
-            merchant_id,
-            locker_id,
-            card_token_data,
-            co_badged_card_data,
-        )
-        .await
-
+            payment_method_info.vault_type,
+            Some(enums::VaultType::External)
+        ) {
+        true => {
+            fetch_card_details_from_external_vault(
+                state,
+                merchant_id,
+                card_token_data,
+                co_badged_card_data,
+                payment_method_info,
+                merchant_key_store,
+            )
+            .await
+        }
+        false => {
+            fetch_card_details_from_internal_locker(
+                state,
+                customer_id,
+                merchant_id,
+                locker_id,
+                card_token_data,
+                co_badged_card_data,
+            )
+            .await
+        }
     }
 }
 
@@ -2499,18 +2501,18 @@ pub async fn fetch_card_details_from_external_vault(
 
     let key_manager_state = &state.into();
 
-    let merchant_connector_account_details = state.store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+    let merchant_connector_account_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
             merchant_id,
             external_vault_mca_id,
             merchant_key_store,
         )
         .await
-        .to_not_found_response(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: external_vault_mca_id.get_string_repr().to_string(),
-            },
-        )?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: external_vault_mca_id.get_string_repr().to_string(),
+        })?;
 
     let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
         state,
@@ -2521,9 +2523,9 @@ pub async fn fetch_card_details_from_external_vault(
     .await?;
 
     match vault_resp {
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => {
-            Ok(domain::Card::from((card, card_token_data, co_badged_card_data)))
-        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
+            domain::Card::from((card, card_token_data, co_badged_card_data)),
+        ),
     }
 }
 #[cfg(feature = "v1")]

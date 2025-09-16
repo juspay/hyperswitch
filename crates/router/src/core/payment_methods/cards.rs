@@ -1309,7 +1309,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None, //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence None is passed for vault source and type
-                        None, 
+                        None,
                     )
                     .await?;
 
