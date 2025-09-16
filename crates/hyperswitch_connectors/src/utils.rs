@@ -3263,10 +3263,11 @@ impl ForeignTryFrom<String> for JapanStatesAbbreviation {
                     "yamaguchi" => Ok(Self::Yamaguchi),
                     "yamanashi" => Ok(Self::Yamanashi),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "address.state",
-                        }
+                        field_name: "address.state",
+                    }
                     .into()),
-            }},
+                }
+            }
         }
     }
 }
@@ -3367,7 +3368,8 @@ impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
                         field_name: "address.state",
                     }
                     .into()),
-            }},
+                }
+            }
         }
     }
 }
@@ -3850,7 +3852,7 @@ impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
                     }
                     .into()),
                 }
-            },
+            }
         }
     }
 }
@@ -3879,7 +3881,7 @@ impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
                     }
                     .into()),
                 }
-            },
+            }
         }
     }
 }
@@ -3967,7 +3969,9 @@ impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
                     "kirino" | "quirino" => Ok(Self::Kirino),
                     "launion" => Ok(Self::LaUnion),
                     "laguna" => Ok(Self::Laguna),
-                    "lalawigangbulubundukin" | "mountainprovince" => Ok(Self::LalawigangBulubundukin),
+                    "lalawigangbulubundukin" | "mountainprovince" => {
+                        Ok(Self::LalawigangBulubundukin)
+                    }
                     "lanaodelsur" | "timoglanaw" => Ok(Self::LanaoDelSur),
                     "leyte" => Ok(Self::Leyte),
                     "maguidanaodelsur" | "timogmaguindanao" => Ok(Self::MaguindanaoDelSur),
@@ -4013,7 +4017,7 @@ impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
                     }
                     .into()),
                 }
-            },
+            }
         }
     }
 }
@@ -4075,7 +4079,7 @@ impl ForeignTryFrom<String> for IndiaStatesAbbreviation {
                     }
                     .into()),
                 }
-            },
+            }
         }
     }
 }
