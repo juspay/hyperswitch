@@ -543,6 +543,7 @@ pub async fn create_new_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    token: Option<String>,
     acquirer_bin: Option<String>,
     acquirer_merchant_id: Option<String>,
     acquirer_country_code: Option<String>,
@@ -567,7 +568,10 @@ pub async fn create_new_authentication(
         merchant_id,
         authentication_connector,
         connector_authentication_id: None,
-        payment_method_id: "".to_string(),
+        payment_method_id: token
+            .as_ref()
+            .map(|t| format!("eph_{}", t))
+            .unwrap_or_else(|| "".to_string()),
         authentication_type: None,
         authentication_status,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
@@ -716,6 +720,7 @@ pub async fn authentication_create_core(
         organization_id,
         force_3ds_challenge,
         req.psd2_sca_exemption_type,
+        None,
         acquirer_bin,
         acquirer_merchant_id,
         acquirer_country_code,
