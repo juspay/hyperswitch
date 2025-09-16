@@ -3,23 +3,19 @@ pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
 
-use common_enums::enums::{IntentStatus,RecoveryStatus};
-use crate::types::storage::PaymentAttempt;
-use crate::types::storage::ProcessTracker as ProcessTrackerStorage;
-use common_utils::id_type::GlobalPaymentId;
-use storage::ProcessTrackerRunner;
-
 use api_models::{
     enums,
     payments::{self as api_payments, PaymentsResponse, RecoveryPaymentsListResponseItem},
     process_tracker::revenue_recovery,
     webhooks,
 };
+use common_enums::enums::{IntentStatus, RecoveryStatus};
 use common_utils::{
     self,
     errors::CustomResult,
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     id_type,
+    id_type::GlobalPaymentId,
 };
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, ResultExt};
@@ -29,6 +25,7 @@ use hyperswitch_domain_models::{
     revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
+use storage::ProcessTrackerRunner;
 
 use crate::{
     core::{
@@ -46,7 +43,9 @@ use crate::{
     services::ApplicationResponse,
     types::{
         api as router_api_types, domain,
-        storage::{self, revenue_recovery as pcr},
+        storage::{
+            self, revenue_recovery as pcr, PaymentAttempt, ProcessTracker as ProcessTrackerStorage,
+        },
         transformers::{ForeignFrom, ForeignInto},
     },
     workflows,
@@ -1110,36 +1109,37 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
     }
 }
 
-
 pub async fn get_workflow_entries(
     state: &SessionState,
     payment_id: &GlobalPaymentId,
 ) -> RouterResult<(Option<ProcessTrackerStorage>, Option<ProcessTrackerStorage>)> {
     let db = &state.store;
     let runner = ProcessTrackerRunner::PassiveRecoveryWorkflow;
-    
+
     // Get calculate workflow entry
     let calculate_task = CALCULATE_WORKFLOW;
-    let calculate_process_tracker_id = format!("{runner}_{calculate_task}_{}", payment_id.get_string_repr());
-    
+    let calculate_process_tracker_id =
+        format!("{runner}_{calculate_task}_{}", payment_id.get_string_repr());
+
     let calculate_workflow = db
         .as_scheduler()
         .find_process_by_id(&calculate_process_tracker_id)
         .await
         .ok()
         .flatten();
-    
+
     // Get execute workflow entry
     let execute_task = EXECUTE_WORKFLOW;
-    let execute_process_tracker_id = payment_id.get_execute_revenue_recovery_id(execute_task, runner);
-    
+    let execute_process_tracker_id =
+        payment_id.get_execute_revenue_recovery_id(execute_task, runner);
+
     let execute_workflow = db
         .as_scheduler()
         .find_process_by_id(&execute_process_tracker_id)
         .await
         .ok()
         .flatten();
-    
+
     Ok((calculate_workflow, execute_workflow))
 }
 
@@ -1148,60 +1148,115 @@ fn map_recovery_status(
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
     attempt_count: i16,
-    max_retry_threshold:i16
+    max_retry_threshold: i16,
 ) -> RecoveryStatus {
+    let (calculate_business_status, calculate_process_tracker_status) =
+        if let Some(calculate) = calculate_workflow {
+            (
+                Some(calculate.business_status.clone()),
+                Some(calculate.status.to_string().to_uppercase()),
+            )
+        } else {
+            (None, None)
+        };
 
-    let (calculate_business_status, calculate_process_tracker_status) = if let Some(calculate) = calculate_workflow {
-        (Some(calculate.business_status.clone()), Some(calculate.status.to_string().to_uppercase()))
-    } else {
-        (None, None)
-    };
-    
-    let (execute_business_status, execute_process_tracker_status) = if let Some(execute) = execute_workflow {
-        (Some(execute.business_status.clone()), Some(execute.status.to_string().to_uppercase()))
-    } else {
-        (None, None)
-    };
+    let (execute_business_status, execute_process_tracker_status) =
+        if let Some(execute) = execute_workflow {
+            (
+                Some(execute.business_status.clone()),
+                Some(execute.status.to_string().to_uppercase()),
+            )
+        } else {
+            (None, None)
+        };
 
     match intent_status {
         // Only Failed payments are eligible for recovery
         IntentStatus::Failed => {
-            match (calculate_business_status, calculate_process_tracker_status,
-                execute_business_status, execute_process_tracker_status) {
+            match (
+                calculate_business_status,
+                calculate_process_tracker_status,
+                execute_business_status,
+                execute_process_tracker_status,
+            ) {
                 // Queued status conditions
-                (Some(cal_biz_status), Some(cal_pt_status),_,_) if 
-                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_QUEUED && cal_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
-                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
-                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::Processing.to_string().to_uppercase()) ||
-                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>RecoveryStatus::Queued,
-                
-                // Scheduled status conditions
-                (Some(cal_biz_status), Some(cal_pt_status),Some(exe_biz_status), Some(exe_pt_status)) if 
-                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED && cal_pt_status == ProcessTrackerStatus::Finish.to_string().to_uppercase()) ||
-                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
-                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::Pending.to_string().to_uppercase()) ||
-                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::ProcessStarted.to_string().to_uppercase()) => RecoveryStatus::Scheduled,
+                (Some(cal_biz_status), Some(cal_pt_status), _, _)
+                    if (cal_biz_status == business_status::CALCULATE_WORKFLOW_QUEUED
+                        && cal_pt_status
+                            == ProcessTrackerStatus::New.to_string().to_uppercase())
+                        || (cal_biz_status == business_status::PENDING
+                            && cal_pt_status
+                                == ProcessTrackerStatus::New.to_string().to_uppercase())
+                        || (cal_biz_status == business_status::PENDING
+                            && cal_pt_status
+                                == ProcessTrackerStatus::Processing.to_string().to_uppercase())
+                        || (cal_biz_status == business_status::PENDING
+                            && cal_pt_status
+                                == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>
+                {
+                    RecoveryStatus::Queued
+                }
 
-                (Some(cal_biz_status), Some(cal_pt_status),Some(exe_biz_status), Some(exe_pt_status)) if 
-                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_PROCESSING && cal_pt_status ==  ProcessTrackerStatus::Processing.to_string().to_uppercase()) ||
-                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::Processing.to_string().to_uppercase()) => RecoveryStatus::Processing,
-                
+                // Scheduled status conditions
+                (
+                    Some(cal_biz_status),
+                    Some(cal_pt_status),
+                    Some(exe_biz_status),
+                    Some(exe_pt_status),
+                ) if (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED
+                    && cal_pt_status
+                        == ProcessTrackerStatus::Finish.to_string().to_uppercase())
+                    || (exe_biz_status == business_status::PENDING
+                        && exe_pt_status
+                            == ProcessTrackerStatus::New.to_string().to_uppercase())
+                    || (exe_biz_status == business_status::PENDING
+                        && exe_pt_status
+                            == ProcessTrackerStatus::Pending.to_string().to_uppercase())
+                    || (exe_biz_status == business_status::PENDING
+                        && exe_pt_status
+                            == ProcessTrackerStatus::ProcessStarted
+                                .to_string()
+                                .to_uppercase()) =>
+                {
+                    RecoveryStatus::Scheduled
+                }
+
+                (
+                    Some(cal_biz_status),
+                    Some(cal_pt_status),
+                    Some(exe_biz_status),
+                    Some(exe_pt_status),
+                ) if (cal_biz_status == business_status::CALCULATE_WORKFLOW_PROCESSING
+                    && cal_pt_status
+                        == ProcessTrackerStatus::Processing.to_string().to_uppercase())
+                    || (exe_biz_status == business_status::PENDING
+                        && exe_pt_status
+                            == ProcessTrackerStatus::Processing.to_string().to_uppercase()) =>
+                {
+                    RecoveryStatus::Processing
+                }
+
                 // Unrecoverable status conditions
-                (Some(cal_biz_status), _,_,_) if 
-                    cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH ||
-                    cal_biz_status == business_status::RETRIES_EXCEEDED ||
-                    cal_biz_status == business_status::FAILURE ||
-                    cal_biz_status == business_status::GLOBAL_FAILURE => RecoveryStatus::Unrecoverable,
-                
+                (Some(cal_biz_status), _, _, _)
+                    if cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH
+                        || cal_biz_status == business_status::RETRIES_EXCEEDED
+                        || cal_biz_status == business_status::FAILURE
+                        || cal_biz_status == business_status::GLOBAL_FAILURE =>
+                {
+                    RecoveryStatus::Unrecoverable
+                }
+
                 // Default fallback
-                _ => if attempt_count > max_retry_threshold {
-                    RecoveryStatus::NoPicked
-                } else {
-                    RecoveryStatus::Monitoring
+                _ => {
+                    if attempt_count > max_retry_threshold {
+                        RecoveryStatus::NoPicked
+                    } else {
+                        RecoveryStatus::Monitoring
+                    }
                 }
             }
         }
-        
+
         // For all other intent statuses, return the mapped recovery status
         IntentStatus::Succeeded => RecoveryStatus::Recovered,
         IntentStatus::Cancelled => RecoveryStatus::Unrecoverable,
@@ -1209,7 +1264,7 @@ fn map_recovery_status(
         IntentStatus::Processing => RecoveryStatus::Processing,
         IntentStatus::Conflicted => RecoveryStatus::Unrecoverable,
         IntentStatus::Expired => RecoveryStatus::Unrecoverable,
-        
+
         // For statuses that don't need recovery
         IntentStatus::RequiresCustomerAction => RecoveryStatus::Processing,
         IntentStatus::RequiresMerchantAction => RecoveryStatus::Processing,
@@ -1222,15 +1277,13 @@ fn map_recovery_status(
     }
 }
 
-
 pub fn map_to_recovery_payment_item(
     payment_intent: PaymentIntent,
     payment_attempt: Option<PaymentAttempt>,
     calculate_workflow: Option<ProcessTrackerStorage>,
     execute_workflow: Option<ProcessTrackerStorage>,
-    max_retry_threshold:i16
+    max_retry_threshold: i16,
 ) -> RecoveryPaymentsListResponseItem {
-
     // Map the recovery status
     let recovery_status = map_recovery_status(
         payment_intent.status,
@@ -1239,8 +1292,8 @@ pub fn map_to_recovery_payment_item(
         payment_intent.attempt_count,
         max_retry_threshold,
     );
-    
-    RecoveryPaymentsListResponseItem  {
+
+    RecoveryPaymentsListResponseItem {
         id: payment_intent.id,
         merchant_id: payment_intent.merchant_id,
         profile_id: payment_intent.profile_id,
@@ -1251,19 +1304,29 @@ pub fn map_to_recovery_payment_item(
             payment_attempt.as_ref().map(|p| &p.amount_details),
         )),
         created: payment_intent.created_at,
-        payment_method_type: payment_attempt.as_ref().and_then(|p| p.payment_method_type.into()),
-        payment_method_subtype: payment_attempt.as_ref().and_then(|p| p.payment_method_subtype.into()),
+        payment_method_type: payment_attempt
+            .as_ref()
+            .and_then(|p| p.payment_method_type.into()),
+        payment_method_subtype: payment_attempt
+            .as_ref()
+            .and_then(|p| p.payment_method_subtype.into()),
         connector: payment_attempt.as_ref().and_then(|p| p.connector.clone()),
-        merchant_connector_id: payment_attempt.as_ref().and_then(|p| p.merchant_connector_id.clone()),
+        merchant_connector_id: payment_attempt
+            .as_ref()
+            .and_then(|p| p.merchant_connector_id.clone()),
         customer: None,
         merchant_reference_id: payment_intent.merchant_reference_id,
-        description: payment_intent.description.map(|val| val.get_string_repr().to_string()),
+        description: payment_intent
+            .description
+            .map(|val| val.get_string_repr().to_string()),
         attempt_count: payment_intent.attempt_count,
         error: payment_attempt
             .as_ref()
             .and_then(|p| p.error.as_ref())
             .map(api_models::payments::ErrorDetails::foreign_from),
-        cancellation_reason: payment_attempt.as_ref().and_then(|p| p.cancellation_reason.clone()),
+        cancellation_reason: payment_attempt
+            .as_ref()
+            .and_then(|p| p.cancellation_reason.clone()),
         modified_at: payment_attempt.as_ref().map(|p| p.modified_at),
         last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
     }
