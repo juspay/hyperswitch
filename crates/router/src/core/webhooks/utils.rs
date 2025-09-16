@@ -1,9 +1,15 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    crypto::{GenerateDigest, Sha256},
+    consts::BASE64_ENGINE_URL_SAFE_NO_PAD,
+    errors::CustomResult,
+    ext_traits::ValueExt
+};
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
 use router_env::tracing;
+use base64::Engine;
 
 use super::MERCHANT_ID;
 use crate::{
@@ -152,12 +158,18 @@ pub(crate) fn get_idempotent_event_id(
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
-    match delivery_attempt {
+    let base_string = match delivery_attempt {
         WebhookDeliveryAttempt::InitialAttempt => common_prefix,
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
             common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
         }
-    }
+    };
+
+    // Hash the base string with SHA256 and encode with URL-safe base64 without padding
+    let digest = Sha256
+        .generate_digest(base_string.as_bytes())
+        .expect("SHA256 digest generation failed");
+    BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest)
 }
 
 #[inline]
