@@ -1180,7 +1180,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
- #[cfg(feature = "v1")]
+#[cfg(feature = "v1")]
 impl From<api_models::subscription::CreateSubscriptionRequest> for CustomerDetails {
     fn from(request: api_models::subscription::CreateSubscriptionRequest) -> Self {
         let customer_id = request.get_customer_id().map(ToOwned::to_owned);
