@@ -7846,7 +7846,15 @@ pub async fn revenue_recovery_list_payments(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            // Create futures for all workflow lookups
+            // Get all billing connector account IDs 
+            let billing_connector_ids: Vec<_> = list
+                .iter()
+                .map(|(payment_intent, _)| {
+                    payment_intent.get_billing_merchant_connector_account_id()
+                })
+                .collect();
+
+            // Create futures for workflow lookups
             let workflow_futures: Vec<_> = list
                 .iter()
                 .map(|(payment_intent, _)| {
@@ -7854,16 +7862,44 @@ pub async fn revenue_recovery_list_payments(
                 })
                 .collect();
 
-            // Execute all futures concurrently
+            let billing_connector_futures: Vec<_> = billing_connector_ids
+                .into_iter()
+                .map(|billing_mca_id| {
+                    let state_clone = state.clone();
+                    let merchant_context_clone = merchant_context.clone();
+                    
+                    async move {
+                        if let Some(billing_mca_id) = billing_mca_id {
+                            db.find_merchant_connector_account_by_id(
+                                &(&state_clone).into(),
+                                &billing_mca_id,
+                                merchant_context_clone.get_merchant_key_store(),
+                            )
+                            .await
+                            .ok()
+                        } else {
+                            None
+                        }
+                    }
+                })
+                .collect();
+                
             let workflow_results = join_all(workflow_futures).await;
+            let billing_connector_results = join_all(billing_connector_futures).await;
 
             let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> =
                 list
                 .into_iter()    
                 .zip(workflow_results.into_iter())
-                .map(|((payment_intent, payment_attempt),workflow_result)| {
-                    // Get workflow entries
+                .zip(billing_connector_results.into_iter())
+                .map(|(((payment_intent, payment_attempt), workflow_result), billing_connector_account)| {
                     let (calculate_workflow, execute_workflow) = workflow_result.unwrap_or((None, None));
+
+                    // Get retry threshold from billing connector account
+                    let max_retry_threshold = billing_connector_account
+                        .as_ref()
+                        .and_then(|mca| mca.get_retry_threshold())
+                        .unwrap_or(0) as i16; // Default fallback
                     
                     // Use custom mapping function
                     map_to_recovery_payment_item(
@@ -7871,6 +7907,7 @@ pub async fn revenue_recovery_list_payments(
                         payment_attempt,
                         calculate_workflow,
                         execute_workflow,
+                        max_retry_threshold
                     )
                 }).collect();
 

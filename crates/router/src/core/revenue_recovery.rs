@@ -56,6 +56,8 @@ pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 
+use common_enums::enums::ProcessTrackerStatus;
+
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -1146,17 +1148,17 @@ fn map_recovery_status(
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
     attempt_count: i16,
+    max_retry_threshold:i16
 ) -> RecoveryStatus {
 
-
     let (calculate_business_status, calculate_process_tracker_status) = if let Some(calculate) = calculate_workflow {
-        (Some(calculate.business_status.to_uppercase()), Some(calculate.status.to_string().to_uppercase()))
+        (Some(calculate.business_status.clone()), Some(calculate.status.to_string().to_uppercase()))
     } else {
         (None, None)
     };
     
     let (execute_business_status, execute_process_tracker_status) = if let Some(execute) = execute_workflow {
-        (Some(execute.business_status.to_uppercase()), Some(execute.status.to_string().to_uppercase()))
+        (Some(execute.business_status.clone()), Some(execute.status.to_string().to_uppercase()))
     } else {
         (None, None)
     };
@@ -1168,30 +1170,35 @@ fn map_recovery_status(
                 execute_business_status, execute_process_tracker_status) {
                 // Queued status conditions
                 (Some(cal_biz_status), Some(cal_pt_status),_,_) if 
-                    (cal_biz_status == "CALCULATE_WORKFLOW_QUEUED" && cal_pt_status == "NEW") ||
-                    (cal_biz_status == "PENDING" && cal_pt_status == "NEW") ||
-                    (cal_biz_status == "PENDING" && cal_pt_status == "PENDING") =>RecoveryStatus::Queued,
+                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_QUEUED && cal_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
+                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
+                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::Processing.to_string().to_uppercase()) ||
+                    (cal_biz_status == business_status::PENDING && cal_pt_status == ProcessTrackerStatus::Pending.to_string().to_uppercase()) =>RecoveryStatus::Queued,
                 
                 // Scheduled status conditions
-                (Some(cal_biz_status), Some(cal_pt_status),_, _) if 
-                    (cal_biz_status == "CALCULATE_WORKFLOW_SCHEDULED" && cal_pt_status == "FINISH") ||
-                    (exe_biz_status == "PENDING" && exe_pt_status == "NEW") ||
-                    (exe_biz_status == "PENDING" && exe_pt_status == "PENDING") ||
-                    (exe_biz_status == "PENDING" && exe_pt_status == "PROCESSSTARTED") => RecoveryStatus::Scheduled,
+                (Some(cal_biz_status), Some(cal_pt_status),Some(exe_biz_status), Some(exe_pt_status)) if 
+                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_SCHEDULED && cal_pt_status == ProcessTrackerStatus::Finish.to_string().to_uppercase()) ||
+                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::New.to_string().to_uppercase()) ||
+                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::Pending.to_string().to_uppercase()) ||
+                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::ProcessStarted.to_string().to_uppercase()) => RecoveryStatus::Scheduled,
 
                 (Some(cal_biz_status), Some(cal_pt_status),Some(exe_biz_status), Some(exe_pt_status)) if 
-                    (cal_biz_status == "CALCULATE_WORKFLOW_PROCESSING" && cal_pt_status == "PROCESSING") ||
-                    (exe_biz_status == "PENDING" && exe_pt_status == "PROCESSING") => RecoveryStatus::Processing,
+                    (cal_biz_status == business_status::CALCULATE_WORKFLOW_PROCESSING && cal_pt_status ==  ProcessTrackerStatus::Processing.to_string().to_uppercase()) ||
+                    (exe_biz_status == business_status::PENDING && exe_pt_status == ProcessTrackerStatus::Processing.to_string().to_uppercase()) => RecoveryStatus::Processing,
                 
                 // Unrecoverable status conditions
                 (Some(cal_biz_status), _,_,_) if 
-                    cal_biz_status == "CALCULATE_WORKFLOW_FINISH" ||
-                    cal_biz_status == "RETRIES_EXCEEDED" ||
-                    cal_biz_status == "FAILURE" ||
-                    cal_biz_status == "GLOBAL_FAILURE" => RecoveryStatus::Unrecoverable,
+                    cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH ||
+                    cal_biz_status == business_status::RETRIES_EXCEEDED ||
+                    cal_biz_status == business_status::FAILURE ||
+                    cal_biz_status == business_status::GLOBAL_FAILURE => RecoveryStatus::Unrecoverable,
                 
                 // Default fallback
-                _ => RecoveryStatus::Monitoring,
+                _ => if attempt_count > max_retry_threshold {
+                    RecoveryStatus::NoPicked
+                } else {
+                    RecoveryStatus::Monitoring
+                }
             }
         }
         
@@ -1221,6 +1228,7 @@ pub fn map_to_recovery_payment_item(
     payment_attempt: Option<PaymentAttempt>,
     calculate_workflow: Option<ProcessTrackerStorage>,
     execute_workflow: Option<ProcessTrackerStorage>,
+    max_retry_threshold:i16
 ) -> RecoveryPaymentsListResponseItem {
 
     // Map the recovery status
@@ -1229,6 +1237,7 @@ pub fn map_to_recovery_payment_item(
         calculate_workflow.as_ref(),
         execute_workflow.as_ref(),
         payment_intent.attempt_count,
+        max_retry_threshold,
     );
     
     RecoveryPaymentsListResponseItem  {
