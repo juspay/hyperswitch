@@ -2832,11 +2832,7 @@ impl ForeignTryFrom<String> for AustraliaStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "newsouthwales" => Ok(Self::NSW),
                     "queensland" => Ok(Self::QLD),
@@ -3209,11 +3205,7 @@ impl ForeignTryFrom<String> for JapanStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "aichi" => Ok(Self::Aichi),
                     "akita" => Ok(Self::Akita),
@@ -3280,11 +3272,7 @@ impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "amnatcharoen" => Ok(Self::AmnatCharoen),
                     "angthong" => Ok(Self::AngThong),
@@ -3824,11 +3812,7 @@ impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "auckland" | "tamakimakaurau" => Ok(Self::Auckland),
                     "bayofplenty" | "toimoana" => Ok(Self::BayOfPlenty),
@@ -3865,11 +3849,7 @@ impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "centralsingapore" => Ok(Self::CentralSingapore),
                     "northeast" => Ok(Self::NorthEast),
@@ -3894,11 +3874,7 @@ impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
                 match state.as_str() {
                     "abra" => Ok(Self::Abra),
                     "agusandelnorte" | "hilagangagusan" => Ok(Self::AgusanDelNorte),
@@ -4030,11 +4006,8 @@ impl ForeignTryFrom<String> for IndiaStatesAbbreviation {
         match state_abbreviation_check {
             Ok(state_abbreviation) => Ok(state_abbreviation),
             Err(_) => {
-                let state = normalize_string(value).map_err(|_e| {
-                    error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    })
-                })?;
+                let state = normalize_state(value)?;
+
                 match state.as_str() {
                     "andamanandnicobarislands" => Ok(Self::AndamanAndNicobarIslands),
                     "andhrapradesh" => Ok(Self::AndhraPradesh),
@@ -6922,6 +6895,15 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
 }
+
+fn normalize_state(value: String) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    normalize_string(value).map_err(|_e| {
+        error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
+            field_name: "address.state",
+        })
+    })
+}
+
 #[cfg(feature = "frm")]
 pub trait FrmTransactionRouterDataRequest {
     fn is_payment_successful(&self) -> Option<bool>;
