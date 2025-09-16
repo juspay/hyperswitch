@@ -1,6 +1,6 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
-use common_utils::{id_type, types as util_types};
+use common_utils::{id_type, pii, types as util_types};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -77,6 +77,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub next_billing_at: Option<PrimitiveDateTime>,
     /// Invoice Starting Time
     pub billing_started_at: Option<PrimitiveDateTime>,
+    /// metadata of the merchant
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug)]
@@ -153,7 +155,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             statement_descriptor: None,
             order_details: None,
             allowed_payment_method_types: None,
-            metadata: None,
+            metadata: data.metadata.clone(),
             connector_metadata: None,
             feature_metadata: None,
             payment_link_enabled: None,
@@ -178,6 +180,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,
+            metadata: None,
         }
     }
 }

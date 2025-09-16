@@ -13,28 +13,28 @@ use common_utils::{
 use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
-    router_request_types::revenue_recovery::RevenueRecoveryRecordBackRequest,
-    router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
-    types::RevenueRecoveryRecordBackRouterData,
-};
+use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        revenue_recovery::InvoiceRecordBack,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        revenue_recovery::InvoiceRecordBackRequest, AccessTokenRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse, ConnectorInfo, PaymentsResponseData,
+        RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -560,24 +560,19 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chargebee
     }
 }
 
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-impl
-    ConnectorIntegration<
-        RecoveryRecordBack,
-        RevenueRecoveryRecordBackRequest,
-        RevenueRecoveryRecordBackResponse,
-    > for Chargebee
+impl ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+    for Chargebee
 {
     fn get_headers(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_url(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
@@ -600,7 +595,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let amount = utils::convert_amount(
@@ -616,20 +611,20 @@ impl
 
     fn build_request(
         &self,
-        req: &RevenueRecoveryRecordBackRouterData,
+        req: &InvoiceRecordBackRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::RevenueRecoveryRecordBackType::get_url(
+                .url(&types::InvoiceRecordBackType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::RevenueRecoveryRecordBackType::get_headers(
+                .headers(types::InvoiceRecordBackType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::RevenueRecoveryRecordBackType::get_request_body(
+                .set_body(types::InvoiceRecordBackType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -638,10 +633,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &RevenueRecoveryRecordBackRouterData,
+        data: &InvoiceRecordBackRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RevenueRecoveryRecordBackRouterData, errors::ConnectorError> {
+    ) -> CustomResult<InvoiceRecordBackRouterData, errors::ConnectorError> {
         let response: chargebee::ChargebeeRecordbackResponse = res
             .response
             .parse_struct("chargebee ChargebeeRecordbackResponse")
