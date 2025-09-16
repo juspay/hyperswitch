@@ -43,6 +43,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
+    hyperswitch_ai_interaction::HyperswitchAiInteractionInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -4123,6 +4124,29 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     > {
         self.diesel_store
             .list_user_authentication_methods_for_email_domain(email_domain)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl HyperswitchAiInteractionInterface for KafkaStore {
+    async fn insert_hyperswitch_ai_interaction(
+        &self,
+        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
+    ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
+        self.diesel_store
+            .insert_hyperswitch_ai_interaction(hyperswitch_ai_interaction)
+            .await
+    }
+
+    async fn list_hyperswitch_ai_interactions(
+        &self,
+        merchant_id: Option<id_type::MerchantId>,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
+        self.diesel_store
+            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
             .await
     }
 }

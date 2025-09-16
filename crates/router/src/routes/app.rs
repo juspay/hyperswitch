@@ -17,7 +17,7 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeaders},
+    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -152,6 +152,10 @@ impl SessionState {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
+    }
+    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+        let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
+        GrpcHeadersUcs::builder().tenant_id(tenant_id)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -2339,12 +2343,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route
