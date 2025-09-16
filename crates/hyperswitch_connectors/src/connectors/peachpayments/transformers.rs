@@ -16,7 +16,6 @@ use hyperswitch_interfaces::{
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use strum::Display;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
@@ -70,50 +69,72 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing: Routing,
     pub card: CardDetails,
     pub amount: AmountDetails,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub three_ds_data: Option<ThreeDSData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde[rename_all = "camelCase"]]
 pub struct MerchantInformation {
-    pub client_merchant_reference_id: String,
-    pub name: String,
-    pub mcc: String,
+    pub client_merchant_reference_id: Secret<String>,
+    pub name: Secret<String>,
+    pub mcc: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<String>,
+    pub mobile: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
+    pub address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<String>,
+    pub region_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<String>,
+    pub merchant_type: Option<MerchantType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<String>,
+    pub website_url: Option<url::Url>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde[rename_all = "lowercase"]]
+pub enum MerchantType {
+    Standard,
+    Sub,
+    Iso,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde[rename_all = "camelCase"]]
 pub struct Routing {
-    pub route: String,
-    pub mid: String,
-    pub tid: String,
+    pub route: Route,
+    pub mid: Secret<String>,
+    pub tid: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<String>,
+    pub visa_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<String>,
+    pub master_card_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<String>,
+    pub sub_mid: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<String>,
+    pub amex_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde[rename_all = "snake_case"]]
+pub enum Route {
+    ExipayEmulator,
+    AbsaBase24,
+    NedbankPostbridge,
+    AbsaPostbridgeEcentric,
+    PostbridgeDirecttransact,
+    PostbridgeEfficacy,
+    FiservLloyds,
+    NfsIzwe,
+    AbsaHpsZambia,
+    EcentricEcommerce,
+    UnitTestEmptyConfig,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -128,38 +149,13 @@ pub struct CardDetails {
     pub cvv: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct RefundCardDetails {
-    pub pan: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_name: Option<Secret<String>>,
-    pub expiry_year: Secret<String>,
-    pub expiry_month: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<Secret<String>>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde[rename_all = "camelCase"]]
 pub struct AmountDetails {
     pub amount: MinorUnit,
     pub currency_code: String,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde[rename_all = "camelCase"]]
-pub struct ThreeDSData {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cavv: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tavv: Option<Secret<String>>,
-    pub eci: String,
-    pub ds_trans_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub xid: Option<String>,
-    pub authentication_status: AuthenticationStatus,
-    pub three_ds_version: String,
+    pub display_amount: Option<String>,
 }
 
 // Confirm Transaction Request (for capture)
@@ -199,6 +195,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsCaptureRouterData>> for Peachpaym
         let amount = AmountDetails {
             amount: amount_in_cents,
             currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
         };
 
         let confirmation_data = EcommerceCardPaymentOnlyConfirmationData { amount };
@@ -271,57 +268,40 @@ impl TryFrom<&PaymentsCancelRouterData> for PeachpaymentsVoidRequest {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-pub enum AuthenticationStatus {
-    Y, // Fully authenticated
-    A, // Attempted authentication / liability shift
-    N, // Not authenticated / failed
-}
-
-impl From<&str> for AuthenticationStatus {
-    fn from(eci: &str) -> Self {
-        match eci {
-            "05" | "06" => Self::Y,
-            "07" => Self::A,
-            _ => Self::N,
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PeachPaymentsConnectorMetadataObject {
-    pub client_merchant_reference_id: String,
-    pub name: String,
-    pub mcc: String,
+    pub client_merchant_reference_id: Secret<String>,
+    pub name: Secret<String>,
+    pub mcc: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mobile: Option<String>,
+    pub mobile: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
+    pub address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<String>,
+    pub region_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_type: Option<String>,
+    pub merchant_type: Option<MerchantType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub website_url: Option<String>,
-    pub route: String,
-    pub mid: String,
-    pub tid: String,
+    pub website_url: Option<url::Url>,
+    pub route: Route,
+    pub mid: Secret<String>,
+    pub tid: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub visa_payment_facilitator_id: Option<String>,
+    pub visa_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub master_card_payment_facilitator_id: Option<String>,
+    pub master_card_payment_facilitator_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub_mid: Option<String>,
+    pub sub_mid: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amex_id: Option<String>,
+    pub amex_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
@@ -379,55 +359,14 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                 let amount = AmountDetails {
                     amount: amount_in_cents,
                     currency_code: item.router_data.request.currency.to_string(),
+                    display_amount: None,
                 };
-
-                // Extract 3DS data if available
-                let three_ds_data = item
-                    .router_data
-                    .request
-                    .authentication_data
-                    .as_ref()
-                    .and_then(|auth_data| {
-                        // Only include 3DS data if we have essential fields (ECI is most critical)
-                        if let Some(eci) = &auth_data.eci {
-                            let ds_trans_id = auth_data
-                                .ds_trans_id
-                                .clone()
-                                .or_else(|| auth_data.threeds_server_transaction_id.clone())?;
-
-                            // Determine authentication status based on ECI value
-                            let authentication_status = eci.as_str().into();
-
-                            // Convert message version to string, handling None case
-                            let three_ds_version = auth_data.message_version.as_ref().map(|v| {
-                                let version_str = v.to_string();
-                                let mut parts = version_str.split('.');
-                                match (parts.next(), parts.next()) {
-                                    (Some(major), Some(minor)) => format!("{}.{}", major, minor),
-                                    _ => v.to_string(), // fallback if format unexpected
-                                }
-                            })?;
-
-                            Some(ThreeDSData {
-                                cavv: Some(auth_data.cavv.clone()),
-                                tavv: None, // Network token field - not available in Hyperswitch AuthenticationData
-                                eci: eci.clone(),
-                                ds_trans_id,
-                                xid: None, // Legacy 3DS 1.x/network token field - not available in Hyperswitch AuthenticationData
-                                authentication_status,
-                                three_ds_version,
-                            })
-                        } else {
-                            None
-                        }
-                    });
 
                 let ecommerce_data = EcommerceCardPaymentOnlyTransactionData {
                     merchant_information,
                     routing,
                     card,
                     amount,
-                    three_ds_data,
                 };
 
                 // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -469,18 +408,16 @@ impl TryFrom<&ConnectorAuthType> for PeachpaymentsAuthType {
 }
 // Card Gateway API Response
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum PeachpaymentsPaymentStatus {
     Successful,
     Pending,
     Authorized,
     Approved,
-    #[serde(rename = "approved_confirmed")]
     ApprovedConfirmed,
     Declined,
     Failed,
     Reversed,
-    #[serde(rename = "threeds_required")]
     ThreedsRequired,
     Voided,
 }
@@ -509,9 +446,8 @@ impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
 #[serde[rename_all = "camelCase"]]
 pub struct PeachpaymentsPaymentsResponse {
     pub transaction_id: String,
-    pub response_code: ResponseCode,
+    pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
 }
 
@@ -520,24 +456,26 @@ pub struct PeachpaymentsPaymentsResponse {
 #[serde[rename_all = "camelCase"]]
 pub struct PeachpaymentsConfirmResponse {
     pub transaction_id: String,
-    pub response_code: ResponseCode,
+    pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde[rename_all = "camelCase"]]
 #[serde(untagged)]
 pub enum ResponseCode {
     Text(String),
     Structured {
-        value: ResponseCodeValue,
+        value: String,
         description: String,
+        terminal_outcome_string: Option<String>,
+        receipt_string: Option<String>,
     },
 }
 
 impl ResponseCode {
-    pub fn value(&self) -> Option<&ResponseCodeValue> {
+    pub fn value(&self) -> Option<&String> {
         match self {
             Self::Structured { value, .. } => Some(value),
             _ => None,
@@ -559,33 +497,48 @@ impl ResponseCode {
     }
 }
 
-#[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ResponseCodeValue {
-    #[serde(rename = "00", alias = "08")]
-    Success,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct EcommerceCardPaymentOnlyResponseData {
-    pub card: Option<CardResponseData>,
-    pub amount: Option<AmountDetails>,
-    pub stan: Option<String>,
-    pub rrn: Option<String>,
-    #[serde(rename = "approvalCode")]
-    pub approval_code: Option<String>,
-    #[serde(rename = "merchantAdviceCode")]
-    pub merchant_advice_code: Option<String>,
-    pub description: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde[rename_all = "camelCase"]]
-pub struct CardResponseData {
-    pub bin_number: Option<String>,
-    pub masked_pan: Option<String>,
-    pub cardholder_name: Option<String>,
-    pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>,
+pub struct EcommerceCardPaymentOnlyResponseData {
+    pub amount: Option<AmountDetails>,
+    pub stan: Option<Secret<String>>,
+    pub rrn: Option<Secret<String>>,
+    pub approval_code: Option<String>,
+    pub merchant_advice_code: Option<String>,
+    pub description: Option<String>,
+    pub trace_id: Option<String>,
+}
+
+fn is_payment_success(value: Option<&String>) -> bool {
+    if let Some(val) = value {
+        val == "00" || val == "08" || val == "X94"
+    } else {
+        false
+    }
+}
+
+fn get_error_code(response_code: Option<&ResponseCode>) -> String {
+    response_code
+        .and_then(|code| code.value())
+        .map(|val| val.to_string())
+        .unwrap_or(
+            response_code
+                .and_then(|code| code.as_text())
+                .map(|text| text.to_string())
+                .unwrap_or(NO_ERROR_CODE.to_string()),
+        )
+}
+
+fn get_error_message(response_code: Option<&ResponseCode>) -> String {
+    response_code
+        .and_then(|code| code.description())
+        .map(|desc| desc.to_string())
+        .unwrap_or(
+            response_code
+                .and_then(|code| code.as_text())
+                .map(|text| text.to_string())
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+        )
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, PaymentsResponseData>>
@@ -598,20 +551,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsPaymentsResponse, T, Payme
         let status = common_enums::AttemptStatus::from(item.response.transaction_result);
 
         // Check if it's an error response
-        let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
+        let response = if !is_payment_success(
+            item.response
+                .response_code
+                .as_ref()
+                .and_then(|code| code.value()),
+        ) {
             Err(ErrorResponse {
-                code: item
-                    .response
-                    .response_code
-                    .value()
-                    .map(|val| val.to_string())
-                    .unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_code
-                    .description()
-                    .map(|desc| desc.to_string())
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
                 reason: item
                     .response
                     .ecommerce_card_payment_only_transaction_data
@@ -658,20 +606,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsConfirmResponse, T, Paymen
         let status = common_enums::AttemptStatus::from(item.response.transaction_result);
 
         // Check if it's an error response
-        let response = if item.response.response_code.value() != Some(&ResponseCodeValue::Success) {
+        let response = if !is_payment_success(
+            item.response
+                .response_code
+                .as_ref()
+                .and_then(|code| code.value()),
+        ) {
             Err(ErrorResponse {
-                code: item
-                    .response
-                    .response_code
-                    .value()
-                    .map(|val| val.to_string())
-                    .unwrap_or(NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .response_code
-                    .description()
-                    .map(|desc| desc.to_string())
-                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                code: get_error_code(item.response.response_code.as_ref()),
+                message: get_error_message(item.response.response_code.as_ref()),
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: Some(status),
@@ -720,6 +663,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         let amount = AmountDetails {
             amount: amount_in_cents,
             currency_code: item.router_data.request.currency.to_string(),
+            display_amount: None,
         };
 
         let confirmation_data = EcommerceCardPaymentOnlyConfirmationData { amount };
