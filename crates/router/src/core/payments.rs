@@ -4950,7 +4950,7 @@ where
                     state,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
-                    call_connector_action
+                    call_connector_action,
                 )
                 .await?;
 

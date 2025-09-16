@@ -1260,7 +1260,10 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
-    let is_transformation_complete = !matches!(response.transformation_status(), payments_grpc::WebhookTransformationStatus::Incomplete);
+    let is_transformation_complete = !matches!(
+        response.transformation_status(),
+        payments_grpc::WebhookTransformationStatus::Incomplete
+    );
 
     Ok(WebhookTransformData {
         event_type,
