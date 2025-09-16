@@ -299,6 +299,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let header_payload = state
             .get_grpc_headers_ucs()
             .external_vault_proxy_metadata(None);
+        let connector_name = self.connector.clone();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
@@ -324,51 +325,47 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                // Extract and store access token if present
-                if let Some(access_token) =
-                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
-                {
-                    if let Err(error) = set_access_token_for_ucs(
-                        state,
-                        merchant_context,
-                        &self.connector,
-                        access_token,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from setup mandate response"
-                        );
-                    } else {
-                        logger::debug!(
-                            "Successfully stored access token from UCS setup mandate response"
-                        );
-                    }
-                }
+        // Extract and store access token if present
+        if let Some(access_token) =
+            get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+        {
+            if let Err(error) = set_access_token_for_ucs(
+                state,
+                merchant_context,
+                &connector_name,
+                access_token,
+            )
+            .await
+            {
+                logger::error!(
+                    ?error,
+                    "Failed to store UCS access token from setup mandate response"
+                );
+            } else {
+                logger::debug!("Successfully stored access token from UCS setup mandate response");
+            }
+        }
 
-                // Extract and store access token if present
-                if let Some(access_token) =
-                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
-                {
-                    if let Err(error) = set_access_token_for_ucs(
-                        state,
-                        merchant_context,
-                        &self.connector,
-                        access_token,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from setup mandate response"
-                        );
-                    } else {
-                        logger::debug!(
-                            "Successfully stored access token from UCS setup mandate response"
-                        );
-                    }
-                }
+        // Extract and store access token if present
+        if let Some(access_token) =
+            get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+        {
+            if let Err(error) = set_access_token_for_ucs(
+                state,
+                merchant_context,
+                &connector_name,
+                access_token,
+            )
+            .await
+            {
+                logger::error!(
+                    ?error,
+                    "Failed to store UCS access token from setup mandate response"
+                );
+            } else {
+                logger::debug!("Successfully stored access token from UCS setup mandate response");
+            }
+        }
 
                 router_data.status = status;
                 router_data.response = router_data_response;
