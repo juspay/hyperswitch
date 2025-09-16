@@ -1247,7 +1247,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 mandate_type,
             )
             .await?;
-
+        println!("$$$${:?}", unified_authentication_service_flow.clone());
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
                 helpers::UnifiedAuthenticationServiceFlow::ClickToPayInitiate => {
@@ -1376,6 +1376,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
+                            None,
                             None
                         )
                         .await?;
@@ -1393,20 +1394,44 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let (authentication_connector, three_ds_connector_account) =
                     authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let authentication_connector_name = authentication_connector.to_string();
-                let authentication = authentication::utils::create_new_authentication(
+                println!("324343243{:?}",acquirer_details.clone());
+                let authentication_id =
+                common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
+                let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) = if let Some(details) = &acquirer_details {
+                    (
+                        Some(details.acquirer_bin.clone()),
+                        Some(details.acquirer_merchant_id.clone()),
+                        details.acquirer_country_code.clone(),
+                    )
+                } else {
+                    (None, None, None)
+                };
+                
+                let authentication = uas_utils::create_new_authentication(
                     state,
                     business_profile.merchant_id.clone(),
-                    authentication_connector_name.clone(),
-                    token,
+                    Some(authentication_connector_name.clone()),
                     business_profile.get_id().to_owned(),
-                    payment_data.payment_intent.payment_id.clone(),
-                    three_ds_connector_account
+                    Some(payment_data.payment_intent.payment_id.clone()),
+                    Some(three_ds_connector_account
                         .get_mca_id()
                         .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while finding mca_id from merchant_connector_account")?,
+                        .attach_printable("Error while finding mca_id from merchant_connector_account")?),
+                    &authentication_id,
+                    payment_data.service_details.clone(),
+                    common_enums::AuthenticationStatus::Started,
+                    None,
                     payment_data.payment_attempt.organization_id.clone(),
                     payment_data.payment_intent.force_3ds_challenge,
                     payment_data.payment_intent.psd2_sca_exemption_type,
+                    Some(token),
+                    acquirer_bin,
+                    acquirer_merchant_id,
+                    acquirer_country_code,
+                    None,
+                    None,
+                    None,
+                    None,
                 )
                 .await?;
             let acquirer_configs = authentication
@@ -1449,7 +1474,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
                 notification_url,
             });
-
+            println!("333333{:?}",merchant_details.clone());
             let domain_address  = payment_data.address.get_payment_billing();
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
@@ -1472,6 +1497,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         authentication.acquirer_merchant_id.clone(),
                     )
                     .await?;
+                dbg!(pre_auth_response.clone());
                 let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
