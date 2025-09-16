@@ -32,18 +32,11 @@ use crate::{
     types::transformers::ForeignTryFrom,
 };
 
-fn convert_access_token_to_grpc(access_token: &AccessToken) -> payments_grpc::AccessToken {
-    payments_grpc::AccessToken {
-        token: access_token.token.peek().to_string(),
-        expires_in_seconds: access_token.expires,
-        token_type: "Bearer".to_string(),
-    }
-}
 
 pub fn convert_grpc_access_token_to_domain(grpc_token: &payments_grpc::AccessToken) -> AccessToken {
     AccessToken {
         token: masking::Secret::new(grpc_token.token.clone()),
-        expires: grpc_token.expires_in_seconds,
+        expires: grpc_token.expires_in_seconds.unwrap_or_default(),
     }
 }
 impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
@@ -92,7 +85,7 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         let access_token = router_data
             .access_token
             .as_ref()
-            .map(convert_access_token_to_grpc);
+            .map(|token| token.token.peek().to_string());
 
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
@@ -151,7 +144,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         let access_token = router_data
             .access_token
             .as_ref()
-            .map(convert_access_token_to_grpc);
+            .map(|token| token.token.peek().to_string());
 
         Ok(Self {
             amount: router_data.request.amount,
@@ -435,7 +428,7 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
             access_token: router_data
                 .access_token
                 .as_ref()
-                .map(convert_access_token_to_grpc),
+                .map(|token| token.token.peek().to_string()),
             session_token: None,
             order_tax_amount: None,
             order_category: None,
@@ -533,7 +526,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             access_token: router_data
                 .access_token
                 .as_ref()
-                .map(convert_access_token_to_grpc),
+                .map(|token| token.token.peek().to_string()),
             test_mode: None,
             payment_method_type: None,
         })
@@ -1307,6 +1300,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
+        access_token: None, // Webhooks typically don't need access tokens
     })
 }
 

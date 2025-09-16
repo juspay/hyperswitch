@@ -4304,23 +4304,23 @@ where
                 )
                 .await?;
 
-            // Retrieve cached access token before UCS call
-            let add_access_token_result = router_data
-                .add_access_token(
-                    state,
-                    &connector,
-                    merchant_context,
-                    payment_data.get_creds_identifier(),
-                )
-                .await?;
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                &router_data.payment_id,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
 
-            // Update router_data with the retrieved access token
-            let should_continue_with_ucs =
-                access_token::update_router_data_with_access_token_result(
-                    &add_access_token_result,
-                    &mut router_data,
-                    &call_connector_action,
-                );
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
+
+            let should_continue_with_ucs = true;
 
             if should_continue_with_ucs {
                 router_data
@@ -4960,23 +4960,22 @@ where
                 )
                 .await?;
 
-            // Retrieve cached access token before UCS call
-            let add_access_token_result = router_data
-                .add_access_token(
-                    state,
-                    &connector,
-                    merchant_context,
-                    payment_data.get_creds_identifier(),
-                )
-                .await?;
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                &router_data,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
 
-            // Update router_data with the retrieved access token
-            let should_continue_with_ucs =
-                access_token::update_router_data_with_access_token_result(
-                    &add_access_token_result,
-                    &mut router_data,
-                    &call_connector_action,
-                );
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
+
+            let should_continue_with_ucs = true;
 
             if should_continue_with_ucs {
                 router_data
