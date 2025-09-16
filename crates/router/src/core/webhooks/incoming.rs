@@ -4,6 +4,7 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
+pub use common_enums::enums::ProcessTrackerRunner;
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
@@ -788,6 +789,20 @@ async fn process_webhook_business_logic(
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed"),
+
+            api::WebhookFlow::Subscription => Box::pin(subscription_incoming_webhook_flow(
+                state.clone(),
+                req_state,
+                merchant_context.clone(),
+                business_profile,
+                webhook_details,
+                source_verified,
+                &connector,
+                &request_details,
+                event_type,
+            ))
+            .await
+            .attach_printable("Incoming webhook flow for subscription failed"),
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unsupported Flow Type received in incoming webhooks"),
@@ -2506,4 +2521,133 @@ fn insert_mandate_details(
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+async fn subscription_incoming_webhook_flow(
+    state: SessionState,
+    _req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    business_profile: domain::Profile,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+    connector: &ConnectorEnum,
+    _request_details: &IncomingWebhookRequestDetails<'_>,
+    event_type: webhooks::IncomingWebhookEvent,
+    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    // Only process invoice_generated events for MIT payments
+    if event_type != webhooks::IncomingWebhookEvent::InvoiceGenerated {
+        return Ok(WebhookResponseTracker::NoEffect);
+    }
+
+    if !source_verified {
+        logger::error!("Webhook source verification failed for subscription webhook flow");
+        return Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ));
+    }
+
+    // Parse the webhook body to extract MIT payment data
+    let mit_payment_data = match connector.id() {
+        "chargebee" => {
+            use hyperswitch_connectors::connectors::chargebee::transformers::{
+                ChargebeeInvoiceBody, ChargebeeMitPaymentData,
+            };
+
+            let webhook_body = ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(
+                &webhook_details.resource_object,
+            )
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to parse Chargebee invoice webhook body")?;
+
+            ChargebeeMitPaymentData::try_from(webhook_body)
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Failed to extract MIT payment data from Chargebee webhook")?
+        }
+        _ => {
+            return Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("Subscription webhook flow not supported for this connector");
+        }
+    };
+
+    logger::info!(
+        invoice_id = %mit_payment_data.invoice_id,
+        amount_due = %mit_payment_data.amount_due.get_amount_as_i64(),
+        currency = %mit_payment_data.currency_code,
+        status = %mit_payment_data.status,
+        subscription_id = ?mit_payment_data.subscription_id,
+        first_invoice = %mit_payment_data.first_invoice,
+        "Received invoice_generated webhook for MIT payment"
+    );
+
+    if mit_payment_data.first_invoice {
+        return Ok(WebhookResponseTracker::NoEffect);
+    }
+
+    // Find subscription by merchant_id and subscription_id to get payment_method_id
+    let subscription = state
+        .store
+        .find_by_merchant_id_subscription_id(
+            merchant_context.get_merchant_account().get_id(),
+            mit_payment_data
+                .subscription_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing subscription_id in MIT payment data")?
+                .clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to find subscription by merchant ID and subscription ID")?;
+
+    let payment_method_id = subscription
+        .payment_method_id
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("No payment method found for subscription")?;
+
+    logger::info!("Payment method ID found: {}", payment_method_id);
+
+    // Create tracking data for subscription MIT payment
+    let tracking_data =
+        api_models::process_tracker::subscription::SubscriptionWorkflowTrackingData {
+            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            profile_id: business_profile.get_id().clone(),
+            payment_method_id,
+            subscription_id: mit_payment_data.subscription_id,
+            invoice_id: mit_payment_data.invoice_id.clone(),
+            amount: mit_payment_data.amount_due,
+            currency: mit_payment_data.currency_code,
+            customer_id: mit_payment_data.customer_id,
+            connector_name: connector.id().to_string(),
+            billing_connector_mca_id: billing_connector_mca_id.clone(),
+        };
+
+    // Create process tracker entry for subscription MIT payment
+    let process_tracker_entry = diesel_models::ProcessTrackerNew {
+        id: generate_id(consts::ID_LENGTH, "proc"),
+        name: Some("SUBSCRIPTION_MIT_PAYMENT".to_string()),
+        tag: vec!["SUBSCRIPTION".to_string()],
+        runner: Some(ProcessTrackerRunner::SubscriptionsWorkflow.to_string()),
+        retry_count: 0,
+        schedule_time: Some(common_utils::date_time::now()),
+        rule: String::new(),
+        tracking_data: serde_json::to_value(&tracking_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        business_status: "Pending".to_string(),
+        status: diesel_models::enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: common_utils::date_time::now(),
+        updated_at: common_utils::date_time::now(),
+        version: common_types::consts::API_VERSION,
+    };
+
+    state
+        .store
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(WebhookResponseTracker::NoEffect)
 }

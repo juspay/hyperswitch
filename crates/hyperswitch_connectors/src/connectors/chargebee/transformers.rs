@@ -291,6 +291,7 @@ pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
     InvoiceDeleted,
+    InvoiceGenerated,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -575,6 +576,18 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::PaymentIntentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::PaymentIntentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::EventNotSupported,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
         }
     }
 }
