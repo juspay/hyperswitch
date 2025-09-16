@@ -5665,12 +5665,16 @@ where
             match primary_result {
                 Ok(data) => data,
                 Err(primary_error) => {
+                    // After the payment processing certificate is rotated for a new one, there will be a 20 minutes window before the old certificate is completely revoked.
+                    // During this period, Apple Pay tokens might still be encrypted with the old certificate.
+                    // To handle this, we attempt to decrypt the token using the transitional (old) certificate if the primary decryption (with the new certificate) fails.
                     if let (Some(ppc_backup), Some(ppc_key_backup)) = (
                         &apple_pay_payment_processing_details
                             .payment_processing_certificate_transitional,
                         &apple_pay_payment_processing_details
                             .payment_processing_certificate_key_transitional,
                     ) {
+                        logger::info!("Failed to decrypt apple pay token with primary credential, falling back to transitional credentials");
                         token_json.decrypt(ppc_backup, ppc_key_backup).await.change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("failed to decrypt apple pay token with both primary and backup certificates")?
                     } else {
                         return Err(primary_error
@@ -5680,8 +5684,6 @@ where
                 }
             }
         };
-
-        // check if backup certs are present, if yes try decrypting with them, if that fails too, throw an error
 
         let apple_pay_predecrypt_internal = apple_pay_data
             .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
