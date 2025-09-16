@@ -450,7 +450,11 @@ pub async fn list_roles_with_info(
         .into());
     }
 
-    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES
+        .values()
+        .cloned()
+        .filter(|role| !role.is_internal())
+        .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
