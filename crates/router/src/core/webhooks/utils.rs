@@ -1,15 +1,15 @@
 use std::marker::PhantomData;
 
+use base64::Engine;
 use common_utils::{
-    crypto::{GenerateDigest, Sha256},
     consts::BASE64_ENGINE_URL_SAFE_NO_PAD,
+    crypto::{GenerateDigest, Sha256},
     errors::CustomResult,
-    ext_traits::ValueExt
+    ext_traits::ValueExt,
 };
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
 use router_env::tracing;
-use base64::Engine;
 
 use super::MERCHANT_ID;
 use crate::{
