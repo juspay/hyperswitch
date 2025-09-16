@@ -299,6 +299,29 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::ChatSettings {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let chat_settings = value.get_inner();
+
+        let encryption_key = if chat_settings.enabled {
+            secret_management_client
+                .get_secret(chat_settings.encryption_key.clone())
+                .await?
+        } else {
+            chat_settings.encryption_key.clone()
+        };
+
+        Ok(value.transition_state(|chat_settings| Self {
+            encryption_key,
+            ..chat_settings
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::NetworkTokenizationService {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -450,9 +473,14 @@ pub(crate) async fn fetch_raw_secrets(
         })
         .await;
 
+    #[allow(clippy::expect_used)]
+    let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
+        .await
+        .expect("Failed to decrypt chat configs");
+
     Settings {
         server: conf.server,
-        chat: conf.chat,
+        chat,
         master_database,
         redis: conf.redis,
         log: conf.log,
