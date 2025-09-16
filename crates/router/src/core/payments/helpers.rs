@@ -4442,15 +4442,12 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    request: &api_models::payments::PaymentsRequest,
+    is_manual_retry_enabled: Option<bool>,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if matches!(
-                request.retry_action,
-                Some(api_models::enums::RetryAction::ManualRetry)
-            ) {
+            if matches!(is_manual_retry_enabled, Some(true)) {
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
@@ -4525,7 +4522,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can enable `manual_retry` in profile to try this payment again", payment_intent.status)
                         }
                     ))
             }

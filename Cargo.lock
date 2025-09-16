@@ -3388,8 +3388,7 @@ dependencies = [
 [[package]]
 name = "g2h"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d843f7c70cdae8a2452e0b2f463b7e483a57cece7687da89371d952d44e0445d"
+source = "git+https://github.com/juspay/g2h?rev=ebe5d2c38716abd7b1def43a6a0123a5e4193489#ebe5d2c38716abd7b1def43a6a0123a5e4193489"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",

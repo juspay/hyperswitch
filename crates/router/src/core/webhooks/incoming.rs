@@ -2373,7 +2373,7 @@ async fn update_connector_mandate_details(
                         .clone()
                         .get_required_value("merchant_connector_id")?;
 
-                    if mandate_details.payments.as_ref().map_or(true, |payments| {
+                    if mandate_details.payments.as_ref().is_none_or(|payments| {
                         !payments.0.contains_key(&merchant_connector_account_id)
                     }) {
                         // Update the payment attempt to maintain consistency across tables.
