@@ -470,6 +470,7 @@ async fn payments_create_core() {
         enable_partial_authorization: None,
         is_overcapture_enabled: None,
         enable_overcapture: None,
+        network_details: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -753,6 +754,7 @@ async fn payments_create_core_adyen_no_redirect() {
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
             enable_overcapture: None,
+            network_details: None,
         },
         vec![],
     ));

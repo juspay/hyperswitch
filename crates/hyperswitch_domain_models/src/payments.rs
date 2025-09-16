@@ -964,7 +964,7 @@ impl<F: Clone> PaymentConfirmData<F> {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentStatusData<F>
 where
     F: Clone,
