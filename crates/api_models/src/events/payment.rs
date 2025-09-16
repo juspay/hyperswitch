@@ -4,7 +4,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -20,7 +20,7 @@ use crate::{
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentsAggregateResponse, PaymentsSessionResponse,
-        RecoveryPaymentListResponse, RedirectionResponse,
+        RedirectionResponse,
     },
 };
 #[cfg(feature = "v1")]

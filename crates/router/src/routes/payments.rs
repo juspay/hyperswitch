@@ -1651,6 +1651,7 @@ pub async fn revenue_recovery_invoices_list(
     .await
 }
 
+#[cfg(feature = "v2")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
