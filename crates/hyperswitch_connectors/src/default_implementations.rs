@@ -7031,6 +7031,7 @@ default_imp_for_subscriptions!(
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
+    connectors::Peachpayments,
     connectors::Phonepe,
     connectors::Paypal,
     connectors::Powertranz,
