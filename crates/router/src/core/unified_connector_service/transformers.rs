@@ -874,8 +874,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.clone().expose().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.clone().expose().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.clone().expose().into())),
@@ -908,8 +910,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
             payments_grpc::Address {
                 first_name: details
-                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
@@ -940,9 +943,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
                 payments_grpc::Address {
                     first_name: details
-                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
                     last_name: details
-                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                     line1: details
                         .and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                     line2: details
@@ -967,8 +970,8 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 }
             });
         Ok(Self {
-            shipping_address: shipping.or(unified_payment_method_billing.clone()),
-            billing_address: billing.or(unified_payment_method_billing),
+            shipping_address: shipping,
+            billing_address: unified_payment_method_billing.or(billing),
         })
     }
 }

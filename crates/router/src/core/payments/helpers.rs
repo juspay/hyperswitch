@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1121,6 +1121,26 @@ pub fn validate_recurring_details_and_token(
             message: "Expected one out of recurring_details and mandate_id but got both".into()
         }))
     })?;
+
+    Ok(())
+}
+
+pub fn validate_overcapture_request(
+    enable_overcapture: &Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    capture_method: &Option<common_enums::CaptureMethod>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(overcapture) = enable_overcapture {
+        utils::when(
+            *overcapture.deref()
+                && !matches!(*capture_method, Some(common_enums::CaptureMethod::Manual)),
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid overcapture request: supported only with manual capture"
+                        .into()
+                }))
+            },
+        )?;
+    }
 
     Ok(())
 }
@@ -3991,6 +4011,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4075,6 +4096,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4157,6 +4179,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4511,15 +4534,12 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    request: &api_models::payments::PaymentsRequest,
+    is_manual_retry_enabled: Option<bool>,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if matches!(
-                request.retry_action,
-                Some(api_models::enums::RetryAction::ManualRetry)
-            ) {
+            if matches!(is_manual_retry_enabled, Some(true)) {
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
@@ -4594,7 +4614,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can enable `manual_retry` in profile to try this payment again", payment_intent.status)
                         }
                     ))
             }
@@ -4728,6 +4748,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_details: None,
         }
     }
 

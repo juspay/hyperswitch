@@ -2193,9 +2193,16 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
-    /// Time interval (in hours) for polling the connector to check dispute statuses
+    /// Time interval (in hours) for polling the connector to check  for new disputes
     #[schema(value_type = Option<i32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,
@@ -2542,8 +2549,16 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check dispute statuses
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,
@@ -2715,6 +2730,11 @@ pub struct ProfileResponse {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2888,8 +2908,16 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
 
+    /// Time interval (in hours) for polling the connector to check for new disputes
     #[schema(value_type = Option<u32>, example = 2)]
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
     /// Indicates if external vault is enabled or not.
     pub is_external_vault_enabled: Option<bool>,

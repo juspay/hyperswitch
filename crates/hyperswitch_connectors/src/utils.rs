@@ -1588,6 +1588,9 @@ impl AddressDetailsData for AddressDetails {
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
             )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
             _ => Ok(state.clone()),
         }
     }
@@ -2074,6 +2077,8 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn is_mandate_payment(&self) -> bool;
+    fn get_optional_connector_transaction_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2096,6 +2101,16 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             )
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+    fn is_mandate_payment(&self) -> bool {
+        matches!(self.setup_future_usage, Some(FutureUsage::OffSession))
+    }
+
+    fn get_optional_connector_transaction_id(&self) -> Option<String> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
+            _ => None,
         }
     }
 }
@@ -2411,6 +2426,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
@@ -2421,6 +2437,11 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_data"))
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
@@ -6314,8 +6335,9 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
-        payment_channel: None,
+        payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
+        enable_overcapture: None,
     }
 }
 

@@ -326,7 +326,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     let attempt_type = helpers::get_attempt_type(
                         &payment_intent,
                         &payment_attempt,
-                        request,
+                        business_profile.is_manual_retry_enabled,
                         "confirm",
                     )?;
 
@@ -662,6 +662,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_method_type = Option::<api_models::enums::PaymentMethodType>::foreign_from((
             payment_method_type,
             additional_pm_data.as_ref(),
+            payment_method,
         ));
 
         payment_attempt.payment_method_type = payment_method_type
@@ -829,6 +830,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -995,6 +997,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 business_profile.always_request_extended_authorization,
                 payment_data.payment_attempt.payment_method,
                 payment_data.payment_attempt.payment_method_type,
+            );
+        payment_data.payment_intent.enable_overcapture = payment_data
+            .payment_intent
+            .get_enable_overcapture_bool_if_connector_supports(
+                connector_data.connector_name,
+                business_profile.always_enable_overcapture,
+                &payment_data.payment_attempt.capture_method,
             );
         Ok(())
     }
@@ -1964,7 +1973,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
-
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
@@ -2017,6 +2025,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         enable_partial_authorization: payment_data
                             .payment_intent
                             .enable_partial_authorization,
+                        enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     })),
                     &m_key_store,
                     storage_scheme,

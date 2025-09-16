@@ -78,6 +78,8 @@ pub struct Profile {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -138,6 +140,7 @@ pub struct ProfileNew {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -198,6 +201,8 @@ pub struct ProfileUpdateInternal {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -255,6 +260,8 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             dispute_polling_interval,
+            is_manual_retry_enabled,
+            always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details,
         } = self;
@@ -343,6 +350,9 @@ impl ProfileUpdateInternal {
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: dispute_polling_interval.or(source.dispute_polling_interval),
+            is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
+            always_enable_overcapture: always_enable_overcapture
+                .or(source.always_enable_overcapture),
             is_external_vault_enabled: is_external_vault_enabled
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
@@ -411,6 +421,8 @@ pub struct Profile {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+    pub is_manual_retry_enabled: Option<bool>,
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -715,6 +727,8 @@ impl ProfileUpdateInternal {
             merchant_country_code: merchant_country_code.or(source.merchant_country_code),
             dispute_polling_interval: None,
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
+            is_manual_retry_enabled: None,
+            always_enable_overcapture: None,
         }
     }
 }
