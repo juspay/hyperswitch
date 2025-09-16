@@ -5502,12 +5502,30 @@ api_key = "Username"
 key1 = "Password"
 [paysafe.connector_webhook_details]
 merchant_secret = "Source verification key"
-[paysafe.metadata.account_id]
+[[paysafe.metadata.account_id.card.USD.three_ds]]
 name="account_id"
-label="Payment Method Account ID"
-placeholder="Enter Account ID"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
 required=true
-type="Text"
+type="Number"
+[[paysafe.metadata.account_id.card.USD.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Number"
+[[paysafe.metadata.account_id.card.EUR.three_ds]]
+name="account_id"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
+required=true
+type="Number"
+[[paysafe.metadata.account_id.card.EUR.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Number"
 
 [peachpayments]
 [[peachpayments.credit]]
