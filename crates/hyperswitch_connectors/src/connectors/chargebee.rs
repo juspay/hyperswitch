@@ -21,33 +21,32 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         revenue_recovery::InvoiceRecordBack,
-        CreateConnectorCustomer,
         subscriptions::GetSubscriptionPlans,
+        CreateConnectorCustomer,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest, subscriptions::GetSubscriptionPlansRequest,
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
-        revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData,GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, payments::ConnectorCustomer, subscriptions_v2::GetSubscriptionPlansV2, ConnectorCommon, ConnectorCommonExt,
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+        self, payments::ConnectorCustomer, subscriptions_v2::GetSubscriptionPlansV2,
+        ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
     },
     configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
     connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -57,12 +56,6 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
-use crate::{
-    connectors::chargebee::transformers::ChargebeeListPlansResponse,
-    constants::{self, headers},
-    types::ResponseRouterData,
-    utils,
-};
 use crate::{
     connectors::chargebee::transformers::ChargebeeListPlansResponse,
     constants::{self, headers},
