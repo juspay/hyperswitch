@@ -3,10 +3,8 @@
 import jsQR from "jsqr";
 import { getTimeoutMultiplier } from "../utils/RequestBodyUtils.js";
 
-// Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
-// Define constants for wait times with adaptive scaling
 const CONSTANTS = {
   TIMEOUT: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
   WAIT_TIME: Math.round(30000 * timeoutMultiplier), // 30s local, 45s CI
@@ -1193,14 +1191,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     }
   );
 
-  // The verification logic is now handled within the cy.request().then() callback above
-  // Only verify return URL for non-JSON responses, which will be handled by the standard flow
   cy.then(() => {
     if (
       responseContentType &&
       !responseContentType.includes("application/json")
     ) {
-      // Verify return URL after handling the specific connector
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
     }
   });
@@ -1238,7 +1233,6 @@ function upiRedirection(
         );
     }
   } else {
-    // For other connectors, nothing to do
     return;
   }
 
@@ -1513,31 +1507,26 @@ function handleFlow(
             });
         } else {
           cy.log(
-            "No iframe detected initially, waiting for dynamic iframe or executing direct callback"
+            "No iframe detected initially, checking for dynamic iframe or executing direct callback"
           );
 
-          // Wait a bit for dynamic iframes to appear
-          cy.wait(2000);
-
-          // Check again for dynamically added iframes
-          cy.get("body").then(($bodyAfterWait) => {
-            const iframesAfterWait = $bodyAfterWait.find("iframe");
-
-            if (iframesAfterWait.length > 0) {
-              cy.log(
-                "Dynamic iframe detected after wait, executing iframe flow"
-              );
-              cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
-                .should("be.visible")
-                .then(() => {
-                  callback(callbackArgs);
-                });
-            } else {
-              cy.log("No iframe found after wait, executing direct callback");
-              // Execute callback directly for non-iframe flows
-              callback(callbackArgs);
-            }
-          });
+          cy.get("body", { timeout: 3000 })
+            .should("exist")
+            .then(($body) => {
+              // Check if iframe appeared during the wait
+              if ($body.find("iframe").length > 0) {
+                cy.log("Dynamic iframe detected, executing iframe flow");
+                cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+                  .should("be.visible")
+                  .then(() => {
+                    callback(callbackArgs);
+                  });
+              } else {
+                cy.log("No iframe found, executing direct callback");
+                // Execute callback directly for non-iframe flows
+                callback(callbackArgs);
+              }
+            });
         }
       });
     }
