@@ -78,7 +78,7 @@ pub async fn list_payment_methods(
                 &req,
                 &payment_intent,
             ).await?
-            .store_gift_card_mca_in_redis(&payment_id, db).await
+            .store_gift_card_mca_in_redis(&payment_id, db, &profile).await
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone(), payment_intent.setup_future_usage))
             .perform_surcharge_calculation()
@@ -194,6 +194,7 @@ impl FilteredPaymentMethodsEnabled {
         self,
         payment_id: &id_type::GlobalPaymentId,
         db: &dyn crate::db::StorageInterface,
+        profile: &domain::Profile,
     ) -> FilteredPaymentMethodsEnabled {
         let gift_card_connector_id = self
             .0
@@ -203,7 +204,9 @@ impl FilteredPaymentMethodsEnabled {
 
         if let Some(gift_card_mca) = gift_card_connector_id {
             let gc_key = payment_id.get_gift_card_connector_key();
-            let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
+            let redis_expiry = profile
+                .get_order_fulfillment_time()
+                .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
             let redis_conn = db
                 .get_redis_conn()
