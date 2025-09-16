@@ -204,10 +204,26 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         item.response.payment_method.object,
                     ),
-                    card_network: Some(item.response.payment_method.card_type),
-                    card_isin: Some(item.response.payment_method.first_six),
                     // This none because this field is specific to stripebilling.
                     charge_id: None,
+                    // Need to populate these card info field
+                    card_info: api_models::payments::AdditionalCardInfo {
+                        card_network: Some(item.response.payment_method.card_type),
+                        card_isin: Some(item.response.payment_method.first_six),
+                        card_issuer: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        bank_code: None,
+                        last4: None,
+                        card_extended_bin: None,
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        card_holder_name: None,
+                        payment_checks: None,
+                        authentication_data: None,
+                        is_regulated: None,
+                        signature_network: None,
+                    },
                 },
             ),
             ..item.data
@@ -300,27 +316,27 @@ pub struct RecurlyRecordBackResponse {
 impl
     TryFrom<
         ResponseRouterDataV2<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             RecurlyRecordBackResponse,
-            recovery_flow_common_types::RevenueRecoveryRecordBackData,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_flow_common_types::InvoiceRecordBackData,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterDataV2
+    > for recovery_router_data_types::InvoiceRecordBackRouterDataV2
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterDataV2<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             RecurlyRecordBackResponse,
-            recovery_flow_common_types::RevenueRecoveryRecordBackData,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_flow_common_types::InvoiceRecordBackData,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         let merchant_reference_id = item.response.id;
         Ok(Self {
-            response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
+            response: Ok(recovery_response_types::InvoiceRecordBackResponse {
                 merchant_reference_id,
             }),
             ..item.data

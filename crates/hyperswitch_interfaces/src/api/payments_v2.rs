@@ -2,18 +2,22 @@
 
 use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
-    router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+    router_flow_types::{
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, CreateOrder, ExternalVaultProxy, IncrementalAuthorization,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        },
+        Authenticate, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
@@ -199,12 +203,56 @@ pub trait PaymentsPreProcessingV2:
 {
 }
 
+/// trait PaymentsPreAuthenticateV2
+pub trait PaymentsPreAuthenticateV2:
+    ConnectorIntegrationV2<
+    PreAuthenticate,
+    PaymentFlowData,
+    PaymentsPreAuthenticateData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsAuthenticateV2
+pub trait PaymentsAuthenticateV2:
+    ConnectorIntegrationV2<
+    Authenticate,
+    PaymentFlowData,
+    PaymentsAuthenticateData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentsPostAuthenticateV2
+pub trait PaymentsPostAuthenticateV2:
+    ConnectorIntegrationV2<
+    PostAuthenticate,
+    PaymentFlowData,
+    PaymentsPostAuthenticateData,
+    PaymentsResponseData,
+>
+{
+}
+
 /// trait PaymentsPostProcessingV2
 pub trait PaymentsPostProcessingV2:
     ConnectorIntegrationV2<
     PostProcessing,
     PaymentFlowData,
     PaymentsPostProcessingData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreate:
+    ConnectorIntegrationV2<
+    ExternalVaultProxy,
+    PaymentFlowData,
+    ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
 >
 {
@@ -236,5 +284,6 @@ pub trait PaymentV2:
     + PaymentPostSessionTokensV2
     + PaymentUpdateMetadataV2
     + PaymentCreateOrderV2
+    + ExternalVaultProxyPaymentsCreate
 {
 }

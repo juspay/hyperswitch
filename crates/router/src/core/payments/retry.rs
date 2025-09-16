@@ -3,6 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::ext_traits::OptionExt;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -25,7 +26,7 @@ use crate::{
         metrics,
     },
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
 #[instrument(skip_all)]
@@ -159,7 +160,31 @@ where
                         && clear_pan_possible
                         && business_profile.is_clear_pan_retries_enabled;
 
-                    let (connector, routing_decision) = if should_retry_with_pan {
+                    // Currently we are taking off_session as a source of truth to identify MIT payments.
+                    let is_mit_payment = payment_data
+                        .get_payment_intent()
+                        .off_session
+                        .unwrap_or(false);
+
+                    let (connector, routing_decision) = if is_mit_payment {
+                        let connector_routing_data =
+                            super::get_connector_data(&mut connector_routing_data)?;
+                        let payment_method_info = payment_data
+                            .get_payment_method_info()
+                            .get_required_value("payment_method_info")?
+                            .clone();
+                        let mandate_reference_id = payments::get_mandate_reference_id(
+                            connector_routing_data.action_type.clone(),
+                            connector_routing_data.clone(),
+                            payment_data,
+                            &payment_method_info,
+                        )?;
+                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id, //mandate_ref_id
+                        });
+                        (connector_routing_data.connector_data, None)
+                    } else if should_retry_with_pan {
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
                         (original_connector_data.clone(), None)
                     } else {
@@ -517,6 +542,11 @@ where
                 charges,
                 setup_future_usage_applied: None,
                 debit_routing_savings,
+                network_transaction_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_id
+                    .clone(),
+                is_overcapture_enabled: None,
             };
 
             #[cfg(feature = "v1")]
@@ -568,6 +598,7 @@ where
                 authentication_type: auth_update,
                 issuer_error_code: error_response.network_decline_code.clone(),
                 issuer_error_message: error_response.network_error_message.clone(),
+                network_details: Some(ForeignFrom::foreign_from(error_response)),
             };
 
             #[cfg(feature = "v1")]
@@ -715,6 +746,8 @@ pub fn make_new_payment_attempt(
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
+        network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_details: Default::default(),
     }
 }
 

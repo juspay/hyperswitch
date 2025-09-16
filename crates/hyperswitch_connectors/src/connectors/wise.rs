@@ -4,7 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "payouts")]
 use common_utils::request::{Method, RequestBuilder, RequestContent};
 #[cfg(feature = "payouts")]
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
 #[cfg(not(feature = "payouts"))]
 use error_stack::report;
@@ -20,7 +20,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
@@ -60,14 +62,14 @@ use crate::{types::ResponseRouterData, utils::convert_amount};
 #[derive(Clone)]
 pub struct Wise {
     #[cfg(feature = "payouts")]
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Wise {
     pub fn new() -> &'static Self {
         &Self {
             #[cfg(feature = "payouts")]
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -133,7 +135,7 @@ impl ConnectorCommon for Wise {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let default_status = response.status.unwrap_or_default().to_string();
+        let default_status = response.status.unwrap_or_default().get_status();
         match response.errors {
             Some(errs) => {
                 if let Some(e) = errs.first() {
@@ -147,6 +149,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 } else {
                     Ok(ErrorResponse {
@@ -159,6 +162,7 @@ impl ConnectorCommon for Wise {
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     })
                 }
             }
@@ -172,6 +176,7 @@ impl ConnectorCommon for Wise {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -308,7 +313,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let def_res = response.status.unwrap_or_default().to_string();
+        let def_res = response.status.unwrap_or_default().get_status();
         let errors = response.errors.unwrap_or_default();
         let (code, message) = if let Some(e) = errors.first() {
             (e.code.clone(), e.message.clone())
@@ -325,6 +330,7 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -752,6 +758,50 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wise {}
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Wise {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, ConnectorError> {
+        Ok(Box::new(common_utils::crypto::RsaSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
+        #[cfg(feature = "payouts")]
+        {
+            request
+                .headers
+                .get("X-Signature-SHA256")
+                .map(|header_value| header_value.as_bytes().to_vec())
+                .ok_or(ConnectorError::WebhookSignatureNotFound.into())
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, ConnectorError> {
+        #[cfg(feature = "payouts")]
+        {
+            Ok(request.body.to_vec())
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
@@ -819,4 +869,23 @@ impl IncomingWebhook for Wise {
     }
 }
 
-impl ConnectorSpecifications for Wise {}
+static WISE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Wise",
+    description: "The Wise connector enables cross-border money transfers by integrating with Wise's API to initiate, track, and manage international payouts efficiently.",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Wise {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&WISE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

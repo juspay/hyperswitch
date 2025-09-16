@@ -89,6 +89,7 @@ pub struct PaymentMethod {
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub external_vault_token_data: Option<Encryption>,
 }
 
 impl PaymentMethod {
@@ -167,6 +168,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
+    pub external_vault_token_data: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
@@ -242,6 +244,11 @@ pub enum PaymentMethodUpdate {
     ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
         connector_mandate_details: Option<pii::SecretSerdeValue>,
         network_transaction_id: Option<Secret<String>>,
+    },
+    ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
     },
 }
 
@@ -364,6 +371,7 @@ impl PaymentMethodUpdateInternal {
             network_token_payment_method_data: network_token_payment_method_data
                 .or(source.network_token_payment_method_data),
             external_vault_source: external_vault_source.or(source.external_vault_source),
+            external_vault_token_data: source.external_vault_token_data,
         }
     }
 }
@@ -670,6 +678,29 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data: None,
                 scheme: None,
             },
+            PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+                status,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status,
+                locker_id: None,
+                network_token_requestor_reference_id: None,
+                payment_method: None,
+                connector_mandate_details: connector_mandate_details
+                    .map(|mandate_details| mandate_details.expose()),
+                network_transaction_id,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                scheme: None,
+            },
         }
     }
 }
@@ -905,6 +936,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .network_token_payment_method_data
                 .clone(),
             external_vault_source: None,
+            external_vault_token_data: payment_method_new.external_vault_token_data.clone(),
         }
     }
 }

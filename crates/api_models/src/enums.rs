@@ -274,6 +274,8 @@ pub enum FieldType {
     UserBsbNumber,
     UserBankSortCode,
     UserBankRoutingNumber,
+    UserBankType { options: Vec<String> },
+    UserBankAccountHolderName,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
@@ -408,7 +410,7 @@ mod test {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RetryAction {
-    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,

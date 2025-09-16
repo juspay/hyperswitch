@@ -143,6 +143,7 @@ impl ConnectorCommon for Payu {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -346,6 +347,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -881,7 +883,8 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Payu",
         description:
             "PayU is a global fintech company providing online payment solutions, including card processing, UPI, wallets, and BNPL services across multiple markets ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static PAYU_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

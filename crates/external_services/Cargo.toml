@@ -52,6 +52,7 @@ once_cell = "1.21.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
 serde_json = "1.0.140"
+serde_urlencoded = "0.7.1"
 vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
@@ -60,13 +61,14 @@ tokio = "1.45.1"
 tonic = "0.13.1"
 tonic-reflection = "0.13.1"
 tonic-types = "0.13.1"
+typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "2263c96a70f2606475ab30e6f716b2773e1fd093", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "142cb5a23d302e5d39c4da8d280edababe0691fe", package = "rust-grpc-client" }
 
 
 # First party crates

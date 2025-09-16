@@ -8,14 +8,15 @@ use hyperswitch_domain_models::{
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
             SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
         },
-        CreateOrder,
+        Authenticate, CreateOrder, ExternalVaultProxy, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
@@ -49,6 +50,7 @@ pub trait Payment:
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
+    + ExternalVaultProxyPaymentsCreateV1
 {
 }
 
@@ -170,6 +172,24 @@ pub trait PaymentsPreProcessing:
 {
 }
 
+/// trait PaymentsPreAuthenticate
+pub trait PaymentsPreAuthenticate:
+    api::ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsAuthenticate
+pub trait PaymentsAuthenticate:
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPostAuthenticate
+pub trait PaymentsPostAuthenticate:
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsPostProcessing
 pub trait PaymentsPostProcessing:
     api::ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
@@ -179,5 +199,11 @@ pub trait PaymentsPostProcessing:
 /// trait PaymentsCreateOrder
 pub trait PaymentsCreateOrder:
     api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+{
+}
+
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreateV1:
+    api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
 {
 }

@@ -1,6 +1,6 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
-use common_utils::{id_type, types as util_types};
+use common_utils::{id_type, pii, types as util_types};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -54,12 +54,10 @@ pub struct RevenueRecoveryAttemptData {
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// Time at which the invoice created
     pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
-    /// card network type
-    pub card_network: Option<common_enums::CardNetwork>,
-    /// card isin
-    pub card_isin: Option<String>,
     /// stripe specific id used to validate duplicate attempts in revenue recovery flow
     pub charge_id: Option<String>,
+    /// Additional card details
+    pub card_info: api_payments::AdditionalCardInfo,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -79,6 +77,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub next_billing_at: Option<PrimitiveDateTime>,
     /// Invoice Starting Time
     pub billing_started_at: Option<PrimitiveDateTime>,
+    /// metadata of the merchant
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug)]
@@ -155,7 +155,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             statement_descriptor: None,
             order_details: None,
             allowed_payment_method_types: None,
-            metadata: None,
+            metadata: data.metadata.clone(),
             connector_metadata: None,
             feature_metadata: None,
             payment_link_enabled: None,
@@ -180,6 +180,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,
+            metadata: None,
         }
     }
 }
@@ -227,10 +228,9 @@ impl
             network_error_message: None,
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
-            card_network: billing_connector_payment_details.card_network.clone(),
-            card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
             invoice_billing_started_at_time: invoice_details.billing_started_at,
+            card_info: billing_connector_payment_details.card_info.clone(),
         }
     }
 }
