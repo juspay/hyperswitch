@@ -2825,29 +2825,21 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
 impl ForeignTryFrom<String> for AustraliaStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check = StringExt::<Self>::parse_enum(
-            value.to_uppercase().clone(),
-            "AustraliaStatesAbbreviation",
-        );
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "newsouthwales" => Ok(Self::NSW),
-                    "queensland" => Ok(Self::QLD),
-                    "southaustralia" => Ok(Self::SA),
-                    "westernaustralia" => Ok(Self::WA),
-                    "victoria" => Ok(Self::VIC),
-                    "northernterritory" => Ok(Self::NT),
-                    "australiancapitalterritory" => Ok(Self::ACT),
-                    "tasmania" => Ok(Self::TAS),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state =
+            parse_state_enum::<Self>(value, "AustraliaStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "newsouthwales" => Ok(Self::NSW),
+            "queensland" => Ok(Self::QLD),
+            "southaustralia" => Ok(Self::SA),
+            "westernaustralia" => Ok(Self::WA),
+            "victoria" => Ok(Self::VIC),
+            "northernterritory" => Ok(Self::NT),
+            "australiancapitalterritory" => Ok(Self::ACT),
+            "tasmania" => Ok(Self::TAS),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -3200,66 +3192,59 @@ impl ForeignTryFrom<String> for ItalyStatesAbbreviation {
 impl ForeignTryFrom<String> for JapanStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "JapanStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "aichi" => Ok(Self::Aichi),
-                    "akita" => Ok(Self::Akita),
-                    "aomori" => Ok(Self::Aomori),
-                    "chiba" => Ok(Self::Chiba),
-                    "ehime" => Ok(Self::Ehime),
-                    "fukui" => Ok(Self::Fukui),
-                    "fukuoka" => Ok(Self::Fukuoka),
-                    "fukushima" => Ok(Self::Fukushima),
-                    "gifu" => Ok(Self::Gifu),
-                    "gunma" => Ok(Self::Gunma),
-                    "hiroshima" => Ok(Self::Hiroshima),
-                    "hokkaido" => Ok(Self::Hokkaido),
-                    "hyogo" => Ok(Self::Hyogo),
-                    "ibaraki" => Ok(Self::Ibaraki),
-                    "ishikawa" => Ok(Self::Ishikawa),
-                    "iwate" => Ok(Self::Iwate),
-                    "kagawa" => Ok(Self::Kagawa),
-                    "kagoshima" => Ok(Self::Kagoshima),
-                    "kanagawa" => Ok(Self::Kanagawa),
-                    "kochi" => Ok(Self::Kochi),
-                    "kumamoto" => Ok(Self::Kumamoto),
-                    "kyoto" => Ok(Self::Kyoto),
-                    "mie" => Ok(Self::Mie),
-                    "miyagi" => Ok(Self::Miyagi),
-                    "miyazaki" => Ok(Self::Miyazaki),
-                    "nagano" => Ok(Self::Nagano),
-                    "nagasaki" => Ok(Self::Nagasaki),
-                    "nara" => Ok(Self::Nara),
-                    "niigata" => Ok(Self::Niigata),
-                    "oita" => Ok(Self::Oita),
-                    "okayama" => Ok(Self::Okayama),
-                    "okinawa" => Ok(Self::Okinawa),
-                    "osaka" => Ok(Self::Osaka),
-                    "saga" => Ok(Self::Saga),
-                    "saitama" => Ok(Self::Saitama),
-                    "shiga" => Ok(Self::Shiga),
-                    "shimane" => Ok(Self::Shimane),
-                    "shizuoka" => Ok(Self::Shizuoka),
-                    "tochigi" => Ok(Self::Tochigi),
-                    "tokushima" | "tokusima" => Ok(Self::Tokusima),
-                    "tokyo" => Ok(Self::Tokyo),
-                    "tottori" => Ok(Self::Tottori),
-                    "toyama" => Ok(Self::Toyama),
-                    "wakayama" => Ok(Self::Wakayama),
-                    "yamagata" => Ok(Self::Yamagata),
-                    "yamaguchi" => Ok(Self::Yamaguchi),
-                    "yamanashi" => Ok(Self::Yamanashi),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state = parse_state_enum::<Self>(value, "JapanStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "aichi" => Ok(Self::Aichi),
+            "akita" => Ok(Self::Akita),
+            "aomori" => Ok(Self::Aomori),
+            "chiba" => Ok(Self::Chiba),
+            "ehime" => Ok(Self::Ehime),
+            "fukui" => Ok(Self::Fukui),
+            "fukuoka" => Ok(Self::Fukuoka),
+            "fukushima" | "hukusima" => Ok(Self::Fukushima),
+            "gifu" => Ok(Self::Gifu),
+            "gunma" => Ok(Self::Gunma),
+            "hiroshima" => Ok(Self::Hiroshima),
+            "hokkaido" => Ok(Self::Hokkaido),
+            "hyogo" => Ok(Self::Hyogo),
+            "ibaraki" => Ok(Self::Ibaraki),
+            "ishikawa" => Ok(Self::Ishikawa),
+            "iwate" => Ok(Self::Iwate),
+            "kagawa" => Ok(Self::Kagawa),
+            "kagoshima" => Ok(Self::Kagoshima),
+            "kanagawa" => Ok(Self::Kanagawa),
+            "kochi" => Ok(Self::Kochi),
+            "kumamoto" => Ok(Self::Kumamoto),
+            "kyoto" => Ok(Self::Kyoto),
+            "mie" => Ok(Self::Mie),
+            "miyagi" => Ok(Self::Miyagi),
+            "miyazaki" => Ok(Self::Miyazaki),
+            "nagano" => Ok(Self::Nagano),
+            "nagasaki" => Ok(Self::Nagasaki),
+            "nara" => Ok(Self::Nara),
+            "niigata" => Ok(Self::Niigata),
+            "oita" => Ok(Self::Oita),
+            "okayama" => Ok(Self::Okayama),
+            "okinawa" => Ok(Self::Okinawa),
+            "osaka" => Ok(Self::Osaka),
+            "saga" => Ok(Self::Saga),
+            "saitama" => Ok(Self::Saitama),
+            "shiga" => Ok(Self::Shiga),
+            "shimane" => Ok(Self::Shimane),
+            "shizuoka" => Ok(Self::Shizuoka),
+            "tochigi" => Ok(Self::Tochigi),
+            "tokushima" | "tokusima" => Ok(Self::Tokusima),
+            "tokyo" => Ok(Self::Tokyo),
+            "tottori" => Ok(Self::Tottori),
+            "toyama" => Ok(Self::Toyama),
+            "wakayama" => Ok(Self::Wakayama),
+            "yamagata" => Ok(Self::Yamagata),
+            "yamaguchi" => Ok(Self::Yamaguchi),
+            "yamanashi" => Ok(Self::Yamanashi),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -3267,97 +3252,90 @@ impl ForeignTryFrom<String> for JapanStatesAbbreviation {
 impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "ThailandStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "amnatcharoen" => Ok(Self::AmnatCharoen),
-                    "angthong" => Ok(Self::AngThong),
-                    "bangkok" => Ok(Self::Bangkok),
-                    "buengkan" => Ok(Self::BuengKan),
-                    "buriram" => Ok(Self::BuriRam),
-                    "chachoengsao" => Ok(Self::Chachoengsao),
-                    "chainat" => Ok(Self::ChaiNat),
-                    "chaiyaphum" => Ok(Self::Chaiyaphum),
-                    "chanthaburi" => Ok(Self::Chanthaburi),
-                    "chiangmai" => Ok(Self::ChiangMai),
-                    "chiangrai" => Ok(Self::ChiangRai),
-                    "chonburi" => Ok(Self::ChonBuri),
-                    "chumphon" => Ok(Self::Chumphon),
-                    "kalasin" => Ok(Self::Kalasin),
-                    "kamphaengphet" => Ok(Self::KamphaengPhet),
-                    "kanchanaburi" => Ok(Self::Kanchanaburi),
-                    "khonkaen" => Ok(Self::KhonKaen),
-                    "krabi" => Ok(Self::Krabi),
-                    "lampang" => Ok(Self::Lampang),
-                    "lamphun" => Ok(Self::Lamphun),
-                    "loei" => Ok(Self::Loei),
-                    "lopburi" => Ok(Self::LopBuri),
-                    "maehongson" => Ok(Self::MaeHongSon),
-                    "mahasarakham" => Ok(Self::MahaSarakham),
-                    "mukdahan" => Ok(Self::Mukdahan),
-                    "nakhonnayok" => Ok(Self::NakhonNayok),
-                    "nakhonpathom" => Ok(Self::NakhonPathom),
-                    "nakhonphanom" => Ok(Self::NakhonPhanom),
-                    "nakhonratchasima" => Ok(Self::NakhonRatchasima),
-                    "nakhonsawan" => Ok(Self::NakhonSawan),
-                    "nakhonsithammarat" => Ok(Self::NakhonSiThammarat),
-                    "nan" => Ok(Self::Nan),
-                    "narathiwat" => Ok(Self::Narathiwat),
-                    "nongbualamphu" => Ok(Self::NongBuaLamPhu),
-                    "nongkhai" => Ok(Self::NongKhai),
-                    "nonthaburi" => Ok(Self::Nonthaburi),
-                    "pathumthani" => Ok(Self::PathumThani),
-                    "pattani" => Ok(Self::Pattani),
-                    "phangnga" => Ok(Self::Phangnga),
-                    "phatthalung" => Ok(Self::Phatthalung),
-                    "phayao" => Ok(Self::Phayao),
-                    "phatthaya" => Ok(Self::Phatthaya),
-                    "phetchabun" => Ok(Self::Phetchabun),
-                    "phetchaburi" => Ok(Self::Phetchaburi),
-                    "phichit" => Ok(Self::Phichit),
-                    "phitsanulok" => Ok(Self::Phitsanulok),
-                    "phrae" => Ok(Self::Phrae),
-                    "phuket" => Ok(Self::Phuket),
-                    "prachinburi" => Ok(Self::PrachinBuri),
-                    "phranakhonsiayutthaya" => Ok(Self::PhraNakhonSiAyutthaya),
-                    "prachuapkhirikhan" => Ok(Self::PrachuapKhiriKhan),
-                    "ranong" => Ok(Self::Ranong),
-                    "ratchaburi" => Ok(Self::Ratchaburi),
-                    "rayong" => Ok(Self::Rayong),
-                    "roiet" => Ok(Self::RoiEt),
-                    "sakaeo" => Ok(Self::SaKaeo),
-                    "sakonnakhon" => Ok(Self::SakonNakhon),
-                    "samutprakan" => Ok(Self::SamutPrakan),
-                    "samutsakhon" => Ok(Self::SamutSakhon),
-                    "samutsongkhram" => Ok(Self::SamutSongkhram),
-                    "saraburi" => Ok(Self::Saraburi),
-                    "satun" => Ok(Self::Satun),
-                    "sisaket" => Ok(Self::SiSaKet),
-                    "singburi" => Ok(Self::SingBuri),
-                    "songkhla" => Ok(Self::Songkhla),
-                    "sukhothai" => Ok(Self::Sukhothai),
-                    "suphanburi" => Ok(Self::SuphanBuri),
-                    "suratthani" => Ok(Self::SuratThani),
-                    "surin" => Ok(Self::Surin),
-                    "tak" => Ok(Self::Tak),
-                    "trang" => Ok(Self::Trang),
-                    "trat" => Ok(Self::Trat),
-                    "ubonratchathani" => Ok(Self::UbonRatchathani),
-                    "udonthani" => Ok(Self::UdonThani),
-                    "uthaithani" => Ok(Self::UthaiThani),
-                    "uttaradit" => Ok(Self::Uttaradit),
-                    "yala" => Ok(Self::Yala),
-                    "yasothon" => Ok(Self::Yasothon),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state = parse_state_enum::<Self>(value, "ThailandStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "amnatcharoen" => Ok(Self::AmnatCharoen),
+            "angthong" => Ok(Self::AngThong),
+            "bangkok" => Ok(Self::Bangkok),
+            "buengkan" => Ok(Self::BuengKan),
+            "buriram" => Ok(Self::BuriRam),
+            "chachoengsao" => Ok(Self::Chachoengsao),
+            "chainat" => Ok(Self::ChaiNat),
+            "chaiyaphum" => Ok(Self::Chaiyaphum),
+            "chanthaburi" => Ok(Self::Chanthaburi),
+            "chiangmai" => Ok(Self::ChiangMai),
+            "chiangrai" => Ok(Self::ChiangRai),
+            "chonburi" => Ok(Self::ChonBuri),
+            "chumphon" => Ok(Self::Chumphon),
+            "kalasin" => Ok(Self::Kalasin),
+            "kamphaengphet" => Ok(Self::KamphaengPhet),
+            "kanchanaburi" => Ok(Self::Kanchanaburi),
+            "khonkaen" => Ok(Self::KhonKaen),
+            "krabi" => Ok(Self::Krabi),
+            "lampang" => Ok(Self::Lampang),
+            "lamphun" => Ok(Self::Lamphun),
+            "loei" => Ok(Self::Loei),
+            "lopburi" => Ok(Self::LopBuri),
+            "maehongson" => Ok(Self::MaeHongSon),
+            "mahasarakham" => Ok(Self::MahaSarakham),
+            "mukdahan" => Ok(Self::Mukdahan),
+            "nakhonnayok" => Ok(Self::NakhonNayok),
+            "nakhonpathom" => Ok(Self::NakhonPathom),
+            "nakhonphanom" => Ok(Self::NakhonPhanom),
+            "nakhonratchasima" => Ok(Self::NakhonRatchasima),
+            "nakhonsawan" => Ok(Self::NakhonSawan),
+            "nakhonsithammarat" => Ok(Self::NakhonSiThammarat),
+            "nan" => Ok(Self::Nan),
+            "narathiwat" => Ok(Self::Narathiwat),
+            "nongbualamphu" => Ok(Self::NongBuaLamPhu),
+            "nongkhai" => Ok(Self::NongKhai),
+            "nonthaburi" => Ok(Self::Nonthaburi),
+            "pathumthani" => Ok(Self::PathumThani),
+            "pattani" => Ok(Self::Pattani),
+            "phangnga" => Ok(Self::Phangnga),
+            "phatthalung" => Ok(Self::Phatthalung),
+            "phayao" => Ok(Self::Phayao),
+            "phatthaya" => Ok(Self::Phatthaya),
+            "phetchabun" => Ok(Self::Phetchabun),
+            "phetchaburi" => Ok(Self::Phetchaburi),
+            "phichit" => Ok(Self::Phichit),
+            "phitsanulok" => Ok(Self::Phitsanulok),
+            "phrae" => Ok(Self::Phrae),
+            "phuket" => Ok(Self::Phuket),
+            "prachinburi" => Ok(Self::PrachinBuri),
+            "phranakhonsiayutthaya" => Ok(Self::PhraNakhonSiAyutthaya),
+            "prachuapkhirikhan" => Ok(Self::PrachuapKhiriKhan),
+            "ranong" => Ok(Self::Ranong),
+            "ratchaburi" => Ok(Self::Ratchaburi),
+            "rayong" => Ok(Self::Rayong),
+            "roiet" => Ok(Self::RoiEt),
+            "sakaeo" => Ok(Self::SaKaeo),
+            "sakonnakhon" => Ok(Self::SakonNakhon),
+            "samutprakan" => Ok(Self::SamutPrakan),
+            "samutsakhon" => Ok(Self::SamutSakhon),
+            "samutsongkhram" => Ok(Self::SamutSongkhram),
+            "saraburi" => Ok(Self::Saraburi),
+            "satun" => Ok(Self::Satun),
+            "sisaket" => Ok(Self::SiSaKet),
+            "singburi" => Ok(Self::SingBuri),
+            "songkhla" => Ok(Self::Songkhla),
+            "sukhothai" => Ok(Self::Sukhothai),
+            "suphanburi" => Ok(Self::SuphanBuri),
+            "suratthani" => Ok(Self::SuratThani),
+            "surin" => Ok(Self::Surin),
+            "tak" => Ok(Self::Tak),
+            "trang" => Ok(Self::Trang),
+            "trat" => Ok(Self::Trat),
+            "ubonratchathani" => Ok(Self::UbonRatchathani),
+            "udonthani" => Ok(Self::UdonThani),
+            "uthaithani" => Ok(Self::UthaiThani),
+            "uttaradit" => Ok(Self::Uttaradit),
+            "yala" => Ok(Self::Yala),
+            "yasothon" => Ok(Self::Yasothon),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -3807,36 +3785,30 @@ impl ForeignTryFrom<String> for NetherlandsStatesAbbreviation {
 impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "NewZealandStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "auckland" | "tamakimakaurau" => Ok(Self::Auckland),
-                    "bayofplenty" | "toimoana" => Ok(Self::BayOfPlenty),
-                    "canterbury" | "waitaha" => Ok(Self::Canterbury),
-                    "chathamislandsterritory" | "wharekauri" => Ok(Self::ChathamIslandsTerritory),
-                    "gisborne" | "tetairawhiti" => Ok(Self::Gisborne),
-                    "hawkesbay" | "tematauamaui" => Ok(Self::HawkesBay),
-                    "manawatuwanganui" => Ok(Self::ManawatūWhanganui),
-                    "marlborough" => Ok(Self::Marlborough),
-                    "nelson" | "whakatu" => Ok(Self::Nelson),
-                    "northland" | "tetaitokerau" => Ok(Self::Northland),
-                    "otago" | "otakou" => Ok(Self::Otago),
-                    "southland" | "tetaiaotonga" => Ok(Self::Southland),
-                    "taranaki" => Ok(Self::Taranaki),
-                    "tasman" | "tetaioaorere" => Ok(Self::Tasman),
-                    "waikato" => Ok(Self::Waikato),
-                    "greaterwellington" | "tepanematuataiao" => Ok(Self::GreaterWellington),
-                    "westcoast" | "tetaiopoutini" => Ok(Self::WestCoast),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state =
+            parse_state_enum::<Self>(value, "NewZealandStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "auckland" | "tamakimakaurau" => Ok(Self::Auckland),
+            "bayofplenty" | "toimoana" => Ok(Self::BayOfPlenty),
+            "canterbury" | "waitaha" => Ok(Self::Canterbury),
+            "chathamislandsterritory" | "wharekauri" => Ok(Self::ChathamIslandsTerritory),
+            "gisborne" | "tetairawhiti" => Ok(Self::Gisborne),
+            "hawkesbay" | "tematauamaui" => Ok(Self::HawkesBay),
+            "manawatuwanganui" => Ok(Self::ManawatūWhanganui),
+            "marlborough" => Ok(Self::Marlborough),
+            "nelson" | "whakatu" => Ok(Self::Nelson),
+            "northland" | "tetaitokerau" => Ok(Self::Northland),
+            "otago" | "otakou" => Ok(Self::Otago),
+            "southland" | "tetaiaotonga" => Ok(Self::Southland),
+            "taranaki" => Ok(Self::Taranaki),
+            "tasman" | "tetaioaorere" => Ok(Self::Tasman),
+            "waikato" => Ok(Self::Waikato),
+            "greaterwellington" | "tepanematuataiao" => Ok(Self::GreaterWellington),
+            "westcoast" | "tetaiopoutini" => Ok(Self::WestCoast),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -3844,24 +3816,18 @@ impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
 impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "SingaporeStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "centralsingapore" => Ok(Self::CentralSingapore),
-                    "northeast" => Ok(Self::NorthEast),
-                    "northwest" => Ok(Self::NorthWest),
-                    "southeast" => Ok(Self::SouthEast),
-                    "southwest" => Ok(Self::SouthWest),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state =
+            parse_state_enum::<Self>(value, "SingaporeStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "centralsingapore" => Ok(Self::CentralSingapore),
+            "northeast" => Ok(Self::NorthEast),
+            "northwest" => Ok(Self::NorthWest),
+            "southeast" => Ok(Self::SouthEast),
+            "southwest" => Ok(Self::SouthWest),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -3869,131 +3835,118 @@ impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
 impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "PhilippinesStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-                match state.as_str() {
-                    "abra" => Ok(Self::Abra),
-                    "agusandelnorte" | "hilagangagusan" => Ok(Self::AgusanDelNorte),
-                    "agusandelsur" | "timogagusan" => Ok(Self::AgusanDelSur),
-                    "aklan" => Ok(Self::Aklan),
-                    "albay" => Ok(Self::Albay),
-                    "antique" | "antike" => Ok(Self::Antique),
-                    "apayao" | "apayaw" => Ok(Self::Apayao),
-                    "aurora" => Ok(Self::Aurora),
-                    "autonomousregioninmuslimmindanao"
-                    | "nagsasarilingrehiyonngmuslimsamindanaw" => {
-                        Ok(Self::AutonomousRegionInMuslimMindanao)
-                    }
-                    "basilan" => Ok(Self::Basilan),
-                    "bataan" => Ok(Self::Bataan),
-                    "batanes" => Ok(Self::Batanes),
-                    "batangas" => Ok(Self::Batangas),
-                    "benguet" | "benget" => Ok(Self::Benguet),
-                    "bicol" | "rehiyonngbikol" => Ok(Self::Bicol),
-                    "biliran" => Ok(Self::Biliran),
-                    "bohol" => Ok(Self::Bohol),
-                    "bukidnon" => Ok(Self::Bukidnon),
-                    "bulacan" | "bulakan" => Ok(Self::Bulacan),
-                    "cagayan" | "kagayan" => Ok(Self::Cagayan),
-                    "cagayanvalley" | "rehiyonnglambakngkagayan" => Ok(Self::CagayanValley),
-                    "calabarzon" | "rehiyonngcalabarzon" => Ok(Self::Calabarzon),
-                    "camarinesnorte" | "hilagangkamarines" => Ok(Self::CamarinesNorte),
-                    "camarinessur" | "timogkamarines" => Ok(Self::CamarinesSur),
-                    "camiguin" | "kamigin" => Ok(Self::Camiguin),
-                    "capiz" | "kapis" => Ok(Self::Capiz),
-                    "caraga" | "rehiyonngkaraga" => Ok(Self::Caraga),
-                    "catanduanes" | "katanduanes" => Ok(Self::Catanduanes),
-                    "cavite" | "kabite" => Ok(Self::Cavite),
-                    "cebu" | "sebu" => Ok(Self::Cebu),
-                    "centralluzon" | "rehiyonnggitnangluzon" => Ok(Self::CentralLuzon),
-                    "centralvisayas" | "rehiyonnggitnangbisaya" => Ok(Self::CentralVisayas),
-                    "cordilleraadministrativeregion" | "rehiyonngadministratibongkordilyera" => {
-                        Ok(Self::CordilleraAdministrativeRegion)
-                    }
-                    "cotabato" | "kotabato" => Ok(Self::Cotabato),
-                    "davao" | "rehiyonngdabaw" => Ok(Self::Davao),
-                    "davaooccidental" | "kanlurangdabaw" => Ok(Self::DavaoOccidental),
-                    "davaooriental" | "silangangdabaw" => Ok(Self::DavaoOriental),
-                    "davaodeoro" => Ok(Self::DavaoDeOro),
-                    "davaodelnorte" | "hilagangdabaw" => Ok(Self::DavaoDelNorte),
-                    "davaodelsur" | "timogdabaw" => Ok(Self::DavaoDelSur),
-                    "dinagatislands" | "pulongdinagat" => Ok(Self::DinagatIslands),
-                    "easternsamar" | "silangangsamar" => Ok(Self::EasternSamar),
-                    "easternvisayas" | "rehiyonngsilangangbisaya" => Ok(Self::EasternVisayas),
-                    "guimaras" | "gimaras" => Ok(Self::Guimaras),
-                    "hilagangiloko" | "ilocosnorte" => Ok(Self::HilagangIloko),
-                    "hilaganglanaw" | "lanaodelnorte" => Ok(Self::HilagangLanaw),
-                    "hilagangmagindanaw" | "maguindanaodelnorte" => Ok(Self::HilagangMagindanaw),
-                    "hilagangsamar" | "northernsamar" => Ok(Self::HilagangSamar),
-                    "hilagangsambuwangga" | "zamboangadelnorte" => Ok(Self::HilagangSambuwangga),
-                    "hilagangsurigaw" | "surigaodelnorte" => Ok(Self::HilagangSurigaw),
-                    "ifugao" | "ipugaw" => Ok(Self::Ifugao),
-                    "ilocos" | "rehiyonngiloko" => Ok(Self::Ilocos),
-                    "ilocossur" | "timogiloko" => Ok(Self::IlocosSur),
-                    "iloilo" | "iloylo" => Ok(Self::Iloilo),
-                    "isabela" => Ok(Self::Isabela),
-                    "kalinga" => Ok(Self::Kalinga),
-                    "kanlurangmindoro" | "mindorooccidental" => Ok(Self::KanlurangMindoro),
-                    "kanlurangmisamis" | "misamisoriental" => Ok(Self::KanlurangMisamis),
-                    "kanlurangnegros" | "negrosoccidental" => Ok(Self::KanlurangNegros),
-                    "katimogangleyte" | "southernleyte" => Ok(Self::KatimogangLeyte),
-                    "keson" | "quezon" => Ok(Self::Keson),
-                    "kirino" | "quirino" => Ok(Self::Kirino),
-                    "launion" => Ok(Self::LaUnion),
-                    "laguna" => Ok(Self::Laguna),
-                    "lalawigangbulubundukin" | "mountainprovince" => {
-                        Ok(Self::LalawigangBulubundukin)
-                    }
-                    "lanaodelsur" | "timoglanaw" => Ok(Self::LanaoDelSur),
-                    "leyte" => Ok(Self::Leyte),
-                    "maguidanaodelsur" | "timogmaguindanao" => Ok(Self::MaguindanaoDelSur),
-                    "marinduque" => Ok(Self::Marinduque),
-                    "masbate" => Ok(Self::Masbate),
-                    "mimaropa" | "rehiyonngmimaropa" => Ok(Self::Mimaropa),
-                    "mindorooriental" | "silingangmindoro" => Ok(Self::MindoroOriental),
-                    "misamisoccidental" | "silingangmisamis" => Ok(Self::MisamisOccidental),
-                    "nationalcapitalregion" | "pambansangpunonglungsod" => {
-                        Ok(Self::NationalCapitalRegion)
-                    }
-                    "negrosoriental" | "silingangnegros" => Ok(Self::NegrosOriental),
-                    "northernmindanao" | "rehiyonnghilagangmindanao" => Ok(Self::NorthernMindanao),
-                    "nuevaecija" | "nuwevaesiha" => Ok(Self::NuevaEcija),
-                    "nuevavizcaya" => Ok(Self::NuevaVizcaya),
-                    "palawan" => Ok(Self::Palawan),
-                    "pampanga" => Ok(Self::Pampanga),
-                    "pangasinan" => Ok(Self::Pangasinan),
-                    "rehiyonngkanlurangbisaya" | "westernvisayas" => {
-                        Ok(Self::RehiyonNgKanlurangBisaya)
-                    }
-                    "rehiyonngsoccsksargen" | "soccsksargen" => Ok(Self::RehiyonNgSoccsksargen),
-                    "rehiyonngtangwayngsambuwangga" | "zamboangapeninsula" => {
-                        Ok(Self::RehiyonNgTangwayNgSambuwangga)
-                    }
-                    "risal" | "rizal" => Ok(Self::Risal),
-                    "romblon" => Ok(Self::Romblon),
-                    "samar" => Ok(Self::Samar),
-                    "sambales" | "zambales" => Ok(Self::Sambales),
-                    "sambuwanggasibugay" | "zamboangasibugay" => Ok(Self::SambuwanggaSibugay),
-                    "sarangani" => Ok(Self::Sarangani),
-                    "siquijor" | "sikihor" => Ok(Self::Sikihor),
-                    "sorsogon" => Ok(Self::Sorsogon),
-                    "southcotabato" | "timogkotabato" => Ok(Self::SouthCotabato),
-                    "sultankudarat" => Ok(Self::SultanKudarat),
-                    "sulu" => Ok(Self::Sulu),
-                    "surigaodelsur" | "timogsurigaw" => Ok(Self::SurigaoDelSur),
-                    "tarlac" => Ok(Self::Tarlac),
-                    "tawitawi" => Ok(Self::TawiTawi),
-                    "timogsambuwangga" | "zamboangadelsur" => Ok(Self::TimogSambuwangga),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state =
+            parse_state_enum::<Self>(value, "PhilippinesStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "abra" => Ok(Self::Abra),
+            "agusandelnorte" | "hilagangagusan" => Ok(Self::AgusanDelNorte),
+            "agusandelsur" | "timogagusan" => Ok(Self::AgusanDelSur),
+            "aklan" => Ok(Self::Aklan),
+            "albay" => Ok(Self::Albay),
+            "antique" | "antike" => Ok(Self::Antique),
+            "apayao" | "apayaw" => Ok(Self::Apayao),
+            "aurora" => Ok(Self::Aurora),
+            "autonomousregioninmuslimmindanao" | "nagsasarilingrehiyonngmuslimsamindanaw" => {
+                Ok(Self::AutonomousRegionInMuslimMindanao)
             }
+            "basilan" => Ok(Self::Basilan),
+            "bataan" => Ok(Self::Bataan),
+            "batanes" => Ok(Self::Batanes),
+            "batangas" => Ok(Self::Batangas),
+            "benguet" | "benget" => Ok(Self::Benguet),
+            "bicol" | "rehiyonngbikol" => Ok(Self::Bicol),
+            "biliran" => Ok(Self::Biliran),
+            "bohol" => Ok(Self::Bohol),
+            "bukidnon" => Ok(Self::Bukidnon),
+            "bulacan" | "bulakan" => Ok(Self::Bulacan),
+            "cagayan" | "kagayan" => Ok(Self::Cagayan),
+            "cagayanvalley" | "rehiyonnglambakngkagayan" => Ok(Self::CagayanValley),
+            "calabarzon" | "rehiyonngcalabarzon" => Ok(Self::Calabarzon),
+            "camarinesnorte" | "hilagangkamarines" => Ok(Self::CamarinesNorte),
+            "camarinessur" | "timogkamarines" => Ok(Self::CamarinesSur),
+            "camiguin" | "kamigin" => Ok(Self::Camiguin),
+            "capiz" | "kapis" => Ok(Self::Capiz),
+            "caraga" | "rehiyonngkaraga" => Ok(Self::Caraga),
+            "catanduanes" | "katanduanes" => Ok(Self::Catanduanes),
+            "cavite" | "kabite" => Ok(Self::Cavite),
+            "cebu" | "sebu" => Ok(Self::Cebu),
+            "centralluzon" | "rehiyonnggitnangluzon" => Ok(Self::CentralLuzon),
+            "centralvisayas" | "rehiyonnggitnangbisaya" => Ok(Self::CentralVisayas),
+            "cordilleraadministrativeregion" | "rehiyonngadministratibongkordilyera" => {
+                Ok(Self::CordilleraAdministrativeRegion)
+            }
+            "cotabato" | "kotabato" => Ok(Self::Cotabato),
+            "davao" | "rehiyonngdabaw" => Ok(Self::Davao),
+            "davaooccidental" | "kanlurangdabaw" => Ok(Self::DavaoOccidental),
+            "davaooriental" | "silangangdabaw" => Ok(Self::DavaoOriental),
+            "davaodeoro" => Ok(Self::DavaoDeOro),
+            "davaodelnorte" | "hilagangdabaw" => Ok(Self::DavaoDelNorte),
+            "davaodelsur" | "timogdabaw" => Ok(Self::DavaoDelSur),
+            "dinagatislands" | "pulongdinagat" => Ok(Self::DinagatIslands),
+            "easternsamar" | "silangangsamar" => Ok(Self::EasternSamar),
+            "easternvisayas" | "rehiyonngsilangangbisaya" => Ok(Self::EasternVisayas),
+            "guimaras" | "gimaras" => Ok(Self::Guimaras),
+            "hilagangiloko" | "ilocosnorte" => Ok(Self::HilagangIloko),
+            "hilaganglanaw" | "lanaodelnorte" => Ok(Self::HilagangLanaw),
+            "hilagangmagindanaw" | "maguindanaodelnorte" => Ok(Self::HilagangMagindanaw),
+            "hilagangsamar" | "northernsamar" => Ok(Self::HilagangSamar),
+            "hilagangsambuwangga" | "zamboangadelnorte" => Ok(Self::HilagangSambuwangga),
+            "hilagangsurigaw" | "surigaodelnorte" => Ok(Self::HilagangSurigaw),
+            "ifugao" | "ipugaw" => Ok(Self::Ifugao),
+            "ilocos" | "rehiyonngiloko" => Ok(Self::Ilocos),
+            "ilocossur" | "timogiloko" => Ok(Self::IlocosSur),
+            "iloilo" | "iloylo" => Ok(Self::Iloilo),
+            "isabela" => Ok(Self::Isabela),
+            "kalinga" => Ok(Self::Kalinga),
+            "kanlurangmindoro" | "mindorooccidental" => Ok(Self::KanlurangMindoro),
+            "kanlurangmisamis" | "misamisoriental" => Ok(Self::KanlurangMisamis),
+            "kanlurangnegros" | "negrosoccidental" => Ok(Self::KanlurangNegros),
+            "katimogangleyte" | "southernleyte" => Ok(Self::KatimogangLeyte),
+            "keson" | "quezon" => Ok(Self::Keson),
+            "kirino" | "quirino" => Ok(Self::Kirino),
+            "launion" => Ok(Self::LaUnion),
+            "laguna" => Ok(Self::Laguna),
+            "lalawigangbulubundukin" | "mountainprovince" => Ok(Self::LalawigangBulubundukin),
+            "lanaodelsur" | "timoglanaw" => Ok(Self::LanaoDelSur),
+            "leyte" => Ok(Self::Leyte),
+            "maguidanaodelsur" | "timogmaguindanao" => Ok(Self::MaguindanaoDelSur),
+            "marinduque" => Ok(Self::Marinduque),
+            "masbate" => Ok(Self::Masbate),
+            "mimaropa" | "rehiyonngmimaropa" => Ok(Self::Mimaropa),
+            "mindorooriental" | "silingangmindoro" => Ok(Self::MindoroOriental),
+            "misamisoccidental" | "silingangmisamis" => Ok(Self::MisamisOccidental),
+            "nationalcapitalregion" | "pambansangpunonglungsod" => Ok(Self::NationalCapitalRegion),
+            "negrosoriental" | "silingangnegros" => Ok(Self::NegrosOriental),
+            "northernmindanao" | "rehiyonnghilagangmindanao" => Ok(Self::NorthernMindanao),
+            "nuevaecija" | "nuwevaesiha" => Ok(Self::NuevaEcija),
+            "nuevavizcaya" => Ok(Self::NuevaVizcaya),
+            "palawan" => Ok(Self::Palawan),
+            "pampanga" => Ok(Self::Pampanga),
+            "pangasinan" => Ok(Self::Pangasinan),
+            "rehiyonngkanlurangbisaya" | "westernvisayas" => Ok(Self::RehiyonNgKanlurangBisaya),
+            "rehiyonngsoccsksargen" | "soccsksargen" => Ok(Self::RehiyonNgSoccsksargen),
+            "rehiyonngtangwayngsambuwangga" | "zamboangapeninsula" => {
+                Ok(Self::RehiyonNgTangwayNgSambuwangga)
+            }
+            "risal" | "rizal" => Ok(Self::Risal),
+            "romblon" => Ok(Self::Romblon),
+            "samar" => Ok(Self::Samar),
+            "sambales" | "zambales" => Ok(Self::Sambales),
+            "sambuwanggasibugay" | "zamboangasibugay" => Ok(Self::SambuwanggaSibugay),
+            "sarangani" => Ok(Self::Sarangani),
+            "siquijor" | "sikihor" => Ok(Self::Sikihor),
+            "sorsogon" => Ok(Self::Sorsogon),
+            "southcotabato" | "timogkotabato" => Ok(Self::SouthCotabato),
+            "sultankudarat" => Ok(Self::SultanKudarat),
+            "sulu" => Ok(Self::Sulu),
+            "surigaodelsur" | "timogsurigaw" => Ok(Self::SurigaoDelSur),
+            "tarlac" => Ok(Self::Tarlac),
+            "tawitawi" => Ok(Self::TawiTawi),
+            "timogsambuwangga" | "zamboangadelsur" => Ok(Self::TimogSambuwangga),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
         }
     }
 }
@@ -4001,58 +3954,48 @@ impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
 impl ForeignTryFrom<String> for IndiaStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
-        let state_abbreviation_check =
-            StringExt::<Self>::parse_enum(value.clone(), "MoldovaStatesAbbreviation");
-        match state_abbreviation_check {
-            Ok(state_abbreviation) => Ok(state_abbreviation),
-            Err(_) => {
-                let state = normalize_state(value)?;
-
-                match state.as_str() {
-                    "andamanandnicobarislands" => Ok(Self::AndamanAndNicobarIslands),
-                    "andhrapradesh" => Ok(Self::AndhraPradesh),
-                    "arunachalpradesh" => Ok(Self::ArunachalPradesh),
-                    "assam" => Ok(Self::Assam),
-                    "bihar" => Ok(Self::Bihar),
-                    "chandigarh" => Ok(Self::Chandigarh),
-                    "chhattisgarh" => Ok(Self::Chhattisgarh),
-                    "dadraandnagarhavelianddamananddiu" => {
-                        Ok(Self::DadraAndNagarHaveliAndDamanAndDiu)
-                    }
-                    "delhi" => Ok(Self::Delhi),
-                    "goa" => Ok(Self::Goa),
-                    "gujarat" => Ok(Self::Gujarat),
-                    "haryana" => Ok(Self::Haryana),
-                    "himachalpradesh" => Ok(Self::HimachalPradesh),
-                    "jammuandkashmir" => Ok(Self::JammuAndKashmir),
-                    "jharkhand" => Ok(Self::Jharkhand),
-                    "karnataka" => Ok(Self::Karnataka),
-                    "kerala" => Ok(Self::Kerala),
-                    "ladakh" => Ok(Self::Ladakh),
-                    "lakshadweep" => Ok(Self::Lakshadweep),
-                    "madhyapradesh" => Ok(Self::MadhyaPradesh),
-                    "maharashtra" => Ok(Self::Maharashtra),
-                    "manipur" => Ok(Self::Manipur),
-                    "meghalaya" => Ok(Self::Meghalaya),
-                    "mizoram" => Ok(Self::Mizoram),
-                    "nagaland" => Ok(Self::Nagaland),
-                    "odisha" => Ok(Self::Odisha),
-                    "puducherry" | "pondicherry" => Ok(Self::Puducherry),
-                    "punjab" => Ok(Self::Punjab),
-                    "rajasthan" => Ok(Self::Rajasthan),
-                    "sikkim" => Ok(Self::Sikkim),
-                    "tamilnadu" => Ok(Self::TamilNadu),
-                    "telangana" => Ok(Self::Telangana),
-                    "tripura" => Ok(Self::Tripura),
-                    "uttarpradesh" => Ok(Self::UttarPradesh),
-                    "uttarakhand" => Ok(Self::Uttarakhand),
-                    "westbengal" => Ok(Self::WestBengal),
-                    _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
-                    }
-                    .into()),
-                }
+        let state = parse_state_enum::<Self>(value, "IndiaStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "andamanandnicobarislands" => Ok(Self::AndamanAndNicobarIslands),
+            "andhrapradesh" => Ok(Self::AndhraPradesh),
+            "arunachalpradesh" => Ok(Self::ArunachalPradesh),
+            "assam" => Ok(Self::Assam),
+            "bihar" => Ok(Self::Bihar),
+            "chandigarh" => Ok(Self::Chandigarh),
+            "chhattisgarh" => Ok(Self::Chhattisgarh),
+            "dadraandnagarhavelianddamananddiu" => Ok(Self::DadraAndNagarHaveliAndDamanAndDiu),
+            "delhi" => Ok(Self::Delhi),
+            "goa" => Ok(Self::Goa),
+            "gujarat" => Ok(Self::Gujarat),
+            "haryana" => Ok(Self::Haryana),
+            "himachalpradesh" => Ok(Self::HimachalPradesh),
+            "jammuandkashmir" => Ok(Self::JammuAndKashmir),
+            "jharkhand" => Ok(Self::Jharkhand),
+            "karnataka" => Ok(Self::Karnataka),
+            "kerala" => Ok(Self::Kerala),
+            "ladakh" => Ok(Self::Ladakh),
+            "lakshadweep" => Ok(Self::Lakshadweep),
+            "madhyapradesh" => Ok(Self::MadhyaPradesh),
+            "maharashtra" => Ok(Self::Maharashtra),
+            "manipur" => Ok(Self::Manipur),
+            "meghalaya" => Ok(Self::Meghalaya),
+            "mizoram" => Ok(Self::Mizoram),
+            "nagaland" => Ok(Self::Nagaland),
+            "odisha" => Ok(Self::Odisha),
+            "puducherry" | "pondicherry" => Ok(Self::Puducherry),
+            "punjab" => Ok(Self::Punjab),
+            "rajasthan" => Ok(Self::Rajasthan),
+            "sikkim" => Ok(Self::Sikkim),
+            "tamilnadu" => Ok(Self::TamilNadu),
+            "telangana" => Ok(Self::Telangana),
+            "tripura" => Ok(Self::Tripura),
+            "uttarpradesh" => Ok(Self::UttarPradesh),
+            "uttarakhand" => Ok(Self::Uttarakhand),
+            "westbengal" => Ok(Self::WestBengal),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
             }
+            .into()),
         }
     }
 }
@@ -6902,6 +6845,23 @@ fn normalize_state(value: String) -> Result<String, error_stack::Report<errors::
             field_name: "address.state",
         })
     })
+}
+
+pub fn parse_state_enum<T>(
+    value: String,
+    enum_name: &'static str,
+    field_name: &'static str,
+) -> Result<String, error_stack::Report<errors::ConnectorError>>
+where
+    T: std::str::FromStr,
+    <T as FromStr>::Err: std::error::Error + Send + Sync + 'static,
+{
+    match StringExt::<T>::parse_enum(value.clone(), enum_name) {
+        Ok(_) => Ok(value),
+        Err(_) => normalize_state(value).map_err(|_e| {
+            error_stack::Report::new(errors::ConnectorError::InvalidDataFormat { field_name })
+        }),
+    }
 }
 
 #[cfg(feature = "frm")]
