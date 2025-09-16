@@ -507,9 +507,9 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some({
                     let permission_groups = role_info.get_permission_groups();
@@ -539,9 +539,9 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
                     role_id: role_info.get_role_id().to_string(),
