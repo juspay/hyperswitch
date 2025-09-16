@@ -215,7 +215,6 @@ impl RedisTokenManager {
             .await
             .change_context(get_hash_err)?;
 
-        // build the result map using iterator adapters (explicit match preserved for logging)
         let payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus> =
             payment_processor_tokens
                 .into_iter()
@@ -756,149 +755,7 @@ impl RedisTokenManager {
         Ok(token)
     }
 
-    /// Update Redis token
-    pub async fn update_redis_token_with_params(
-        state: &SessionState,
-        customer_id: &str,
-        token: &str,
-        update_params: RedisTokenUpdateParams,
-    ) -> CustomResult<(), errors::StorageError> {
-        let redis_conn =
-            state
-                .store
-                .get_redis_conn()
-                .change_context(errors::StorageError::RedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
-
-        let redis_key: redis_interface::types::RedisKey =
-            format!("customer:{}:tokens", customer_id).into();
-
-        // Get existing token data
-        let existing_data: Option<String> = redis_conn
-            .get_hash_field(&redis_key, token)
-            .await
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::GetHashFieldFailed.into(),
-            ))?;
-
-        let data = existing_data.ok_or_else(|| {
-            tracing::error!(
-                customer_id = customer_id,
-                token = token,
-                "Token not found in Redis"
-            );
-            error_stack::Report::new(errors::StorageError::ValueNotFound(
-                "Token not found in Redis".to_string(),
-            ))
-        })?;
-
-        // Parse existing JSON
-        let mut token_data: serde_json::Value = serde_json::from_str(&data)
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed to parse token data")?;
-
-        // Extract mutable reference to processor details, or return early if invalid
-        let processor_details = match token_data
-            .get_mut("payment_processor_token_details")
-            .and_then(|v| v.as_object_mut())
-        {
-            Some(details) => details,
-            None => {
-                tracing::warn!(
-                    customer_id = customer_id,
-                    token = token,
-                    "Token data structure invalid"
-                );
-                return Ok(());
-            }
-        };
-
-        let field_updates = vec![
-            ("card_type", update_params.card_type.as_ref()),
-            ("expiry_month", update_params.expiry_month.as_ref()),
-            ("expiry_year", update_params.expiry_year.as_ref()),
-            ("card_issuer", update_params.card_issuer.as_ref()),
-            ("card_network", update_params.card_network.as_ref()),
-            ("last_four_digits", update_params.last_four_digits.as_ref()),
-        ];
-
-        // Process all fields
-        let updated_fields: Vec<String> = field_updates
-            .into_iter()
-            .filter_map(|(field_name, value_opt)| {
-                value_opt.map(|value| {
-                    let value_str = value.clone().expose();
-                    processor_details.insert(
-                        field_name.to_string(),
-                        serde_json::Value::String(value_str.clone()),
-                    );
-                    format!("{}: {}", field_name, value_str)
-                })
-            })
-            .collect();
-
-        if updated_fields.is_empty() {
-            tracing::info!(
-                customer_id = customer_id,
-                token = token,
-                "No fields to update for Redis token"
-            );
-            return Ok(());
-        }
-
-        // Save updated data back to Redis
-        let updated_data = serde_json::to_string(&token_data)
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed to serialize token data")?;
-
-        let hash_map = HashMap::from([(token.to_string(), updated_data)]);
-        let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
-        redis_conn
-            .set_hash_fields(&redis_key, hash_map, Some(*seconds))
-            .await
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::SetHashFieldFailed.into(),
-            ))?;
-
-        tracing::info!(
-            customer_id = customer_id,
-            token = token,
-            updated_fields = updated_fields.join(", "),
-            "Updated Redis token data with optional parameters"
-        );
-
-        Ok(())
-    }
-
-    // /// Update Redis token with comprehensive card data (legacy JSON method)
-    // #[instrument(skip_all)]
-    // pub async fn update_redis_token_comprehensive_data(
-    //     state: &SessionState,
-    //     customer_id: &str,
-    //     token: &str,
-    //     card_data: &serde_json::Value,
-    // ) -> CustomResult<(), errors::StorageError> {
-    //     let update_params = RedisTokenUpdateParams::from_card_data(card_data).map_err(|err| {
-    //         tracing::error!(
-    //             customer_id = customer_id,
-    //             token = token,
-    //             error = %err,
-    //             "Failed to parse card data for Redis token update"
-    //         );
-    //         errors::StorageError::SerializationFailed
-    //     })?;
-    //     Self::update_redis_token_with_params_and_retry_history(
-    //         state,
-    //         customer_id,
-    //         token,
-    //         update_params,
-    //         card_data,
-    //     )
-    //     .await
-    // }
-
-    /// Update Redis token with comprehensive card data (efficient direct method)
+    /// Update Redis token with comprehensive card data
     #[instrument(skip_all)]
     pub async fn update_redis_token_with_comprehensive_card_data(
         state: &SessionState,
@@ -906,215 +763,63 @@ impl RedisTokenManager {
         token: &str,
         card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
     ) -> CustomResult<(), errors::StorageError> {
-        let update_params = RedisTokenUpdateParams::from_comprehensive_card_data(card_data);
-
-        let retry_history_json = card_data
-            .daily_retry_history
-            .as_ref()
-            .map(|history| serde_json::to_value(history))
-            .transpose()
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed to serialize daily retry history")?
-            .unwrap_or(serde_json::Value::Null);
-
-        let card_data_json = serde_json::json!({
-            "daily_retry_history": retry_history_json
-        });
-
-        Self::update_redis_token_with_params_and_retry_history(
-            state,
-            customer_id,
-            token,
-            update_params,
-            &card_data_json,
-        )
-        .await
-    }
-
-    /// Update Redis token with parameters and daily retry history
-    #[instrument(skip_all)]
-    pub async fn update_redis_token_with_params_and_retry_history(
-        state: &SessionState,
-        customer_id: &str,
-        token: &str,
-        update_params: RedisTokenUpdateParams,
-        card_data: &serde_json::Value,
-    ) -> CustomResult<(), errors::StorageError> {
-        let redis_conn =
-            state
-                .store
-                .get_redis_conn()
-                .change_context(errors::StorageError::RedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
-
-        let redis_key: redis_interface::types::RedisKey =
-            format!("customer:{}:tokens", customer_id).into();
-
         // Get existing token data
-        let existing_data: Option<String> = redis_conn
-            .get_hash_field(&redis_key, token)
-            .await
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::GetHashFieldFailed.into(),
-            ))?;
+        let mut token_map =
+            Self::get_connector_customer_payment_processor_tokens(state, customer_id).await?;
 
-        let data = existing_data.ok_or_else(|| {
-            tracing::error!(
+        // Find the token to update
+        let existing_token = token_map.get_mut(token).ok_or_else(|| {
+            tracing::warn!(
                 customer_id = customer_id,
                 token = token,
-                "Token not found in Redis"
+                "Token not found in parsed Redis data - may be corrupted or missing"
             );
             error_stack::Report::new(errors::StorageError::ValueNotFound(
                 "Token not found in Redis".to_string(),
             ))
         })?;
 
-        // Parse existing JSON
-        let mut token_data: serde_json::Value = serde_json::from_str(&data)
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed to parse token data")?;
+        // Update the token details with new card data
+        card_data.card_type.as_ref().map(|card_type| {
+            existing_token.payment_processor_token_details.card_type = Some(card_type.clone())
+        });
 
-        // Extract mutable reference to processor details, or return early if invalid
-        let processor_details = match token_data
-            .get_mut("payment_processor_token_details")
-            .and_then(|v| v.as_object_mut())
-        {
-            Some(details) => details,
-            None => {
-                tracing::warn!(
-                    customer_id = customer_id,
-                    token = token,
-                    "Token data structure invalid"
-                );
-                return Ok(());
-            }
-        };
+        card_data.card_exp_month.as_ref().map(|exp_month| {
+            existing_token.payment_processor_token_details.expiry_month = Some(exp_month.clone())
+        });
 
-        let field_updates = vec![
-            ("card_type", update_params.card_type.as_ref()),
-            ("expiry_month", update_params.expiry_month.as_ref()),
-            ("expiry_year", update_params.expiry_year.as_ref()),
-            ("card_issuer", update_params.card_issuer.as_ref()),
-            ("card_network", update_params.card_network.as_ref()),
-            ("last_four_digits", update_params.last_four_digits.as_ref()),
-        ];
+        card_data.card_exp_year.as_ref().map(|exp_year| {
+            existing_token.payment_processor_token_details.expiry_year = Some(exp_year.clone())
+        });
 
-        // Process all fields
-        let mut updated_fields: Vec<String> = field_updates
-            .into_iter()
-            .filter_map(|(field_name, value_opt)| {
-                value_opt.map(|value| {
-                    let value_str = value.clone().expose();
-                    processor_details.insert(
-                        field_name.to_string(),
-                        serde_json::Value::String(value_str.clone()),
-                    );
-                    format!("{}: {}", field_name, value_str)
-                })
-            })
-            .collect();
+        card_data.card_network.as_ref().map(|card_network| {
+            existing_token.payment_processor_token_details.card_network = Some(card_network.clone())
+        });
 
-        // Handle daily retry history
+        card_data.card_issuer.as_ref().map(|card_issuer| {
+            existing_token.payment_processor_token_details.card_issuer = Some(card_issuer.clone())
+        });
+
+        // Update daily retry history if provided
         card_data
-            .get("daily_retry_history")
-            .filter(|retry_history| !retry_history.is_null())
-            .and_then(|retry_history| {
-                token_data.as_object_mut().map(|token_obj| {
-                    token_obj.insert("daily_retry_history".to_string(), retry_history.clone());
-                    updated_fields.push("daily_retry_history: replaced".to_string());
-                })
-            });
+            .daily_retry_history
+            .as_ref()
+            .map(|retry_history| existing_token.daily_retry_history = retry_history.clone());
 
-        if updated_fields.is_empty() {
-            tracing::info!(
-                customer_id = customer_id,
-                token = token,
-                "No fields to update for Redis token"
-            );
-            return Ok(());
-        }
-
-        // Save updated data back to Redis
-        let updated_data = serde_json::to_string(&token_data)
-            .change_context(errors::StorageError::SerializationFailed)
-            .attach_printable("Failed to serialize token data")?;
-
-        let hash_map = HashMap::from([(token.to_string(), updated_data)]);
-        let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
-        redis_conn
-            .set_hash_fields(&redis_key, hash_map, Some(*seconds))
-            .await
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::SetHashFieldFailed.into(),
-            ))?;
+        // Save the updated token map back to Redis
+        Self::update_or_add_connector_customer_payment_processor_tokens(
+            state,
+            customer_id,
+            token_map,
+        )
+        .await?;
 
         tracing::info!(
             customer_id = customer_id,
             token = token,
-            updated_fields = updated_fields.join(", "),
-            "Updated Redis token data with comprehensive parameters"
+            "Updated Redis token data with comprehensive card data using struct"
         );
 
         Ok(())
-    }
-}
-
-/// Struct for Redis update parameters
-#[derive(Debug, Default)]
-pub struct RedisTokenUpdateParams {
-    pub card_type: Option<Secret<String>>,
-    pub expiry_month: Option<Secret<String>>,
-    pub expiry_year: Option<Secret<String>>,
-    pub card_issuer: Option<Secret<String>>,
-    pub card_network: Option<Secret<String>>,
-    pub last_four_digits: Option<Secret<String>>,
-}
-
-impl RedisTokenUpdateParams {
-    // / Create update params from card data JSON
-    // pub fn from_card_data(card_data: &serde_json::Value) -> Result<Self, String> {
-    //     fn get_str_field(
-    //         obj: &serde_json::Map<String, serde_json::Value>,
-    //         key: &str,
-    //     ) -> Option<Secret<String>> {
-    //         obj.get(key)
-    //             .filter(|v| !v.is_null())
-    //             .and_then(|v| v.as_str())
-    //             .map(|s| Secret::new(s.to_string()))
-    //     }
-
-    //     let obj = card_data
-    //         .as_object()
-    //         .ok_or("Card data is not a valid JSON object")?;
-
-    //     Ok(Self {
-    //         card_type: get_str_field(obj, "card_type"),
-    //         expiry_month: get_str_field(obj, "card_exp_month"),
-    //         expiry_year: get_str_field(obj, "card_exp_year"),
-    //         card_issuer: get_str_field(obj, "card_issuer"),
-    //         card_network: get_str_field(obj, "card_network"),
-    //         last_four_digits: get_str_field(obj, "last4"),
-    //     })
-    // }
-
-    /// Create update params from ComprehensiveCardData
-    pub fn from_comprehensive_card_data(
-        card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
-    ) -> Self {
-        Self {
-            card_type: card_data.card_type.as_ref().map(|s| Secret::new(s.clone())),
-            expiry_month: card_data.card_exp_month.clone(),
-            expiry_year: card_data.card_exp_year.clone(),
-            card_issuer: card_data
-                .card_issuer
-                .as_ref()
-                .map(|s| Secret::new(s.clone())),
-            card_network: card_data
-                .card_network
-                .as_ref()
-                .map(|network| Secret::new(network.to_string())),
-            last_four_digits: None,
-        }
     }
 }
