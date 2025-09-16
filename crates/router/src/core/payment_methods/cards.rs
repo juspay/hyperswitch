@@ -1866,8 +1866,8 @@ pub async fn update_customer_payment_method(
         };
 
         if pm.payment_method != Some(common_enums::PaymentMethod::Wallet) {
-            return Err((errors::ApiErrorResponse::InvalidRequestdata {
-                message: "The Payment Method is not wallet",
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "The Payment Method is not wallet".to_string(),
             })
             .into());
         }
