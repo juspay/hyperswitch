@@ -78,6 +78,7 @@ pub async fn list_payment_methods(
                 &req,
                 &payment_intent,
             ).await?
+            .store_gift_card_mca_in_redis(&payment_id, db).await
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone(), payment_intent.setup_future_usage))
             .perform_surcharge_calculation()
@@ -188,6 +189,45 @@ impl FilteredPaymentMethodsEnabled {
             )
             .collect();
         MergedEnabledPaymentMethodTypes(values)
+    }
+    async fn store_gift_card_mca_in_redis(
+        self,
+        payment_id: &id_type::GlobalPaymentId,
+        db: &dyn crate::db::StorageInterface,
+    ) -> FilteredPaymentMethodsEnabled {
+        let gift_card_connector_id = self
+            .0
+            .iter()
+            .find(|item| item.payment_method == common_enums::PaymentMethod::GiftCard)
+            .map(|item| &item.merchant_connector_id);
+
+        if let Some(gift_card_mca) = gift_card_connector_id {
+            let gc_key = payment_id.get_gift_card_connector_key();
+
+            let redis_conn = db
+                .get_redis_conn()
+                .map_err(|redis_error| logger::error!(?redis_error))
+                .ok();
+
+            if let Some(rc) = redis_conn {
+                rc.set_key(
+                    &gc_key.as_str().into(),
+                    gift_card_mca.get_string_repr().to_string(),
+                )
+                .await
+                .attach_printable("Failed to store gift card mca_id in redis")
+                .unwrap_or_else(|error| {
+                    logger::error!(?error);
+                })
+            };
+        } else {
+            logger::error!(
+                "Could not find any configured MCA supporting gift card for payment_id -> {}",
+                payment_id.get_string_repr()
+            );
+        }
+
+        self
     }
 }
 

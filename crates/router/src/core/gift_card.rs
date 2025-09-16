@@ -40,8 +40,6 @@ pub async fn payments_check_gift_card_balance_core(
     _header_payload: HeaderPayload,
     payment_id: id_type::GlobalPaymentId,
 ) -> RouterResponse<GiftCardBalanceCheckResponse> {
-    use api_models::payments::GiftCardBalanceCheckResponse;
-
     let db = state.store.as_ref();
 
     let key_manager_state = &(&state).into();
@@ -57,33 +55,24 @@ pub async fn payments_check_gift_card_balance_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let payment_connector_accounts = db
-        .list_enabled_connector_accounts_by_profile_id(
-            key_manager_state,
-            profile.get_id(),
-            merchant_context.get_merchant_key_store(),
-            common_enums::ConnectorType::PaymentProcessor,
-        )
-        .await
+    let redis_conn = db
+        .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error when fetching merchant connector accounts")?;
+        .attach_printable("Could not get redis connection")?;
 
-    let gift_card_connector_id = payment_connector_accounts
-        .iter()
-        .find_map(|account| {
-            account
-                .payment_methods_enabled
-                .as_ref()?
-                .iter()
-                .find(|payment_method| {
-                    payment_method.payment_method_type == common_enums::PaymentMethod::GiftCard
-                })
-                .map(|_| account.get_id().clone())
-        })
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "No MCA found with Gift Card Support".to_string(),
-        })
-        .attach_printable("No configured MCA supports Gift Card")?;
+    let gift_card_connector_id: String = redis_conn
+        .get_key(&payment_id.get_gift_card_connector_key().as_str().into())
+        .await
+        .attach_printable("Failed to fetch gift card connector from redis")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "No connector found with Gift Card Support".to_string(),
+        })?;
+
+    let gift_card_connector_id = id_type::MerchantConnectorAccountId::wrap(gift_card_connector_id)
+        .attach_printable("Failed to deserialize MCA")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "No connector found with Gift Card Support".to_string(),
+        })?;
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
