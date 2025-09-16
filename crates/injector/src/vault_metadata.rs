@@ -92,7 +92,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         );
 
         // Validate and set proxy URL from VGS metadata
-        self.validate_proxy_url()?;
         let proxy_url_str = self.proxy_url.as_str().to_string();
         connection_config.proxy_url = Some(Secret::new(proxy_url_str.clone()));
 
@@ -104,7 +103,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         );
 
         // Validate and decode certificate from VGS metadata
-        self.validate_certificate()?;
         let cert_content = self.certificate.clone().expose();
 
         logger::debug!(
@@ -161,56 +159,6 @@ impl VaultMetadataProcessor for VgsMetadata {
 
     fn vault_connector(&self) -> VaultConnectors {
         VaultConnectors::VGS
-    }
-}
-
-impl VgsMetadata {
-    /// Validate the proxy URL
-    fn validate_proxy_url(&self) -> Result<(), VaultMetadataError> {
-        let url_str = self.proxy_url.as_str();
-
-        // Check if URL has HTTPS scheme for security
-        if self.proxy_url.scheme() != "https" {
-            return Err(VaultMetadataError::url_validation_failed(
-                "proxy_url",
-                url_str,
-                "VGS proxy URL must use HTTPS scheme for security",
-            ));
-        }
-
-        // Check if URL has a host
-        if self.proxy_url.host().is_none() {
-            return Err(VaultMetadataError::url_validation_failed(
-                "proxy_url",
-                url_str,
-                "Proxy URL must have a valid host",
-            ));
-        }
-
-        // Check if URL has a port (VGS typically uses specific ports)
-        if self.proxy_url.port().is_none() {
-            logger::warn!(
-                proxy_url = %self.proxy_url,
-                "VGS proxy URL does not specify a port, using default HTTPS port 443"
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Validate the certificate format and content
-    fn validate_certificate(&self) -> Result<(), VaultMetadataError> {
-        let cert_content = self.certificate.clone().expose();
-
-        // Only check that certificate is not empty - let the HTTP client handle the rest
-        if cert_content.trim().is_empty() {
-            return Err(VaultMetadataError::CertificateValidationFailed(
-                "Certificate content is empty".to_string(),
-            ));
-        }
-
-        logger::debug!("Certificate validation passed (non-empty check only)");
-        Ok(())
     }
 }
 
