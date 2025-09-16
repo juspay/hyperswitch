@@ -8,7 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{self, Email, IpAddress},
     request::Method,
-    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector, FloatMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -3209,27 +3209,225 @@ pub enum ChargebackStatus {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChargebackNotification {
-    #[serde(rename = "ppp_TransactionID")]
-    pub ppp_transaction_id: Option<String>,
-    pub merchant_unique_id: Option<String>,
-    pub merchant_id: Option<String>,
-    pub merchant_site_id: Option<String>,
-    pub request_version: Option<String>,
-    pub message: Option<String>,
-    pub status: Option<ChargebackStatus>,
-    pub reason: Option<String>,
-    pub case_id: Option<String>,
-    pub processor_case_id: Option<String>,
+    pub client_id: Option<i64>,
+    pub client_name: Option<String>,
+    pub event_date_u_t_c: Option<String>,
+    pub event_correlation_id: Option<String>,
+    pub chargeback: ChargebackData,
+    pub transaction_details: ChargebackTransactionDetails,
+    pub event_id: Option<String>,
+    pub event_date: Option<String>,
+    pub processing_entity_type: Option<String>,
+    pub processing_entity_id: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChargebackData {
+    pub date: Option<time::PrimitiveDateTime>,
+    pub chargeback_status_category: ChargebackStatusCategory,
+    #[serde(rename = "Type")]
+    pub webhook_type: ChargebackType,
+    pub status: Option<String>, 
+    pub amount:  FloatMajorUnit,
+    pub currency: String,
+    pub reported_amount: FloatMajorUnit,
+    pub reported_currency: String,
+    pub chargeback_reason: Option<String>,
+    pub chargeback_reason_category: Option<String>,
+    pub reason_message: Option<String>,
+    pub dispute_id: Option<String>,
+    pub dispute_due_date: Option<time::PrimitiveDateTime>,
+    pub dispute_event_id: Option<i64>,
+    pub dispute_unified_status_code: Option<DisputeUnifiedStatusCode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, strum::Display,)]
+pub enum DisputeUnifiedStatusCode {
+    #[serde(rename = "FC")]
+    FirstChargebackInitiatedByIssuer,
+
+    #[serde(rename = "CC")]
+    CreditChargebackInitiatedByIssuer,
+
+    #[serde(rename = "CC-A-ACPT")]
+    CreditChargebackAcceptedAutomatically,
+
+    #[serde(rename = "FC-A-EPRD")]
+    FirstChargebackNoResponseExpired,
+
+    #[serde(rename = "FC-M-ACPT")]
+    FirstChargebackAcceptedByMerchant,
+
+    #[serde(rename = "FC-A-ACPT")]
+    FirstChargebackAcceptedAutomatically,
+
+    #[serde(rename = "FC-A-ACPT-MCOLL")]
+    FirstChargebackAcceptedAutomaticallyMcoll,
+
+    #[serde(rename = "FC-M-PART")]
+    FirstChargebackPartiallyAcceptedByMerchant,
+
+    #[serde(rename = "FC-M-PART-EXP")]
+    FirstChargebackPartiallyAcceptedByMerchantExpired,
+
+    #[serde(rename = "FC-M-RJCT")]
+    FirstChargebackRejectedByMerchant,
+
+    #[serde(rename = "FC-M-RJCT-EXP")]
+    FirstChargebackRejectedByMerchantExpired,
+
+    #[serde(rename = "FC-A-RJCT")]
+    FirstChargebackRejectedAutomatically,
+
+    #[serde(rename = "FC-A-RJCT-EXP")]
+    FirstChargebackRejectedAutomaticallyExpired,
+
+    #[serde(rename = "IPA")]
+    PreArbitrationInitiatedByIssuer,
+
+    #[serde(rename = "MPA-I-ACPT")]
+    MerchantPreArbitrationAcceptedByIssuer,
+
+    #[serde(rename = "MPA-I-RJCT")]
+    MerchantPreArbitrationRejectedByIssuer,
+
+    #[serde(rename = "MPA-I-PART")]
+    MerchantPreArbitrationPartiallyAcceptedByIssuer,
+
+    #[serde(rename = "FC-CLSD-MF")]
+    FirstChargebackClosedMerchantFavour,
+
+    #[serde(rename = "FC-CLSD-CHF")]
+    FirstChargebackClosedCardholderFavour,
+
+    #[serde(rename = "FC-CLSD-RCL")]
+    FirstChargebackClosedRecall,
+
+    #[serde(rename = "FC-I-RCL")]
+    FirstChargebackRecalledByIssuer,
+
+    #[serde(rename = "PA-CLSD-MF")]
+    PreArbitrationClosedMerchantFavour,
+
+    #[serde(rename = "PA-CLSD-CHF")]
+    PreArbitrationClosedCardholderFavour,
+
+    #[serde(rename = "RDR")]
+    Rdr,
+
+    #[serde(rename = "FC-SPCSE")]
+    FirstChargebackDisputeResponseNotAllowed,
+
+    #[serde(rename = "MCC")]
+    McCollaborationInitiatedByIssuer,
+
+    #[serde(rename = "MCC-A-RJCT")]
+    McCollaborationPreviouslyRefundedAuto,
+
+    #[serde(rename = "MCC-M-ACPT")]
+    McCollaborationRefundedByMerchant,
+
+    #[serde(rename = "MCC-EXPR")]
+    McCollaborationExpired,
+
+    #[serde(rename = "MCC-M-RJCT")]
+    McCollaborationRejectedByMerchant,
+
+    #[serde(rename = "MCC-A-ACPT")]
+    McCollaborationAutomaticAccept,
+
+    #[serde(rename = "MCC-CLSD-MF")]
+    McCollaborationClosedMerchantFavour,
+
+    #[serde(rename = "MCC-CLSD-CHF")]
+    McCollaborationClosedCardholderFavour,
+
+    #[serde(rename = "INQ")]
+    InquiryInitiatedByIssuer,
+
+    #[serde(rename = "INQ-M-RSP")]
+    InquiryRespondedByMerchant,
+
+    #[serde(rename = "INQ-EXPR")]
+    InquiryExpired,
+
+    #[serde(rename = "INQ-A-RJCT")]
+    InquiryAutomaticallyRejected,
+
+    #[serde(rename = "INQ-A-CNLD")]
+    InquiryCancelledAfterRefund,
+
+    #[serde(rename = "INQ-M-RFND")]
+    InquiryAcceptedFullRefund,
+
+    #[serde(rename = "INQ-M-P-RFND")]
+    InquiryPartialAcceptedPartialRefund,
+
+    #[serde(rename = "INQ-UPD")]
+    InquiryUpdated,
+
+    #[serde(rename = "IPA-M-ACPT")]
+    PreArbitrationAcceptedByMerchant,
+
+    #[serde(rename = "IPA-M-PART")]
+    PreArbitrationPartiallyAcceptedByMerchant,
+
+    #[serde(rename = "IPA-M-PART-EXP")]
+    PreArbitrationPartiallyAcceptedByMerchantExpired,
+
+    #[serde(rename = "IPA-M-RJCT")]
+    PreArbitrationRejectedByMerchant,
+
+    #[serde(rename = "IPA-M-RJCT-EXP")]
+    PreArbitrationRejectedByMerchantExpired,
+
+    #[serde(rename = "IPA-A-ACPT")]
+    PreArbitrationAutomaticallyAcceptedByMerchant,
+
+    #[serde(rename = "PA-CLSD-RC")]
+    PreArbitrationClosedRecall,
+
+    #[serde(rename = "IPAR-M-ACPT")]
+    RejectedPreArbAcceptedByMerchant,
+
+    #[serde(rename = "IPAR-A-ACPT")]
+    RejectedPreArbExpiredAutoAccepted,
+
+    #[serde(rename = "CC-I-RCLL")]
+    CreditChargebackRecalledByIssuer,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChargebackTransactionDetails {
+    pub transaction_id: i64,
+    pub transaction_date: Option<String>,
+    pub client_unique_id: Option<String>,
+    pub acquirer_name: Option<String>,
+    pub masked_card_number: Option<String>,
     pub arn: Option<String>,
-    pub retrieval_request_date: Option<String>,
-    pub chargeback_date: Option<String>,
-    pub chargeback_amount: Option<String>,
-    pub chargeback_currency: Option<String>,
-    pub original_amount: Option<String>,
-    pub original_currency: Option<String>,
-    #[serde(rename = "transactionID")]
-    pub transaction_id: Option<String>,
-    pub user_token_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ChargebackType {
+    Chargeback,
+    Retrieval,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ChargebackStatusCategory {
+    #[serde(rename = "Regular")]
+    Regular,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "Duplicate")]
+    Duplicate,
+    #[serde(rename = "RDR-Refund")]
+    RdrRefund,
+    #[serde(rename = "Soft_CB")]
+    SoftCb,
 }
 
 /// Represents the overall status of the DMN.
@@ -3331,20 +3529,6 @@ pub struct PaymentDmnNotification {
 pub struct NuveiWebhookTransactionId {
     #[serde(rename = "ppp_TransactionID")]
     pub ppp_transaction_id: String,
-}
-
-// Helper struct to extract transaction ID from either webhook type
-impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
-    fn from(webhook: &NuveiWebhook) -> Self {
-        match webhook {
-            NuveiWebhook::Chargeback(notification) => Self {
-                ppp_transaction_id: notification.ppp_transaction_id.clone().unwrap_or_default(),
-            },
-            NuveiWebhook::PaymentDmn(notification) => Self {
-                ppp_transaction_id: notification.ppp_transaction_id.clone(),
-            },
-        }
-    }
 }
 
 // Convert webhook to payments response for further processing
@@ -3551,5 +3735,131 @@ pub fn map_notification_to_event(
             | PaymentTransactionType::Settle,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
         _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+    }
+}
+
+pub fn map_dispute_notification_to_event(
+    dispute_code: DisputeUnifiedStatusCode,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
+    match dispute_code {
+        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer 
+        |DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer 
+        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall 
+        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened),
+        DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
+        |DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+        |DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll 
+        |DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant 
+        |DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed 
+        |DisputeUnifiedStatusCode::Rdr
+        |DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant 
+        |DisputeUnifiedStatusCode::McCollaborationAutomaticAccept 
+        |DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant 
+        |DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant 
+        |DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant 
+        |DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant 
+        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted),
+        DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+        |DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+        |DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+        |DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour 
+        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost), 
+        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant 
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically 
+        | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+        | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+        | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant  =>  Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged),
+        DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+        |DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired 
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired  
+        |DisputeUnifiedStatusCode::McCollaborationExpired 
+        |DisputeUnifiedStatusCode::InquiryExpired 
+        |DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired 
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired),
+        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer 
+        |DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer 
+        |DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour 
+        |DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon),
+        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer 
+        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund 
+        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall 
+        |DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled),
+
+        DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+        |DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+        |DisputeUnifiedStatusCode::InquiryAutomaticallyRejected 
+        |DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+        |DisputeUnifiedStatusCode::InquiryUpdated 
+         => Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+    }
+}
+
+impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
+    fn from(code: DisputeUnifiedStatusCode) -> Self {
+        match code {
+            // --- PreDispute ---
+            DisputeUnifiedStatusCode::Rdr
+            | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer
+            | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+            | DisputeUnifiedStatusCode::InquiryExpired
+            | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+            | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+            | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+            | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+            | DisputeUnifiedStatusCode::InquiryUpdated => common_enums::DisputeStage::PreDispute,
+        
+            // --- Dispute ---
+            DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+            | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+            | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+            | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+            | DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+            | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+            | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationExpired
+            | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+            | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => common_enums::DisputeStage::Dispute,
+        
+            // --- PreArbitration ---
+            DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+            | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+            | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => common_enums::DisputeStage::PreArbitration,
+        
+            // --- DisputeReversal ---
+            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => common_enums::DisputeStage::DisputeReversal,
+        }
     }
 }
