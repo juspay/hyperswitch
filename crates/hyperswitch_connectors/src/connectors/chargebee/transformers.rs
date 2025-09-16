@@ -301,6 +301,11 @@ pub struct ChargebeeInvoiceData {
     pub currency_code: enums::Currency,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+    // New fields for invoice_generated webhook
+    pub status: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub subscription_id: Option<String>,
+    pub first_invoice: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -575,6 +580,7 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            connectors::chargebee::transformers::ChargebeeEventType::InvoiceGenerated => todo!(),
         }
     }
 }
