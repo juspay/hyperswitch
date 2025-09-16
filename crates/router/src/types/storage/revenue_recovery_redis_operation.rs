@@ -806,6 +806,25 @@ impl RedisTokenManager {
             .as_ref()
             .map(|retry_history| existing_token.daily_retry_history = retry_history.clone());
 
+        // If existing scheduled_at < current time, update it to current time
+        // If no scheduled_at value exists, leave it as None
+        let now = date_time::now();
+        existing_token.scheduled_at = existing_token
+            .scheduled_at
+            .filter(|&existing_scheduled_at| existing_scheduled_at >= now)
+            .or_else(|| {
+                existing_token.scheduled_at.map(|old_scheduled_at| {
+                    tracing::info!(
+                        customer_id = customer_id,
+                        token = token,
+                        old_scheduled_at = %old_scheduled_at,
+                        new_scheduled_at = %now,
+                        "Updated scheduled_at from past time to current time"
+                    );
+                    now
+                })
+            });
+
         // Save the updated token map back to Redis
         Self::update_or_add_connector_customer_payment_processor_tokens(
             state,

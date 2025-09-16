@@ -357,6 +357,8 @@ pub enum Flow {
     GsmRuleDelete,
     /// Get data from embedded flow
     GetDataFromHyperswitchAiFlow,
+    // List all chat interactions
+    ListAllChatInteractions,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up

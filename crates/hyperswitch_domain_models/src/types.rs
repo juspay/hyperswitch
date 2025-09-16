@@ -25,8 +25,9 @@ use crate::{
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
@@ -52,6 +53,12 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPreAuthenticateRouterData =
+    RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
+pub type PaymentsAuthenticateRouterData =
+    RouterData<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>;
+pub type PaymentsPostAuthenticateRouterData =
+    RouterData<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;

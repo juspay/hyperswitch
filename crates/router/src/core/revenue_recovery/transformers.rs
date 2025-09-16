@@ -56,6 +56,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             next_billing_at: None,
             billing_started_at: data.billing_started_at,
+            metadata: data.metadata,
         }
     }
 }
