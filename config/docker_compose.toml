@@ -3,7 +3,6 @@ port = 8080
 host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
-
 [log.file]
 enabled = false # Whether you want to store log in log files.
 path = "logs"   # Where to store log files.
