@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
     revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
-use storage::ProcessTrackerRunner;
 
 use crate::{
     core::{
@@ -268,7 +267,7 @@ pub async fn perform_execute_payment(
                 Err(err) => {
                     logger::error!("Error while recording attempt: {:?}", err);
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: enums::ProcessTrackerStatus::Pending,
+                        status: ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
                             business_status::EXECUTE_WORKFLOW_REQUEUE,
                         )),
@@ -341,7 +340,7 @@ pub async fn perform_execute_payment(
                 enums::TriggeredBy::Internal => {
                     // requeue the current tasks to update the fields for rescheduling a payment
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: enums::ProcessTrackerStatus::Pending,
+                        status: ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
                             business_status::EXECUTE_WORKFLOW_REQUEUE,
                         )),
@@ -380,7 +379,7 @@ async fn insert_psync_pcr_task_to_pt(
     billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
     merchant_id: id_type::MerchantId,
-    payment_id: id_type::GlobalPaymentId,
+    payment_id: GlobalPaymentId,
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
@@ -772,7 +771,7 @@ async fn update_calculate_job_schedule_time(
         schedule_time: Some(new_schedule_time),
         tracking_data: Some(process.clone().tracking_data),
         business_status: Some(String::from(business_status::PENDING)),
-        status: Some(common_enums::ProcessTrackerStatus::Pending),
+        status: Some(ProcessTrackerStatus::Pending),
         updated_at: Some(common_utils::date_time::now()),
     };
 
@@ -866,7 +865,7 @@ async fn insert_execute_pcr_task_to_pt(
                 schedule_time: Some(schedule_time),
                 tracking_data: Some(tracking_data_json),
                 business_status: Some(String::from(business_status::PENDING)),
-                status: Some(enums::ProcessTrackerStatus::Pending),
+                status: Some(ProcessTrackerStatus::Pending),
                 updated_at: Some(common_utils::date_time::now()),
             };
 
@@ -972,7 +971,7 @@ async fn insert_execute_pcr_task_to_pt(
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
-    id: id_type::GlobalPaymentId,
+    id: GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
     let task = EXECUTE_WORKFLOW;
@@ -1026,7 +1025,7 @@ pub async fn retrieve_revenue_recovery_process_tracker(
 
 pub async fn get_payment_response_using_payment_get_operation(
     state: &SessionState,
-    payment_intent_id: &id_type::GlobalPaymentId,
+    payment_intent_id: &GlobalPaymentId,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     merchant_context: &domain::MerchantContext,
     active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
@@ -1114,7 +1113,7 @@ pub async fn get_workflow_entries(
     payment_id: &GlobalPaymentId,
 ) -> RouterResult<(Option<ProcessTrackerStorage>, Option<ProcessTrackerStorage>)> {
     let db = &state.store;
-    let runner = ProcessTrackerRunner::PassiveRecoveryWorkflow;
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
 
     // Get calculate workflow entry
     let calculate_task = CALCULATE_WORKFLOW;

@@ -7900,7 +7900,7 @@ pub async fn revenue_recovery_list_payments(
                         let max_retry_threshold = billing_connector_account
                             .as_ref()
                             .and_then(|mca| mca.get_retry_threshold())
-                            .unwrap_or(0) as i16; // Default fallback
+                            .unwrap_or(0); // Default fallback
 
                         // Use custom mapping function
                         map_to_recovery_payment_item(
@@ -7908,7 +7908,7 @@ pub async fn revenue_recovery_list_payments(
                             payment_attempt,
                             calculate_workflow,
                             execute_workflow,
-                            max_retry_threshold,
+                            max_retry_threshold.try_into().unwrap_or(0),
                         )
                     },
                 )
