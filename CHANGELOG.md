@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+
+## 2025.09.15.0
+
+### Features
+
+- **connector:** [PeachPayments] Add Cards Flow ([#9030](https://github.com/juspay/hyperswitch/pull/9030)) ([`f3635a2`](https://github.com/juspay/hyperswitch/commit/f3635a2e1d6ddf9238387b4f7b1599d7539875ae))
+
+**Full Changelog:** [`2025.09.12.0...2025.09.15.0`](https://github.com/juspay/hyperswitch/compare/2025.09.12.0...2025.09.15.0)
+
+- - -
+
+## 2025.09.12.0
+
+### Features
+
+- **connector:**
+  - [ADYEN] Add support to ideal Mandate Webhook ([#9347](https://github.com/juspay/hyperswitch/pull/9347)) ([`19debb6`](https://github.com/juspay/hyperswitch/commit/19debb64461ed6da677f6f8ddf34cfe89b82f390))
+  - [Paysafe] Implement card 3ds flow ([#9305](https://github.com/juspay/hyperswitch/pull/9305)) ([`a87ab73`](https://github.com/juspay/hyperswitch/commit/a87ab733e96ff8d40c048e53d1f388d6ae7c5f7d))
+  - Add Peachpayments Template Code ([#9363](https://github.com/juspay/hyperswitch/pull/9363)) ([`0873d93`](https://github.com/juspay/hyperswitch/commit/0873d93084d2a126cdfb3ebb60e92b0cec79d2ba))
+- **core:** Add first_name and last_name as Secret<String> Types. ([#9326](https://github.com/juspay/hyperswitch/pull/9326)) ([`08ca156`](https://github.com/juspay/hyperswitch/commit/08ca156bb6218afa3bf947f6ceac7fd14c55a45a))
+- **injector:** Injector request formation changes ([#9306](https://github.com/juspay/hyperswitch/pull/9306)) ([`fabe82d`](https://github.com/juspay/hyperswitch/commit/fabe82d24e76f37fd0e0e2bb626704fbfb286ae9))
+- **router:** Add Connector changes for 3ds (v2) ([#9117](https://github.com/juspay/hyperswitch/pull/9117)) ([`6b880e4`](https://github.com/juspay/hyperswitch/commit/6b880e45337c12ca6462ce4fd238f9f85549759f))
+- **webhooks:** Provide outgoing webhook support for revenue recovery ([#9294](https://github.com/juspay/hyperswitch/pull/9294)) ([`2db6153`](https://github.com/juspay/hyperswitch/commit/2db6153881c6661d398241b1dccac8b0bba48bd4))
+
+### Bug Fixes
+
+- **connector:** [checkout] Add US Support for Apple Pay and Google Pay + Enhanced Checkout Response Data ([#9356](https://github.com/juspay/hyperswitch/pull/9356)) ([`cadfcf7`](https://github.com/juspay/hyperswitch/commit/cadfcf7c22bfd1124f19e2f1cc1c98c3d152be99))
+- **nuvei:** Nuvei 3ds fix + psync fix ([#9279](https://github.com/juspay/hyperswitch/pull/9279)) ([`ebba12e`](https://github.com/juspay/hyperswitch/commit/ebba12ecd52f22bade353ee353b690f9dde6d53f))
+- **revenue-recovery:** Update Redis TTL for customer locks after token selection ([#9282](https://github.com/juspay/hyperswitch/pull/9282)) ([`df47c01`](https://github.com/juspay/hyperswitch/commit/df47c01932274d008f3dd5c0c19c7598ac1c7e4b))
+- **router:** Adding connector_customer_id for external vault proxy ([#9263](https://github.com/juspay/hyperswitch/pull/9263)) ([`87ff43f`](https://github.com/juspay/hyperswitch/commit/87ff43f26c57d14aa8270668b0837e6166f4a733))
+
+### Refactors
+
+- **core:** Accept manual retry from profile ([#9302](https://github.com/juspay/hyperswitch/pull/9302)) ([`59870a9`](https://github.com/juspay/hyperswitch/commit/59870a964dd9e9c50708b62a8ab273501acf5123))
+
+**Full Changelog:** [`2025.09.11.0...2025.09.12.0`](https://github.com/juspay/hyperswitch/compare/2025.09.11.0...2025.09.12.0)
+
+- - -
+
 ## 2025.09.11.0
 
 ### Features
