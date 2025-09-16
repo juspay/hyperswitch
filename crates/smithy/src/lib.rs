@@ -29,7 +29,7 @@ fn generate_smithy_impl(input: &DeriveInput) -> syn::Result<TokenStream2> {
             generate_enum_impl(name, &namespace, data_enum, &input.attrs)
         }
         _ => {
-            return Err(syn::Error::new_spanned(
+            Err(syn::Error::new_spanned(
                 input,
                 "SmithyModel can only be derived for structs and enums",
             ))
@@ -82,9 +82,7 @@ fn generate_struct_impl(
                     for (shape_name, shape) in flattened_model.shapes {
                         if shape_name == flattened_struct_name {
                             match shape {
-                                smithy_core::SmithyShape::Structure { members: flattened_members, .. } => {
-                                    members.extend(flattened_members);
-                                }
+                                smithy_core::SmithyShape::Structure { members: flattened_members, .. } |
                                 smithy_core::SmithyShape::Union { members: flattened_members, .. } => {
                                     members.extend(flattened_members);
                                 }
@@ -456,18 +454,14 @@ fn extract_namespace_and_mixin(attrs: &[Attribute]) -> syn::Result<(String, bool
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("namespace") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                namespace = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            namespace = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("mixin") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Bool(lit_bool) = lit {
-                                mixin = lit_bool.value;
-                            }
+                        if let Ok(Lit::Bool(lit_bool)) = value.parse::<Lit>() {
+                            mixin = lit_bool.value;
                         }
                     }
                 }
@@ -641,10 +635,8 @@ fn parse_serde_enum_attributes(attrs: &[Attribute]) -> syn::Result<SerdeEnumAttr
             let parse_result = attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("rename_all") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                serde_enum_attributes.rename_all = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            serde_enum_attributes.rename_all = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("tag") {
@@ -722,9 +714,9 @@ fn transform_variant_name(name: &str, rename_all: Option<&str>) -> String {
 
 fn to_snake_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
+    let chars = input.chars();
     
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch.is_uppercase() && !result.is_empty() {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
@@ -754,9 +746,8 @@ fn to_camel_case(input: &str) -> String {
 
 fn to_kebab_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
     
-    while let Some(ch) = chars.next() {
+    for ch in input.chars() {
         if ch.is_uppercase() && !result.is_empty() {
             // Add hyphen before uppercase letters (except the first character)
             result.push('-');
@@ -769,9 +760,8 @@ fn to_kebab_case(input: &str) -> String {
 
 fn to_screaming_snake_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = input.chars().peekable();
     
-    while let Some(ch) = chars.next() {
+    for ch in input.chars() {
         if ch.is_uppercase() && !result.is_empty() {
             // Add underscore before uppercase letters (except the first character)
             result.push('_');
@@ -869,10 +859,9 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
     }
 
     // Automatically add Required for http_label fields
-    if field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::HttpLabel)) {
-        if !field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
-            field_attributes.constraints.push(SmithyConstraint::Required);
-        }
+    if field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::HttpLabel))
+        && !field_attributes.constraints.iter().any(|c| matches!(c, SmithyConstraint::Required)) {
+        field_attributes.constraints.push(SmithyConstraint::Required);
     }
 
     Ok(field_attributes)
@@ -883,15 +872,12 @@ fn extract_documentation(attrs: &[Attribute]) -> Option<String> {
     
     for attr in attrs {
         if attr.path().is_ident("doc") {
-            match &attr.meta {
-                Meta::NameValue(meta_name_value) => {
-                    if let syn::Expr::Lit(expr_lit) = &meta_name_value.value {
-                        if let Lit::Str(lit_str) = &expr_lit.lit {
-                            docs.push(lit_str.value().trim().to_string());
-                        }
+            if let Meta::NameValue(meta_name_value) = &attr.meta {
+                if let syn::Expr::Lit(expr_lit) = &meta_name_value.value {
+                    if let Lit::Str(lit_str) = &expr_lit.lit {
+                        docs.push(lit_str.value().trim().to_string());
                     }
                 }
-                _ => {}
             }
         }
     }
