@@ -7491,6 +7491,10 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate: Secret<String>,
     #[schema(value_type = String)]
     pub payment_processing_certificate_key: Secret<String>,
+    #[schema(value_type = String)]
+    pub payment_processing_certificate_transitional: Option<Secret<String>>,
+    #[schema(value_type = String)]
+    pub payment_processing_certificate_key_transitional: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

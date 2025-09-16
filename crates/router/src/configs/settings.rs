@@ -918,6 +918,8 @@ pub struct BillingConnectorInvoiceSyncCall {
 pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
+    pub apple_pay_ppc_backup: Option<Secret<String>>,
+    pub apple_pay_ppc_key_backup: Option<Secret<String>>,
     pub apple_pay_merchant_cert: Secret<String>,
     pub apple_pay_merchant_cert_key: Secret<String>,
 }
