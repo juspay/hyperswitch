@@ -195,7 +195,7 @@ impl FilteredPaymentMethodsEnabled {
         payment_id: &id_type::GlobalPaymentId,
         db: &dyn crate::db::StorageInterface,
         profile: &domain::Profile,
-    ) -> FilteredPaymentMethodsEnabled {
+    ) -> Self {
         let gift_card_connector_id = self
             .0
             .iter()
