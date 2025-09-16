@@ -397,9 +397,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
         let merchant_order_reference_id = self
-            .request
-            .merchant_order_reference_id
-            .clone()
+            .header_payload
+            .as_ref()
+            .and_then(|payload| payload.x_reference_id.clone())
+            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
+            .transpose()
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+            .ok()
+            .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
             .get_grpc_headers_ucs()

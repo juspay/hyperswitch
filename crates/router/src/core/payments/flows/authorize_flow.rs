@@ -857,9 +857,9 @@ async fn call_unified_connector_service_authorize(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_order_reference_id = router_data
-        .request
-        .merchant_order_reference_id
+        .header_payload
         .as_ref()
+        .and_then(|payload| payload.x_reference_id.clone())
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -941,9 +941,9 @@ async fn call_unified_connector_service_repeat_payment(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
     let merchant_order_reference_id = router_data
-        .request
-        .merchant_order_reference_id
+        .header_payload
         .as_ref()
+        .and_then(|payload| payload.x_reference_id.clone())
         .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
         .transpose()
         .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
