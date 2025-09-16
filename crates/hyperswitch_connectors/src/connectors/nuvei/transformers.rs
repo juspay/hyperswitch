@@ -2800,7 +2800,7 @@ impl
             .and_then(|browser_info| browser_info.ip_address.map(|ip| ip.to_string()));
 
         Ok(Self {
-            status: enums::AttemptStatus::Pending,
+            status,
             response: if let Some(err) = build_error_response(ErrorResponseParams {
                 http_code: item.http_code,
                 status: response.status.clone(),

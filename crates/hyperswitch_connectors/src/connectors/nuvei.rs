@@ -1088,7 +1088,7 @@ impl IncomingWebhook for Nuvei {
         match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone()),
+                    PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone().ok_or(errors::ConnectorError::MissingConnectorTransactionID)?)
                 ))
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
