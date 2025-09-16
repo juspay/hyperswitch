@@ -975,6 +975,7 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::CaptureMethod::Automatic,
         enums::CaptureMethod::Manual,
     ];
+    let supported_capture_methods2 = vec![enums::CaptureMethod::Automatic];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Mastercard,
@@ -1025,6 +1026,17 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
                     }
                 }),
             ),
+        },
+    );
+
+    paysafe_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Skrill,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
         },
     );
 
