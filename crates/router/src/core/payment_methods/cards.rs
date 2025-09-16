@@ -1887,16 +1887,17 @@ pub async fn update_customer_payment_method(
             payment_method_data: Some(pm_data_encrypted.into()),
         };
 
-        db.update_payment_method(
-            &((&state).into()),
-            merchant_context.get_merchant_key_store(),
-            pm.clone(),
-            pm_update,
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment method in db")?;
+        let pm = db
+            .update_payment_method(
+                &((&state).into()),
+                merchant_context.get_merchant_key_store(),
+                pm,
+                pm_update,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method in db")?;
 
         Ok(services::ApplicationResponse::Json(
             api::PaymentMethodResponse {
