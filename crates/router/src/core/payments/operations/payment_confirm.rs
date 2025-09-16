@@ -35,8 +35,9 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
-            PaymentData,
+            self, helpers, operations,
+            operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
+            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -1408,26 +1409,82 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.psd2_sca_exemption_type,
                 )
                 .await?;
+                let acquirer_configs = authentication
+                    .profile_acquirer_id
+                    .clone()
+                    .and_then(|acquirer_id| {
+                        business_profile
+                            .acquirer_config_map.as_ref()
+                            .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
+                    });
+                let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
+                    .get_metadata()
+                    .map(|metadata| {
+                        metadata.expose().parse_value("ThreeDsMetaData").inspect_err(|err| {
+                        router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
+                    })
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let merchant_country_code = authentication.acquirer_country_code.clone();
+            let merchant_id= business_profile.merchant_id.clone();
+            let authentication_id= authentication.authentication_id.clone();
+            let notification_url = match authentication_connector {
+                common_enums::AuthenticationConnectors::Juspaythreedsserver => {
+                    Some(url::Url::parse(&format!(
+                        "{base_url}/authentication/{merchant_id}/{authentication_id}/sync",
+                        base_url = state.base_url,
+                        merchant_id = merchant_id.get_string_repr(),
+                        authentication_id = authentication_id.get_string_repr()
+                    )))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse notification url")?
+                }
+                _ => authentication
+                    .return_url
+                    .as_ref()
+                    .map(|url| url::Url::parse(url))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse return url")?,
+            };
 
-                let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
-                    state,
-                    &payment_data.payment_attempt.merchant_id,
-                    Some(&payment_data.payment_intent.payment_id),
-                    payment_data.payment_method_data.as_ref(),
-                    &three_ds_connector_account,
-                    &authentication_connector_name,
-                    &authentication.authentication_id,
-                    payment_data.payment_attempt.payment_method.ok_or(
-                        errors::ApiErrorResponse::InternalServerError
-                    ).attach_printable("payment_method not found in payment_attempt")?,
-                    payment_data.payment_intent.amount,
-                    payment_data.payment_intent.currency,
-                    payment_data.service_details.clone(),
-                    None,
-                    None,
-                    None,
-                    None
-                ).await?;
+            let merchant_details = Some(unified_authentication_service::MerchantDetails {
+                merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
+                merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+                merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
+                endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+                three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
+                three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
+                three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
+                merchant_country_code: merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
+                notification_url,
+            });
+
+            let domain_address  = payment_data.address.get_payment_billing();
+
+
+            let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
+                        state,
+                        &payment_data.payment_attempt.merchant_id,
+                        Some(&payment_data.payment_intent.payment_id),
+                        payment_data.payment_method_data.as_ref(),
+                        &three_ds_connector_account,
+                        &authentication_connector_name,
+                        &authentication.authentication_id,
+                        payment_data.payment_attempt.payment_method.ok_or(
+                            errors::ApiErrorResponse::InternalServerError
+                        ).attach_printable("payment_method not found in payment_attempt")?,
+                        payment_data.payment_intent.amount,
+                        payment_data.payment_intent.currency,
+                        payment_data.service_details.clone(),
+                        merchant_details.as_ref(),
+                        domain_address,
+                        authentication.acquirer_bin.clone(),
+                        authentication.acquirer_merchant_id.clone(),
+                    )
+                    .await?;
                 let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
