@@ -1157,10 +1157,10 @@ impl Routing {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(feature = "oltp")]
 pub struct Subscription;
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
         web::scope("/subscription")

@@ -1,9 +1,8 @@
 pub mod utils;
 use api_models::subscription::{
     self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
-    SUBSCRIPTION_ID_PREFIX,
 };
-use common_utils::generate_id_with_default_len;
+use common_utils::id_type::GenerateId;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -22,10 +21,7 @@ pub async fn create_subscription(
 ) -> RouterResponse<CreateSubscriptionResponse> {
     let store = state.store.clone();
     let db = store.as_ref();
-    let id = request
-        .subscription_id
-        .clone()
-        .unwrap_or(generate_id_with_default_len(SUBSCRIPTION_ID_PREFIX));
+    let id = common_utils::id_type::SubscriptionId::generate();
     let mut response = CreateSubscriptionResponse::new(
         id.clone(),
         SubscriptionStatus::Created,

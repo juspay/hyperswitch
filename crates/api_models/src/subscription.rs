@@ -7,9 +7,6 @@ use crate::{
     payments::CustomerDetailsResponse,
 };
 
-/// Prefix used when generating subscription IDs.
-pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
-
 /// Request payload for creating a subscription.
 ///
 /// This struct captures details required to create a subscription,
@@ -17,7 +14,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// Unique identifier for the subscription (optional, generated if missing).
-    pub subscription_id: Option<String>,
+    pub subscription_id: Option<common_utils::id_type::SubscriptionId>,
 
     /// Associated profile ID for this subscription.
     pub profile_id: common_utils::id_type::ProfileId,
@@ -57,7 +54,7 @@ impl CreateSubscriptionRequest {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreateSubscriptionResponse {
     /// Unique identifier for the subscription.
-    pub id: String,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
 
     /// Current status of the subscription.
     pub status: SubscriptionStatus,
@@ -106,7 +103,7 @@ impl CreateSubscriptionResponse {
     ///
     /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
     pub fn new(
-        id: String,
+        subscription_id: common_utils::id_type::SubscriptionId,
         status: SubscriptionStatus,
         plan_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
@@ -114,7 +111,7 @@ impl CreateSubscriptionResponse {
         merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> Self {
         Self {
-            id,
+            subscription_id,
             status,
             plan_id,
             profile_id,

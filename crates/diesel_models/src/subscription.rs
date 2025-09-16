@@ -8,7 +8,7 @@ use crate::schema::subscription;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionNew {
-    subscription_id: String,
+    subscription_id: common_utils::id_type::SubscriptionId,
     status: String,
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
@@ -28,7 +28,7 @@ pub struct SubscriptionNew {
 )]
 #[diesel(table_name = subscription, primary_key(subscription_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Subscription {
-    pub subscription_id: String,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
     pub status: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
@@ -54,7 +54,7 @@ pub struct SubscriptionUpdate {
 impl SubscriptionNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        subscription_id: String,
+        subscription_id: common_utils::id_type::SubscriptionId,
         status: String,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
@@ -85,8 +85,10 @@ impl SubscriptionNew {
     }
 
     pub fn generate_and_set_client_secret(&mut self) -> Secret<String> {
-        let client_secret =
-            generate_id_with_default_len(&format!("{}_secret", self.subscription_id));
+        let client_secret = generate_id_with_default_len(&format!(
+            "{}_secret",
+            self.subscription_id.get_string_repr()
+        ));
         self.client_secret = Some(client_secret.clone());
         Secret::new(client_secret)
     }
