@@ -547,9 +547,9 @@ fn filter_country_based(
     address: Option<&hyperswitch_domain_models::address::AddressDetails>,
     pm: &common_types::payment_methods::RequestPaymentMethodTypes,
 ) -> bool {
-    address.map_or(true, |address| {
-        address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+    address.is_none_or(|address| {
+        address.country.as_ref().is_none_or(|country| {
+            pm.accepted_countries.as_ref().is_none_or(|ac| match ac {
                 common_types::payment_methods::AcceptedCountries::EnableOnly(acc) => {
                     acc.contains(country)
                 }
@@ -568,7 +568,7 @@ fn filter_currency_based(
     currency: common_enums::Currency,
     pm: &common_types::payment_methods::RequestPaymentMethodTypes,
 ) -> bool {
-    pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+    pm.accepted_currencies.as_ref().is_none_or(|ac| match ac {
         common_types::payment_methods::AcceptedCurrencies::EnableOnly(acc) => {
             acc.contains(&currency)
         }
@@ -641,9 +641,7 @@ fn filter_recurring_based(
     payment_method: &common_types::payment_methods::RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
-    recurring_enabled.map_or(true, |enabled| {
-        payment_method.recurring_enabled == Some(enabled)
-    })
+    recurring_enabled.is_none_or(|enabled| payment_method.recurring_enabled == Some(enabled))
 }
 
 // filter based on valid amount range of payment method type
@@ -704,7 +702,7 @@ fn filter_allowed_payment_method_types_based(
     allowed_types: Option<&Vec<api_models::enums::PaymentMethodType>>,
     payment_method_type: api_models::enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
+    allowed_types.is_none_or(|pm| pm.contains(&payment_method_type))
 }
 
 // filter based on card networks
