@@ -123,9 +123,9 @@ impl Vaultable for domain::Card {
         _customer_id: Option<id_type::GlobalCustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = domain::TokenizedCardValue1 {
-            card_number: self.card_number.peek().clone(),
-            exp_year: self.card_exp_year.peek().clone(),
-            exp_month: self.card_exp_month.peek().clone(),
+            card_number: self.card_number.peek().clone().into(),
+            exp_year: self.card_exp_year.clone(),
+            exp_month: self.card_exp_month.clone(),
             nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
@@ -163,7 +163,7 @@ impl Vaultable for domain::Card {
         customer_id: Option<id_type::GlobalCustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
         let value2 = domain::TokenizedCardValue2 {
-            card_security_code: Some(self.card_cvc.peek().clone()),
+            card_security_code: Some(masking::StrongSecret::new(self.card_cvc.peek().clone())),
             card_fingerprint: None,
             external_id: None,
             customer_id,
@@ -191,12 +191,17 @@ impl Vaultable for domain::Card {
             .attach_printable("Could not deserialize into card value2")?;
 
         let card = Self {
-            card_number: cards::CardNumber::try_from(value1.card_number)
+            card_number: cards::CardNumber::try_from(value1.card_number.peek().clone())
                 .change_context(errors::VaultError::ResponseDeserializationFailed)
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_cvc: value2.card_security_code.unwrap_or_default().into(),
+            card_cvc: value2
+                .card_security_code
+                .unwrap_or(masking::StrongSecret::new(String::new()))
+                .peek()
+                .to_owned()
+                .into(),
             card_issuer: None,
             card_network: None,
             bank_code: None,
