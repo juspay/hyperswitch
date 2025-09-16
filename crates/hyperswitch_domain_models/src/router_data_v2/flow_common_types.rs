@@ -154,6 +154,9 @@ pub struct InvoiceRecordBackData;
 pub struct SubscriptionCreateData;
 
 #[derive(Debug, Clone)]
+pub struct GetSubscriptionPlansData;
+
+#[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,

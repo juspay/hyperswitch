@@ -22,9 +22,7 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
-/// Subscriptions v1 module
 pub mod subscriptions;
-/// Subscriptions v2 module
 pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;

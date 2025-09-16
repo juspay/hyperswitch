@@ -1,5 +1,9 @@
+//! Subscriptions Interface for V1
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
+    router_flow_types::subscriptions::GetSubscriptionPlans,
+    router_request_types::subscriptions::GetSubscriptionPlansRequest,
+    router_response_types::subscriptions::GetSubscriptionPlansResponse,
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
     router_request_types::subscriptions::SubscriptionCreateRequest,
     router_response_types::subscriptions::SubscriptionCreateResponse,
@@ -7,6 +11,17 @@ use hyperswitch_domain_models::{
 
 #[cfg(feature = "v1")]
 use super::{ConnectorCommon, ConnectorIntegration};
+
+#[cfg(feature = "v1")]
+/// trait GetSubscriptionPlans for V1
+pub trait GetSubscriptionPlansFlow:
+    ConnectorIntegration<
+    GetSubscriptionPlans,
+    GetSubscriptionPlansRequest,
+    GetSubscriptionPlansResponse,
+>
+{
+}
 
 #[cfg(feature = "v1")]
 /// trait SubscriptionCreate
@@ -17,11 +32,16 @@ pub trait SubscriptionCreate:
 
 /// trait Subscriptions
 #[cfg(feature = "v1")]
-pub trait Subscriptions: ConnectorCommon + SubscriptionCreate {}
+pub trait Subscriptions: ConnectorCommon + GetSubscriptionPlansFlow + SubscriptionCreate {}
 
-/// trait Subscriptions
+/// trait Subscriptions (disabled when not V1)
 #[cfg(not(feature = "v1"))]
 pub trait Subscriptions {}
+
+/// trait GetSubscriptionPlansFlow (disabled when not V1)
+#[cfg(not(feature = "v1"))]
+pub trait GetSubscriptionPlansFlow {}
+
 
 /// trait SubscriptionCreate
 #[cfg(not(feature = "v1"))]

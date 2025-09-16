@@ -17,3 +17,8 @@ pub struct SubscriptionCreateRequest {
     pub auto_collection: String,
     pub connector_params: connector_endpoints::ConnectorParams,
 }
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionPlansRequest {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}

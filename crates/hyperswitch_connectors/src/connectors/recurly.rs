@@ -11,22 +11,22 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::flow_common_types as recovery_flow_common_types;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::UasFlowData,
+    router_data_v2::{flow_common_types::{GetSubscriptionPlansData, SubscriptionCreateData}, UasFlowData},
     router_flow_types::{
-        subscriptions::SubscriptionCreate,
+        subscriptions::{SubscriptionCreate, GetSubscriptionPlans},
         unified_authentication_service::{
-            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+                Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
     },
     router_request_types::{
-        subscriptions as subscriptions_request_types,
+        subscriptions::{GetSubscriptionPlansRequest, SubscriptionCreateRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
     },
-    router_response_types::subscriptions as subscriptions_response_types,
+    router_response_types::subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
@@ -142,13 +142,25 @@ impl
 
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
+impl api::subscriptions_v2::GetSubscriptionPlansV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansData,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Recurly
+{
+}
+impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
 impl
     ConnectorIntegrationV2<
         SubscriptionCreate,
-        recovery_flow_common_types::SubscriptionCreateData,
-        subscriptions_request_types::SubscriptionCreateRequest,
-        subscriptions_response_types::SubscriptionCreateResponse,
+        SubscriptionCreateData,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
     > for Recurly
 {
 }
