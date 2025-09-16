@@ -7465,6 +7465,7 @@ where
     pub vault_operation: Option<domain_payments::VaultOperation>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
+    pub is_manual_retry_enabled: Option<bool>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -10557,6 +10558,9 @@ pub trait OperationSessionGetters<F> {
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
     #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
+
+    #[cfg(feature = "v1")]
+    fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -10795,6 +10799,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails> {
         self.service_details.as_ref()
+    }
+
+    fn get_is_manual_retry_enabled(&self) -> Option<bool> {
+        self.is_manual_retry_enabled
     }
 
     // #[cfg(feature = "v2")]
