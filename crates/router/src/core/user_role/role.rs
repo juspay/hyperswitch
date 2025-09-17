@@ -452,7 +452,7 @@ pub async fn list_roles_with_info(
 
     let mut role_info_vec = PREDEFINED_ROLES
         .values()
-        .filter(|role| !role.is_internal())
+        .filter(|role| role.is_internal().not())
         .cloned()
         .collect::<Vec<_>>();
 
