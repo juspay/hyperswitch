@@ -86,7 +86,7 @@ pub async fn validate_create_request(
 )> {
     if req.payout_method_id.is_some() && req.confirm == Some(false) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Cannot set confirm to false when using stored payout method data".to_string(),
+            message: "Confirm must be true for recurring payouts".to_string(),
         }));
     }
     let merchant_id = merchant_context.get_merchant_account().get_id();
