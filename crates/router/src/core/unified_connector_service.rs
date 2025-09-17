@@ -492,12 +492,10 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "Unimplemented payment method subtype: {payment_method_type:?}"
                     ))
-                    .into());
-                }
+                    .into())
             }
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
