@@ -6853,7 +6853,7 @@ pub fn parse_state_enum<T>(
     field_name: &'static str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>>
 where
-    T: std::str::FromStr,
+    T: FromStr,
     <T as FromStr>::Err: std::error::Error + Send + Sync + 'static,
 {
     match StringExt::<T>::parse_enum(value.clone(), enum_name) {
