@@ -7923,6 +7923,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Iatapay,
     connectors::Inespay,
     connectors::Itaubank,
+    connectors::Ixopay,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
