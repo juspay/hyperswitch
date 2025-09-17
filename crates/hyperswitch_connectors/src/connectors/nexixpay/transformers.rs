@@ -292,15 +292,15 @@ pub enum ContractType {
 #[serde(rename_all = "camelCase")]
 pub struct RecurrenceRequest {
     action: NexixpayRecurringAction,
-    contract_id: Secret<String>,
-    contract_type: ContractType,
+    contract_id: Option<Secret<String>>,
+    contract_type: Option<ContractType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayNonMandatePaymentRequest {
     card: NexixpayCard,
-    recurrence: Option<RecurrenceRequest>,
+    recurrence: RecurrenceRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,7 +341,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
     operation_id: String,
     capture_type: Option<NexixpayCaptureType>,
     three_d_s_auth_data: ThreeDSAuthData,
-    recurrence: Option<RecurrenceRequest>,
+    recurrence: RecurrenceRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -777,13 +777,17 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                             field_name: "connector_mandate_request_reference_id",
                         })?;
-                    Some(RecurrenceRequest {
+                    RecurrenceRequest {
                         action: NexixpayRecurringAction::ContractCreation,
-                        contract_id: Secret::new(contract_id),
-                        contract_type: ContractType::MitUnscheduled,
-                    })
+                        contract_id: Some(Secret::new(contract_id)),
+                        contract_type: Some(ContractType::MitUnscheduled),
+                    }
                 } else {
-                    None
+                    RecurrenceRequest {
+                        action: NexixpayRecurringAction::NoRecurring,
+                        contract_id: None,
+                        contract_type: None,
+                    }
                 };
 
                 match item.router_data.request.payment_method_data {
@@ -1388,13 +1392,17 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                         field_name: "connector_mandate_request_reference_id",
                     })?,
             );
-            Some(RecurrenceRequest {
+            RecurrenceRequest {
                 action: NexixpayRecurringAction::ContractCreation,
-                contract_id,
-                contract_type: ContractType::MitUnscheduled,
-            })
+                contract_id: Some(contract_id),
+                contract_type: Some(ContractType::MitUnscheduled),
+            }
         } else {
-            None
+            RecurrenceRequest {
+                action: NexixpayRecurringAction::NoRecurring,
+                contract_id: None,
+                contract_type: None,
+            }
         };
 
         Ok(Self {

@@ -151,6 +151,9 @@ pub struct FilesFlowData {
 pub struct InvoiceRecordBackData;
 
 #[derive(Debug, Clone)]
+pub struct GetSubscriptionPlansData;
+
+#[derive(Debug, Clone)]
 pub struct GetSubscriptionPlanPricesData;
 
 #[derive(Debug, Clone)]
@@ -169,6 +172,9 @@ pub struct BillingConnectorInvoiceSyncFlowData;
 pub struct VaultConnectorFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
 }
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckFlowData;
 
 #[derive(Debug, Clone)]
 pub struct ExternalVaultProxyFlowData {

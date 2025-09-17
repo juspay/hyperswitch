@@ -2390,6 +2390,7 @@ where
             customer_id: payment_intent.customer_id.clone(),
             connector: Some(connector),
             created: payment_intent.created_at,
+            modified_at: payment_intent.modified_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
@@ -2410,7 +2411,10 @@ where
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
-            feature_metadata: None,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2501,6 +2505,7 @@ where
                 .map(From::from),
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
             created: payment_intent.created_at,
+            modified_at: payment_intent.modified_at,
             payment_method_data,
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
@@ -2519,7 +2524,10 @@ where
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             raw_connector_response,
-            feature_metadata: None,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            metadata: payment_intent.metadata,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3285,6 +3293,16 @@ where
             .get_connector_payment_id()
             .map(ToString::to_string);
 
+        let manual_retry_allowed = match payment_data.get_is_manual_retry_enabled() {
+            Some(true) => helpers::is_manual_retry_allowed(
+                &payment_intent.status,
+                &payment_attempt.status,
+                connector_request_reference_id_config,
+                &merchant_id,
+            ),
+            Some(false) | None => None,
+        };
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3358,12 +3376,7 @@ where
             ephemeral_key: payment_data
                 .get_ephemeral_key()
                 .map(ForeignFrom::foreign_from),
-            manual_retry_allowed: helpers::is_manual_retry_allowed(
-                &payment_intent.status,
-                &payment_attempt.status,
-                connector_request_reference_id_config,
-                &merchant_id,
-            ),
+            manual_retry_allowed,
             connector_transaction_id,
             frm_message,
             metadata: payment_intent.metadata,
