@@ -71,7 +71,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
-    pub chat: ChatSettings,
+    pub chat: SecretStateContainer<ChatSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -207,6 +207,7 @@ pub struct Platform {
 pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
+    pub encryption_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1048,8 +1049,7 @@ impl Settings<SecuredSecret> {
         self.secrets.get_inner().validate()?;
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
-        self.chat.validate()?;
-
+        self.chat.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler

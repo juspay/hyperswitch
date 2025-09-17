@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0
+
+### Features
+
+- **connector:**
+  - [Novalnet] read and send scheme_tid for NTI flows ([#9337](https://github.com/juspay/hyperswitch/pull/9337)) ([`3f1b686`](https://github.com/juspay/hyperswitch/commit/3f1b68672ef65e27f8fbc29c0f76d6cb631b65d8))
+  - Add support for get plans for Chargebee ([#9281](https://github.com/juspay/hyperswitch/pull/9281)) ([`f3ab3d6`](https://github.com/juspay/hyperswitch/commit/f3ab3d63f69279af9254f15eba5654c0680a0747))
+- Add hyperswitch ai chats table ([#8831](https://github.com/juspay/hyperswitch/pull/8831)) ([`8ed3f7d`](https://github.com/juspay/hyperswitch/commit/8ed3f7dbf27e939a72957fb5751abbf61bd642c0))
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Fix Bugs ([#9393](https://github.com/juspay/hyperswitch/pull/9393)) ([`a8aaffc`](https://github.com/juspay/hyperswitch/commit/a8aaffc6b0430ada911bcccf98e1053f2b24f388))
+- **connectors:** [Nexixpay] send recurrence obj in non cit payments ([#9395](https://github.com/juspay/hyperswitch/pull/9395)) ([`a76ec7d`](https://github.com/juspay/hyperswitch/commit/a76ec7daf06d85e84ba15955cfb1dd4df2c83a45))
+
+### Refactors
+
+- **connector:** Wasm changes ([#9380](https://github.com/juspay/hyperswitch/pull/9380)) ([`d93e73d`](https://github.com/juspay/hyperswitch/commit/d93e73dd83904c918c812811d2ca83b48fe76514))
+- **users:** Update url and text in welcome email ([#9341](https://github.com/juspay/hyperswitch/pull/9341)) ([`9f66ec0`](https://github.com/juspay/hyperswitch/commit/9f66ec0f519a7bd3e5e0a78b76d6ef7ebe58f96f))
+
+### Miscellaneous Tasks
+
+- **injector:** Removing changes for injector check of proxy and certificate ([#9373](https://github.com/juspay/hyperswitch/pull/9373)) ([`5644752`](https://github.com/juspay/hyperswitch/commit/56447525574dd1cdfcc037cea14ed44535f03beb))
+
+### Build System / Dependencies
+
+- Bump MSRV to 1.85.0 ([#9390](https://github.com/juspay/hyperswitch/pull/9390)) ([`1d8290c`](https://github.com/juspay/hyperswitch/commit/1d8290cec1877ed2a6b72b9774136c8faa61a073))
+
+**Full Changelog:** [`2025.09.16.0...2025.09.17.0`](https://github.com/juspay/hyperswitch/compare/2025.09.16.0...2025.09.17.0)
+
+- - -
+
+
+## 2025.09.15.0
+
+### Features
+
+- **connector:** [PeachPayments] Add Cards Flow ([#9030](https://github.com/juspay/hyperswitch/pull/9030)) ([`f3635a2`](https://github.com/juspay/hyperswitch/commit/f3635a2e1d6ddf9238387b4f7b1599d7539875ae))
+
+**Full Changelog:** [`2025.09.12.0...2025.09.15.0`](https://github.com/juspay/hyperswitch/compare/2025.09.12.0...2025.09.15.0)
+
+- - -
+
 ## 2025.09.12.0
 
 ### Features
