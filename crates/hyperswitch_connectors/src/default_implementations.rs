@@ -6802,7 +6802,6 @@ default_imp_for_uas_authentication!(
     connectors::Zsl
 );
 
-
 macro_rules! default_imp_for_revenue_recovery {
     ($($path:ident::$connector:ident),*) => {
         $(  impl RevenueRecovery for $path::$connector {}

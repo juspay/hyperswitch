@@ -69,7 +69,6 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
 
-        // Get the first subscription item (assuming at least one exists)
         let first_item =
             req.subscription_items
                 .first()
