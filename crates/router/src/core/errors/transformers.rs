@@ -13,7 +13,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 "Customer has already been redacted",
                 None,
             )),
-            Self::BadRequest => AER::BadRequest(ApiError::new("HE", 0, "Bad request", None)),
             Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }

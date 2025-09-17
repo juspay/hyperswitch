@@ -854,7 +854,6 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
         use StripeErrorCode as SC;
         match self {
             Self::CustomerRedacted => SC::CustomerRedacted,
-            Self::BadRequest => SC::PlatformBadRequest,
             Self::InternalServerError => SC::InternalServerError,
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
