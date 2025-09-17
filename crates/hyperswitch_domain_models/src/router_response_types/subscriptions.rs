@@ -1,4 +1,6 @@
 use time::PrimitiveDateTime;
+use common_utils::types::MinorUnit;
+
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansResponse {
     pub list: Vec<SubscriptionPlans>,
@@ -13,11 +15,11 @@ pub struct SubscriptionPlans {
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimateResponse {
-    pub sub_total: i64,
-    pub total: i64,
-    pub credits_applied: Option<i64>,
-    pub amount_paid: Option<i64>,
-    pub amount_due: Option<i64>,
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: Option<MinorUnit>,
+    pub amount_paid: Option<MinorUnit>,
+    pub amount_due: Option<MinorUnit>,
     pub currency: common_enums::Currency,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub line_items: Vec<SubscriptionLineItem>,
@@ -28,9 +30,9 @@ pub struct SubscriptionLineItem {
     pub item_id: String,
     pub item_type: String,
     pub description: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: common_enums::Currency,
-    pub unit_amount: Option<i64>,
+    pub unit_amount: Option<MinorUnit>,
     pub quantity: i64,
     pub pricing_model: Option<String>,
 }

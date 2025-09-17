@@ -888,6 +888,7 @@ pub struct SubscriptionEstimateResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeEstimate {
     pub created_at: i64,
+    /// type of the object will be `estimate`
     pub object: String,
     pub subscription_estimate: SubscriptionEstimate,
     pub invoice_estimate: InvoiceEstimate,
@@ -898,6 +899,7 @@ pub struct SubscriptionEstimate {
     pub status: String,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub next_billing_at: Option<PrimitiveDateTime>,
+    /// type of the object will be `subscription_estimate`
     pub object: String,
     pub currency_code: enums::Currency,
 }
@@ -905,36 +907,41 @@ pub struct SubscriptionEstimate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvoiceEstimate {
     pub recurring: bool,
-    pub date: i64,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date: PrimitiveDateTime,
     pub price_type: String,
-    pub sub_total: i64,
-    pub total: i64,
-    pub credits_applied: i64,
-    pub amount_paid: i64,
-    pub amount_due: i64,
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: MinorUnit,
+    pub amount_paid: MinorUnit,
+    pub amount_due: MinorUnit,
+    /// type of the object will be `invoice_estimate`
     pub object: String,
     pub customer_id: String,
     pub line_items: Vec<LineItem>,
     pub currency_code: enums::Currency,
-    pub round_off_amount: i64,
+    pub round_off_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineItem {
     pub id: String,
-    pub date_from: i64,
-    pub date_to: i64,
-    pub unit_amount: i64,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date_from: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date_to: PrimitiveDateTime,
+    pub unit_amount: MinorUnit,
     pub quantity: i64,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub pricing_model: String,
     pub is_taxed: bool,
-    pub tax_amount: i64,
+    pub tax_amount: MinorUnit,
+    /// type of the object will be `line_item`
     pub object: String,
     pub customer_id: String,
     pub description: String,
     pub entity_type: String,
     pub entity_id: String,
-    pub discount_amount: i64,
-    pub item_level_discount_amount: i64,
+    pub discount_amount: MinorUnit,
+    pub item_level_discount_amount: MinorUnit,
 }
