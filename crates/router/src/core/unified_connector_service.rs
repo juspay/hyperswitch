@@ -496,8 +496,8 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
                             wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
-                                date_of_birth: mifinity_data.date_of_birth,
-                                language_preference: mifinity_data.language_preference
+                                date_of_birth: Some(mifinity_data.date_of_birth.peek().to_string().into()),
+                                language_preference: mifinity_data.language_preference,
                             })),
                         })),
                     })
