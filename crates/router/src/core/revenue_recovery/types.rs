@@ -1241,6 +1241,8 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                         .reopen_workflow_buffer_time_in_seconds,
                 );
 
+            let new_retry_count = process.retry_count + 1;
+
             // Check if a process tracker entry already exists for this payment intent
             let existing_entry = db
                 .as_scheduler()
@@ -1266,7 +1268,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
                 runner,
                 tag,
                 process.tracking_data.clone(),
-                Some(process.retry_count),
+                Some(new_retry_count),
                 schedule_time,
                 common_types::consts::API_VERSION,
             )
