@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
@@ -551,6 +552,13 @@ pub struct PaymentsPreProcessingData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckRequestData {
+    pub payment_method_data: PaymentMethodData,
+    pub currency: Option<storage_enums::Currency>,
     pub minor_amount: Option<MinorUnit>,
 }
 
