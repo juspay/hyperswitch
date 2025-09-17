@@ -6954,3 +6954,7 @@ label="AmEx ID"
 placeholder="Enter AmEx ID for routing"
 required=false
 type="Text"
+
+[tokenex]
+[tokenex.connector_auth.HeaderKey]
+api_key = "API Key"
