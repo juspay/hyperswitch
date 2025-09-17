@@ -762,6 +762,7 @@ impl RedisTokenManager {
         customer_id: &str,
         token: &str,
         card_data: &api_models::revenue_recovery_data_backfill::ComprehensiveCardData,
+        cutoff_datetime: Option<PrimitiveDateTime>,
     ) -> CustomResult<(), errors::StorageError> {
         // Get existing token data
         let mut token_map =
@@ -771,8 +772,7 @@ impl RedisTokenManager {
         let existing_token = token_map.get_mut(token).ok_or_else(|| {
             tracing::warn!(
                 customer_id = customer_id,
-                token = token,
-                "Token not found in parsed Redis data - may be corrupted or missing"
+                "Token not found in parsed Redis data - may be corrupted or missing for "
             );
             error_stack::Report::new(errors::StorageError::ValueNotFound(
                 "Token not found in Redis".to_string(),
@@ -806,23 +806,26 @@ impl RedisTokenManager {
             .as_ref()
             .map(|retry_history| existing_token.daily_retry_history = retry_history.clone());
 
-        // If existing scheduled_at < current time, update it to current time
+        // If cutoff_datetime is provided and existing scheduled_at < cutoff_datetime, set to None
         // If no scheduled_at value exists, leave it as None
-        let now = date_time::now();
         existing_token.scheduled_at = existing_token
             .scheduled_at
-            .filter(|&existing_scheduled_at| existing_scheduled_at >= now)
-            .or_else(|| {
-                existing_token.scheduled_at.map(|old_scheduled_at| {
-                    tracing::info!(
-                        customer_id = customer_id,
-                        token = token,
-                        old_scheduled_at = %old_scheduled_at,
-                        new_scheduled_at = %now,
-                        "Updated scheduled_at from past time to current time"
-                    );
-                    now
-                })
+            .and_then(|existing_scheduled_at| {
+                cutoff_datetime
+                    .map(|cutoff| {
+                        if existing_scheduled_at < cutoff {
+                            tracing::info!(
+                                customer_id = customer_id,
+                                existing_scheduled_at = %existing_scheduled_at,
+                                cutoff_datetime = %cutoff,
+                                "Set scheduled_at to None because existing time is before cutoff time"
+                            );
+                            None
+                        } else {
+                            Some(existing_scheduled_at)
+                        }
+                    })
+                    .unwrap_or(Some(existing_scheduled_at)) // No cutoff provided, keep existing value
             });
 
         // Save the updated token map back to Redis
@@ -835,7 +838,6 @@ impl RedisTokenManager {
 
         tracing::info!(
             customer_id = customer_id,
-            token = token,
             "Updated Redis token data with comprehensive card data using struct"
         );
 
