@@ -5086,6 +5086,8 @@ pub struct VoucherNextStepData {
     pub instructions_url: Option<Url>,
     /// Human-readable numeric version of the barcode.
     pub digitable_line: Option<Secret<String>>,
+    /// Bank Number where the boleto was registered
+    pub bank_number: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -8501,6 +8503,12 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -8520,6 +8528,9 @@ impl FeatureMetadata {
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
             revenue_recovery: Some(payment_revenue_recovery_metadata),
+            pix_qr_expiry_time: self.pix_qr_expiry_time,
+            pix_additional_details: self.pix_additional_details,
+            boleto_expiry_details: self.boleto_expiry_details,
         }
     }
 }
@@ -8536,6 +8547,46 @@ pub struct FeatureMetadata {
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// Pix QR Code expiry time for Merchants
+    pub pix_qr_expiry_time: Option<PixQRExpirationDuration>,
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    pub pix_additional_details: Option<PixAdditionalDetails>,
+    /// Date until the Boleto is valid
+    pub boleto_expiry_details: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PixAdditionalDetails {
+    /// The percentage of fine applied for late payment
+    pub fine_percentage: Option<String>,
+    /// The number of days after due date when fine is applied
+    pub fine_quantity_days: Option<String>,
+    /// The percentage of interest applied for late payment
+    pub interest_percentage: Option<String>,
+    /// Number of days after which the boleto can be written off
+    pub write_off_quantity_days: Option<String>,
+    /// Additional messages to display to the shopper
+    pub messages: Option<Vec<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum PixQRExpirationDuration {
+    Immediate(ImmediateExpirationTime),
+    Scheduled(ScheduledExpirationTime),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ImmediateExpirationTime {
+    /// Expiration time in seconds
+    pub time: i32,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ScheduledExpirationTime {
+    /// Expiration time in terms of date, format: YYYY-MM-DD
+    pub date: String,
+    /// Days after expiration date for which the QR code remains valid
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
