@@ -20,7 +20,8 @@ use hyperswitch_domain_models::{
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -619,12 +620,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
         match item.response.messages.result_code {
             ResultCode::Ok => match item.response.customer_profile_id.clone() {
                 Some(connector_customer_id) => Ok(Self {
-                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                        connector_customer_id,
-                        name: None,
-                        email: None,
-                        billing_address: None,
-                    }),
+                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                        ConnectorCustomerResponseData {
+                            connector_customer_id,
+                            name: None,
+                            email: None,
+                            billing_address: None,
+                        },
+                    )),
                     ..item.data
                 }),
                 None => Err(
@@ -640,12 +643,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     error_message.and_then(|error| extract_customer_id(&error.text))
                 {
                     Ok(Self {
-                        response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                            connector_customer_id,
-                            name: None,
-                            email: None,
-                            billing_address: None,
-                        }),
+                        response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                            ConnectorCustomerResponseData {
+                                connector_customer_id,
+                                name: None,
+                                email: None,
+                                billing_address: None,
+                            },
+                        )),
                         ..item.data
                     })
                 } else {

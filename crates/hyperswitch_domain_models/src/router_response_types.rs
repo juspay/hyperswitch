@@ -25,6 +25,14 @@ pub struct RefundsResponseData {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConnectorCustomerResponseData {
+    pub connector_customer_id: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub billing_address: Option<AddressDetails>,
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -56,12 +64,7 @@ pub enum PaymentsResponseData {
         token: String,
     },
 
-    ConnectorCustomerResponse {
-        connector_customer_id: String,
-        name: Option<String>,
-        email: Option<String>,
-        billing_address: Option<AddressDetails>,
-    },
+    ConnectorCustomerResponse(ConnectorCustomerResponseData),
 
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,

@@ -13,7 +13,9 @@ use hyperswitch_domain_models::{
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
+    },
     types,
 };
 use hyperswitch_interfaces::errors;
@@ -152,12 +154,14 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.customers.id.expose(),
-                name: None,
-                email: None,
-                billing_address: None,
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData {
+                    connector_customer_id: item.response.customers.id.expose(),
+                    name: None,
+                    email: None,
+                    billing_address: None,
+                },
+            )),
             ..item.data
         })
     }
