@@ -711,7 +711,7 @@ where
             state,
         )
         .await?;
-
+        dbg!(is_eligible_for_uas);
         if is_eligible_for_uas {
             operation
                 .to_domain()?
