@@ -15,7 +15,8 @@ use hyperswitch_domain_models::{
         InvoiceRecordBack,
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest, subscriptions::{SubscriptionCreateRequest,SubscriptionAutoCollection},
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{SubscriptionAutoCollection, SubscriptionCreateRequest},
         ResponseId,
     },
     router_response_types::{
