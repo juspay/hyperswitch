@@ -1231,8 +1231,15 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
             // Create process tracker ID in the format: CALCULATE_WORKFLOW_{payment_intent_id}
             let process_tracker_id = format!("{runner}_{task}_{}", id.get_string_repr());
 
-            // Set scheduled time to 1 hour from now
-            let schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
+            // Set scheduled time to current time + buffer time set in configuration
+            let schedule_time = common_utils::date_time::now()
+                + time::Duration::seconds(
+                    state
+                        .conf
+                        .revenue_recovery
+                        .recovery_timestamp
+                        .reopen_workflow_buffer_time_in_seconds,
+                );
 
             // Check if a process tracker entry already exists for this payment intent
             let existing_entry = db
@@ -1246,7 +1253,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
 
             // No entry exists - create a new one
             router_env::logger::info!(
-                    "No existing CALCULATE_WORKFLOW task found for payment_intent_id: {}, creating new entry scheduled for 1 hour from now",
+                    "No existing CALCULATE_WORKFLOW task found for payment_intent_id: {}, creating new entry... ",
                     id.get_string_repr()
                 );
 
