@@ -32,7 +32,7 @@ pub async fn create_subscription(
         None => {
             return HttpResponse::BadRequest().json(
                 errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "x-profile-id".into(),
+                    field_name: "x-profile-id",
                 },
             );
         }
