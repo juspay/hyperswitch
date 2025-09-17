@@ -15,7 +15,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, PaymentsResponseData, RefundsResponseData,
+        revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
+        PaymentsResponseData, RefundsResponseData,
     },
     types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
 };
@@ -765,6 +766,57 @@ impl
             response: Ok(InvoiceRecordBackResponse {
                 merchant_reference_id,
             }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeListPlansResponse {
+    pub list: Vec<ChargebeeItemList>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeItemList {
+    pub item: ChargebeeItem,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeItem {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub plan_type: String,
+    pub is_giftable: bool,
+    pub enabled_for_checkout: bool,
+    pub enabled_in_portal: bool,
+    pub metered: bool,
+    pub deleted: bool,
+    pub description: Option<String>,
+}
+
+impl<F, T>
+    TryFrom<ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>>
+    for RouterData<F, T, GetSubscriptionPlansResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>,
+    ) -> Result<Self, Self::Error> {
+        let plans = item
+            .response
+            .list
+            .into_iter()
+            .map(|plan| {
+                hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionPlans {
+                    subscription_provider_plan_id: plan.item.id,
+                    name: plan.item.name,
+                    description: plan.item.description,
+                }
+            })
+            .collect();
+        Ok(Self {
+            response: Ok(GetSubscriptionPlansResponse { list: plans }),
             ..item.data
         })
     }
