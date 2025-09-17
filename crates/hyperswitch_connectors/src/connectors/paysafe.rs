@@ -1051,6 +1051,17 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         },
     );
 
+    paysafe_supported_payment_methods.add(
+        enums::PaymentMethod::GiftCard,
+        enums::PaymentMethodType::PaySafeCard,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods2.clone(),
+            specific_features: None,
+        },
+    );
+
     paysafe_supported_payment_methods
 });
 
