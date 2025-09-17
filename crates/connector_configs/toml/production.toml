@@ -3183,6 +3183,24 @@ payment_method_type = "giropay"
 payment_method_type = "sofort"
 [[shift4.bank_redirect]]
 payment_method_type = "eps"
+[[shift4.bank_redirect]]
+  payment_method_type = "trustly"
+[[shift4.bank_redirect]]
+  payment_method_type = "blik"
+[[shift4.wallet]]
+  payment_method_type = "ali_pay"
+[[shift4.wallet]]
+  payment_method_type = "we_chat_pay"
+[[shift4.wallet]]
+  payment_method_type = "paysera"
+[[shift4.wallet]]
+  payment_method_type = "skrill"
+[[shift4.pay_later]]
+  payment_method_type = "klarna"
+[[shift4.voucher]]
+  payment_method_type = "boleto"
+[[shift4.crypto]]
+  payment_method_type = "crypto_currency"
 [shift4.connector_auth.HeaderKey]
 api_key = "API Key"
 [shift4.connector_webhook_details]
