@@ -113,7 +113,6 @@ pub struct AciPaymentsRequest {
     pub shopper_result_url: Option<String>,
     #[serde(rename = "customParameters[3DS2_enrolled]")]
     pub three_ds_two_enrolled: Option<bool>,
-    #[serde(rename = "recurringType")]
     pub recurring_type: Option<AciRecurringType>,
 }
 
@@ -731,11 +730,10 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
         let recurring_type = get_recurring_type(item);
-        let three_ds_two_enrolled = if item.router_data.is_three_ds() {
-            Some(item.router_data.request.enrolled_for_3ds)
-        } else {
-            None
-        };
+        let three_ds_two_enrolled = item
+            .router_data
+            .is_three_ds()
+            .then_some(item.router_data.request.enrolled_for_3ds);
 
         Ok(Self {
             txn_details,
@@ -1223,19 +1221,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
     fn try_from(
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?),
-            reference_id: Some(item.response.referenced_id.clone()),
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let status =
+            map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?);
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.referenced_id),
+                connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+        Ok(Self {
+            status,
+            response,
+            reference_id: Some(item.response.referenced_id),
             ..item.data
         })
     }
@@ -1318,13 +1334,29 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<F, AciRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let refund_status =
+            enums::RefundStatus::from(AciRefundStatus::from_str(&item.response.result.code)?);
+        let response = if refund_status == enums::RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(AciRefundStatus::from_str(
-                    &item.response.result.code,
-                )?),
-            }),
+                refund_status,
+            })
+        };
+        Ok(Self {
+            response,
             ..item.data
         })
     }
@@ -1365,9 +1397,21 @@ impl
             enums::AttemptStatus::Pending
         };
 
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
@@ -1376,7 +1420,12 @@ impl
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
