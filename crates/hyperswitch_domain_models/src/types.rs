@@ -4,21 +4,23 @@ use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
-        mandate_revoke::MandateRevoke, revenue_recovery::InvoiceRecordBack,
-        subscriptions::GetSubscriptionPlans, AccessTokenAuth, AccessTokenAuthentication,
-        Authenticate, AuthenticationConfirmation, Authorize, AuthorizeSessionToken,
-        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy,
-        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        mandate_revoke::MandateRevoke,
+        revenue_recovery::InvoiceRecordBack,
+        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
+        AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
+        Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
+        BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, CreateOrder, Execute, ExternalVaultProxy, GiftCardBalanceCheck,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
+        PostSessionTokens, PreAuthenticate, PreProcessing, RSync, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -40,7 +42,7 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::GetSubscriptionPlansResponse,
+        subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse},
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
         VerifyWebhookSourceResponseData,
@@ -135,6 +137,12 @@ pub type InvoiceRecordBackRouterData =
 
 pub type GetSubscriptionPlansRouterData =
     RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>;
+
+pub type GetSubscriptionEstimateRouterData = RouterData<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;

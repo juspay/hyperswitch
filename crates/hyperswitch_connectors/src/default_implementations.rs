@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
             SdkSessionUpdate, UpdateMetadata,
         },
-        subscriptions::GetSubscriptionPlans,
+        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -66,11 +66,11 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        subscriptions::GetSubscriptionPlansResponse, AcceptDisputeResponse,
-        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
-        FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse},
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -130,7 +130,7 @@ use hyperswitch_interfaces::{
             PaymentsPreAuthenticate, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{GetSubscriptionPlansFlow, Subscriptions},
+        subscriptions::{GetSubscriptionEstimateFlow, GetSubscriptionPlansFlow, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6949,6 +6949,14 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionPlansResponse
             > for $path::$connector
             {}
+            impl GetSubscriptionEstimateFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionEstimate,
+            GetSubscriptionEstimateRequest,
+            GetSubscriptionEstimateResponse
+            > for $path::$connector
+            {}
         )*
     };
 }
@@ -9234,3 +9242,15 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionEstimateFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionEstimate,
+        GetSubscriptionEstimateRequest,
+        GetSubscriptionEstimateResponse,
+    > for connectors::DummyConnector<T>
+{
+}
