@@ -22029,6 +22029,28 @@
           }
         ]
       },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -22382,6 +22404,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CardDetailUpdate"
+              }
+            ],
+            "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
               }
             ],
             "nullable": true

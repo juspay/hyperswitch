@@ -303,6 +303,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::domain::AcquirerConfigMap,
         common_types::domain::AcquirerConfig,
         api_models::payment_methods::PaymentMethodListResponse,
+        api_models::payment_methods::PaymentMethodDataWalletInfo,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
         api_models::payment_methods::ResponsePaymentMethodTypes,
         api_models::payment_methods::PaymentExperienceTypes,

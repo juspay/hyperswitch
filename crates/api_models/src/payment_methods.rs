@@ -1096,7 +1096,7 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
     pub last4: String,

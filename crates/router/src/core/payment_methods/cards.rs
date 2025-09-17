@@ -1629,28 +1629,28 @@ pub async fn update_customer_payment_method(
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let db = state.store.as_ref();
+
+    let pm = db
+        .find_payment_method(
+            &((&state).into()),
+            merchant_context.get_merchant_key_store(),
+            payment_method_id,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    if let Some(cs) = &req.client_secret {
+        let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
+
+        if is_client_secret_expired {
+            return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
+        };
+    };
+
     // Currently update is supported only for cards and wallets
     if let Some(card_update) = req.card.clone() {
-        let db = state.store.as_ref();
-
-        let pm = db
-            .find_payment_method(
-                &((&state).into()),
-                merchant_context.get_merchant_key_store(),
-                payment_method_id,
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
-        if let Some(cs) = &req.client_secret {
-            let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
-
-            if is_client_secret_expired {
-                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
-            };
-        };
-
         if pm.status == enums::PaymentMethodStatus::AwaitingData {
             return Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Payment method is awaiting data so it cannot be updated".into()
@@ -1845,26 +1845,6 @@ pub async fn update_customer_payment_method(
 
         Ok(services::ApplicationResponse::Json(response))
     } else if let Some(wallet_update) = req.wallet.clone() {
-        let db = state.store.as_ref();
-
-        let pm = db
-            .find_payment_method(
-                &((&state).into()),
-                merchant_context.get_merchant_key_store(),
-                payment_method_id,
-                merchant_context.get_merchant_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
-        if let Some(cs) = &req.client_secret {
-            let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
-
-            if is_client_secret_expired {
-                return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
-            };
-        };
-
         if pm.payment_method != Some(common_enums::PaymentMethod::Wallet) {
             return Err((errors::ApiErrorResponse::InvalidRequestData {
                 message: "The Payment Method is not wallet".to_string(),
