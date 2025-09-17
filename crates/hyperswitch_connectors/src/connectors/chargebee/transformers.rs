@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
         InvoiceRecordBack,
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest, subscriptions::SubscriptionCreateRequest,
+        revenue_recovery::InvoiceRecordBackRequest, subscriptions::{SubscriptionCreateRequest,SubscriptionAutoCollection},
         ResponseId,
     },
     router_response_types::{
@@ -32,7 +32,7 @@ use time::PrimitiveDateTime;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData},
+    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 // SubscriptionCreate structures
@@ -53,9 +53,24 @@ pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(rename = "billing_address[zip]")]
     pub billing_address_zip: Option<Secret<String>>,
     #[serde(rename = "billing_address[country]")]
-    pub billing_address_country: Option<String>,
-    #[serde(rename = "auto_collection")]
-    pub auto_collection: String,
+    pub billing_address_country: Option<common_enums::CountryAlpha2>,
+    pub auto_collection: ChargebeeAutoCollection,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeAutoCollection {
+    On,
+    Off,
+}
+
+impl From<SubscriptionAutoCollection> for ChargebeeAutoCollection {
+    fn from(auto_collection: SubscriptionAutoCollection) -> Self {
+        match auto_collection {
+            SubscriptionAutoCollection::On => Self::On,
+            SubscriptionAutoCollection::Off => Self::Off,
+        }
+    }
 }
 
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>>
@@ -74,19 +89,16 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
                     field_name: "subscription_items",
                 })?;
 
-        let address = req.billing_address.address.as_ref();
-
         Ok(Self {
             subscription_id: req.subscription_id.clone(),
             item_price_id: first_item.item_price_id.clone(),
             quantity: first_item.quantity,
-            billing_address_line1: address.and_then(|addr| addr.line1.clone()),
-            billing_address_city: address.and_then(|addr| addr.city.clone()),
-            billing_address_state: address.and_then(|addr| addr.state.clone()),
-            billing_address_zip: address.and_then(|addr| addr.zip.clone()),
-            billing_address_country: address
-                .and_then(|addr| addr.country.as_ref().map(|country| country.to_string())),
-            auto_collection: req.auto_collection.clone(),
+            billing_address_line1: item.router_data.get_optional_billing_line1(),
+            billing_address_city: item.router_data.get_optional_billing_city(),
+            billing_address_state: item.router_data.get_optional_billing_state(),
+            billing_address_zip: item.router_data.get_optional_billing_zip(),
+            billing_address_country: item.router_data.get_optional_billing_country(),
+            auto_collection: req.auto_collection.clone().into(),
         })
     }
 }
@@ -113,8 +125,10 @@ pub struct ChargebeeSubscriptionDetails {
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeSubscriptionStatus {
     Future,
+    #[serde(rename = "in_trial")]
     InTrial,
     Active,
+    #[serde(rename = "non_renewing")]
     NonRenewing,
     Paused,
     Cancelled,

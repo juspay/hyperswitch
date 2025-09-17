@@ -14,8 +14,13 @@ pub struct SubscriptionCreateRequest {
     pub subscription_id: String,
     pub subscription_items: Vec<SubscriptionItem>,
     pub billing_address: Address,
-    pub auto_collection: String,
+    pub auto_collection: SubscriptionAutoCollection,
     pub connector_params: connector_endpoints::ConnectorParams,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SubscriptionAutoCollection {
+    On,
+    Off,
 }
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansRequest {
