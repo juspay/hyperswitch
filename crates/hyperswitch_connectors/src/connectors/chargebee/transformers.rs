@@ -873,6 +873,7 @@ pub struct ChargebeeCustomerCreateResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeCustomerDetails {
     pub id: String,
+    #[serde(rename = "first_name")]
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,
     pub billing_address: Option<api_models::payments::AddressDetails>,
