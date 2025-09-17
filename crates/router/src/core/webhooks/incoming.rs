@@ -513,13 +513,8 @@ async fn process_webhook_business_logic(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
-    let connectors_with_webhook_ack = &state.conf.webhook_ack_connectors;
 
-    let payment_resource_mca = if connectors_with_webhook_ack
-        .connectors_with_webhook_ack
-        .contains(&connector_enum)
-    {
-        match Box::pin(helper_utils::get_mca_for_webhook_ack_connectors(
+    let payment_resource_mca = match Box::pin(helper_utils::get_mca_from_object_reference_id(
             state,
             object_ref_id.clone(),
             merchant_context,
@@ -545,31 +540,7 @@ async fn process_webhook_business_logic(
                     Err(e) => return Err(e),
                 }
             }
-        }
-    } else {
-        match Box::pin(helper_utils::get_mca_from_object_reference_id(
-            state,
-            object_ref_id.clone(),
-            merchant_context,
-            connector_name,
-        ))
-        .await
-        {
-            Ok(mca) => mca,
-            Err(error) => {
-                let result = handle_incoming_webhook_error(
-                    error,
-                    connector,
-                    connector_name,
-                    request_details,
-                );
-                match result {
-                    Ok((_, webhook_tracker, _)) => return Ok(webhook_tracker),
-                    Err(e) => return Err(e),
-                }
-            }
-        }
-    };
+        };
 
     let source_verified = if source_verified_via_ucs {
         // If UCS handled verification, use that result

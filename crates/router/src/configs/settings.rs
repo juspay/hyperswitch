@@ -112,7 +112,6 @@ pub struct Settings<S: SecretState> {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
-    pub webhook_ack_connectors: WebhookAckConnectors,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
     pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
@@ -901,12 +900,6 @@ pub struct DelayedSessionConfig {
 pub struct WebhookSourceVerificationCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connectors_with_webhook_source_verification_call: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct WebhookAckConnectors {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connectors_with_webhook_ack: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

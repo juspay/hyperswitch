@@ -12,6 +12,7 @@ pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 use api_models::{
     enums,
@@ -838,14 +839,28 @@ pub async fn get_mca_from_object_reference_id(
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_context: &domain::MerchantContext,
     connector_name: &str,
-) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
+) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     let db = &*state.store;
 
+    let connector_enum = enums::Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+
+    let should_acknowledge_webhook =
+        connector_enum.should_acknowledge_webhook_for_resource_not_found_errors();
+
     #[cfg(feature = "v1")]
-    let default_profile_id = merchant_context
-        .get_merchant_account()
-        .default_profile
-        .as_ref();
+    let default_profile_id = if should_acknowledge_webhook {
+        None
+    } else {
+        merchant_context
+            .get_merchant_account()
+            .default_profile
+            .as_ref()
+    };
 
     #[cfg(feature = "v2")]
     let default_profile_id = Option::<&String>::None;
@@ -861,14 +876,13 @@ pub async fn get_mca_from_object_reference_id(
                     merchant_context.get_merchant_key_store(),
                 )
                 .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            profile_id.get_string_repr()
-                        ),
-                    },
-                )
+                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: format!(
+                        "profile_id {} and connector_name {connector_name}",
+                        profile_id.get_string_repr()
+                    ),
+                })
+                .map(Some)
             }
             #[cfg(feature = "v2")]
             {
@@ -879,60 +893,192 @@ pub async fn get_mca_from_object_reference_id(
         }
         _ => match object_reference_id {
             webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
-                get_mca_from_payment_intent(
-                    state,
-                    merchant_context,
-                    find_payment_intent_from_payment_id_type(
+                if should_acknowledge_webhook {
+                    let payment_intent = match find_payment_intent_from_payment_id_type(
                         state,
                         payment_id_type,
                         merchant_context,
                     )
-                    .await?,
-                    connector_name,
-                )
-                .await
+                    .await
+                    {
+                        Ok(intent) => intent,
+                        Err(_) => return Ok(None),
+                    };
+
+                    match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                        Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                        _ => get_mca_from_payment_intent(
+                            state,
+                            merchant_context,
+                            payment_intent,
+                            connector_name,
+                        )
+                        .await
+                        .map(Some),
+                    }
+                } else {
+                    get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        find_payment_intent_from_payment_id_type(
+                            state,
+                            payment_id_type,
+                            merchant_context,
+                        )
+                        .await?,
+                        connector_name,
+                    )
+                    .await
+                    .map(Some)
+                }
             }
             webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
-                get_mca_from_payment_intent(
-                    state,
-                    merchant_context,
-                    find_payment_intent_from_refund_id_type(
+                if should_acknowledge_webhook {
+                    let payment_intent = match find_payment_intent_from_refund_id_type(
                         state,
                         refund_id_type,
                         merchant_context,
                         connector_name,
                     )
-                    .await?,
-                    connector_name,
-                )
-                .await
+                    .await
+                    {
+                        Ok(intent) => intent,
+                        Err(_) => return Ok(None),
+                    };
+
+                    match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                        Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                        _ => get_mca_from_payment_intent(
+                            state,
+                            merchant_context,
+                            payment_intent,
+                            connector_name,
+                        )
+                        .await
+                        .map(Some),
+                    }
+                } else {
+                    get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        find_payment_intent_from_refund_id_type(
+                            state,
+                            refund_id_type,
+                            merchant_context,
+                            connector_name,
+                        )
+                        .await?,
+                        connector_name,
+                    )
+                    .await
+                    .map(Some)
+                }
             }
             webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
-                get_mca_from_payment_intent(
-                    state,
-                    merchant_context,
-                    find_payment_intent_from_mandate_id_type(
+                if should_acknowledge_webhook {
+                    let payment_intent = match find_payment_intent_from_mandate_id_type(
                         state,
                         mandate_id_type,
                         merchant_context,
                     )
-                    .await?,
-                    connector_name,
-                )
-                .await
+                    .await
+                    {
+                        Ok(intent) => intent,
+                        Err(_) => return Ok(None),
+                    };
+
+                    match merchant_connector_account.zip(payment_intent.profile_id.as_ref()) {
+                        Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                        _ => get_mca_from_payment_intent(
+                            state,
+                            merchant_context,
+                            payment_intent,
+                            connector_name,
+                        )
+                        .await
+                        .map(Some),
+                    }
+                } else {
+                    get_mca_from_payment_intent(
+                        state,
+                        merchant_context,
+                        find_payment_intent_from_mandate_id_type(
+                            state,
+                            mandate_id_type,
+                            merchant_context,
+                        )
+                        .await?,
+                        connector_name,
+                    )
+                    .await
+                    .map(Some)
+                }
             }
             webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) => {
-                find_mca_from_authentication_id_type(
-                    state,
-                    authentication_id_type,
-                    merchant_context,
-                )
-                .await
+                if should_acknowledge_webhook {
+                    let authentication = match get_authentication_from_authentication_id_type(
+                        state,
+                        authentication_id_type,
+                        merchant_context,
+                    )
+                    .await
+                    {
+                        Ok(auth) => auth,
+                        Err(_) => return Ok(None),
+                    };
+
+                    match merchant_connector_account.zip(Some(&authentication.profile_id)) {
+                        Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                        _ => get_mca_from_authentication(state, &authentication, merchant_context)
+                            .await
+                            .map(Some),
+                    }
+                } else {
+                    find_mca_from_authentication_id_type(
+                        state,
+                        authentication_id_type,
+                        merchant_context,
+                    )
+                    .await
+                    .map(Some)
+                }
             }
+
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
-                get_mca_from_payout_attempt(state, merchant_context, payout_id_type, connector_name)
+                if should_acknowledge_webhook {
+                    let payout_attempt = match get_payout_attempt_from_payout_id_type(
+                        state,
+                        payout_id_type,
+                        merchant_context,
+                    )
                     .await
+                    {
+                        Ok(attempt) => attempt,
+                        Err(_) => return Ok(None),
+                    };
+
+                    match merchant_connector_account.zip(Some(&payout_attempt.profile_id)) {
+                        Some((mca, profile_id)) if *profile_id != mca.profile_id => Ok(None),
+                        _ => get_mca_from_payout_attempt_object(
+                            state,
+                            &payout_attempt,
+                            merchant_context,
+                            connector_name,
+                        )
+                        .await
+                        .map(Some),
+                    }
+                } else {
+                    get_mca_from_payout_attempt(
+                        state,
+                        merchant_context,
+                        payout_id_type,
+                        connector_name,
+                    )
+                    .await
+                    .map(Some)
+                }
             }
         },
     }
