@@ -514,18 +514,24 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     (None, None)
                 };
 
-                let ppmt = payment_methods::store_card_data_in_redis(
-                    state,
-                    pm_data,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
+                if helpers::should_store_payment_method_data_in_vault(
+                    &state.conf.temp_locker_enable_config,
+                    payment_data.payment_attempt.connector.clone(),
                     payment_data.payment_attempt.payment_method_type,
-                    merchant_context,
-                    business_profile,
-                )
-                .await?;
+                ) {
+                    let ppmt = payment_methods::store_card_data_in_redis(
+                        state,
+                        pm_data,
+                        &payment_data.payment_intent,
+                        &payment_data.payment_attempt,
+                        payment_data.payment_attempt.payment_method_type,
+                        merchant_context,
+                        business_profile,
+                    )
+                    .await?;
 
-                payment_data.payment_attempt.payment_token = Some(ppmt);
+                    payment_data.update_payment_token(ppmt);
+                }
 
                 payment_method_pm_data
             }
