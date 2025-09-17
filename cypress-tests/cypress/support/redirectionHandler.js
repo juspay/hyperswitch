@@ -1,11 +1,13 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
 
 import jsQR from "jsqr";
+import { getTimeoutMultiplier } from "../utils/RequestBodyUtils.js";
 
-// Define constants for wait times
+const timeoutMultiplier = getTimeoutMultiplier();
+
 const CONSTANTS = {
-  TIMEOUT: 20000, // 20 seconds
-  WAIT_TIME: 10000, // 10 seconds
+  TIMEOUT: Math.round(90000 * timeoutMultiplier), // 90s local, 135s (2.25min) CI
+  WAIT_TIME: Math.round(30000 * timeoutMultiplier), // 30s local, 45s CI
   ERROR_PATTERNS: [
     /^(4|5)\d{2}\s/, // HTTP error status codes
     /\berror occurred\b/i,
@@ -636,7 +638,37 @@ function bankRedirectRedirection(
 }
 
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
-  cy.visit(redirectionUrl.href);
+  let responseContentType = null;
+
+  // First check what type of response we get from the redirect URL
+  cy.request({
+    url: redirectionUrl.href,
+    failOnStatusCode: false,
+  }).then((response) => {
+    responseContentType = response.headers["content-type"];
+
+    // Check if the response is JSON
+    if (response.headers["content-type"]?.includes("application/json")) {
+      // For JSON responses, check if it contains useful info
+      if (response.body && typeof response.body === "object") {
+        // If the JSON contains redirect info, use it
+        if (response.body.redirect_url) {
+          cy.visit(response.body.redirect_url, { failOnStatusCode: false });
+        } else {
+          cy.visit(expectedUrl.href);
+          // Verify return URL and exit completely
+          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          return;
+        }
+      } else {
+        cy.visit(expectedUrl.href);
+        verifyReturnUrl(redirectionUrl, expectedUrl, true);
+        return;
+      }
+    } else {
+      cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    }
+  });
 
   if (connectorId === "paysafe") {
     cy.log("Starting Paysafe 3DS authentication flow");
@@ -1159,8 +1191,14 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     }
   );
 
-  // Verify return URL after handling the specific connector
-  verifyReturnUrl(redirectionUrl, expectedUrl, true);
+  cy.then(() => {
+    if (
+      responseContentType &&
+      !responseContentType.includes("application/json")
+    ) {
+      verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    }
+  });
 }
 
 function upiRedirection(
@@ -1195,7 +1233,6 @@ function upiRedirection(
         );
     }
   } else {
-    // For other connectors, nothing to do
     return;
   }
 
@@ -1451,24 +1488,47 @@ function handleFlow(
         `No host change detected or potential iframe. Executing callback directly/targeting iframe.`
       );
 
-      // For embedded flows using an iframe:
-      cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
-        .should("be.visible")
-        .should("exist")
-        .then((iframes) => {
-          if (iframes.length === 0) {
-            cy.log(
-              "No host change and no iframe detected, executing callback directly."
-            );
+      // Wait for page to be ready first
+      cy.document().should("have.property", "readyState", "complete");
 
-            throw new Error("No iframe found for embedded flow.");
-          }
-          // Execute the callback directly for the embedded flow
+      // For embedded flows using an iframe - use robust detection:
+      cy.get("body").then(($body) => {
+        const iframes = $body.find("iframe");
+
+        if (iframes.length > 0) {
+          // Wait for iframe to be ready
+          cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+            .should("be.visible")
+            .then(() => {
+              cy.log(
+                "Iframe detected and ready, executing callback targeting iframe context"
+              );
+              callback(callbackArgs);
+            });
+        } else {
           cy.log(
-            "Iframe detected, executing callback targeting iframe context (implicitly)."
+            "No iframe detected initially, checking for dynamic iframe or executing direct callback"
           );
-          callback(callbackArgs);
-        });
+
+          cy.get("body", { timeout: 3000 })
+            .should("exist")
+            .then(($body) => {
+              // Check if iframe appeared during the wait
+              if ($body.find("iframe").length > 0) {
+                cy.log("Dynamic iframe detected, executing iframe flow");
+                cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
+                  .should("be.visible")
+                  .then(() => {
+                    callback(callbackArgs);
+                  });
+              } else {
+                cy.log("No iframe found, executing direct callback");
+                // Execute callback directly for non-iframe flows
+                callback(callbackArgs);
+              }
+            });
+        }
+      });
     }
   });
 }

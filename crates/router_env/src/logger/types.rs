@@ -654,6 +654,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Gift card balance check flow
+    GiftCardBalanceCheck,
 }
 
 /// Trait for providing generic behaviour to flow metric
