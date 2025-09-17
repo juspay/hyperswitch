@@ -69,10 +69,10 @@ use hyperswitch_domain_models::{
     router_response_types::{
         subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData, GiftCardBalanceCheckResponseData,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
