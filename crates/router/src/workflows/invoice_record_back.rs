@@ -1,4 +1,8 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
+use common_utils::errors::CustomResult;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -14,10 +18,10 @@ use crate::{
     types::{api as api_types, domain, storage},
     workflows,
 };
-pub struct InvoiceRecordBack;
+pub struct InvoiceRecordBackWorkflow;
 
 #[async_trait]
-impl ProcessTrackerWorkflow<SessionState> for InvoiceRecordBack {
+impl ProcessTrackerWorkflow<SessionState> for InvoiceRecordBackWorkflow {
     #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
@@ -119,6 +123,14 @@ async fn perform_subscription_invoice_record_back(
             // Mark process as complete
         } else {
             // Record back to billing processor
+            perform_billing_processor_record_back(
+                state,
+                &key_store,
+                tracking_data,
+                &billing_processor_mca,
+            )
+            .await
+            .attach_printable("Failed to record back to billing processor")?;
         }
         state
             .store
@@ -266,4 +278,288 @@ async fn perform_subscription_invoice_record_back(
     // }
 
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn perform_billing_processor_record_back(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    tracking_data: &api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
+    billing_processor_mca: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+) -> CustomResult<(), crate::errors::ApiErrorResponse> {
+    logger::info!("perform_billing_processor_record_back");
+
+     InvoiceRecordBackHandler::create(
+        state,
+        key_store,
+        tracking_data,
+        billing_processor_mca,
+    )
+    .await?
+    .record_back_to_billing_processor().await?;
+
+    Ok(())
+
+
+    // Record back to billing processor
+
+    // let auth_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+    //     billing_processor_mca.clone(),
+    // ))
+    // .get_connector_account_details()
+    // .parse_value("ConnectorAuthType")
+    // .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    // let connector = &billing_processor_mca.connector_name;
+
+    // let connector_data = api_types::ConnectorData::get_connector_by_name(
+    //     &state.conf.connectors,
+    //     &billing_processor_mca.connector_name,
+    //     api_types::GetToken::Connector,
+    //     Some(billing_processor_mca.get_id()),
+    // )
+    // .change_context(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("invalid connector name received in billing merchant connector account")?;
+
+    // let connector_enum = common_enums::connector_enums::Connector::from_str(connector.as_str())
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Cannot find connector from the connector_name")?;
+
+    // let connector_params =
+    //     hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+    //         &state.conf.connectors,
+    //         connector_enum,
+    //     )
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable(format!(
+    //         "cannot find connector params for this connector {connector} in this flow",
+    //     ))?;
+
+    // let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
+    //     hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
+    //     hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
+    //     hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse,
+    // > = connector_data.connector.get_connector_integration();
+
+    // let connector_integration_for_create_subscription: services::BoxedSubscriptionConnectorIntegrationInterface<
+    //                     hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCreate,
+    //                     hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest,
+    //                     hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    //                 > = connector_data.connector.get_connector_integration();
+
+    // let request = hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest {
+    //     merchant_reference_id: billing_processor_detail.invoice_id.clone(),
+    //     amount: payment_data.get_payment_attempt().get_total_amount(),
+    //     currency: payment_data
+    //         .get_payment_intent()
+    //         .currency
+    //         .unwrap_or(common_enums::Currency::USD),
+    //     payment_method_type: payment_data.get_payment_attempt().payment_method_type,
+
+    //     attempt_status: payment_data.get_payment_attempt().status,
+    //     connector_transaction_id: payment_data
+    //         .get_payment_attempt()
+    //         .connector_transaction_id
+    //         .clone()
+    //         .map(|id| common_utils::types::ConnectorTransactionId::TxnId(id)),
+    //     connector_params,
+    // };
+
+    // let router_data = create_subscription_router_data::<
+    //     hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionRecordBack,
+    //     hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionsRecordBackRequest,
+    //     hyperswitch_domain_models::router_response_types::revenue_recovery::RevenueRecoveryRecordBackResponse,
+    // >(
+    //     state,
+    //     merchant_id.clone(),
+    //     Some(customer_id),
+    //     connector.clone(),
+    //     auth_type,
+    //     request,
+    //     Some(payment_data
+    //         .get_payment_intent()
+    //         .payment_id
+    //         .to_owned())
+    // )?;
+
+    // services::execute_connector_processing_step(
+    //     state,
+    //     connector_integration,
+    //     &router_data,
+    //     common_enums::CallConnectorAction::Trigger,
+    //     None,
+    //     None,
+    // )
+    // .await
+    // .change_context(errors::ApiErrorResponse::InternalServerError)
+    // .attach_printable("Failed while handling response of record back to billing connector")?;
+
+}
+
+pub struct InvoiceRecordBackHandler<'a> {
+    pub state: &'a SessionState,
+    pub key_store: &'a domain::MerchantKeyStore,
+    pub tracking_data:
+        &'a api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
+    pub billing_processor_mca:
+        &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub customer_id: &'a common_utils::id_type::CustomerId,
+    pub router_data: hyperswitch_domain_models::router_data::RouterData<
+        hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
+        hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
+        hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse>,
+}
+
+impl<'a> InvoiceRecordBackHandler<'a> {
+    pub async fn create(
+        state: &'a SessionState,
+        key_store: &'a domain::MerchantKeyStore,
+        tracking_data: &'a api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
+        billing_processor_mca: &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<Self, crate::errors::ApiErrorResponse> {
+        let auth_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            billing_processor_mca.clone(),
+        ))
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(crate::errors::ApiErrorResponse::InternalServerError)?;
+
+        let connector = billing_processor_mca.connector_name.clone();
+
+
+    let connector_enum = common_enums::connector_enums::Connector::from_str(connector.as_str())
+        .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Cannot find connector from the connector_name")?;
+
+    let connector_params =
+        hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+            &state.conf.connectors,
+            connector_enum,
+        )
+        .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "cannot find connector params for this connector {connector} in this flow",
+        ))?;
+
+        let request = hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest {
+            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&tracking_data.invoice_id)
+            .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse invoice id")?,
+            amount:tracking_data.amount, 
+            currency: tracking_data.currency, 
+            payment_method_type: tracking_data.payment_method_type, 
+            attempt_status: common_enums::AttemptStatus::Charged, 
+            connector_transaction_id: None, 
+            connector_params,
+        };
+
+        let router_data = hyperswitch_domain_models::router_data::RouterData {
+            flow: std::marker::PhantomData,
+            merchant_id: tracking_data.merchant_id.to_owned(),
+            customer_id: Some(tracking_data.customer_id.to_owned()),
+            connector_customer: None,
+            connector,
+            payment_id: "DefaultPaymentId".to_string(),
+            tenant_id: state.tenant.tenant_id.clone(),
+            attempt_id: "Subscriptions attempt".to_owned(),
+            status: common_enums::AttemptStatus::default(),
+            payment_method: common_enums::PaymentMethod::default(),
+            connector_auth_type: auth_type,
+            description: None,
+            address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_meta_data: None,
+            connector_wallets_details: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request,
+            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+            connector_request_reference_id: "Notjing".to_owned(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: None,
+            #[cfg(feature = "payouts")]
+            quote_id: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payment_method_status: None,
+            connector_response: None,
+            integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
+        };
+
+        Ok(Self {
+            state,
+            key_store,
+            tracking_data,
+            billing_processor_mca,
+            merchant_id: &tracking_data.merchant_id,
+            customer_id: &tracking_data.customer_id,
+            router_data,
+        })
+    }
+
+    pub async fn record_back_to_billing_processor(
+        &self,
+    ) -> CustomResult<
+        (),
+        crate::errors::ApiErrorResponse> {
+
+             let connector_data = api_types::ConnectorData::get_connector_by_name(
+        &self.state.conf.connectors,
+        &self.billing_processor_mca.connector_name,
+        api_types::GetToken::Connector,
+        Some(self.billing_processor_mca.get_id()),
+    )
+    .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("invalid connector name received in billing merchant connector account")?;
+
+              let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
+        hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
+        hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
+        hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse,
+    > = connector_data.connector.get_connector_integration();
+
+            let response =  services::execute_connector_processing_step(
+        self.state,
+        connector_integration,
+        &self.router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .inspect_err(|err| {
+        logger::error!(
+            "Error while handling response of record back to billing connector: {:?}",
+            err
+        );
+    })
+    .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while handling response of record back to billing connector")?;
+
+    Ok(())
+        }
+    
 }
