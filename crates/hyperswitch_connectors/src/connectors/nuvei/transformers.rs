@@ -872,10 +872,10 @@ impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {
     fn from(value: NuveiPaymentSyncResponse) -> Self {
         match value {
             NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => {
-                NuveiTransactionSyncResponse::from(payment_dmn_notification)
+                Self::from(payment_dmn_notification)
             }
             NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => {
-                nuvei_transaction_sync_response
+                *nuvei_transaction_sync_response
             }
         }
     }
@@ -2475,6 +2475,7 @@ struct ErrorResponseParams {
     gw_error_code: Option<i64>,
     gw_error_reason: Option<String>,
     transaction_status: Option<NuveiTransactionStatus>,
+    transaction_id: Option<String>,
 }
 
 fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
@@ -2486,6 +2487,7 @@ fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
             params.merchant_advice_code.clone(),
             params.gw_error_code.map(|code| code.to_string()),
             params.gw_error_reason.clone(),
+            params.transaction_id.clone()
         )),
 
         _ => {
@@ -2496,6 +2498,7 @@ fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
                 params.merchant_advice_code,
                 params.gw_error_code.map(|e| e.to_string()),
                 params.gw_error_reason.clone(),
+                params.transaction_id.clone()
             ));
 
             match params.transaction_status {
@@ -2586,6 +2589,7 @@ impl
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2810,6 +2814,7 @@ impl
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2872,6 +2877,7 @@ where
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2942,6 +2948,9 @@ where
                 transaction_status: transaction_details
                     .as_ref()
                     .and_then(|details| details.transaction_status.clone()),
+                transaction_id:  transaction_details
+                .as_ref()
+                .and_then(|details| details.transaction_id.clone()),
             }) {
                 Err(err)
             } else {
@@ -3033,21 +3042,64 @@ impl TryFrom<RefundsResponseRouterData<Execute, NuveiPaymentsResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, NuveiPaymentsResponse>>
+impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
     for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, NuveiPaymentsResponse>,
+        item: RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item
+        let txn_id = item
             .response
-            .transaction_id
-            .clone()
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.transaction_id.clone())
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        let refund_response =
-            get_refund_response(item.response.clone(), item.http_code, transaction_id);
+            let refund_status = item.response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.transaction_status.clone())
+            .map(enums::RefundStatus::from)
+            .unwrap_or(enums::RefundStatus::Failure);
+
+        let  network_decline_code = item.response
+        .transaction_details
+        .as_ref()
+        .and_then(|details| details.gw_error_code.clone().map(|e| e.to_string()));
+
+       
+        let network_error_msg = item.response
+        .transaction_details
+        .as_ref()
+        .and_then(|details| details.gw_error_reason.clone());
+
+        let refund_response = match item.response.status {
+            NuveiPaymentStatus::Error => Err(Box::new(get_error_response(
+                item.response.err_code,
+                item.response.reason.clone(),
+                item.http_code,
+                item.response.merchant_advice_code,
+                network_decline_code,
+                network_error_msg,
+                Some(txn_id.clone())
+            ))),
+            _ => match item.response.transaction_details.and_then(|nuvei_response| nuvei_response.transaction_status) {
+                Some(NuveiTransactionStatus::Error) => Err(Box::new(get_error_response(
+                    item.response.err_code,
+                    item.response.reason,
+                    item.http_code,
+                    item.response.merchant_advice_code,
+                    network_decline_code,
+                    network_error_msg,
+                    Some(txn_id.clone())
+                ))),
+                _ => Ok(RefundsResponseData {
+                    connector_refund_id: txn_id,
+                    refund_status,
+                }),
+            },
+        };
 
         Ok(Self {
             response: refund_response.map_err(|err| *err),
@@ -3133,6 +3185,7 @@ fn get_refund_response(
             response.merchant_advice_code,
             response.gw_error_code.map(|e| e.to_string()),
             response.gw_error_reason,
+            Some(txn_id.clone())
         ))),
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => Err(Box::new(get_error_response(
@@ -3142,6 +3195,7 @@ fn get_refund_response(
                 response.merchant_advice_code,
                 response.gw_error_code.map(|e| e.to_string()),
                 response.gw_error_reason,
+                Some(txn_id.clone())
             ))),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
@@ -3158,6 +3212,7 @@ fn get_error_response(
     network_advice_code: Option<String>,
     network_decline_code: Option<String>,
     network_error_message: Option<String>,
+    trasaction_id: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         code: error_code
@@ -3169,7 +3224,7 @@ fn get_error_response(
         reason: None,
         status_code: http_code,
         attempt_status: None,
-        connector_transaction_id: None,
+        connector_transaction_id: trasaction_id,
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
@@ -3190,7 +3245,7 @@ pub enum NuveiWebhook {
 #[serde(untagged)]
 pub enum NuveiPaymentSyncResponse {
     NuveiDmn(PaymentDmnNotification),
-    NuveiApi(NuveiTransactionSyncResponse),
+    NuveiApi(Box<NuveiTransactionSyncResponse>),
 }
 
 /// Represents the status of a chargeback event.
@@ -3463,20 +3518,6 @@ pub enum TransactionStatus {
     Settled,
 }
 
-/// Represents the type of transaction.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "PascalCase")]
-pub enum PaymentTransactionType {
-    Auth,
-    Sale,
-    Settle,
-    Credit,
-    Void,
-    Auth3D,
-    Sale3D,
-    Verif,
-}
-
 /// Represents a Payment Direct Merchant Notification (DMN) webhook.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -3493,7 +3534,7 @@ pub struct PaymentDmnNotification {
     // Status of the Payment
     #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
-    pub transaction_type: Option<PaymentTransactionType>,
+    pub transaction_type: Option<NuveiTransactionType>,
     #[serde(rename = "ErrCode")]
     pub err_code: Option<String>,
     #[serde(rename = "Reason")]
@@ -3531,19 +3572,11 @@ pub struct NuveiWebhookTransactionId {
     pub ppp_transaction_id: String,
 }
 
+
+
 // Convert webhook to payments response for further processing
 impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
     fn from(notification: PaymentDmnNotification) -> Self {
-        let transaction_type = notification.transaction_type.map(|tt| match tt {
-            PaymentTransactionType::Auth => NuveiTransactionType::Auth,
-            PaymentTransactionType::Sale => NuveiTransactionType::Sale,
-            PaymentTransactionType::Settle => NuveiTransactionType::Settle,
-            PaymentTransactionType::Credit => NuveiTransactionType::Credit,
-            PaymentTransactionType::Void => NuveiTransactionType::Void,
-            PaymentTransactionType::Auth3D => NuveiTransactionType::Auth3D,
-            PaymentTransactionType::Sale3D => NuveiTransactionType::Auth3D, // Map to closest equivalent
-            PaymentTransactionType::Verif => NuveiTransactionType::Auth, // Map to closest equivalent
-        });
 
         Self {
             status: match notification.ppp_status {
@@ -3568,7 +3601,7 @@ impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
                     DmnStatus::Pending => NuveiTransactionStatus::Pending,
                     DmnStatus::Error => NuveiTransactionStatus::Error,
                 }),
-                transaction_type,
+                transaction_type: notification.transaction_type,
                 auth_code: notification.auth_code,
                 processed_amount: None,
                 processed_currency: None,
@@ -3683,56 +3716,52 @@ fn convert_to_additional_payment_method_connector_response(
 
 pub fn map_notification_to_event(
     status: DmnStatus,
-    transaction_type: PaymentTransactionType,
+    transaction_type: NuveiTransactionType,
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
     match (status, transaction_type) {
         (
             DmnStatus::Success | DmnStatus::Approved,
-            PaymentTransactionType::Auth | PaymentTransactionType::Auth3D,
+            NuveiTransactionType::Auth | NuveiTransactionType::Auth3D,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
         (
             DmnStatus::Success | DmnStatus::Approved,
-            PaymentTransactionType::Sale
-            | PaymentTransactionType::Sale3D
-            | PaymentTransactionType::Verif,
+            NuveiTransactionType::Sale
+            | NuveiTransactionType::InitAuth3D,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
-        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Settle) => {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
         }
-        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Void) => {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Void) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
         }
-        (DmnStatus::Success | DmnStatus::Approved, PaymentTransactionType::Credit) => {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Credit) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
         }
         (
             DmnStatus::Error | DmnStatus::Declined,
-            PaymentTransactionType::Auth | PaymentTransactionType::Auth3D,
+            NuveiTransactionType::Auth | NuveiTransactionType::Auth3D,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure),
         (
             DmnStatus::Error | DmnStatus::Declined,
-            PaymentTransactionType::Sale
-            | PaymentTransactionType::Sale3D
-            | PaymentTransactionType::Verif,
+            NuveiTransactionType::Sale
+            | NuveiTransactionType::InitAuth3D,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
-        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Settle) => {
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
         }
-        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Void) => {
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Void) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure)
         }
-        (DmnStatus::Error | DmnStatus::Declined, PaymentTransactionType::Credit) => {
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Credit) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
         }
         (
             DmnStatus::Pending,
-            PaymentTransactionType::Auth
-            | PaymentTransactionType::Auth3D
-            | PaymentTransactionType::Sale
-            | PaymentTransactionType::Sale3D
-            | PaymentTransactionType::Verif
-            | PaymentTransactionType::Settle,
+            NuveiTransactionType::Auth
+            | NuveiTransactionType::Auth3D
+            | NuveiTransactionType::Sale
+            | NuveiTransactionType::Settle,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
         _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
     }
@@ -3854,10 +3883,8 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
             | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
             | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour
-            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => {
-                common_enums::DisputeStage::Dispute
-            }
-
+            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => Self::Dispute,
+        
             // --- PreArbitration ---
             DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
             | DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
@@ -3873,14 +3900,10 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
             | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
             | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
-            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
-                common_enums::DisputeStage::PreArbitration
-            }
-
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => Self::PreArbitration,
+        
             // --- DisputeReversal ---
-            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
-                common_enums::DisputeStage::DisputeReversal
-            }
+            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Self::DisputeReversal,
         }
     }
 }

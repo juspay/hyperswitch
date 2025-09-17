@@ -1,7 +1,7 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
-use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
+use api_models::{payments::PaymentIdType, webhooks::RefundIdType, webhooks::IncomingWebhookEvent};
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     crypto,
@@ -555,17 +555,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentSyncResponse = res
+        let nuvie_psync_common_response: nuvei::NuveiPaymentSyncResponse = res
             .response
             .parse_struct("NuveiTransactionSyncResponse")
             .switch()?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        let nuvie_psync_common_response = NuveiTransactionSyncResponse::from(response);
+        event_builder.map(|i| i.set_response_body(&nuvie_psync_common_response));
+        router_env::logger::info!(connector_response=?nuvie_psync_common_response);
+        let  response= NuveiTransactionSyncResponse::from(nuvie_psync_common_response);
 
         RouterData::try_from(ResponseRouterData {
-            response: nuvie_psync_common_response,
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -997,7 +997,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nuvei {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nuvei {
+    fn handle_response(
+        &self,
+        data: &RefundsRouterData<RSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<RSync, RefundsData, RefundsResponseData>, errors::ConnectorError> {
+        let nuvie_rsync_common_response: nuvei::PaymentDmnNotification = res
+            .response
+            .parse_struct("PaymentDmnNotification")
+            .switch()?;
+        event_builder.map(|i| i.set_response_body(&nuvie_rsync_common_response));
+        router_env::logger::info!(connector_response=?nuvie_rsync_common_response);
+        let response = NuveiTransactionSyncResponse::from(nuvie_rsync_common_response);
+
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+}
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Nuvei {
@@ -1089,14 +1112,20 @@ impl IncomingWebhook for Nuvei {
         // Extract transaction ID from the webhook
         match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(
-                        notification
-                            .transaction_id
-                            .clone()
-                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                    ),
-                ))
+                match notification.transaction_type {
+                    Some(nuvei::NuveiTransactionType::Auth)
+                    |Some(nuvei::NuveiTransactionType::Sale)
+                    |Some(nuvei::NuveiTransactionType::Settle)
+                    |Some(nuvei::NuveiTransactionType::Void)
+                    |Some(nuvei::NuveiTransactionType::Auth3D)
+                    |Some(nuvei::NuveiTransactionType::InitAuth3D) =>  Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        PaymentIdType::ConnectorTransactionId(notification.transaction_id.clone().ok_or(errors::ConnectorError::MissingConnectorTransactionID)?)
+                    )),
+                    Some(nuvei::NuveiTransactionType::Credit) => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                        RefundIdType::ConnectorRefundId(notification.transaction_id.clone().ok_or(errors::ConnectorError::MissingConnectorRefundID)?)
+                    )),
+                    None => Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                }
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
