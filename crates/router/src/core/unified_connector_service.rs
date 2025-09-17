@@ -492,6 +492,16 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
+                WalletData::Mifinity(mifinity_data) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Wallet(WalletPaymentMethodType {
+                            wallet_type: Some(WalletType::Mifinity(payments_grpc::MifinityWallet {
+                                date_of_birth: mifinity_data.date_of_birth,
+                                language_preference: mifinity_data.language_preference
+                            })),
+                        })),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "Unimplemented payment method subtype: {payment_method_type:?}"
                     ))
