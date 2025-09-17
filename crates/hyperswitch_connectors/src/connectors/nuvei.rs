@@ -1062,9 +1062,6 @@ impl IncomingWebhook for Nuvei {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         // Parse the webhook payload
         let webhook = get_webhook_object_from_body(request.body)?;
-
-        router_env::logger::info!(sssssssssss=?webhook);
-
         let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
@@ -1087,7 +1084,6 @@ impl IncomingWebhook for Nuvei {
                     status,
                     notification.product_id.unwrap_or("NA".to_string()),
                 ]);
-                router_env::logger::info!(sssssssssssssss_dont_want=?to_sign);
                 Ok(to_sign.into_bytes())
             }
             nuvei::NuveiWebhook::Chargeback(notification) => {
@@ -1106,12 +1102,8 @@ impl IncomingWebhook for Nuvei {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        router_env::logger::info!(sssssssssss=?request);
         // Parse the webhook payload
         let webhook = get_webhook_object_from_body(request.body)?;
-
-        router_env::logger::info!(sssssssssss=?webhook);
-
         // Extract transaction ID from the webhook
         match &webhook {
             nuvei::NuveiWebhook::PaymentDmn(notification) => match notification.transaction_type {
