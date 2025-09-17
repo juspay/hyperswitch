@@ -903,8 +903,14 @@ impl
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: customer_response.id.clone(),
-                name: customer_response.name.as_ref().map(|name| name.clone().expose()),
-                email: customer_response.email.as_ref().map(|email| email.clone().expose().expose()),
+                name: customer_response
+                    .name
+                    .as_ref()
+                    .map(|name| name.clone().expose()),
+                email: customer_response
+                    .email
+                    .as_ref()
+                    .map(|email| email.clone().expose().expose()),
                 billing_address: customer_response.billing_address.clone(),
             }),
             ..item.data
