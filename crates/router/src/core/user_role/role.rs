@@ -452,8 +452,8 @@ pub async fn list_roles_with_info(
 
     let mut role_info_vec = PREDEFINED_ROLES
         .values()
-        .cloned()
         .filter(|role| !role.is_internal())
+        .cloned()
         .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
