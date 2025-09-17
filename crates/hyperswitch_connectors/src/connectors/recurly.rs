@@ -7,8 +7,6 @@ use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::router_data_v2::flow_common_types as recovery_flow_common_types;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
@@ -158,7 +156,6 @@ impl
     > for Recurly
 {
 }
-impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
 impl
     ConnectorIntegrationV2<

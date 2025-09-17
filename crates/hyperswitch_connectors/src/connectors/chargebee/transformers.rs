@@ -130,13 +130,13 @@ impl From<ChargebeeSubscriptionStatus>
 {
     fn from(status: ChargebeeSubscriptionStatus) -> Self {
         match status {
-            ChargebeeSubscriptionStatus::Future => Self::Future,
-            ChargebeeSubscriptionStatus::InTrial => Self::InTrial,
+            ChargebeeSubscriptionStatus::Future => Self::Pending,
+            ChargebeeSubscriptionStatus::InTrial => Self::Trial,
             ChargebeeSubscriptionStatus::Active => Self::Active,
-            ChargebeeSubscriptionStatus::NonRenewing => Self::NonRenewing,
+            ChargebeeSubscriptionStatus::NonRenewing => Self::Onetime,
             ChargebeeSubscriptionStatus::Paused => Self::Paused,
             ChargebeeSubscriptionStatus::Cancelled => Self::Cancelled,
-            ChargebeeSubscriptionStatus::Transferred => Self::Transferred,
+            ChargebeeSubscriptionStatus::Transferred => Self::Cancelled,
         }
     }
 }

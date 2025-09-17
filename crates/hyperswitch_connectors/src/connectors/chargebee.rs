@@ -44,8 +44,6 @@ use hyperswitch_domain_models::{
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "v2")]
-use hyperswitch_interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use hyperswitch_interfaces::{
     api::{
         self, subscriptions_v2::GetSubscriptionPlansV2, ConnectorCommon, ConnectorCommonExt,
@@ -797,7 +795,6 @@ fn get_chargebee_plans_query_params(
     Ok(param)
 }
 
-impl api::subscriptions::Subscriptions for Chargebee {}
 impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
 
 impl
