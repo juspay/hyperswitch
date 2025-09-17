@@ -16,17 +16,11 @@ pub struct CreateSubscriptionRequest {
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
 
-    /// Associated profile ID for this subscription.
-    pub profile_id: common_utils::id_type::ProfileId,
-
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
 
     /// Optional coupon code applied to the subscription.
     pub coupon_code: Option<String>,
-
-    /// Whether to immediately confirm the subscription on creation.
-    pub confirm: Option<bool>,
 
     /// customer ID associated with this subscription.
     pub customer_id: common_utils::id_type::CustomerId,

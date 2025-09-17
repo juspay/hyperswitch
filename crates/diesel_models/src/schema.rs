@@ -1479,6 +1479,8 @@ diesel::table! {
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
         #[max_length = 128]
+        merchant_connector_id -> Nullable<Varchar>,
+        #[max_length = 128]
         client_secret -> Nullable<Varchar>,
         #[max_length = 128]
         connector_subscription_id -> Nullable<Varchar>,

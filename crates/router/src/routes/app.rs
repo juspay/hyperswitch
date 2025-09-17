@@ -1163,7 +1163,7 @@ pub struct Subscription;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/subscription")
+        web::scope("/subscription/create")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("").route(
                 web::post().to(|state, req, payload| {

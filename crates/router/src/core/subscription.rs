@@ -15,13 +15,18 @@ use crate::routes::SessionState;
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
+    profile_id: String,
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<CreateSubscriptionResponse> {
     let store = state.store.clone();
     let db = store.as_ref();
     let id = common_utils::id_type::SubscriptionId::generate();
+    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "X-Profile-Id",
+        },
+    )?;
 
-    // If provided we can store plan_id, coupon_code etc as metadata
     let mut subscription = SubscriptionNew::new(
         id,
         SubscriptionStatus::Created.to_string(),
@@ -29,10 +34,11 @@ pub async fn create_subscription(
         None,
         None,
         None,
+        None,
         merchant_context.get_merchant_account().get_id().clone(),
         request.customer_id.clone(),
         None,
-        request.profile_id,
+        profile_id,
         request.merchant_reference_id,
     );
 
