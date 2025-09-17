@@ -1,5 +1,5 @@
-use std::{cmp, collections::HashSet};
-use std::ops::Not;
+use std::{cmp, collections::HashSet, ops::Not};
+
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::generate_id_with_default_len;
