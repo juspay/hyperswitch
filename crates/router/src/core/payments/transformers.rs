@@ -2097,6 +2097,58 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F> GenerateResponse<api_models::payments::PaymentsCancelResponse>
+    for hyperswitch_domain_models::payments::PaymentCancelData<F>
+where
+    F: Clone,
+{
+    fn generate_response(
+        self,
+        state: &SessionState,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
+        _connector_response_data: Option<common_types::domain::ConnectorResponseData>,
+    ) -> RouterResponse<api_models::payments::PaymentsCancelResponse> {
+        let payment_intent = &self.payment_intent;
+        let payment_attempt = &self.payment_attempt;
+
+        let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            &payment_attempt.amount_details,
+        ));
+
+        let response = api_models::payments::PaymentsCancelResponse {
+            id: payment_intent.id.clone(),
+            status: payment_intent.status,
+            cancellation_reason: payment_attempt.cancellation_reason.clone(),
+            amount,
+            customer_id: payment_intent.customer_id.clone(),
+            connector: payment_attempt.connector.clone(),
+            created: payment_intent.created_at,
+            payment_method_type: Some(payment_attempt.payment_method_type),
+            attempts: None,
+            return_url: payment_intent.return_url.clone(),
+        };
+
+        let headers = connector_http_status_code
+            .map(|status_code| {
+                vec![(
+                    X_CONNECTOR_HTTP_STATUS_CODE.to_string(),
+                    Maskable::new_normal(status_code.to_string()),
+                )]
+            })
+            .unwrap_or_default();
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response, headers,
+        )))
+    }
+}
+
 #[cfg(feature = "v1")]
 impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsResponse
 where
@@ -6289,68 +6341,5 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
                 None
             }
         }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl GenerateResponse<api_models::payments::PaymentsResponse>
-    for hyperswitch_domain_models::payments::PaymentCancelData<
-        hyperswitch_domain_models::router_flow_types::Void,
-    >
-{
-    fn generate_response(
-        self,
-        _state: &SessionState,
-        _connector_http_status_code: Option<u16>,
-        _external_latency: Option<u128>,
-        _is_latency_header_enabled: Option<bool>,
-        _merchant_context: &domain::MerchantContext,
-        _profile: &domain::Profile,
-        _connector_response_data: Option<common_types::domain::ConnectorResponseData>,
-    ) -> RouterResponse<api_models::payments::PaymentsResponse> {
-        let payment_intent = self.payment_intent;
-        let payment_attempt = self.payment_attempt;
-
-        let amount =
-            api_models::payments::PaymentAmountDetailsResponse::foreign_from(
-                (
-                    &payment_intent.amount_details,
-                    Option::<
-                        &hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails,
-                    >::None,
-                ),
-            );
-
-        let response = api_models::payments::PaymentsResponse {
-            id: payment_intent.id,
-            status: payment_intent.status,
-            amount,
-            customer_id: payment_intent.customer_id,
-            connector: payment_attempt.connector,
-            created: payment_intent.created_at,
-            payment_method_data: None,
-            payment_method_type: Some(payment_attempt.payment_method_type),
-            payment_method_subtype: None,
-            connector_transaction_id: payment_attempt.network_transaction_id,
-            connector_reference_id: payment_attempt.connector_response_reference_id,
-            merchant_connector_id: payment_attempt.merchant_connector_id,
-            browser_info: None,
-            error: None,
-            shipping: None,
-            billing: None,
-            attempts: None,
-            connector_token_details: None,
-            payment_method_id: payment_attempt.payment_method_id,
-            next_action: None,
-            return_url: payment_intent.return_url,
-            authentication_type: Some(payment_attempt.authentication_type),
-            authentication_type_applied: None,
-            is_iframe_redirection_enabled: None,
-            merchant_reference_id: None,
-            raw_connector_response: None,
-            feature_metadata: None,
-        };
-
-        Ok(services::ApplicationResponse::Json(response))
     }
 }

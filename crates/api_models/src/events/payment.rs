@@ -231,6 +231,22 @@ impl ApiEventMetric for payments::PaymentsResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentsCancelRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentsCancelResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for payments::PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

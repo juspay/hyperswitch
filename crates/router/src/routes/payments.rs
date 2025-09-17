@@ -1539,7 +1539,6 @@ pub async fn payments_cancel(
     let global_payment_id = path.into_inner();
 
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
-    tracing::Span::current().record("flow", flow.to_string());
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
         global_payment_id: global_payment_id.clone(),
@@ -1571,7 +1570,7 @@ pub async fn payments_cancel(
 
             Box::pin(payments::payments_core::<
                 hyperswitch_domain_models::router_flow_types::Void,
-                payment_types::PaymentsResponse,
+                api_models::payments::PaymentsCancelResponse,
                 _,
                 _,
                 _,
