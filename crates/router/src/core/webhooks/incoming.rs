@@ -224,6 +224,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         fetch_optional_mca_and_connector(&state, &merchant_context, connector_name_or_mca_id)
             .await?;
 
+    // Don't consume the webhook if it is a setup event
+    if connector.is_setup_webhook_event(&request_details) {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     // Determine webhook processing path (UCS vs non-UCS) and handle event type extraction
     let webhook_processing_result =
         if unified_connector_service::should_call_unified_connector_service_for_webhooks(

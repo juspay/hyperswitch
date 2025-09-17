@@ -700,6 +700,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    /// fn is_setup_webhook_event
+    fn is_setup_webhook_event(
+        &self,
+        _request_details: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> bool {
+        false
+    }
 }
 
 /// trait ConnectorRedirectResponse

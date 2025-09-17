@@ -161,6 +161,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     )
     .await?;
 
+    // Don't consume the webhook if it is a setup event
+    if connector.is_setup_webhook_event(&request_details) {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     let decoded_body = connector
         .decode_webhook_body(
             &request_details,
