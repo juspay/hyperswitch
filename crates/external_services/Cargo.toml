@@ -68,7 +68,7 @@ reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "eebccfcff7c68c44af90b4e70a740f758d2ea995", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "487be8e726b728348db308193dd8eb94f5da9feb", package = "rust-grpc-client" }
 
 
 # First party crates
