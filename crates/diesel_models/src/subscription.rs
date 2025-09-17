@@ -8,11 +8,10 @@ use crate::schema::subscription;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionNew {
-    subscription_id: common_utils::id_type::SubscriptionId,
+    id: common_utils::id_type::SubscriptionId,
     status: String,
     billing_processor: Option<String>,
     payment_method_id: Option<String>,
-    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     client_secret: Option<String>,
     connector_subscription_id: Option<String>,
     merchant_id: common_utils::id_type::MerchantId,
@@ -21,18 +20,18 @@ pub struct SubscriptionNew {
     created_at: time::PrimitiveDateTime,
     modified_at: time::PrimitiveDateTime,
     profile_id: common_utils::id_type::ProfileId,
+    merchant_reference_id: Option<String>,
 }
 
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize,
 )]
-#[diesel(table_name = subscription, primary_key(subscription_id, merchant_id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = subscription, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Subscription {
-    pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub id: common_utils::id_type::SubscriptionId,
     pub status: String,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub client_secret: Option<String>,
     pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -41,6 +40,7 @@ pub struct Subscription {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -54,25 +54,24 @@ pub struct SubscriptionUpdate {
 impl SubscriptionNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        subscription_id: common_utils::id_type::SubscriptionId,
+        id: common_utils::id_type::SubscriptionId,
         status: String,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         client_secret: Option<String>,
         connector_subscription_id: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         customer_id: common_utils::id_type::CustomerId,
         metadata: Option<SecretSerdeValue>,
         profile_id: common_utils::id_type::ProfileId,
+        merchant_reference_id: Option<String>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
-            subscription_id,
+            id,
             status,
             billing_processor,
             payment_method_id,
-            merchant_connector_id,
             client_secret,
             connector_subscription_id,
             merchant_id,
@@ -81,14 +80,13 @@ impl SubscriptionNew {
             created_at: now,
             modified_at: now,
             profile_id,
+            merchant_reference_id,
         }
     }
 
     pub fn generate_and_set_client_secret(&mut self) -> Secret<String> {
-        let client_secret = generate_id_with_default_len(&format!(
-            "{}_secret",
-            self.subscription_id.get_string_repr()
-        ));
+        let client_secret =
+            generate_id_with_default_len(&format!("{}_secret", self.id.get_string_repr()));
         self.client_secret = Some(client_secret.clone());
         Secret::new(client_secret)
     }

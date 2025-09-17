@@ -1,11 +1,11 @@
-use common_utils::{events::ApiEventMetric, pii};
+use common_utils::events::ApiEventMetric;
 use masking::Secret;
 use utoipa::ToSchema;
 
-use crate::{
-    customers::{CustomerRequest, CustomerResponse},
-    payments::CustomerDetailsResponse,
-};
+// use crate::{
+//     customers::{CustomerRequest, CustomerResponse},
+//     payments::CustomerDetailsResponse,
+// };
 
 /// Request payload for creating a subscription.
 ///
@@ -13,8 +13,8 @@ use crate::{
 /// including plan, profile, merchant connector, and optional customer info.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
-    /// Unique identifier for the subscription (optional, generated if missing).
-    pub subscription_id: Option<common_utils::id_type::SubscriptionId>,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
 
     /// Associated profile ID for this subscription.
     pub profile_id: common_utils::id_type::ProfileId,
@@ -25,27 +25,11 @@ pub struct CreateSubscriptionRequest {
     /// Optional coupon code applied to the subscription.
     pub coupon_code: Option<String>,
 
-    /// Optional merchant connector account ID for routing payments.
-    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-
     /// Whether to immediately confirm the subscription on creation.
     pub confirm: Option<bool>,
 
-    /// Optional customer ID associated with this subscription.
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-
-    /// Optional full customer request data.
-    pub customer: Option<CustomerRequest>,
-}
-
-impl CreateSubscriptionRequest {
-    /// Retrieves the `customer_id` either from the top-level field
-    /// or from the nested [`CustomerRequest`].
-    pub fn get_customer_id(&self) -> Option<&common_utils::id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or_else(|| self.customer.as_ref()?.customer_id.as_ref())
-    }
+    /// customer ID associated with this subscription.
+    pub customer_id: common_utils::id_type::CustomerId,
 }
 
 /// Response payload returned after successfully creating a subscription.
@@ -54,7 +38,10 @@ impl CreateSubscriptionRequest {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreateSubscriptionResponse {
     /// Unique identifier for the subscription.
-    pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub id: common_utils::id_type::SubscriptionId,
+
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
 
     /// Current status of the subscription.
     pub status: SubscriptionStatus,
@@ -71,14 +58,11 @@ pub struct CreateSubscriptionResponse {
     /// Merchant identifier owning this subscription.
     pub merchant_id: common_utils::id_type::MerchantId,
 
-    /// Optional merchant connector account ID for routing payments.
-    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-
     /// Optional coupon code applied to this subscription.
     pub coupon_code: Option<String>,
 
-    /// Optional customer details response.
-    pub customer: Option<CustomerDetailsResponse>,
+    /// Optional customer ID associated with this subscription.
+    pub customer_id: common_utils::id_type::CustomerId,
 }
 
 /// Possible states of a subscription lifecycle.
@@ -104,46 +88,26 @@ impl CreateSubscriptionResponse {
     /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        subscription_id: common_utils::id_type::SubscriptionId,
+        id: common_utils::id_type::SubscriptionId,
+        merchant_reference_id: Option<String>,
         status: SubscriptionStatus,
         plan_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
-        merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         client_secret: Option<Secret<String>>,
-        customer: Option<CustomerDetailsResponse>,
+        customer_id: common_utils::id_type::CustomerId,
     ) -> Self {
         Self {
-            subscription_id,
+            id,
+            merchant_reference_id,
             status,
             plan_id,
             profile_id,
             client_secret,
             merchant_id,
-            merchant_connector_account_id,
             coupon_code: None,
-            customer,
+            customer_id,
         }
-    }
-}
-
-/// Maps a [`CustomerResponse`] into a [`CustomerDetailsResponse`].
-///
-/// This is used to transform customer information returned by the customer API
-/// into the response format expected by the subscription API.
-pub fn map_customer_resp_to_details(response: &CustomerResponse) -> CustomerDetailsResponse {
-    CustomerDetailsResponse {
-        id: Some(response.customer_id.clone()),
-        name: response.name.as_ref().map(|name| name.clone().into_inner()),
-        email: response
-            .email
-            .as_ref()
-            .map(|email| pii::Email::from(email.clone())),
-        phone: response
-            .phone
-            .as_ref()
-            .map(|phone| phone.clone().into_inner()),
-        phone_country_code: response.phone_country_code.clone(),
     }
 }
 

@@ -1469,17 +1469,15 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    subscription (subscription_id, merchant_id) {
+    subscription (id) {
         #[max_length = 128]
-        subscription_id -> Varchar,
+        id -> Varchar,
         #[max_length = 128]
         status -> Varchar,
         #[max_length = 128]
         billing_processor -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_id -> Nullable<Varchar>,
-        #[max_length = 128]
-        merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 128]
         client_secret -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1493,6 +1491,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_reference_id -> Nullable<Varchar>,
     }
 }
 
