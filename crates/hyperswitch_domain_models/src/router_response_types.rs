@@ -1,6 +1,7 @@
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 use std::collections::HashMap;
 
 use common_utils::{pii, request::Method, types::MinorUnit};
@@ -83,6 +84,12 @@ pub enum PaymentsResponseData {
     PaymentsCreateOrderResponse {
         order_id: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckResponseData {
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Clone)]

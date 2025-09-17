@@ -26,7 +26,7 @@ pub async fn msearch_results(
         && req
             .filters
             .as_ref()
-            .map_or(true, |filters| filters.is_all_none())
+            .is_none_or(|filters| filters.is_all_none())
     {
         return Err(OpenSearchError::BadRequestError(
             "Both query and filters are empty".to_string(),
@@ -232,7 +232,7 @@ pub async fn search_results(
         && search_req
             .filters
             .as_ref()
-            .map_or(true, |filters| filters.is_all_none())
+            .is_none_or(|filters| filters.is_all_none())
     {
         return Err(OpenSearchError::BadRequestError(
             "Both query and filters are empty".to_string(),

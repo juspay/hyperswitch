@@ -737,6 +737,10 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
+                )
+                .service(
+                    web::resource("/check-gift-card-balance")
+                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 ),
         );
 
@@ -2343,12 +2347,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route

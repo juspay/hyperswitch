@@ -21,28 +21,30 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         revenue_recovery::InvoiceRecordBack,
+        subscriptions::GetSubscriptionPlans,
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest, AccessTokenRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        revenue_recovery::InvoiceRecordBackRequest, subscriptions::GetSubscriptionPlansRequest,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, ConnectorInfo, PaymentsResponseData,
-        RefundsResponseData,
+        revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, subscriptions_v2::GetSubscriptionPlansV2, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -51,7 +53,12 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    connectors::chargebee::transformers::ChargebeeListPlansResponse,
+    constants::{self, headers},
+    types::ResponseRouterData,
+    utils,
+};
 
 #[derive(Clone)]
 pub struct Chargebee {
@@ -657,6 +664,132 @@ impl ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRe
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+}
+
+fn get_chargebee_plans_query_params(
+    _req: &RouterData<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    >,
+) -> CustomResult<String, errors::ConnectorError> {
+    // Try to get limit from request, else default to 10
+    let limit = _req.request.limit.unwrap_or(10);
+    let param = format!("?limit={}&type[is]={}", limit, constants::PLAN_ITEM_TYPE);
+    Ok(param)
+}
+
+impl api::subscriptions::Subscriptions for Chargebee {}
+impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+
+impl
+    ConnectorIntegration<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Chargebee
+{
+    fn get_headers(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let query_params = get_chargebee_plans_query_params(req)?;
+        let metadata: chargebee::ChargebeeMetadata =
+            utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
+        let url = format!("{base}v2/items{query_params}");
+        Ok(url)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn build_request(
+        &self,
+        req: &GetSubscriptionPlansRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::GetSubscriptionPlansType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::GetSubscriptionPlansType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &GetSubscriptionPlansRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<GetSubscriptionPlansRouterData, errors::ConnectorError> {
+        let response: ChargebeeListPlansResponse = res
+            .response
+            .parse_struct("ChargebeeListPlansResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl GetSubscriptionPlansV2 for Chargebee {}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionPlans,
+        hyperswitch_domain_models::router_data_v2::flow_common_types::GetSubscriptionPlansData,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for Chargebee
+{
+    // Not implemented (R)
 }
 
 #[async_trait::async_trait]
