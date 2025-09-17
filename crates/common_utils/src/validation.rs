@@ -102,16 +102,25 @@ pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
         .tags(HashSet::new())
         .clean(&decoded)
         .to_string();
+
     if cleaned != decoded {
         return true;
     }
-    static SUSPICIOUS: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
+
+    static XSS: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
         Regex::new(
-            r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|<\s*(script|iframe|svg|math|object|embed)\b|</\s*script\s*>|(?:')\s*or\s*'?\d+'?=?\d*|union\s+select|insert\s+into|drop\s+table|information_schema|sleep\s*\(|--|;",
+            r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|\b(alert|prompt|confirm|eval)\s*\(",
         )
     });
 
-    SUSPICIOUS.as_ref().is_ok_and(|re| re.is_match(&decoded))
+    static SQLI: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
+        Regex::new(
+            r"(?is)(?:')\s*or\s*'?\d+'?=?\d*|union\s+select|insert\s+into|drop\s+table|information_schema|sleep\s*\(|--|;",
+        )
+    });
+
+    XSS.as_ref().is_ok_and(|re| re.is_match(&decoded))
+        || SQLI.as_ref().is_ok_and(|re| re.is_match(&decoded))
 }
 
 #[cfg(test)]
