@@ -39,6 +39,7 @@ use hyperswitch_domain_models::{
             PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
             UpdateMetadata,
         },
+        subscriptions::GetSubscriptionPlans,
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -46,6 +47,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
+        subscriptions::GetSubscriptionPlansRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -64,11 +66,11 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        subscriptions::GetSubscriptionPlansResponse, AcceptDisputeResponse,
+        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, MandateRevokeResponseData, PaymentsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, TaxCalculationResponseData,
+        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -127,6 +129,7 @@ use hyperswitch_interfaces::{
             PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
+        subscriptions::{GetSubscriptionPlansFlow, Subscriptions},
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -6934,6 +6937,150 @@ default_imp_for_revenue_recovery!(
     connectors::Zsl
 );
 
+macro_rules! default_imp_for_subscriptions {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl Subscriptions for $path::$connector {}
+            impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionPlans,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+default_imp_for_subscriptions!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paysafe,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
@@ -8916,3 +9063,18 @@ impl<const T: u8>
     for connectors::DummyConnector<T>
 {
 }
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
