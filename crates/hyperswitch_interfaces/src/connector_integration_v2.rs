@@ -9,7 +9,7 @@ use masking::Maskable;
 use serde_json::json;
 
 use crate::{
-    api::{self, CaptureSyncMethod},
+    api::{self, subscriptions_v2, CaptureSyncMethod},
     errors,
     events::connector_api_logs::ConnectorEvent,
     metrics, types, webhooks,
@@ -35,6 +35,7 @@ pub trait ConnectorV2:
     + api::UnifiedAuthenticationServiceV2
     + api::revenue_recovery_v2::RevenueRecoveryV2
     + api::ExternalVaultV2
+    + subscriptions_v2::SubscriptionsV2
 {
 }
 impl<
@@ -55,7 +56,8 @@ impl<
             + api::authentication_v2::ExternalAuthenticationV2
             + api::UnifiedAuthenticationServiceV2
             + api::revenue_recovery_v2::RevenueRecoveryV2
-            + api::ExternalVaultV2,
+            + api::ExternalVaultV2
+            + subscriptions_v2::SubscriptionsV2,
     > ConnectorV2 for T
 {
 }

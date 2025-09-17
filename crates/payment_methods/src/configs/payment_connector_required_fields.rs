@@ -1539,6 +1539,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Paypal, fields(vec![], card_basic(), vec![])),
         (Connector::Payu, fields(vec![], card_basic(), vec![])),
         (
+            Connector::Peachpayments,
+            fields(vec![], vec![], card_with_name()),
+        ),
+        (
             Connector::Powertranz,
             fields(vec![], card_with_name(), vec![]),
         ),
