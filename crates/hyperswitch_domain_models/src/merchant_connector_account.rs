@@ -392,14 +392,16 @@ impl FlattenedPaymentMethodsEnabled {
                             let request_payment_methods_enabled =
                                 payment_method.payment_method_subtypes.unwrap_or_default();
                             let length = request_payment_methods_enabled.len();
-                            request_payment_methods_enabled.into_iter().zip(
-                                std::iter::repeat((
-                                    connector,
-                                    merchant_connector_id.clone(),
-                                    payment_method.payment_method_type,
+                            request_payment_methods_enabled
+                                .into_iter()
+                                .zip(std::iter::repeat_n(
+                                    (
+                                        connector,
+                                        merchant_connector_id.clone(),
+                                        payment_method.payment_method_type,
+                                    ),
+                                    length,
                                 ))
-                                .take(length),
-                            )
                         })
                 },
             )
