@@ -6838,25 +6838,67 @@ name="account_id"
 label="ThreeDS account id"
 placeholder="Enter ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.USD.no_three_ds]]
 name="no_three_ds"
 label="Non ThreeDS account id"
 placeholder="Enter Non ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.EUR.three_ds]]
 name="account_id"
 label="ThreeDS account id"
 placeholder="Enter ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.EUR.no_three_ds]]
 name="no_three_ds"
 label="Non ThreeDS account id"
 placeholder="Enter Non ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
+[[paysafe.metadata.account_id.interac.CAD.three_ds]]
+name="cad"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.USD.three_ds]]
+name="usd"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.CAD.three_ds]]
+name="cad"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.EUR.three_ds]]
+name="eur"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.USD.three_ds]]
+name="usd"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.CAD.three_ds]]
+name="cad"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.EUR.three_ds]]
+name="eur"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
 
 [peachpayments]
 [[peachpayments.credit]]

@@ -59,7 +59,7 @@ pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<Currency, CardAccountId>>,
     pub skrill: Option<HashMap<Currency, RedirectAccountId>>,
     pub interac: Option<HashMap<Currency, RedirectAccountId>>,
-    pub paysafe_card: Option<HashMap<Currency, RedirectAccountId>>,
+    pub pay_safe_card: Option<HashMap<Currency, RedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -163,7 +163,7 @@ pub enum PaysafePaymentMethod {
     },
     PaysafeCard {
         #[serde(rename = "paysafecard")]
-        paysafe_card: PaysafeGiftCard,
+        pay_safe_card: PaysafeGiftCard,
     },
 }
 
@@ -274,10 +274,10 @@ impl PaysafePaymentMethodDetails {
         &self,
         currency: Currency,
     ) -> Result<Secret<String>, errors::ConnectorError> {
-        self.paysafe_card
+        self.pay_safe_card
             .as_ref()
             .and_then(|gift_cards| gift_cards.get(&currency))
-            .and_then(|paysafe_card| paysafe_card.three_ds.clone())
+            .and_then(|pay_safe_card| pay_safe_card.three_ds.clone())
             .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing paysafe gift card account_id",
             })
@@ -717,7 +717,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
                     GiftCardData::PaySafeCard {} => {
                         let payment_method = PaysafePaymentMethod::PaysafeCard {
-                            paysafe_card: PaysafeGiftCard {
+                            pay_safe_card: PaysafeGiftCard {
                                 consumer_id: item.router_data.get_customer_id()?,
                             },
                         };
