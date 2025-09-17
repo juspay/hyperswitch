@@ -1,5 +1,5 @@
-use time::PrimitiveDateTime;
 use common_utils::types::MinorUnit;
+use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansResponse {
