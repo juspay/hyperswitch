@@ -6,7 +6,7 @@ use common_enums::{CardNetwork, PaymentMethodType};
 use common_utils::events::ApiEventMetric;
 use csv::Reader;
 use masking::Secret;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use time::Date;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,6 +78,11 @@ pub enum BackfillError {
     RedisError(String),
     CsvParsingError(String),
     FileProcessingError(String),
+}
+
+#[derive(serde::Deserialize)]
+pub struct BackfillQuery {
+    pub cutoff_time: Option<String>,
 }
 
 impl std::fmt::Display for BackfillError {

@@ -20,13 +20,14 @@ use crate::{
 pub async fn revenue_recovery_data_backfill(
     state: SessionState,
     records: Vec<RevenueRecoveryBackfillRequest>,
+    cutoff_datetime: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<ApplicationResponse<RevenueRecoveryDataBackfillResponse>> {
     let mut processed_records = 0;
     let mut failed_records = 0;
 
     // Process each record
     for record in records {
-        match process_payment_method_record(&state, &record).await {
+        match process_payment_method_record(&state, &record, cutoff_datetime).await {
             Ok(_) => {
                 processed_records += 1;
                 logger::info!(
@@ -62,6 +63,7 @@ pub async fn revenue_recovery_data_backfill(
 async fn process_payment_method_record(
     state: &SessionState,
     record: &RevenueRecoveryBackfillRequest,
+    cutoff_datetime: Option<time::PrimitiveDateTime>,
 ) -> Result<(), BackfillError> {
     // Build comprehensive card data from CSV record
     let card_data = match build_comprehensive_card_data(record) {
@@ -84,18 +86,20 @@ async fn process_payment_method_record(
         }
     };
     logger::info!(
-        "Built comprehensive card data: {}",
-        serde_json::to_string_pretty(&card_data).unwrap_or_default()
+        "Built comprehensive card data - card_type: {:?}, exp_month: {}, exp_year: {}, network: {:?}, issuer: {:?}, country: {:?}, daily_retry_history: {:?}",
+        card_data.card_type,
+        card_data.card_exp_month.as_ref().map(|_| "**").unwrap_or("None"),
+        card_data.card_exp_year.as_ref().map(|_| "**").unwrap_or("None"),
+        card_data.card_network,
+        card_data.card_issuer,
+        card_data.card_issuing_country,
+        card_data.daily_retry_history
     );
 
     // Update Redis if token exists and is valid
     match record.token.as_ref().map(|token| token.clone().expose()) {
         Some(token) if !token.is_empty() => {
-            logger::info!(
-                "Updating Redis for customer: {}, token: {}",
-                record.customer_id_resp,
-                token
-            );
+            logger::info!("Updating Redis for customer: {}", record.customer_id_resp,);
 
             storage::revenue_recovery_redis_operation::
             RedisTokenManager::update_redis_token_with_comprehensive_card_data(
@@ -103,10 +107,11 @@ async fn process_payment_method_record(
                 &record.customer_id_resp,
                 &token,
                 &card_data,
+                cutoff_datetime,
             )
             .await
             .map_err(|e| {
-                logger::error!("Redis update failed for token {}: {}", token, e);
+                logger::error!("Redis update failed: {}", e);
                 BackfillError::RedisError(format!("Token not found in Redis: {}", e))
             })?;
         }
@@ -258,50 +263,32 @@ fn parse_expiration_date(
     exp_date
         .filter(|date| !date.is_empty())
         .map(|date| {
-            logger::debug!("Parsing expiration date: '{}'", date);
-
             date.split_once('/')
                 .ok_or_else(|| {
-                    logger::warn!("Unrecognized expiration date format: '{}'", date);
-                    BackfillError::CsvParsingError(format!(
-                        "Invalid expiration date format: {}",
-                        date
-                    ))
+                    logger::warn!("Unrecognized expiration date format (MM/YY expected)");
+                    BackfillError::CsvParsingError(
+                        "Invalid expiration date format: expected MM/YY".to_string(),
+                    )
                 })
                 .and_then(|(month_part, year_part)| {
                     let month = month_part.trim();
                     let year = year_part.trim();
 
-                    logger::debug!(
-                        "Split expiration date - month: '{}', year: '{}'",
-                        month,
-                        year
-                    );
+                    logger::debug!("Split expiration date - parsing month and year");
 
                     // Validate and parse month
-                    let month_num = month.parse::<u8>().map_err(|parse_err| {
-                        logger::warn!(
-                            "Failed to parse month '{}' in expiration date '{}': {}",
-                            month,
-                            date,
-                            parse_err
-                        );
-                        BackfillError::CsvParsingError(format!(
-                            "Invalid month format in expiration date '{}': {} (parse error: {})",
-                            date, month, parse_err
-                        ))
+                    let month_num = month.parse::<u8>().map_err(|_| {
+                        logger::warn!("Failed to parse month component in expiration date");
+                        BackfillError::CsvParsingError(
+                            "Invalid month format in expiration date".to_string(),
+                        )
                     })?;
 
                     if !(1..=12).contains(&month_num) {
-                        logger::warn!(
-                            "Invalid month value in expiration date '{}' - month: {} (not in range 1-12)",
-                            date,
-                            month_num
-                        );
-                        return Err(BackfillError::CsvParsingError(format!(
-                            "Invalid month value in expiration date '{}': {}",
-                            date, month_num
-                        )));
+                        logger::warn!("Invalid month value in expiration date (not in range 1-12)");
+                        return Err(BackfillError::CsvParsingError(
+                            "Invalid month value in expiration date".to_string(),
+                        ));
                     }
 
                     // Handle year conversion
@@ -310,23 +297,15 @@ fn parse_expiration_date(
                         2 => year,        // Already 2-digit
                         _ => {
                             logger::warn!(
-                                "Invalid year length in expiration date '{}' - year: '{}'",
-                                date,
-                                year
+                                "Invalid year length in expiration date (expected 2 or 4 digits)"
                             );
-                            return Err(BackfillError::CsvParsingError(format!(
-                                "Invalid year format in expiration date '{}': {}",
-                                date, year
-                            )));
+                            return Err(BackfillError::CsvParsingError(
+                                "Invalid year format in expiration date".to_string(),
+                            ));
                         }
                     };
 
-                    logger::debug!(
-                        "Successfully parsed expiration date '{}' - month: {}, year: {}",
-                        date,
-                        month,
-                        final_year
-                    );
+                    logger::debug!("Successfully parsed expiration date... ",);
                     Ok((Some(month.to_string()), Some(final_year.to_string())))
                 })
         })
