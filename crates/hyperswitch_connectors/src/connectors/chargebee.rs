@@ -14,12 +14,9 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_data_v2::flow_common_types::SubscriptionCreateData;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::types::SubscriptionCreateRouterData;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::flow_common_types::SubscriptionCreateData,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -42,6 +39,7 @@ use hyperswitch_domain_models::{
     types::{
         GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        SubscriptionCreateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -95,10 +93,8 @@ impl api::subscriptions::Subscriptions for Chargebee {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
 
-#[cfg(feature = "v1")]
 impl api::subscriptions::SubscriptionCreate for Chargebee {}
 
-#[cfg(feature = "v1")]
 impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>
     for Chargebee
 {
@@ -192,7 +188,6 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
     }
 }
 
-#[cfg(feature = "v2")]
 impl
     ConnectorIntegrationV2<
         SubscriptionCreate,

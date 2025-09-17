@@ -11,20 +11,19 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
+        subscriptions::SubscriptionCreate,
         InvoiceRecordBack,
     },
-    router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest, subscriptions::SubscriptionCreateRequest,
+        ResponseId,
+    },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
         PaymentsResponseData, RefundsResponseData,
     },
     types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
-};
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::SubscriptionCreate,
-    router_request_types::subscriptions::SubscriptionCreateRequest,
-    router_response_types::subscriptions::SubscriptionCreateResponse,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -59,7 +58,6 @@ pub struct ChargebeeSubscriptionCreateRequest {
     pub auto_collection: String,
 }
 
-#[cfg(feature = "v1")]
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::SubscriptionCreateRouterData>>
     for ChargebeeSubscriptionCreateRequest
 {
@@ -123,7 +121,6 @@ pub enum ChargebeeSubscriptionStatus {
     Transferred,
 }
 
-#[cfg(feature = "v1")]
 impl From<ChargebeeSubscriptionStatus>
     for hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus
 {
@@ -140,7 +137,6 @@ impl From<ChargebeeSubscriptionStatus>
     }
 }
 
-#[cfg(feature = "v1")]
 impl
     TryFrom<
         ResponseRouterData<
