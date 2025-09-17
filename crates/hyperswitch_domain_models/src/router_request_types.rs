@@ -555,6 +555,13 @@ pub struct PaymentsPreProcessingData {
     pub minor_amount: Option<MinorUnit>,
 }
 
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckRequestData {
+    pub payment_method_data: PaymentMethodData,
+    pub currency: Option<storage_enums::Currency>,
+    pub minor_amount: Option<MinorUnit>,
+}
+
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
