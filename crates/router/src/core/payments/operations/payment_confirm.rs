@@ -1511,8 +1511,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 ).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
-                    authentication
+                    authentication: updated_authentication.clone(),
                 };
+
                 payment_data.authentication = Some(authentication_store.clone());
 
                 if updated_authentication.is_separate_authn_required()

@@ -1253,8 +1253,8 @@ pub fn create_authorize_url(
     connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/authorize/{}",
-        router_base_url,
+        "https://888c7d2060e3.ngrok-free.app/payments/{}/{}/authorize/{}",
+        // router_base_url,
         payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name
