@@ -2,6 +2,8 @@ use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use std::str::FromStr;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -13,7 +15,7 @@ use hyperswitch_domain_models::{
     router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
-        subscriptions::{self, GetSubscriptionPlansResponse, GetSubscriptionPlanPricesResponse},
+        subscriptions::{self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
         PaymentsResponseData, RefundsResponseData,
     },
     types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
@@ -806,7 +808,7 @@ impl<F, T>
             .list
             .into_iter()
             .map(|plan| {
-                hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionPlans {
+                subscriptions::SubscriptionPlans {
                     subscription_provider_plan_id: plan.item.id,
                     name: plan.item.name,
                     description: plan.item.description,
