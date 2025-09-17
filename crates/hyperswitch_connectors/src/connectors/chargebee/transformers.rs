@@ -16,10 +16,15 @@ use hyperswitch_domain_models::{
     router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
-        subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse, SubscriptionLineItem},
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse, SubscriptionLineItem,
+        },
         PaymentsResponseData, RefundsResponseData,
     },
-    types::{GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;

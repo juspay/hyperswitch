@@ -24,18 +24,21 @@ use hyperswitch_domain_models::{
         subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlans},
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest, subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{GetSubscriptionEstimateRequest, GetSubscriptionPlansRequest},
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse},
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{GetSubscriptionEstimateResponse, GetSubscriptionPlansResponse},
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        GetSubscriptionEstimateRouterData, GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        GetSubscriptionEstimateRouterData, GetSubscriptionPlansRouterData,
+        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
