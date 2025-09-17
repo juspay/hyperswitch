@@ -6424,7 +6424,7 @@ where
                         customer,
                         merchant_connector_account,
                         None,
-                        Some(header_payload.clone()),
+                        None,
                     )
                     .await?;
 
