@@ -31,6 +31,7 @@ WORKDIR /hyperswitch
 # Copy migration files and diesel config from the workspace
 COPY ./migrations/ ./migrations/
 COPY ./diesel.toml ./diesel.toml
+COPY ./crates/diesel_models/drop_id.patch ./crates/diesel_models/drop_id.patch
 
 # Create the 'app' user and group (following hyperswitch pattern)
 RUN useradd --user-group --system --no-create-home --no-log-init app
