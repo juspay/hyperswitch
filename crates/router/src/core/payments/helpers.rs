@@ -4449,16 +4449,20 @@ pub fn get_attempt_type(
         enums::IntentStatus::Failed => {
             if matches!(is_manual_retry_enabled, Some(true)) {
                 // if it is false, don't go ahead with manual retry
-                if !validate_manual_retry_cutoff(
-                    payment_intent.created_at,
-                    payment_intent.session_expiry,
-                ) {
-                    return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            format!("You cannot {action} this payment using `manual_retry` because the allowed duration has expired")
-                        }
-                    ));
-                }
+                fp_utils::when(
+                    !validate_manual_retry_cutoff(
+                        payment_intent.created_at,
+                        payment_intent.session_expiry,
+                    ),
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment using `manual_retry` because the allowed duration has expired")
+                            }
+                        ))
+                    },
+                )?;
+
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
