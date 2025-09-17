@@ -415,10 +415,12 @@ initial_timestamp_in_seconds = 3600        # number of seconds added to start ti
 job_schedule_buffer_time_in_seconds = 3600 # time in seconds to be added in schedule time as a buffer 
 reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
 max_random_schedule_delay_in_seconds = 300 # max random delay in seconds to schedule the payment for Revenue Recovery
+redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [chat]
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
+encryption_key = ""                            # Key to encrypt and decrypt chats
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
