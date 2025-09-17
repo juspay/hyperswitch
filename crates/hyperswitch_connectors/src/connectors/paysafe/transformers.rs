@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, WalletData},
+    payment_method_data::{BankRedirectData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -56,12 +56,18 @@ pub struct PaysafeConnectorMetadataObject {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<Currency, CardAccountId>>,
-    pub skrill: Option<HashMap<Currency, Secret<String>>>,
+    pub skrill: Option<HashMap<Currency, RedirectAccountId>>,
+    pub interac: Option<HashMap<Currency, RedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CardAccountId {
     no_three_ds: Option<Secret<String>>,
+    three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RedirectAccountId {
     three_ds: Option<Secret<String>>,
 }
 
@@ -128,14 +134,31 @@ pub struct PaysafePaymentHandleRequest {
     pub return_links: Vec<ReturnLink>,
     pub account_id: Secret<String>,
     pub three_ds: Option<ThreeDs>,
+    pub profile: Option<PaysafeProfile>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeProfile {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub email: Email,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum PaysafePaymentMethod {
-    Card { card: PaysafeCard },
-    Skrill { skrill: SkrillWallet },
+    Card {
+        card: PaysafeCard,
+    },
+    Skrill {
+        skrill: SkrillWallet,
+    },
+    Interac {
+        #[serde(rename = "interacEtransfer")]
+        interac_etransfer: InteracBankRedirect,
+    },
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -143,6 +166,12 @@ pub enum PaysafePaymentMethod {
 pub struct SkrillWallet {
     pub consumer_id: Email,
     pub country_code: Option<api_models::enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InteracBankRedirect {
+    pub consumer_id: Email,
 }
 
 #[derive(Debug, Serialize)]
@@ -166,6 +195,7 @@ pub enum LinkType {
 pub enum PaysafePaymentType {
     Card,
     Skrill,
+    InteracEtransfer,
 }
 
 #[derive(Debug, Serialize)]
@@ -208,9 +238,22 @@ impl PaysafePaymentMethodDetails {
         self.skrill
             .as_ref()
             .and_then(|wallets| wallets.get(&currency))
-            .cloned()
+            .and_then(|skrill| skrill.three_ds.clone())
             .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing skrill account_id",
+            })
+    }
+
+    pub fn get_interac_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.interac
+            .as_ref()
+            .and_then(|redirects| redirects.get(&currency))
+            .and_then(|interac| interac.three_ds.clone())
+            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing interac account_id",
             })
     }
 }
@@ -291,6 +334,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     return_links,
                     account_id,
                     three_ds: None,
+                    profile: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -568,7 +612,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             Some(enums::CaptureMethod::Automatic) | None
         );
         let transaction_type = TransactionType::Payment;
-        let (payment_method, payment_type, account_id, three_ds) =
+        let (payment_method, payment_type, account_id, three_ds, profile) =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(req_card) => {
                     let card = PaysafeCard {
@@ -607,26 +651,42 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                             ThreeDsChallengePreference::ChallengeMandated,
                     });
 
-                    (payment_method, payment_type, account_id, three_ds)
+                    (payment_method, payment_type, account_id, three_ds, None)
                 }
 
-                PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                    WalletData::Skrill(_) => {
-                        let payment_method = PaysafePaymentMethod::Skrill {
-                            skrill: SkrillWallet {
-                                consumer_id: item.router_data.get_billing_email()?,
-                                country_code: item.router_data.get_optional_billing_country(),
-                            },
-                        };
-                        let payment_type = PaysafePaymentType::Skrill;
-                        let account_id =
-                            metadata.account_id.get_skrill_account_id(currency_code)?;
-                        (payment_method, payment_type, account_id, None)
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment Method".to_string(),
-                    ))?,
-                },
+                PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+                    let payment_method = PaysafePaymentMethod::Skrill {
+                        skrill: SkrillWallet {
+                            consumer_id: item.router_data.get_billing_email()?,
+                            country_code: item.router_data.get_optional_billing_country(),
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::Skrill;
+                    let account_id = metadata.account_id.get_skrill_account_id(currency_code)?;
+                    (payment_method, payment_type, account_id, None, None)
+                }
+                PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))?,
+
+                PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => {
+                    let payment_method = PaysafePaymentMethod::Interac {
+                        interac_etransfer: InteracBankRedirect {
+                            consumer_id: item.router_data.get_billing_email()?,
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::InteracEtransfer;
+                    let account_id = metadata.account_id.get_interac_account_id(currency_code)?;
+                    let profile = Some(PaysafeProfile {
+                        first_name: item.router_data.get_billing_first_name()?,
+                        last_name: item.router_data.get_billing_last_name()?,
+                        email: item.router_data.get_billing_email()?,
+                    });
+                    (payment_method, payment_type, account_id, None, profile)
+                }
+                PaymentMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))?,
 
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),
@@ -644,6 +704,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             return_links,
             account_id,
             three_ds,
+            profile,
         })
     }
 }

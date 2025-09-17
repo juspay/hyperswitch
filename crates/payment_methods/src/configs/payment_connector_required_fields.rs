@@ -2264,6 +2264,13 @@ fn get_bank_redirect_required_fields(
                 ),
             ]),
         ),
+        (
+            enums::PaymentMethodType::Interac,
+            connectors(vec![(
+                Connector::Paysafe,
+                fields(vec![], vec![RequiredField::BillingEmail], vec![]),
+            )]),
+        ),
     ])
 }
 
