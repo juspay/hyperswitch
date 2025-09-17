@@ -168,7 +168,6 @@ crates/router/src/workflows/attach_payout_account_workflow.rs @juspay/hyperswitc
 crates/api_models/src/payouts.rs @juspay/hyperswitch-payouts
 
 crates/common_utils/src/payout_method_utils.rs @juspay/hyperswitch-payouts
-crates/common_utils/src/id_type/payout.rs @juspay/hyperswitch-payouts
 
 crates/diesel_models/src/payouts.rs @juspay/hyperswitch-payouts
 crates/diesel_models/src/payout_attempt.rs @juspay/hyperswitch-payouts
