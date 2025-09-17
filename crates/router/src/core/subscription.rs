@@ -1,4 +1,6 @@
 pub mod utils;
+use std::str::FromStr;
+
 use api_models::subscription::{
     self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
 };
@@ -9,6 +11,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
     router_request_types::CustomerDetails,
 };
+use masking::Secret;
 use utils::get_or_create_customer;
 
 use super::errors::{self, RouterResponse};
@@ -22,15 +25,7 @@ pub async fn create_subscription(
     let store = state.store.clone();
     let db = store.as_ref();
     let id = common_utils::id_type::SubscriptionId::generate();
-    let mut response = CreateSubscriptionResponse::new(
-        id.clone(),
-        SubscriptionStatus::Created,
-        None,
-        request.profile_id.clone(),
-        merchant_context.get_merchant_account().get_id().clone(),
-        request.merchant_connector_account_id.clone(),
-    );
-
+    let mut customer_response = None;
     let customer = CustomerDetails::from(request.clone());
     let customer_id = if customer.customer_id.is_some()
         || customer.name.is_some()
@@ -43,15 +38,13 @@ pub async fn create_subscription(
             .map_err(|e| e.change_context(errors::ApiErrorResponse::CustomerNotFound))
             .attach_printable("subscriptions: unable to process customer")?;
 
-        let customer_table_response = match &customer {
+        customer_response = match &customer {
             ApplicationResponse::Json(inner) => {
                 Some(subscription_types::map_customer_resp_to_details(inner))
             }
             _ => None,
         };
-        response.customer = customer_table_response;
-        response
-            .customer
+        customer_response
             .as_ref()
             .and_then(|customer| customer.id.clone())
     } else {
@@ -60,7 +53,7 @@ pub async fn create_subscription(
     .ok_or(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("subscriptions: unable to create a customer")?;
 
-    // If provided we can strore plan_id, coupon_code etc as metadata
+    // If provided we can store plan_id, coupon_code etc as metadata
     let mut subscription = SubscriptionNew::new(
         id,
         SubscriptionStatus::Created.to_string(),
@@ -74,11 +67,25 @@ pub async fn create_subscription(
         None,
         request.profile_id,
     );
-    response.client_secret = Some(subscription.generate_and_set_client_secret());
-    db.insert_subscription_entry(subscription)
+
+    subscription.generate_and_set_client_secret();
+    let subscription_response = db
+        .insert_subscription_entry(subscription)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("subscriptions: unable to insert subscription entry to database")?;
+
+    let response = CreateSubscriptionResponse::new(
+        subscription_response.subscription_id.clone(),
+        SubscriptionStatus::from_str(&subscription_response.status)
+            .unwrap_or(SubscriptionStatus::Created),
+        None,
+        subscription_response.profile_id,
+        subscription_response.merchant_id,
+        subscription_response.merchant_connector_id,
+        subscription_response.client_secret.map(Secret::new),
+        customer_response,
+    );
 
     Ok(ApplicationResponse::Json(response))
 }

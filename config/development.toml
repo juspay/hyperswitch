@@ -1317,8 +1317,8 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [open_router]
 dynamic_routing_enabled = false
-static_routing_enabled = false
-url = "http://localhost:8080"
+static_routing_enabled = true
+url = "http://localhost:8081"
 
 [l2_l3_data_config]
 enabled = "true"

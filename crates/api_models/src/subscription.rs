@@ -102,6 +102,7 @@ impl CreateSubscriptionResponse {
     /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
     ///
     /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         subscription_id: common_utils::id_type::SubscriptionId,
         status: SubscriptionStatus,
@@ -109,17 +110,19 @@ impl CreateSubscriptionResponse {
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
         merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        client_secret: Option<Secret<String>>,
+        customer: Option<CustomerDetailsResponse>,
     ) -> Self {
         Self {
             subscription_id,
             status,
             plan_id,
             profile_id,
-            client_secret: None,
+            client_secret,
             merchant_id,
             merchant_connector_account_id,
             coupon_code: None,
-            customer: None,
+            customer,
         }
     }
 }
