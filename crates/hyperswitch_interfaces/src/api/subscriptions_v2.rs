@@ -8,10 +8,11 @@ use hyperswitch_domain_models::{
     },
 };
 
+use super::payments_v2::ConnectorCustomerV2;
 use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait SubscriptionsV2
-pub trait SubscriptionsV2: GetSubscriptionPlansV2 + SubscriptionsCreateV2 {}
+pub trait SubscriptionsV2: GetSubscriptionPlansV2 + SubscriptionsCreateV2 + ConnectorCustomerV2 {}
 
 /// trait GetSubscriptionPlans for V1
 pub trait GetSubscriptionPlansV2:
