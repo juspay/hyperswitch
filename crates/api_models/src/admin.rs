@@ -2718,6 +2718,11 @@ pub struct ProfileResponse {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 }
 
 #[cfg(feature = "v1")]

@@ -41,6 +41,8 @@ pub mod proxy;
 pub mod recon;
 pub mod refunds;
 pub mod relay;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_data_backfill;
 pub mod routing;
 #[cfg(feature = "v1")]
 pub mod subscription;

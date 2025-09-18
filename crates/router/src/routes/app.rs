@@ -739,6 +739,10 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
+                )
+                .service(
+                    web::resource("/check-gift-card-balance")
+                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 ),
         );
 
@@ -1161,13 +1165,13 @@ impl Routing {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(feature = "oltp")]
 pub struct Subscription;
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/subscription")
+        web::scope("/subscription/create")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("").route(
                 web::post().to(|state, req, payload| {
@@ -1175,7 +1179,7 @@ impl Subscription {
                 }),
             ))
             .service(
-                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                web::resource("/subscription/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {
                         subscription::confirm_subscription(state, req, id, payload)
                     },
@@ -2368,12 +2372,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route
@@ -2984,6 +2992,22 @@ impl ProfileAcquirer {
             .service(
                 web::resource("/{profile_id}/{profile_acquirer_id}")
                     .route(web::post().to(profile_acquirer::profile_acquirer_update)),
+            )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct RecoveryDataBackfill;
+#[cfg(feature = "v2")]
+impl RecoveryDataBackfill {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/data-backfill")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(
+                    web::post()
+                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                ),
             )
     }
 }

@@ -352,6 +352,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payone::new())))
                 }
                 enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(connector::Payu::new()))),
+                enums::Connector::Peachpayments => Ok(ConnectorEnum::Old(Box::new(
+                    hyperswitch_connectors::connectors::Peachpayments::new(),
+                ))),
                 enums::Connector::Placetopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
@@ -437,6 +440,9 @@ impl ConnectorData {
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
+                enums::Connector::Trustpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Trustpayments::new(),
+                ))),
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(connector::Tsys::new()))),
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,

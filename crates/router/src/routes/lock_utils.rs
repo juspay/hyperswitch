@@ -50,6 +50,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
+    RecoveryDataBackfill,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -166,6 +167,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
+            | Flow::GiftCardBalanceCheck
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
@@ -318,7 +320,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 
-            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
+            Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
@@ -382,6 +384,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
                 Self::GenericTokenization
             }
+
+            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
         }
     }
 }

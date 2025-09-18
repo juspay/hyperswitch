@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
@@ -139,7 +140,7 @@ pub struct ExternalVaultProxyPaymentsData {
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
-    pub merchant_order_reference_id: Option<String>,
+    pub merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
@@ -554,6 +555,13 @@ pub struct PaymentsPreProcessingData {
     pub minor_amount: Option<MinorUnit>,
 }
 
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckRequestData {
+    pub payment_method_data: PaymentMethodData,
+    pub currency: Option<storage_enums::Currency>,
+    pub minor_amount: Option<MinorUnit>,
+}
+
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
@@ -582,6 +590,123 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             metadata: data.metadata.map(Secret::new),
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPreAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPostAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }

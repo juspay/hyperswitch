@@ -1,6 +1,8 @@
 use common_types::payments::CustomerAcceptance;
 use common_utils::{events::ApiEventMetric, pii, types::MinorUnit};
+use masking::Secret;
 use time::PrimitiveDateTime;
+use utoipa::ToSchema;
 
 use crate::{
     customers::{CustomerRequest, CustomerResponse},
@@ -8,118 +10,106 @@ use crate::{
     payments::{Address, CustomerDetails, CustomerDetailsResponse, PaymentMethodDataRequest},
 };
 
-pub const SUBSCRIPTION_ID_PREFIX: &str = "sub";
+// use crate::{
+//     customers::{CustomerRequest, CustomerResponse},
+//     payments::CustomerDetailsResponse,
+// };
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Request payload for creating a subscription.
+///
+/// This struct captures details required to create a subscription,
+/// including plan, profile, merchant connector, and optional customer info.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
-    pub subscription_id: Option<String>,
-    pub profile_id: common_utils::id_type::ProfileId,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+
+    /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
+
+    /// Optional coupon code applied to the subscription.
     pub coupon_code: Option<String>,
-    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub confirm: bool,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub customer: Option<CustomerRequest>,
+
+    /// customer ID associated with this subscription.
+    pub customer_id: common_utils::id_type::CustomerId,
 }
 
-impl CreateSubscriptionRequest {
-    pub fn get_customer_id(&self) -> Option<&common_utils::id_type::CustomerId> {
-        self.customer_id
-            .as_ref()
-            .or_else(|| self.customer.as_ref()?.customer_id.as_ref())
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
+/// Response payload returned after successfully creating a subscription.
+///
+/// Includes details such as subscription ID, status, plan, merchant, and customer info.
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreateSubscriptionResponse {
-    pub subscription: Subscription,
-    pub profile_id: common_utils::id_type::ProfileId,
-    pub client_secret: Option<String>,
-    pub merchant_id: String,
-    pub merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub coupon_code: Option<String>,
-    pub customer: Option<CustomerDetailsResponse>,
-    pub invoice: Option<Invoice>,
-}
+    /// Unique identifier for the subscription.
+    pub id: common_utils::id_type::SubscriptionId,
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Subscription {
-    pub id: String,
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+
+    /// Current status of the subscription.
     pub status: SubscriptionStatus,
+
+    /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
+
+    /// Associated profile ID.
+    pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Optional client secret used for secure client-side interactions.
+    pub client_secret: Option<Secret<String>>,
+
+    /// Merchant identifier owning this subscription.
+    pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Optional coupon code applied to this subscription.
+    pub coupon_code: Option<String>,
+
+    /// Optional customer ID associated with this subscription.
+    pub customer_id: common_utils::id_type::CustomerId,
 }
 
-#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display)]
+/// Possible states of a subscription lifecycle.
+///
+/// - `Created`: Subscription was created but not yet activated.
+/// - `Active`: Subscription is currently active.
+/// - `InActive`: Subscription is inactive (e.g., cancelled or expired).
+#[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
 pub enum SubscriptionStatus {
-    Created,
+    /// Subscription is active.
     Active,
+    /// Subscription is created but not yet active.
+    Created,
+    /// Subscription is inactive.
     InActive,
+    /// Subscription is in pending state.
+    Pending,
 }
 
-impl SubscriptionStatus {
-    pub fn get_status_from_connector_status(status: &str) -> Self {
-        match status {
-            "active" => Self::Active,
-            "inactive" => Self::InActive,
-            _ => Self::Created,
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Invoice {
-    pub id: String,
-    pub total_amount: u64,
-    pub currency: common_enums::Currency,
-}
-
-impl Subscription {
-    pub fn new(id: impl Into<String>, status: SubscriptionStatus, plan_id: Option<String>) -> Self {
-        Self {
-            id: id.into(),
-            status,
-            plan_id,
-        }
-    }
-}
-
-impl Invoice {
-    pub fn new(id: impl Into<String>, total_amount: u64, currency: common_enums::Currency) -> Self {
-        Self {
-            id: id.into(),
-            total_amount,
-            currency,
-        }
-    }
-}
 impl CreateSubscriptionResponse {
+    /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
+    ///
+    /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        subscription: Subscription,
+        id: common_utils::id_type::SubscriptionId,
+        merchant_reference_id: Option<String>,
+        status: SubscriptionStatus,
+        plan_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
-        merchant_id: impl Into<String>,
-        merchant_connector_account_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        merchant_id: common_utils::id_type::MerchantId,
+        client_secret: Option<Secret<String>>,
+        customer_id: common_utils::id_type::CustomerId,
     ) -> Self {
         Self {
-            subscription,
+            id,
+            merchant_reference_id,
+            status,
+            plan_id,
             profile_id,
-            client_secret: None,
-            merchant_id: merchant_id.into(),
-            merchant_connector_account_id,
+            client_secret,
+            merchant_id,
             coupon_code: None,
-            customer: None,
-            invoice: None,
+            customer_id,
         }
-    }
-}
-
-pub fn map_customer_resp_to_details(r: &CustomerResponse) -> CustomerDetailsResponse {
-    CustomerDetailsResponse {
-        id: Some(r.customer_id.clone()),
-        name: r.name.as_ref().map(|n| n.clone().into_inner()),
-        email: r.email.as_ref().map(|e| pii::Email::from(e.clone())),
-        phone: r.phone.as_ref().map(|p| p.clone().into_inner()),
-        phone_country_code: r.phone_country_code.clone(),
     }
 }
 
@@ -160,10 +150,23 @@ impl ApiEventMetric for ConfirmSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ConfirmSubscriptionResponse {
-    pub subscription: Subscription,
+    /// Unique identifier for the subscription.
+    pub id: common_utils::id_type::SubscriptionId,
+
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
+
+    /// Current status of the subscription.
+    pub status: SubscriptionStatus,
+
+    /// Identifier for the associated subscription plan.
+    pub plan_id: Option<String>,
+
+    /// Associated profile ID.
+    pub profile_id: common_utils::id_type::ProfileId,
     pub payment: Option<PaymentResponseData>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub invoice: Option<Invoice>,
+    // pub invoice: Option<Invoice>,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
