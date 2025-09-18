@@ -224,15 +224,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         fetch_optional_mca_and_connector(&state, &merchant_context, connector_name_or_mca_id)
             .await?;
 
-    // Don't consume the webhook if it is a setup event
-    if connector.is_setup_webhook_event(&request_details) {
-        return Ok((
-            services::ApplicationResponse::StatusOk,
-            WebhookResponseTracker::NoEffect,
-            serde_json::Value::default(),
-        ));
-    }
-
     // Determine webhook processing path (UCS vs non-UCS) and handle event type extraction
     let webhook_processing_result =
         if unified_connector_service::should_call_unified_connector_service_for_webhooks(
@@ -279,6 +270,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             )
             .await?
         };
+
+    // if it is a setup webhook event, return ok status
+    if webhook_processing_result.event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
 
     // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
     let final_request_details = match &webhook_processing_result.decoded_body {
@@ -1452,6 +1452,7 @@ async fn relay_incoming_webhook_flow(
         | webhooks::WebhookFlow::ReturnResponse
         | webhooks::WebhookFlow::BankTransfer
         | webhooks::WebhookFlow::Mandate
+        | webhooks::WebhookFlow::Setup
         | webhooks::WebhookFlow::ExternalAuthentication
         | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
             message: "Relay webhook flow types not supported".to_string(),

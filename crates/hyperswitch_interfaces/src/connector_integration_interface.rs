@@ -493,13 +493,6 @@ impl ConnectorValidation for ConnectorEnum {
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
         }
     }
-
-    fn is_setup_webhook_event(&self, request_details: &IncomingWebhookRequestDetails<'_>) -> bool {
-        match self {
-            Self::Old(connector) => connector.is_setup_webhook_event(request_details),
-            Self::New(connector) => connector.is_setup_webhook_event(request_details),
-        }
-    }
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
