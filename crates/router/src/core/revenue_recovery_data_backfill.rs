@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
     BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
-    RevenueRecoveryDataBackfillResponse,
+    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
 use hyperswitch_domain_models::api::ApplicationResponse;
@@ -55,6 +55,33 @@ pub async fn revenue_recovery_data_backfill(
         "Revenue recovery data backfill completed - Processed: {}, Failed: {}",
         processed_records,
         failed_records
+    );
+
+    Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn unlock_connector_customer_status(
+    state: SessionState,
+    connector_customer_id: String,
+) -> RouterResult<ApplicationResponse<UnlockStatusResponse>> {
+    let unlocked = storage::revenue_recovery_redis_operation::
+        RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id)
+        .await
+        .map_err(|e| {
+            logger::error!(
+                "Failed to unlock connector customer status for {}: {}",
+                connector_customer_id,
+                e
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+    let response = UnlockStatusResponse { unlocked };
+
+    logger::info!(
+        "Unlock operation completed for connector customer {}: {}",
+        connector_customer_id,
+        unlocked
     );
 
     Ok(ApplicationResponse::Json(response))

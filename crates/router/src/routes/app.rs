@@ -3002,5 +3002,10 @@ impl RecoveryDataBackfill {
                         .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
                 ),
             )
+            .service(web::resource("/status/{token_id}").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
     }
 }
