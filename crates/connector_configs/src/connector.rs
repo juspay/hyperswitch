@@ -518,6 +518,7 @@ impl ConnectorConfig {
             Connector::Stripebilling => Ok(connector_data.stripebilling),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
+            Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),
