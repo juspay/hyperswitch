@@ -267,6 +267,8 @@ diesel::table! {
         external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        #[max_length = 64]
+        billing_processor_id -> Nullable<Varchar>,
     }
 }
 

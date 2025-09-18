@@ -80,6 +80,7 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -139,6 +140,7 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -199,6 +201,7 @@ pub struct ProfileUpdateInternal {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -256,6 +259,7 @@ impl ProfileUpdateInternal {
             dispute_polling_interval,
             is_manual_retry_enabled,
             always_enable_overcapture,
+            billing_processor_id,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -345,6 +349,7 @@ impl ProfileUpdateInternal {
             is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
             always_enable_overcapture: always_enable_overcapture
                 .or(source.always_enable_overcapture),
+            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
 }
@@ -425,6 +430,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl Profile {
@@ -501,6 +507,7 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -561,6 +568,7 @@ pub struct ProfileUpdateInternal {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -618,6 +626,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             split_txns_enabled,
+            billing_processor_id,
         } = self;
         Profile {
             id: source.id,
@@ -717,6 +726,7 @@ impl ProfileUpdateInternal {
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
 }

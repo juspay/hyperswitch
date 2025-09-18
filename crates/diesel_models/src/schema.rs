@@ -255,6 +255,8 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        billing_processor_id -> Nullable<Varchar>,
     }
 }
 

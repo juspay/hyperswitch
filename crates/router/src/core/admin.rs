@@ -3478,6 +3478,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 
@@ -3976,6 +3977,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 dispute_polling_interval: self.dispute_polling_interval,
                 is_manual_retry_enabled: self.is_manual_retry_enabled,
                 always_enable_overcapture: self.always_enable_overcapture,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }
