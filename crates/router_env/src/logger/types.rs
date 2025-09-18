@@ -140,6 +140,8 @@ pub enum Flow {
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
+    /// Network token status check flow.
+    NetworkTokenStatusCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.

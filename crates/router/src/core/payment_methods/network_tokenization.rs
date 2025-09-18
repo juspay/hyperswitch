@@ -789,13 +789,141 @@ pub async fn check_token_status_with_tokenization_service(
 
 #[cfg(feature = "v2")]
 pub async fn check_token_status_with_tokenization_service(
-    _state: &routes::SessionState,
-    _customer_id: &id_type::GlobalCustomerId,
-    _network_token_requestor_reference_id: String,
-    _tokenization_service: &settings::NetworkTokenizationService,
-) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::NetworkTokenizationError>
-{
-    todo!()
+    state: &routes::SessionState,
+    customer_id: &id_type::GlobalCustomerId,
+    network_token_requestor_reference_id: String,
+    tokenization_service: &settings::NetworkTokenizationService,
+) -> CustomResult<Option<pm_types::NetworkTokenStatusDetails>, errors::NetworkTokenizationError> {
+    let mut request = services::Request::new(
+        services::Method::Post,
+        tokenization_service.check_token_status_url.as_str(),
+    );
+    let payload = pm_types::CheckTokenStatus {
+        card_reference: network_token_requestor_reference_id,
+        customer_id: customer_id.clone(),
+    };
+
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::AUTHORIZATION,
+        tokenization_service
+            .token_service_api_key
+            .clone()
+            .peek()
+            .clone()
+            .into_masked(),
+    );
+    request.add_default_headers();
+    request.set_body(RequestContent::Json(Box::new(payload)));
+
+    // Send the request using `call_connector_api`
+    let response = services::call_connector_api(state, request, "Check Network token Status")
+        .await
+        .change_context(errors::NetworkTokenizationError::ApiError);
+    let res = response
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                let parsed_error: pm_types::NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Network Tokenization Error Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+                    .attach_printable(format!("Response Deserialization Failed: {err_res:?}"))
+            }
+            Ok(res) => Ok(res),
+        })
+        .inspect_err(|err| {
+            logger::error!("Error while deserializing response: {:?}", err);
+        })?;
+
+    let check_token_status_response: pm_types::NetworkTokenStatusResponse = res
+        .response
+        .parse_struct("Network Token Status Response")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+
+    match check_token_status_response.token_details.status {
+        pm_types::TokenStatus::Active => Ok(Some(check_token_status_response.token_details)),
+        pm_types::TokenStatus::Inactive => Ok(None),
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn do_status_check_for_network_token(
+    state: &routes::SessionState,
+    payment_method_info: &domain::PaymentMethod,
+) -> CustomResult<Option<pm_types::NetworkTokenStatusDetails>, errors::ApiErrorResponse> {
+    let network_token_data_decrypted = payment_method_info
+        .network_token_payment_method_data
+        .clone()
+        .map(|value| value.into_inner())
+        .and_then(|payment_method_data| match payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodsData::NetworkToken(
+                token,
+            ) => Some(token),
+            _ => None,
+        });
+    let network_token_requestor_reference_id = payment_method_info
+        .network_token_requestor_reference_id
+        .clone();
+
+    if network_token_data_decrypted
+        .and_then(|token_data| {
+            token_data
+                .network_token_expiry_month
+                .zip(token_data.network_token_expiry_year)
+        })
+        .and_then(|(exp_month, exp_year)| helpers::validate_card_expiry(&exp_month, &exp_year).ok())
+        .is_none()
+    {
+        if let Some(ref_id) = network_token_requestor_reference_id {
+            if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+                let network_token_details = record_operation_time(
+                    async {
+                        check_token_status_with_tokenization_service(
+                            state,
+                            &payment_method_info.customer_id,
+                            ref_id,
+                            network_tokenization_service.get_inner(),
+                        )
+                        .await
+                        .inspect_err(
+                            |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Check network token status with tokenization service failed",
+                        )
+                    },
+                    &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
+                    &[],
+                )
+                .await?;
+                Ok(network_token_details)
+            } else {
+                Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .inspect_err(|_| {
+                        logger::error!("Network Tokenization Service not configured");
+                    })
+            }
+        } else {
+            Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Check network token status failed")?
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(feature = "v1")]

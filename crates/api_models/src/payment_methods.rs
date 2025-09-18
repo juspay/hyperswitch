@@ -3256,3 +3256,38 @@ pub struct AuthenticationDetails {
     #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckResponse {
+    /// The status of the network token
+    #[schema(value_type = String)]
+    pub status: String,
+
+    /// The expiry month of the network token if active
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_month: Option<masking::Secret<String>>,
+
+    /// The expiry year of the network token if active
+    #[schema(value_type = Option<String>)]
+    pub token_expiry_year: Option<masking::Secret<String>>,
+
+    /// The first six digits of the network token
+    #[schema(value_type = Option<String>)]
+    pub first_six: Option<String>,
+
+    /// The last four digits of the network token
+    #[schema(value_type = Option<String>)]
+    pub last_four: Option<String>,
+
+    /// The payment method ID that was checked
+    #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
+    pub payment_method_id: String,
+
+    /// The customer ID associated with the payment method
+    #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
+    pub customer_id: String,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}

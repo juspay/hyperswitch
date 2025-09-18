@@ -3911,3 +3911,72 @@ async fn get_single_use_token_from_store(
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to get payment method token from redis")
 }
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn check_network_token_status(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResponse<payment_methods::NetworkTokenStatusCheckResponse> {
+    let db = &state.store;
+    let key_manager_state = &(&state).into();
+    let merchant_account = merchant_context.get_merchant_account();
+    let key_store = merchant_context.get_merchant_key_store();
+
+    // Retrieve the payment method from the database
+    let payment_method = db
+        .find_payment_method(
+            key_manager_state,
+            key_store,
+            &payment_method_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    // Check if the payment method has network token data
+    if payment_method
+        .network_token_requestor_reference_id
+        .is_none()
+    {
+        return Err(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "payment_method_id",
+        }
+        .into());
+    }
+
+    // Call the network token status check function
+    match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await {
+        Ok(network_token_details) => {
+            let status = match network_token_details.clone().map(|details| details.status) {
+                Some(pm_types::TokenStatus::Active) => "ACTIVE",
+                _ => "INACTIVE",
+            };
+
+            Ok(services::ApplicationResponse::Json(
+                payment_methods::NetworkTokenStatusCheckResponse {
+                    status: status.to_string(),
+                    token_expiry_month: network_token_details
+                        .clone()
+                        .map(|details| details.exp_month),
+                    token_expiry_year: network_token_details
+                        .clone()
+                        .map(|details| details.exp_year),
+                    first_six: network_token_details
+                        .clone()
+                        .map(|details| details.first_six),
+                    last_four: network_token_details
+                        .clone()
+                        .map(|details| details.last_four),
+                    payment_method_id: payment_method_id.get_string_repr().to_string(),
+                    customer_id: payment_method.customer_id.get_string_repr().to_string(),
+                },
+            ))
+        }
+        Err(e) => {
+            logger::error!("Network token status check failed: {:?}", e);
+            Err(errors::ApiErrorResponse::InternalServerError.into())
+        }
+    }
+}
