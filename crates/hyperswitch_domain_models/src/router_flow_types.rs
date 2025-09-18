@@ -8,6 +8,7 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
 pub mod vault;
 pub mod webhooks;

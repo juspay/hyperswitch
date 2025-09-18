@@ -7,6 +7,3 @@ ALTER TABLE subscription
 
 ALTER TABLE subscription
     ADD PRIMARY KEY (subscription_id, merchant_id);
-
-ALTER TABLE subscription
-    ADD COLUMN merchant_connector_id VARCHAR(128);

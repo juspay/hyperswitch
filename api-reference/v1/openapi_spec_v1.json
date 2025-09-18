@@ -12107,9 +12107,11 @@
           "payme",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -12129,6 +12131,7 @@
           "threedsecureio",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -19242,6 +19245,15 @@
           }
         }
       },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -23543,6 +23555,12 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -24148,6 +24166,24 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24912,6 +24948,12 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25544,6 +25586,24 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26149,6 +26209,12 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
@@ -28530,8 +28596,18 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
-            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "description": "Time interval (in hours) for polling the connector to check  for new disputes",
             "example": 2,
+            "nullable": true
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           }
         },
@@ -28855,9 +28931,20 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
             "example": 2,
             "nullable": true,
             "minimum": 0
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
           }
         }
       },
@@ -30129,9 +30216,11 @@
           "payload",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -30150,6 +30239,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
