@@ -1440,12 +1440,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
                 .get_metadata()
                 .map(|metadata| {
-                    metadata.expose().parse_value("ThreeDsMetaData").inspect_err(|err| {
-                    router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
-                })
+                    metadata
+                        .expose()
+                        .parse_value("ThreeDsMetaData")
+                        .attach_printable("Error while parsing ThreeDsMetaData")
                 })
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;            
             let merchant_country_code = authentication.acquirer_country_code.clone();
             let return_url = helpers::create_authorize_url(
                 &state.base_url,
