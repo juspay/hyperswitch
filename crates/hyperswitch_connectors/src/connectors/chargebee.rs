@@ -37,14 +37,15 @@ use hyperswitch_domain_models::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData, GetSubscriptionPlanPricesRouterData, GetSubscriptionPlansRouterData,
-        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, GetSubscriptionPlanPricesRouterData,
+        GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
-        self, payments::ConnectorCustomer,
+        self,
+        payments::ConnectorCustomer,
         subscriptions_v2::{GetSubscriptionPlanPricesV2, GetSubscriptionPlansV2},
         ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,

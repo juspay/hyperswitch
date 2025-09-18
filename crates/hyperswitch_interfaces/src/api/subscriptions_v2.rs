@@ -14,7 +14,10 @@ use super::payments_v2::ConnectorCustomerV2;
 use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait SubscriptionsV2
-pub trait SubscriptionsV2: GetSubscriptionPlansV2 + ConnectorCustomerV2 + GetSubscriptionPlanPricesV2 {}
+pub trait SubscriptionsV2:
+    GetSubscriptionPlansV2 + ConnectorCustomerV2 + GetSubscriptionPlanPricesV2
+{
+}
 
 /// trait GetSubscriptionPlans for V2
 pub trait GetSubscriptionPlansV2:

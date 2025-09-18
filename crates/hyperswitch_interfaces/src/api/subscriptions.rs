@@ -40,7 +40,10 @@ pub trait GetSubscriptionPlanPricesFlow:
 /// trait Subscriptions
 #[cfg(feature = "v1")]
 pub trait Subscriptions:
-    ConnectorCommon + GetSubscriptionPlansFlow + GetSubscriptionPlanPricesFlow + PaymentsConnectorCustomer
+    ConnectorCommon
+    + GetSubscriptionPlansFlow
+    + GetSubscriptionPlanPricesFlow
+    + PaymentsConnectorCustomer
 {
 }
 
