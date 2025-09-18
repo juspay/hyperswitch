@@ -3,8 +3,7 @@ use std::str::FromStr;
 use api_models::subscription::{
     self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
 };
-use common_utils::ext_traits::ValueExt;
-use common_utils::id_type::GenerateId;
+use common_utils::{ext_traits::ValueExt, id_type::GenerateId};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
