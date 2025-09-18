@@ -369,7 +369,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::ExternalAuthentication => todo!(),
                     api::WebhookFlow::FraudCheck => todo!(),
-                    api::WebhookFlow::Setup => todo!(),
+                    api::WebhookFlow::Setup => WebhookResponseTracker::NoEffect,
 
                     #[cfg(feature = "payouts")]
                     api::WebhookFlow::Payout => todo!(),
