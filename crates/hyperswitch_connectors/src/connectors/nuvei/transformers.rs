@@ -1516,7 +1516,7 @@ where
             card_holder_name: data.card_holder_name,
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
-            ..Default::default() // CVV should be disabled by nuvei 
+            ..Default::default() // CVV should be disabled by nuvei
         }),
         redirect_url: None,
         user_payment_option_id: None,
@@ -3753,14 +3753,12 @@ pub fn map_notification_to_event(
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
 {
     match (status, transaction_type) {
-        (
-            DmnStatus::Success | DmnStatus::Approved,
-            NuveiTransactionType::Auth,
-        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
-        (
-            DmnStatus::Success | DmnStatus::Approved,
-            NuveiTransactionType::Sale,
-        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Auth) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Sale) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+        }
         (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
         }
@@ -3770,14 +3768,12 @@ pub fn map_notification_to_event(
         (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Credit) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
         }
-        (
-            DmnStatus::Error | DmnStatus::Declined,
-            NuveiTransactionType::Auth
-        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure),
-        (
-            DmnStatus::Error | DmnStatus::Declined,
-            NuveiTransactionType::Sale 
-        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Auth) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Sale) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+        }
         (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
         }
@@ -3789,9 +3785,7 @@ pub fn map_notification_to_event(
         }
         (
             DmnStatus::Pending,
-            NuveiTransactionType::Auth
-            | NuveiTransactionType::Sale
-            | NuveiTransactionType::Settle,
+            NuveiTransactionType::Auth | NuveiTransactionType::Sale | NuveiTransactionType::Settle,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
         _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
     }
