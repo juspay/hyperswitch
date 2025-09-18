@@ -253,7 +253,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .decode_webhook_body(
                     &request_details,
                     merchant_context.get_merchant_account().get_id(),
-                    merchant_connector_account
+                    merchant_connector_account.clone()
                         .and_then(|mca| mca.connector_webhook_details.clone()),
                     &connector_name,
                 )
@@ -318,6 +318,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
+                merchant_connector_account.unwrap().merchant_connector_id,
             )
             .await;
 
@@ -500,6 +501,7 @@ async fn process_webhook_business_logic(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     request_details: &IncomingWebhookRequestDetails<'_>,
     is_relay_webhook: bool,
+    billing_connector_mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = connector
         .get_webhook_object_reference_id(request_details)
@@ -800,12 +802,11 @@ async fn process_webhook_business_logic(
                 &connector,
                 &request_details,
                 event_type,
+                billing_connector_mca_id,
             ))
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
 
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
         }
     };
 
@@ -2606,6 +2607,7 @@ async fn subscription_incoming_webhook_flow(
         .payment_method_id
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No payment method found for subscription")?;
+
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 
