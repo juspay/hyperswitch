@@ -1,5 +1,7 @@
 use common_enums::{enums, CaptureMethod, CardNetwork, FutureUsage, PaymentChannel};
-use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
+use common_types::payments::{
+    ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
+};
 use common_utils::{
     crypto::{self, GenerateDigest},
     date_time,
@@ -19,7 +21,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ErrorResponse, L2L3Data, RouterData,
+        ErrorResponse, L2L3Data, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         refunds::{Execute, RSync},
@@ -975,6 +977,40 @@ struct ApplePayPaymentMethodCamelCase {
     #[serde(rename = "type")]
     pm_type: Secret<String>,
 }
+
+fn get_google_pay_decrypt_data(
+    predecrypt_data: &GPayPredecryptData,
+    is_rebilling: Option<String>,
+    brand: Option<String>,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    Ok(NuveiPaymentsRequest {
+        is_rebilling,
+        payment_option: PaymentOption {
+            card: Some(Card {
+                brand,
+                card_number: Some(predecrypt_data.application_primary_account_number.clone()),
+                last4_digits: Some(Secret::new(
+                    predecrypt_data
+                        .application_primary_account_number
+                        .clone()
+                        .get_last4(),
+                )),
+                expiration_month: Some(predecrypt_data.card_exp_month.clone()),
+                expiration_year: Some(predecrypt_data.card_exp_year.clone()),
+                external_token: Some(ExternalToken {
+                    external_token_provider: ExternalTokenProvider::GooglePay,
+                    mobile_token: None,
+                    cryptogram: predecrypt_data.cryptogram.clone(),
+                    eci_provider: predecrypt_data.eci_indicator.clone(),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+}
+
 fn get_googlepay_info<F, Req>(
     item: &RouterData<F, Req, PaymentsResponseData>,
     gpay_data: &GooglePayWalletData,
@@ -987,37 +1023,23 @@ where
     } else {
         None
     };
-    match gpay_data.tokenization_data {
-        GpayTokenizationData::Decrypted(ref gpay_predecrypt_data) => Ok(NuveiPaymentsRequest {
+
+    if let Some(PaymentMethodToken::GooglePayDecrypt(ref token)) =
+        item.get_payment_method_token().ok()
+    {
+        return get_google_pay_decrypt_data(
+            token,
             is_rebilling,
-            payment_option: PaymentOption {
-                card: Some(Card {
-                    brand: Some(gpay_data.info.card_network.clone()),
-                    card_number: Some(
-                        gpay_predecrypt_data
-                            .application_primary_account_number
-                            .clone(),
-                    ),
-                    last4_digits: Some(Secret::new(
-                        gpay_predecrypt_data
-                            .application_primary_account_number
-                            .clone()
-                            .get_last4(),
-                    )),
-                    expiration_month: Some(gpay_predecrypt_data.card_exp_month.clone()),
-                    expiration_year: Some(gpay_predecrypt_data.card_exp_year.clone()),
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::GooglePay,
-                        mobile_token: None,
-                        cryptogram: gpay_predecrypt_data.cryptogram.clone(),
-                        eci_provider: gpay_predecrypt_data.eci_indicator.clone(),
-                    }),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
+            Some(gpay_data.info.card_network.clone()),
+        );
+    }
+
+    match &gpay_data.tokenization_data {
+        GpayTokenizationData::Decrypted(gpay_predecrypt_data) => get_google_pay_decrypt_data(
+            gpay_predecrypt_data,
+            is_rebilling,
+            Some(gpay_data.info.card_network.clone()),
+        ),
         GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             is_rebilling,
             payment_option: PaymentOption {
@@ -1070,6 +1092,62 @@ where
     }
 }
 
+fn get_apple_pay_decrypt_data(
+    apple_pay_predecrypt_data: &ApplePayPredecryptData,
+    is_rebilling: Option<String>,
+    network: String,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    Ok(NuveiPaymentsRequest {
+        is_rebilling,
+        payment_option: PaymentOption {
+            card: Some(Card {
+                brand: Some(network),
+                card_number: Some(
+                    apple_pay_predecrypt_data
+                        .application_primary_account_number
+                        .clone(),
+                ),
+                last4_digits: Some(Secret::new(
+                    apple_pay_predecrypt_data
+                        .application_primary_account_number
+                        .get_last4(),
+                )),
+                expiration_month: Some(
+                    apple_pay_predecrypt_data
+                        .application_expiration_month
+                        .clone(),
+                ),
+                expiration_year: Some(
+                    apple_pay_predecrypt_data
+                        .application_expiration_year
+                        .clone(),
+                ),
+                external_token: Some(ExternalToken {
+                    external_token_provider: ExternalTokenProvider::ApplePay,
+                    mobile_token: None,
+                    cryptogram: Some(
+                        apple_pay_predecrypt_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                    ),
+                    eci_provider: Some(
+                        apple_pay_predecrypt_data
+                            .payment_data
+                            .eci_indicator
+                            .clone()
+                            .ok_or_else(missing_field_err(
+                                "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
+                            ))?,
+                    ),
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+}
 fn get_applepay_info<F, Req>(
     item: &RouterData<F, Req, PaymentsResponseData>,
     apple_pay_data: &ApplePayWalletData,
@@ -1082,58 +1160,26 @@ where
     } else {
         None
     };
+    if let Some(PaymentMethodToken::ApplePayDecrypt(ref token)) =
+        item.get_payment_method_token().ok()
+    {
+        return get_apple_pay_decrypt_data(
+            token,
+            is_rebilling,
+            apple_pay_data.payment_method.network.clone(),
+        );
+    }
     match apple_pay_data.payment_data {
-        ApplePayPaymentData::Decrypted(ref apple_pay_predecrypt_data) => Ok(NuveiPaymentsRequest {
-           is_rebilling,
-            payment_option: PaymentOption {
-                card: Some(Card {
-                    brand: Some(apple_pay_data.payment_method.network.clone()),
-                    card_number: Some(
-                        apple_pay_predecrypt_data
-                            .application_primary_account_number
-                            .clone(),
-                    ),
-                    last4_digits: Some(Secret::new(
-                        apple_pay_predecrypt_data
-                            .application_primary_account_number
-                            .get_last4(),
-                    )),
-                    expiration_month: Some(
-                        apple_pay_predecrypt_data
-                            .application_expiration_month
-                            .clone(),
-                    ),
-                    expiration_year: Some(
-                        apple_pay_predecrypt_data
-                            .application_expiration_year
-                            .clone(),
-                    ),
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: None,
-                        cryptogram: Some(
-                            apple_pay_predecrypt_data
-                                .payment_data
-                                .online_payment_cryptogram
-                                .clone(),
-                        ),
-                        eci_provider: Some(
-                            apple_pay_predecrypt_data
-                                .payment_data
-                                .eci_indicator.clone()
-                                .ok_or_else(missing_field_err(
-                                "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
-                            ))?,
-                        ),
-                    }),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
+        ApplePayPaymentData::Decrypted(ref apple_pay_predecrypt_data) => {
+            get_apple_pay_decrypt_data(
+                apple_pay_predecrypt_data,
+                is_rebilling,
+                apple_pay_data.payment_method.network.clone(),
+            )
+        }
+
         ApplePayPaymentData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
-           is_rebilling,
+            is_rebilling,
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
@@ -1562,6 +1608,7 @@ where
         data: (&RouterData<F, Req, PaymentsResponseData>, String),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
+
         let request_data = match item.request.get_payment_method_data_required()?.clone() {
             PaymentMethodData::Card(card) => get_card_info(item, &card),
             PaymentMethodData::MandatePayment => Self::try_from(item),
