@@ -117,8 +117,17 @@ pub struct AccountIdConfigForCard {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIdConfigForRedirect {
+    pub three_ds: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AccountIDSupportedMethods {
     card: HashMap<String, AccountIdConfigForCard>,
+    skrill: HashMap<String, AccountIdConfigForRedirect>,
+    interac: HashMap<String, AccountIdConfigForRedirect>,
+    pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
 }
 
 #[serde_with::skip_serializing_none]
