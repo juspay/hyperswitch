@@ -49,6 +49,7 @@ pub struct AdyenTransferRequest {
 pub enum AdyenPayoutMethod {
     Bank,
     Card,
+    PlatformPayment,
 }
 
 #[derive(Debug, Serialize)]
@@ -726,7 +727,7 @@ pub fn get_adyen_webhook_event(
             AdyenplatformWebhookStatus::Booked => match category {
                 Some(AdyenPayoutMethod::Card) => webhooks::IncomingWebhookEvent::PayoutSuccess,
                 Some(AdyenPayoutMethod::Bank) => webhooks::IncomingWebhookEvent::PayoutProcessing,
-                None => webhooks::IncomingWebhookEvent::PayoutProcessing,
+                _ => webhooks::IncomingWebhookEvent::PayoutProcessing,
             },
             AdyenplatformWebhookStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
             AdyenplatformWebhookStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,

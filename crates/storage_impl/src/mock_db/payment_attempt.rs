@@ -240,6 +240,7 @@ impl PaymentAttemptInterface for MockDb {
             debit_routing_savings: None,
             network_transaction_id: payment_attempt.network_transaction_id,
             is_overcapture_enabled: None,
+            network_details: payment_attempt.network_details,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

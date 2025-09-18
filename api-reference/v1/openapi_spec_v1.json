@@ -12113,6 +12113,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -19245,6 +19246,15 @@
           }
         }
       },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -24168,6 +24178,14 @@
             "type": "boolean",
             "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
             "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25583,6 +25601,14 @@
           "is_overcapture_enabled": {
             "type": "boolean",
             "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -30200,6 +30226,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",

@@ -136,6 +136,7 @@ pub enum RoutableConnectors {
     Paystack,
     Paytm,
     Payu,
+    Peachpayments,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -314,6 +315,7 @@ pub enum Connector {
     Paystack,
     Paytm,
     Payu,
+    Peachpayments,
     Phonepe,
     Placetopay,
     Powertranz,
@@ -502,6 +504,7 @@ impl Connector {
             | Self::Paysafe
             | Self::Paystack
             | Self::Payu
+            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -569,7 +572,7 @@ impl Connector {
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
-        matches!(self, Self::Adyenplatform)
+        matches!(self, Self::Adyenplatform | Self::Adyen)
     }
 
     /// Validates if dummy connector can be created
@@ -682,6 +685,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paysafe => Self::Paysafe,
             RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
+            RoutableConnectors::Peachpayments => Self::Peachpayments,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
             RoutableConnectors::Prophetpay => Self::Prophetpay,
@@ -816,6 +820,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Paysafe => Ok(Self::Paysafe),
             Connector::Paystack => Ok(Self::Paystack),
             Connector::Payu => Ok(Self::Payu),
+            Connector::Peachpayments => Ok(Self::Peachpayments),
             Connector::Placetopay => Ok(Self::Placetopay),
             Connector::Powertranz => Ok(Self::Powertranz),
             Connector::Prophetpay => Ok(Self::Prophetpay),
