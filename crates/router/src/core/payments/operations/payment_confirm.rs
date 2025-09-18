@@ -1403,7 +1403,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 } else {
                     (None, None, None)
                 };
-                
                 let authentication = uas_utils::create_new_authentication(
                     state,
                     business_profile.merchant_id.clone(),
