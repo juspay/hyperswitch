@@ -21,6 +21,7 @@ pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 pub mod hyperswitch_ai_interaction;
+pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
