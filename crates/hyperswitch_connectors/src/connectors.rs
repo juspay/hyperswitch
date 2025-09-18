@@ -57,6 +57,7 @@ pub mod hyperwallet;
 pub mod iatapay;
 pub mod inespay;
 pub mod itaubank;
+pub mod ixopay;
 pub mod jpmorgan;
 pub mod juspaythreedsserver;
 pub mod katapult;
@@ -144,7 +145,7 @@ pub use self::{
     fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, globalpay::Globalpay,
     globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
-    inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    inespay::Inespay, itaubank::Itaubank, ixopay::Ixopay, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,

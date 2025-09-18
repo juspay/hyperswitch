@@ -286,6 +286,7 @@ pub enum Connector {
     Inespay,
     Iatapay,
     Itaubank,
+    // Ixopay,
     Jpmorgan,
     Juspaythreedsserver,
     Klarna,

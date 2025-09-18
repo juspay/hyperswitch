@@ -60,6 +60,7 @@ mod hyperwallet;
 mod iatapay;
 mod inespay;
 mod itaubank;
+mod ixopay;
 mod jpmorgan;
 mod juspaythreedsserver;
 mod katapult;

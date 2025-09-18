@@ -267,6 +267,7 @@ pub struct ConnectorConfig {
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
+    pub ixopay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
