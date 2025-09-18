@@ -253,7 +253,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .decode_webhook_body(
                     &request_details,
                     merchant_context.get_merchant_account().get_id(),
-                    merchant_connector_account.clone()
+                    merchant_connector_account
+                        .clone()
                         .and_then(|mca| mca.connector_webhook_details.clone()),
                     &connector_name,
                 )
@@ -806,7 +807,6 @@ async fn process_webhook_business_logic(
             ))
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
-
         }
     };
 
@@ -2607,7 +2607,6 @@ async fn subscription_incoming_webhook_flow(
         .payment_method_id
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No payment method found for subscription")?;
-
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 

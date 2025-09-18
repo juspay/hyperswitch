@@ -83,7 +83,6 @@ async fn perform_subscription_mit_payment(
 
     let _profile_id = profile.get_id().clone();
 
-
     //make a s2s call to payments
 
     // let billing_connector_details = BillingConnectorDetails {
