@@ -2967,6 +2967,9 @@ pub enum CybersourcePaymentStatus {
     Accepted,
     Cancelled,
     StatusNotReceived,
+    #[serde(untagged)]
+    #[strum(default)]
+    Others(String),
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -2980,6 +2983,7 @@ pub enum CybersourceIncrementalAuthorizationStatus {
 
 pub fn map_cybersource_attempt_status(
     status: CybersourcePaymentStatus,
+    is_error_reason_present: bool,
     capture: bool,
 ) -> enums::AttemptStatus {
     match status {
@@ -3012,6 +3016,13 @@ pub fn map_cybersource_attempt_status(
         | CybersourcePaymentStatus::Accepted
         | CybersourcePaymentStatus::Pending
         | CybersourcePaymentStatus::AuthorizedPendingReview => enums::AttemptStatus::Pending,
+        CybersourcePaymentStatus::Others(_) => {
+            if is_error_reason_present {
+                enums::AttemptStatus::Failure
+            } else {
+                enums::AttemptStatus::Pending
+            }
+        }
     }
 }
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
@@ -3219,6 +3230,7 @@ impl
                 .status
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false),
             item.data.request.is_auto_capture()?,
         );
         let response =
@@ -4004,6 +4016,7 @@ impl<F>
                 .status
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false),
             item.data.request.is_auto_capture()?,
         );
         let response =
@@ -4063,6 +4076,7 @@ impl<F>
                 .status
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false),
             true,
         );
         let response =
@@ -4099,6 +4113,7 @@ impl<F>
                 .status
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false),
             false,
         );
         let response =
@@ -4148,6 +4163,7 @@ impl
                 .status
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false),
             false,
         );
         if matches!(mandate_status, enums::AttemptStatus::Authorized) {
@@ -4631,7 +4647,7 @@ impl<F>
         match item.response.application_information.status {
             Some(status) => {
                 let status =
-                    map_cybersource_attempt_status(status, item.data.request.is_auto_capture()?);
+                    map_cybersource_attempt_status(status, item.response.error_information.map(|error_into| error_info.is_some()).unwrap_or(false), item.data.request.is_auto_capture()?);
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
                 let risk_info: Option<ClientRiskInformation> = None;
