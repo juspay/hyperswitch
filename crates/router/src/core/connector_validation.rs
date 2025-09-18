@@ -162,6 +162,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Chargebee => {
                 chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
+                chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Celero => {
@@ -414,6 +415,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payu => {
                 payu::transformers::PayuAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Peachpayments => {
+                peachpayments::transformers::PeachpaymentsAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Placetopay => {

@@ -27,14 +27,19 @@ use hyperswitch_domain_models::{
     router_data::{
         ConnectorAuthType, ErrorResponse, PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
-    router_request_types::{PaymentsPreProcessingData, ResponseId, SubmitEvidenceRequestData},
+    router_flow_types::GiftCardBalanceCheck,
+    router_request_types::{
+        GiftCardBalanceCheckRequestData, PaymentsPreProcessingData, ResponseId,
+        SubmitEvidenceRequestData,
+    },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateReference, PaymentsResponseData,
-        RedirectForm, RefundsResponseData, SubmitEvidenceResponse,
+        AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        SubmitEvidenceResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -535,6 +540,8 @@ pub struct AdyenWebhookResponse {
     refusal_code_raw: Option<String>,
     // Raw acquirer refusal reason
     refusal_reason_raw: Option<String>,
+    recurring_detail_reference: Option<Secret<String>>,
+    recurring_shopper_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1803,6 +1810,41 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
     }
 }
 
+impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for AdyenBalanceRequest<'_> {
+    type Error = Error;
+    fn try_from(item: &PaymentsGiftCardBalanceCheckRouterData) -> Result<Self, Self::Error> {
+        let payment_method = match &item.request.payment_method_data {
+            PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
+                GiftCardData::Givex(gift_card_data) => {
+                    let balance_pm = BalancePmData {
+                        number: gift_card_data.number.clone(),
+                        cvc: gift_card_data.cvc.clone(),
+                    };
+                    Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
+                        balance_pm,
+                    )))
+                }
+                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
+                    Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    })
+                }
+            },
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Balance".to_string(),
+                connector: "adyen".to_string(),
+            }),
+        }?;
+
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            payment_method,
+            merchant_account: auth_type.merchant_account,
+        })
+    }
+}
+
 impl From<&PaymentsAuthorizeRouterData> for AdyenShopperInteraction {
     fn from(item: &PaymentsAuthorizeRouterData) -> Self {
         match item.request.off_session {
@@ -2239,6 +2281,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
             utils::CardIssuer::CartesBancaires => Ok(Self::Cartebancaire),
+            utils::CardIssuer::UnionPay => Ok(Self::Cup),
         }
     }
 }
@@ -3927,6 +3970,40 @@ impl<F>
     }
 }
 
+impl
+    TryFrom<
+        ResponseRouterData<
+            GiftCardBalanceCheck,
+            AdyenBalanceResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+    >
+    for RouterData<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    >
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            GiftCardBalanceCheck,
+            AdyenBalanceResponse,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(GiftCardBalanceCheckResponseData {
+                balance: item.response.balance.value,
+                currency: item.response.balance.currency,
+            }),
+            ..item.data
+        })
+    }
+}
+
 pub fn get_adyen_response(
     response: AdyenResponse,
     is_capture_manual: bool,
@@ -4071,6 +4148,15 @@ pub fn get_webhook_response(
             txn_amount,
         ))
     } else {
+        let mandate_reference = response
+            .recurring_detail_reference
+            .as_ref()
+            .map(|mandate_id| MandateReference {
+                connector_mandate_id: Some(mandate_id.clone().expose()),
+                payment_method_id: response.recurring_shopper_reference.clone(),
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(
                 response
@@ -4078,7 +4164,7 @@ pub fn get_webhook_response(
                     .unwrap_or(response.transaction_id),
             ),
             redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
@@ -4884,11 +4970,17 @@ pub struct AdyenAdditionalDataWH {
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
     pub recurring_detail_reference: Option<Secret<String>>,
+    #[serde(rename = "recurring.shopperReference")]
+    pub recurring_shopper_reference: Option<String>,
     pub network_tx_reference: Option<Secret<String>>,
     /// [only for cards] Enable raw acquirer from Adyen dashboard to receive this (https://docs.adyen.com/development-resources/raw-acquirer-responses/#search-modal)
     pub refusal_reason_raw: Option<String>,
     /// [only for cards] This is only available for Visa and Mastercard
     pub refusal_code_raw: Option<String>,
+    #[serde(rename = "shopperEmail")]
+    pub shopper_email: Option<String>,
+    #[serde(rename = "shopperReference")]
+    pub shopper_reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4916,6 +5008,7 @@ pub enum WebhookEventCode {
     PrearbitrationWon,
     PrearbitrationLost,
     OfferClosed,
+    RecurringContract,
     #[cfg(feature = "payouts")]
     PayoutThirdparty,
     #[cfg(feature = "payouts")]
@@ -4931,7 +5024,9 @@ pub enum WebhookEventCode {
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
     matches!(
         event_code,
-        WebhookEventCode::Authorisation | WebhookEventCode::OfferClosed
+        WebhookEventCode::Authorisation
+            | WebhookEventCode::OfferClosed
+            | WebhookEventCode::RecurringContract
     )
 }
 
@@ -5052,6 +5147,13 @@ pub(crate) fn get_adyen_webhook_event(
         WebhookEventCode::OfferClosed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentExpired
         }
+        WebhookEventCode::RecurringContract => {
+            if is_success_scenario(is_success) {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            } else {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+        }
         #[cfg(feature = "payouts")]
         WebhookEventCode::PayoutThirdparty => {
             api_models::webhooks::IncomingWebhookEvent::PayoutCreated
@@ -5132,6 +5234,13 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                         AdyenWebhookStatus::AuthorisationFailed
                     }
                 }
+                WebhookEventCode::RecurringContract => {
+                    if is_success_scenario(notif.success) {
+                        AdyenWebhookStatus::Authorised
+                    } else {
+                        AdyenWebhookStatus::AuthorisationFailed
+                    }
+                }
                 WebhookEventCode::Cancellation => {
                     if is_success_scenario(notif.success) {
                         AdyenWebhookStatus::Cancelled
@@ -5184,6 +5293,8 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
             event_code: notif.event_code,
             refusal_code_raw: notif.additional_data.refusal_code_raw,
             refusal_reason_raw: notif.additional_data.refusal_reason_raw,
+            recurring_detail_reference: notif.additional_data.recurring_detail_reference,
+            recurring_shopper_reference: notif.additional_data.recurring_shopper_reference,
         }
     }
 }

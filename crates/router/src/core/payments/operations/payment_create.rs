@@ -629,6 +629,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1393,6 +1394,7 @@ impl PaymentCreate {
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
                 network_transaction_id:None,
+                network_details:None,
             },
             additional_pm_data,
 

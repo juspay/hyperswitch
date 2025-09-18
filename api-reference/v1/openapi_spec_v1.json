@@ -8169,7 +8169,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationCreateRequest": {
@@ -12049,6 +12050,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -12111,6 +12113,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -19243,6 +19246,15 @@
           }
         }
       },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "NetworkTransactionIdAndCardDetails": {
         "type": "object",
         "required": [
@@ -24166,6 +24178,14 @@
             "type": "boolean",
             "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
             "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24276,6 +24296,11 @@
           "challenge_request": {
             "type": "string",
             "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
             "nullable": true
           },
           "acs_reference_number": {
@@ -25576,6 +25601,14 @@
           "is_overcapture_enabled": {
             "type": "boolean",
             "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -30193,6 +30226,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
