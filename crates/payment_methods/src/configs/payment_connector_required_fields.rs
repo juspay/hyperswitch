@@ -1590,6 +1590,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
             ),
         ),
+        (
+            Connector::Trustpayments,
+            fields(vec![], vec![], card_basic()),
+        ),
         (Connector::Tsys, fields(vec![], card_basic(), vec![])),
         (
             Connector::Wellsfargo,
@@ -2288,6 +2292,13 @@ fn get_bank_redirect_required_fields(
                 ),
             ]),
         ),
+        (
+            enums::PaymentMethodType::Interac,
+            connectors(vec![(
+                Connector::Paysafe,
+                fields(vec![], vec![RequiredField::BillingEmail], vec![]),
+            )]),
+        ),
     ])
 }
 
@@ -2730,19 +2741,32 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         ),
         (
             enums::PaymentMethodType::Skrill,
-            connectors(vec![(
-                Connector::Airwallex,
-                RequiredFieldFinal {
-                    mandate: HashMap::new(),
-                    non_mandate: HashMap::from([
-                        RequiredField::BillingUserFirstName.to_tuple(),
-                        RequiredField::BillingUserLastName.to_tuple(),
-                        RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
-                        RequiredField::BillingEmail.to_tuple(),
-                    ]),
-                    common: HashMap::new(),
-                },
-            )]),
+            connectors(vec![
+                (
+                    Connector::Airwallex,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+                (
+                    Connector::Paysafe,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                            RequiredField::BillingEmail.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+            ]),
         ),
     ])
 }
