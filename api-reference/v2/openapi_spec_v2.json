@@ -2593,6 +2593,64 @@
         ]
       }
     },
+    "/v2/payments/{id}/check-gift-card-balance": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Gift Card Balance Check",
+        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
+        "operationId": "Retrieve Gift Card Balance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Get the Gift Card Balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -5159,7 +5217,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationDetails": {
@@ -8593,6 +8652,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -8655,6 +8715,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -8674,6 +8735,7 @@
           "threedsecureio",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -12141,6 +12203,35 @@
             }
           }
         ]
+      },
+      "GiftCardBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency",
+          "needs_additional_pm_data",
+          "remaining_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "needs_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
       },
       "GiftCardData": {
         "oneOf": [
@@ -19312,6 +19403,11 @@
             "description": "Challenge request which should be sent to acs_url",
             "nullable": true
           },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
+            "nullable": true
+          },
           "acs_reference_number": {
             "type": "string",
             "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
@@ -19342,6 +19438,19 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsGiftCardBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Gift Card balance check",
+        "required": [
+          "gift_card_data"
+        ],
+        "properties": {
+          "gift_card_data": {
+            "$ref": "#/components/schemas/GiftCardData"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
@@ -20023,7 +20132,8 @@
           "status",
           "amount",
           "customer_id",
-          "created"
+          "created",
+          "modified_at"
         ],
         "properties": {
           "id": {
@@ -20056,6 +20166,12 @@
             "type": "string",
             "format": "date-time",
             "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was last modified",
             "example": "2022-09-10T10:11:12Z"
           },
           "payment_method_data": {
@@ -20207,6 +20323,11 @@
                 "$ref": "#/components/schemas/FeatureMetadata"
               }
             ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           }
         }
@@ -22451,6 +22572,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_retry_algorithm_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23599,6 +23728,14 @@
           }
         }
       },
+      "RevenueRecoveryAlgorithmType": {
+        "type": "string",
+        "enum": [
+          "monitoring",
+          "smart",
+          "cascading"
+        ]
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -23819,6 +23956,7 @@
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -23837,6 +23975,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",

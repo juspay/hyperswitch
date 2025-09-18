@@ -105,7 +105,9 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -126,6 +128,9 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
     >;
 pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
+
+pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GiftCardBalanceCheckFlowData, Req, Res>;
 
 /// Handle UCS webhook response processing
 fn handle_ucs_response<T, Req, Resp>(

@@ -31,8 +31,8 @@ use hyperswitch_domain_models::{
         PaymentsIncrementalAuthorizationData, ResponseId, SplitRefundsRequest,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, PreprocessingResponseId, RedirectForm,
-        RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData,
+        PreprocessingResponseId, RedirectForm, RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -4136,9 +4136,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeCustomerResponse, T, PaymentsResp
         item: ResponseRouterData<F, StripeCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.id,
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
+            )),
             ..item.data
         })
     }

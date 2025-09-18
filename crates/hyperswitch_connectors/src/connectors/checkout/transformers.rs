@@ -1,4 +1,4 @@
-use common_enums::enums::{self, AttemptStatus};
+use common_enums::enums::{self, AttemptStatus, PaymentChannel};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
@@ -8,7 +8,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{Execute, RSync, SetupMandate},
     router_request_types::{ResponseId, SetupMandateRequestData},
     router_response_types::{
@@ -250,6 +253,8 @@ pub enum CheckoutSourceTypes {
 pub enum CheckoutPaymentType {
     Recurring,
     Regular,
+    #[serde(rename = "MOTO")]
+    Moto,
 }
 
 pub struct CheckoutAuthType {
@@ -343,7 +348,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             Some(enums::CaptureMethod::Automatic)
         );
 
-        let (payment_type, challenge_indicator) = if item.router_data.request.is_mandate_payment() {
+        let (payment_type, challenge_indicator) = if item.router_data.request.payment_channel
+            == Some(PaymentChannel::MailOrder)
+            || item.router_data.request.payment_channel == Some(PaymentChannel::TelephoneOrder)
+        {
+            (
+                CheckoutPaymentType::Moto,
+                CheckoutChallengeIndicator::ChallengeRequested,
+            )
+        } else if item.router_data.request.is_mandate_payment() {
             (
                 CheckoutPaymentType::Recurring,
                 CheckoutChallengeIndicator::ChallengeRequestedMandate,
@@ -355,7 +368,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             )
         };
 
-        let (source_var, previous_payment_id, merchant_initiated, capture, payment_type) =
+        let (source_var, previous_payment_id, merchant_initiated, payment_type) =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ccard) => {
                     let a = PaymentSource::Card(CardSource {
@@ -365,7 +378,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         expiry_year: ccard.card_exp_year.clone(),
                         cvv: ccard.card_cvc,
                     });
-                    Ok((a, None, Some(false), capture, payment_type))
+                    Ok((a, None, Some(false), payment_type))
                 }
                 PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                     WalletData::GooglePay(_) => {
@@ -388,7 +401,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                 }
                             },
                         });
-                        Ok((p_source, None, Some(false), capture, payment_type))
+                        Ok((p_source, None, Some(false), payment_type))
                     }
                     WalletData::ApplePay(_) => {
                         let payment_method_token = item.router_data.get_payment_method_token()?;
@@ -398,7 +411,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     source_type: CheckoutSourceTypes::Token,
                                     token: apple_pay_payment_token,
                                 });
-                                Ok((p_source, None, Some(false), capture, payment_type))
+                                Ok((p_source, None, Some(false), payment_type))
                             }
                             PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                                 let exp_month = decrypt_data.get_expiry_month().change_context(
@@ -420,7 +433,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                             .online_payment_cryptogram,
                                     },
                                 ));
-                                Ok((p_source, None, Some(false), capture, payment_type))
+                                Ok((p_source, None, Some(false), payment_type))
                             }
                             PaymentMethodToken::PazeDecrypt(_) => {
                                 Err(unimplemented_payment_method!("Paze", "Checkout"))?
@@ -445,7 +458,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             .get_connector_mandate_request_reference_id()?,
                     );
                     let p_type = CheckoutPaymentType::Recurring;
-                    Ok((mandate_source, previous_id, Some(true), true, p_type))
+                    Ok((mandate_source, previous_id, Some(true), p_type))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -581,22 +594,21 @@ fn get_attempt_status_cap(
     match status {
         CheckoutPaymentStatus::Authorized => {
             if capture_method == Some(enums::CaptureMethod::Automatic) || capture_method.is_none() {
-                AttemptStatus::Pending
+                AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
             }
         }
         CheckoutPaymentStatus::Captured
         | CheckoutPaymentStatus::PartiallyRefunded
-        | CheckoutPaymentStatus::Refunded => AttemptStatus::Charged,
+        | CheckoutPaymentStatus::Refunded
+        | CheckoutPaymentStatus::CardVerified => AttemptStatus::Charged,
         CheckoutPaymentStatus::PartiallyCaptured => AttemptStatus::PartialCharged,
         CheckoutPaymentStatus::Declined
         | CheckoutPaymentStatus::Expired
         | CheckoutPaymentStatus::Canceled => AttemptStatus::Failure,
         CheckoutPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
-        CheckoutPaymentStatus::CardVerified | CheckoutPaymentStatus::RetryScheduled => {
-            AttemptStatus::Pending
-        }
+        CheckoutPaymentStatus::RetryScheduled => AttemptStatus::Pending,
         CheckoutPaymentStatus::Voided => AttemptStatus::Voided,
     }
 }
@@ -609,7 +621,7 @@ fn get_attempt_status_intent(
     match status {
         CheckoutPaymentStatus::Authorized => {
             if psync_flow == CheckoutPaymentIntent::Capture {
-                AttemptStatus::Pending
+                AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
             }
@@ -671,6 +683,8 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Source {
     id: Option<String>,
+    avs_check: Option<String>,
+    cvv_check: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -678,6 +692,8 @@ pub struct PaymentsResponse {
     id: String,
     amount: Option<MinorUnit>,
     currency: Option<String>,
+    scheme_id: Option<String>,
+    processing: Option<PaymentProcessingDetails>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
@@ -691,6 +707,13 @@ pub struct PaymentsResponse {
     source: Option<Source>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentProcessingDetails {
+    /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
+    pub partner_merchant_advice_code: Option<String>,
+    /// The original authorization response code sent by the scheme.
+    pub partner_response_code: Option<String>,
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
@@ -766,12 +789,31 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             .redirect
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
 
+        let mandate_reference = if item.data.request.is_mandate_payment() {
+            item.response
+                .source
+                .as_ref()
+                .and_then(|src| src.id.clone())
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                })
+        } else {
+            None
+        };
+
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
-            mandate_reference: Box::new(None),
+            mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -781,6 +823,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
         Ok(Self {
             status,
             response: Ok(payments_response_data),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -814,7 +857,17 @@ impl
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
         let status =
             get_attempt_status_cap((item.response.status, item.data.request.capture_method));
-
+        let network_advice_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| {
+                processing
+                    .partner_merchant_advice_code
+                    .as_ref()
+                    .or(processing.partner_response_code.as_ref())
+            })
+            .cloned();
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
@@ -830,7 +883,7 @@ impl
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
+                network_advice_code,
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
@@ -856,7 +909,7 @@ impl
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -923,12 +976,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -938,6 +995,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         Ok(Self {
             status,
             response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -978,6 +1036,7 @@ pub struct PaymentVoidResponse {
     pub(super) status: u16,
     action_id: String,
     reference: String,
+    scheme_id: Option<String>,
 }
 
 impl From<&PaymentVoidResponse> for AttemptStatus {
@@ -1002,7 +1061,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1068,6 +1127,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsCaptureRouterData>> for PaymentCapture
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -1103,7 +1163,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1582,8 +1642,12 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             processed_on: data.processed_on,
             approved: data.approved,
             source: Some(Source {
-                id: details.source.and_then(|src| src.id),
+                id: details.source.clone().and_then(|src| src.id),
+                avs_check: details.source.clone().and_then(|src| src.avs_check),
+                cvv_check: details.source.clone().and_then(|src| src.cvv_check),
             }),
+            scheme_id: None,
+            processing: None,
         };
 
         Ok(psync_struct)
@@ -1643,4 +1707,21 @@ impl From<String> for utils::ErrorCodeAndMessage {
             error_message: error,
         }
     }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    source: Option<&Source>,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    source.map(|code| {
+        let payment_checks = serde_json::json!({
+            "avs_result": code.avs_check,
+            "card_validation_result": code.cvv_check,
+        });
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: Some(payment_checks),
+            card_network: None,
+            domestic_network: None,
+        }
+    })
 }

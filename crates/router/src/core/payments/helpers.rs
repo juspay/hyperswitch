@@ -4442,15 +4442,27 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    request: &api_models::payments::PaymentsRequest,
+    is_manual_retry_enabled: Option<bool>,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if matches!(
-                request.retry_action,
-                Some(api_models::enums::RetryAction::ManualRetry)
-            ) {
+            if matches!(is_manual_retry_enabled, Some(true)) {
+                // if it is false, don't go ahead with manual retry
+                fp_utils::when(
+                    !validate_manual_retry_cutoff(
+                        payment_intent.created_at,
+                        payment_intent.session_expiry,
+                    ),
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment using `manual_retry` because the allowed duration has expired")
+                            }
+                        ))
+                    },
+                )?;
+
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
@@ -4525,7 +4537,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can enable `manual_retry` in profile to try this payment again", payment_intent.status)
                         }
                     ))
             }
@@ -4553,6 +4565,27 @@ pub fn get_attempt_type(
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => Ok(AttemptType::SameOld),
     }
+}
+
+fn validate_manual_retry_cutoff(
+    created_at: time::PrimitiveDateTime,
+    session_expiry: Option<time::PrimitiveDateTime>,
+) -> bool {
+    let utc_current_time = time::OffsetDateTime::now_utc();
+    let primitive_utc_current_time =
+        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let time_difference_from_creation = primitive_utc_current_time - created_at;
+
+    // cutoff time is 50% of session duration
+    let cutoff_limit = match session_expiry {
+        Some(session_expiry) => {
+            let duration = session_expiry - created_at;
+            duration.whole_seconds() / 2
+        }
+        None => consts::DEFAULT_SESSION_EXPIRY / 2,
+    };
+
+    time_difference_from_creation.whole_seconds() <= cutoff_limit
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
