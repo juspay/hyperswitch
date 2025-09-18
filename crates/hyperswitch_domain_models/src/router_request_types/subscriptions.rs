@@ -1,4 +1,5 @@
 use api_models::payments::Address;
+use common_utils::id_type;
 
 use crate::connector_endpoints;
 
@@ -10,7 +11,7 @@ pub struct SubscriptionItem {
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateRequest {
-    pub customer_id: String,
+    pub customer_id: id_type::CustomerId,
     pub subscription_id: String,
     pub subscription_items: Vec<SubscriptionItem>,
     pub billing_address: Address,

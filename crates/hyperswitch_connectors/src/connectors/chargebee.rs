@@ -117,7 +117,7 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
             .base_url(connectors)
             .to_string()
             .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
-        let customer_id = &req.request.customer_id;
+        let customer_id = &req.request.customer_id.get_string_repr().to_string();
         Ok(format!(
             "{url}v2/customers/{customer_id}/subscription_for_items"
         ))
