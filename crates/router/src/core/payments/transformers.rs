@@ -3395,6 +3395,7 @@ where
             external_authentication_details,
             external_3ds_authentication_attempted: payment_attempt
                 .external_three_ds_authentication_attempted,
+            request_extended_authorization: payment_attempt.request_extended_authorization,
             expires_on: payment_intent.session_expiry,
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
@@ -3710,6 +3711,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             frm_metadata: None,
             capture_before: pa.capture_before,
             extended_authorization_applied: pa.extended_authorization_applied,
+            request_extended_authorization: pa.request_extended_authorization,
             order_tax_amount: None,
             connector_mandate_id:None,
             shipping_cost: None,

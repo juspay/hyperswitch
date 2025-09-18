@@ -5572,6 +5572,12 @@ pub struct PaymentsResponse {
     /// Allow partial authorization for this payment
     pub enable_partial_authorization: Option<bool>,
 
+    /// Optional boolean value to extent authorization period of this payment
+    ///
+    /// capture method must be manual or manual_multiple
+    #[schema(value_type = Option<bool>, default = false)]
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
