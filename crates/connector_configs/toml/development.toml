@@ -5571,6 +5571,21 @@ placeholder="Enter Merchant Configuration ID"
 required=false
 type="Text"
 
+
+[cardinal]
+[cardinal.connector_auth.SignatureKey]
+api_key = "API Key"
+api_secret = "API ID"
+key1 = "Organization Unit ID"
+
+[cardinal.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
+
+
 [taxjar]
 [taxjar.connector_auth.HeaderKey]
 api_key="Sandbox Token"
