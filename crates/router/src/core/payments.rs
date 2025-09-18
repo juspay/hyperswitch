@@ -4304,13 +4304,33 @@ where
                 )
                 .await?;
 
-            router_data
-                .call_unified_connector_service(
-                    state,
-                    merchant_connector_account.clone(),
-                    merchant_context,
-                )
-                .await?;
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                &router_data.payment_id,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
+
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
+
+            let should_continue_with_ucs = true;
+
+            if should_continue_with_ucs {
+                router_data
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account.clone(),
+                        merchant_context,
+                    )
+                    .await?;
+            }
 
             Ok((router_data, merchant_connector_account))
         } else {
@@ -4940,13 +4960,33 @@ where
                 )
                 .await?;
 
-            router_data
-                .call_unified_connector_service(
-                    state,
-                    merchant_connector_account_type_details.clone(),
-                    merchant_context,
-                )
-                .await?;
+            // Check for cached access token in Redis (no generation for UCS flows)
+            let cached_access_token = access_token::get_cached_access_token_for_ucs(
+                state,
+                &connector,
+                merchant_context,
+                router_data.payment_method,
+                &router_data.payment_id,
+                payment_data.get_creds_identifier(),
+            )
+            .await?;
+
+            // Set cached access token in router_data if available
+            if let Some(access_token) = cached_access_token {
+                router_data.access_token = Some(access_token);
+            }
+
+            let should_continue_with_ucs = true;
+
+            if should_continue_with_ucs {
+                router_data
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account_type_details.clone(),
+                        merchant_context,
+                    )
+                    .await?;
+            }
 
             Ok(router_data)
         } else {
