@@ -40,8 +40,7 @@ use hyperswitch_domain_models::{
     types::{
         ConnectorCustomerRouterData, GetSubscriptionPlansRouterData, InvoiceRecordBackRouterData,
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
-        SubscriptionCreateRouterData,
+        RefundSyncRouterData, RefundsRouterData, SubscriptionCreateRouterData,
     },
 };
 use hyperswitch_interfaces::{
