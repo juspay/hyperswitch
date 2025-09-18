@@ -1756,19 +1756,14 @@ where
         let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
         let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;
         let address = {
-            if let Some(billing_address) = item.get_optional_billing() {
-                let mut billing_address = billing_address.clone();
-                item.get_billing_first_name()?;
-                billing_address.email = match item.get_billing_email() {
-                    Ok(email) => Some(email),
-                    Err(_) => Some(item.request.get_email_required()?),
-                };
-                item.get_billing_country()?;
-
-                Some(billing_address)
-            } else {
-                None
-            }
+            let mut billing_address = item.get_billing()?.clone();
+            item.get_billing_first_name()?;
+            billing_address.email = match item.get_billing_email() {
+                Ok(email) => Some(email),
+                Err(_) => Some(item.request.get_email_required()?),
+            };
+            item.get_billing_country()?;
+            Some(billing_address)
         };
 
         let shipping_address: Option<ShippingAddress> =
