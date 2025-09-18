@@ -11,7 +11,9 @@ use hyperswitch_domain_models::{
 };
 
 #[cfg(feature = "v1")]
-use super::{ConnectorCommon, ConnectorIntegration};
+use super::{
+    payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon, ConnectorIntegration,
+};
 
 #[cfg(feature = "v1")]
 /// trait GetSubscriptionPlans for V1
@@ -38,7 +40,7 @@ pub trait GetSubscriptionPlanPricesFlow:
 /// trait Subscriptions
 #[cfg(feature = "v1")]
 pub trait Subscriptions:
-    ConnectorCommon + GetSubscriptionPlansFlow + GetSubscriptionPlanPricesFlow
+    ConnectorCommon + GetSubscriptionPlansFlow + GetSubscriptionPlanPricesFlow + PaymentsConnectorCustomer
 {
 }
 
@@ -53,3 +55,7 @@ pub trait GetSubscriptionPlansFlow {}
 /// trait GetSubscriptionPlanPricesFlow (disabled when not V1)
 #[cfg(not(feature = "v1"))]
 pub trait GetSubscriptionPlanPricesFlow {}
+
+#[cfg(not(feature = "v1"))]
+/// trait CreateCustomer (disabled when not V1)
+pub trait ConnectorCustomer {}

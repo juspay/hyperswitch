@@ -2,7 +2,13 @@
 use std::str::FromStr;
 
 use common_enums::enums;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    id_type::CustomerId,
+    pii::{self, Email},
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use hyperswitch_domain_models::revenue_recovery;
@@ -11,18 +17,20 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
-        InvoiceRecordBack,
+        CreateConnectorCustomer, InvoiceRecordBack,
     },
-    router_request_types::{revenue_recovery::InvoiceRecordBackRequest, ResponseId},
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest, ConnectorCustomerData, ResponseId,
+    },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
-        PaymentsResponseData, RefundsResponseData,
+        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -816,6 +824,97 @@ impl<F, T>
             .collect();
         Ok(Self {
             response: Ok(GetSubscriptionPlansResponse { list: plans }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChargebeeCustomerCreateRequest {
+    #[serde(rename = "id")]
+    pub customer_id: CustomerId,
+    #[serde(rename = "first_name")]
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub billing_address: Option<api_models::payments::AddressDetails>,
+}
+
+impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
+    for ChargebeeCustomerCreateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+
+        Ok(Self {
+            customer_id: req
+                .customer_id
+                .as_ref()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                })?
+                .clone(),
+            name: req.name.clone(),
+            email: req.email.clone(),
+            billing_address: req.billing_address.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeCustomerCreateResponse {
+    pub customer: ChargebeeCustomerDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeCustomerDetails {
+    pub id: String,
+    #[serde(rename = "first_name")]
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub billing_address: Option<api_models::payments::AddressDetails>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            CreateConnectorCustomer,
+            ChargebeeCustomerCreateResponse,
+            ConnectorCustomerData,
+            PaymentsResponseData,
+        >,
+    > for hyperswitch_domain_models::types::ConnectorCustomerRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            CreateConnectorCustomer,
+            ChargebeeCustomerCreateResponse,
+            ConnectorCustomerData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let customer_response = &item.response.customer;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new(
+                    customer_response.id.clone(),
+                    customer_response
+                        .name
+                        .as_ref()
+                        .map(|name| name.clone().expose()),
+                    customer_response
+                        .email
+                        .as_ref()
+                        .map(|email| email.clone().expose().expose()),
+                    customer_response.billing_address.clone(),
+                ),
+            )),
             ..item.data
         })
     }
