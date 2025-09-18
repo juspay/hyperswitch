@@ -158,19 +158,22 @@ pub(crate) fn get_idempotent_event_id(
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
-    let base_string = match delivery_attempt {
-        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+
+    // Hash the common prefix with SHA256 and encode with URL-safe base64 without padding
+    let digest = Sha256
+        .generate_digest(common_prefix.as_bytes())
+        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
+        .attach_printable("Failed to generate idempotent event ID")?;
+    let base_encoded = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
+
+    let result = match delivery_attempt {
+        WebhookDeliveryAttempt::InitialAttempt => base_encoded,
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
-            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &base_encoded)
         }
     };
 
-    // Hash the base string with SHA256 and encode with URL-safe base64 without padding
-    let digest = Sha256
-        .generate_digest(base_string.as_bytes())
-        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
-        .attach_printable("Failed to generate idempotent event ID")?;
-    Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest))
+    Ok(result)
 }
 
 #[inline]
