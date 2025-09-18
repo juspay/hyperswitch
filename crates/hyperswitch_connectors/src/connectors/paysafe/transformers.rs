@@ -226,7 +226,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.no_three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing no_3ds account_id",
             })
     }
@@ -239,7 +239,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing 3ds account_id",
             })
     }
@@ -252,7 +252,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|wallets| wallets.get(&currency))
             .and_then(|skrill| skrill.three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing skrill account_id",
             })
     }
@@ -265,7 +265,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|redirects| redirects.get(&currency))
             .and_then(|interac| interac.three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing interac account_id",
             })
     }
@@ -278,7 +278,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|gift_cards| gift_cards.get(&currency))
             .and_then(|pay_safe_card| pay_safe_card.three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing paysafe gift card account_id",
             })
     }
