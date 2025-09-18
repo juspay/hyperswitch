@@ -17,7 +17,7 @@ pub trait InvoiceInterface {
         invoice_new: storage::invoice::InvoiceNew,
     ) -> CustomResult<storage::Invoice, errors::StorageError>;
 
-    async fn find_by_invoice_id(
+    async fn find_invoice_by_invoice_id(
         &self,
         invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError>;
@@ -44,12 +44,12 @@ impl InvoiceInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_by_invoice_id(
+    async fn find_invoice_by_invoice_id(
         &self,
         invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Invoice::find_by_id(&conn, invoice_id)
+        storage::Invoice::find_invoice_by_id(&conn, invoice_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -77,7 +77,7 @@ impl InvoiceInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_by_invoice_id(
+    async fn find_invoice_by_invoice_id(
         &self,
         _invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
@@ -104,11 +104,11 @@ impl InvoiceInterface for KafkaStore {
     }
 
     #[instrument(skip_all)]
-    async fn find_by_invoice_id(
+    async fn find_invoice_by_invoice_id(
         &self,
         invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
-        self.diesel_store.find_by_invoice_id(invoice_id).await
+        self.diesel_store.find_invoice_by_invoice_id(invoice_id).await
     }
 
     #[instrument(skip_all)]

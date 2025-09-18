@@ -16,7 +16,7 @@ impl InvoiceNew {
 }
 
 impl Invoice {
-    pub async fn find_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
+    pub async fn find_invoice_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),
@@ -24,7 +24,7 @@ impl Invoice {
         .await
     }
 
-    pub async fn find_by_merchant_id_invoice_id(
+    pub async fn find_invoice_by_merchant_id_invoice_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         id: String,
