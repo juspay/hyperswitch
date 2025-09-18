@@ -929,7 +929,7 @@ impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {
     fn from(value: NuveiPaymentSyncResponse) -> Self {
         match value {
             NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => {
-                Self::from(payment_dmn_notification)
+                Self::from(*payment_dmn_notification)
             }
             NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => {
                 *nuvei_transaction_sync_response
@@ -1516,7 +1516,7 @@ where
             card_holder_name: data.card_holder_name,
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
-            ..Default::default() // CVV should be disabled by nuvei fo
+            ..Default::default() // CVV should be disabled by nuvei 
         }),
         redirect_url: None,
         user_payment_option_id: None,
@@ -3125,7 +3125,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
             .response
             .transaction_details
             .as_ref()
-            .and_then(|details| details.gw_error_code.clone().map(|e| e.to_string()));
+            .and_then(|details| details.gw_error_code.map(|e| e.to_string()));
 
         let network_error_msg = item
             .response
@@ -3275,7 +3275,7 @@ fn get_error_response(
     network_advice_code: Option<String>,
     network_decline_code: Option<String>,
     network_error_message: Option<String>,
-    trasaction_id: Option<String>,
+    transaction_id: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         code: error_code
@@ -3287,7 +3287,7 @@ fn get_error_response(
         reason: None,
         status_code: http_code,
         attempt_status: None,
-        connector_transaction_id: trasaction_id,
+        connector_transaction_id: transaction_id,
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
@@ -3307,7 +3307,7 @@ pub enum NuveiWebhook {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NuveiPaymentSyncResponse {
-    NuveiDmn(PaymentDmnNotification),
+    NuveiDmn(Box<PaymentDmnNotification>),
     NuveiApi(Box<NuveiTransactionSyncResponse>),
 }
 
@@ -3885,7 +3885,7 @@ impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
             | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
             | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
             | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
-            | DisputeUnifiedStatusCode::InquiryUpdated => common_enums::DisputeStage::PreDispute,
+            | DisputeUnifiedStatusCode::InquiryUpdated => Self::PreDispute,
 
             // --- Dispute ---
             DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
