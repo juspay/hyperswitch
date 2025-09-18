@@ -572,13 +572,13 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
     (
-        AttemptStatus,
+        Option<AttemptStatus>,
         Result<PaymentsResponseData, ErrorResponse>,
         u16,
     ),
     UnifiedConnectorServiceError,
 > {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -592,13 +592,13 @@ pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
 ) -> CustomResult<
     (
-        AttemptStatus,
+        Option<AttemptStatus>,
         Result<PaymentsResponseData, ErrorResponse>,
         u16,
     ),
     UnifiedConnectorServiceError,
 > {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -612,13 +612,13 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
 ) -> CustomResult<
     (
-        AttemptStatus,
+        Option<AttemptStatus>,
         Result<PaymentsResponseData, ErrorResponse>,
         u16,
     ),
     UnifiedConnectorServiceError,
 > {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -632,13 +632,13 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
 ) -> CustomResult<
     (
-        AttemptStatus,
+        Option<AttemptStatus>,
         Result<PaymentsResponseData, ErrorResponse>,
         u16,
     ),
     UnifiedConnectorServiceError,
 > {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 

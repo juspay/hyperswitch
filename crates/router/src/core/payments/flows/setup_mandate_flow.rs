@@ -324,7 +324,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                router_data.status = status;
+                status.map(|status| {
+                    router_data.status = status;
+                });
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
