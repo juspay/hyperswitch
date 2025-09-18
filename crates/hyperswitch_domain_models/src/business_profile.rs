@@ -1125,6 +1125,7 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1183,6 +1184,7 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1246,6 +1248,7 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
+            billing_processor_id: value.billing_processor_id,
         }
     }
 }
@@ -2259,6 +2262,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                billing_processor_id: item.billing_processor_id,
             })
         }
         .await
