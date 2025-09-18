@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, CardNetwork, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
 use common_types::payments::{
     ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
 };
@@ -1081,9 +1081,7 @@ where
         None
     };
 
-    if let Some(PaymentMethodToken::GooglePayDecrypt(ref token)) =
-        item.get_payment_method_token().ok()
-    {
+    if let Ok(PaymentMethodToken::GooglePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_google_pay_decrypt_data(
             token,
             is_rebilling,
@@ -1217,9 +1215,7 @@ where
     } else {
         None
     };
-    if let Some(PaymentMethodToken::ApplePayDecrypt(ref token)) =
-        item.get_payment_method_token().ok()
-    {
+    if let Ok(PaymentMethodToken::ApplePayDecrypt(ref token)) = item.get_payment_method_token() {
         return get_apple_pay_decrypt_data(
             token,
             is_rebilling,
