@@ -2966,6 +2966,13 @@ pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
 ) -> RouterResult<()> {
+    utils::when(amount_to_capture.is_some_and(|value| value <= 0), || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string(),
+        }))
+    })?;
+
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
         || {

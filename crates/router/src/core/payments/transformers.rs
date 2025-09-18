@@ -4444,12 +4444,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .amount_details
             .get_amount_to_capture()
             .unwrap_or(payment_data.payment_attempt.get_total_amount());
-        if amount_to_capture <= MinorUnit::new(0) {
-            return Err(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "amount".to_string(),
-                expected_format: "positive integer".to_string(),
-            }.into());
-        }
 
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
@@ -4495,13 +4489,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .payment_attempt
             .amount_to_capture
             .unwrap_or(payment_data.payment_attempt.get_total_amount());
-        if amount_to_capture <= MinorUnit::new(0) {
-            return Err(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "amount".to_string(),
-                expected_format: "positive integer".to_string(),
-            }
-            .into());
-        }
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
