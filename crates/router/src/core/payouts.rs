@@ -2782,7 +2782,15 @@ pub async fn payout_create_db_entries(
             helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
                 .await
         })
-        .await;
+        .await
+        // If no payout method data in request but we have a stored payment method, populate from it
+        .or_else(|| {
+            payment_method.as_ref().and_then(|payment_method| {
+                payment_method
+                    .get_payment_methods_data()
+                    .and_then(|pmd| pmd.get_additional_payout_method_data())
+            })
+        });
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
