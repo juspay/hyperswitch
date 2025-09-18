@@ -488,6 +488,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Trustpayments => {
+                trustpayments::transformers::TrustpaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Tokenio => {
                 tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
                 Ok(())
