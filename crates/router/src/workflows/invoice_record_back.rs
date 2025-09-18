@@ -165,10 +165,11 @@ pub async fn perform_billing_processor_record_back(
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
-    InvoiceRecordBackHandler::create(state, key_store, tracking_data, billing_processor_mca)
-        .await?
-        .record_back_to_billing_processor()
+    let handler = InvoiceRecordBackHandler::create(state, key_store, tracking_data, billing_processor_mca)
         .await?;
+
+    handler.record_back_to_billing_processor().await?;
+    handler.update_invoice_status().await?;
 
     Ok(())
 }
@@ -243,6 +244,7 @@ pub struct InvoiceRecordBackHandler<'a> {
         hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
         hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
         hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse>,
+    // To have an invoice object as well 
 }
 
 impl<'a> InvoiceRecordBackHandler<'a> {
@@ -391,6 +393,13 @@ impl<'a> InvoiceRecordBackHandler<'a> {
         .change_context(crate::errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while handling response of record back to billing connector")?;
 
+        Ok(())
+    }
+
+    pub async fn update_invoice_status(
+        &self,
+    ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
+        // Update the invoice status in DB
         Ok(())
     }
 }
