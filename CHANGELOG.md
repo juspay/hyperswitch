@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0-hotfix1
+
+### Features
+
+- **router:** Handle adyen webhook issue ([#9442](https://github.com/juspay/hyperswitch/pull/9442)) ([`4d7ebc1`](https://github.com/juspay/hyperswitch/commit/4d7ebc1be4caaf4c9e4dd0069f2abe7bf45e5741))
+
+**Full Changelog:** [`2025.09.17.0...2025.09.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0...2025.09.17.0-hotfix1)
+
+- - -
+
 ## 2025.09.17.0
 
 ### Features
