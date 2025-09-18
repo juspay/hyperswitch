@@ -25,7 +25,6 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{SubscriptionAutoCollection, SubscriptionCreateRequest},
         ConnectorCustomerData, ResponseId,
-    ,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
@@ -121,7 +120,7 @@ pub struct ChargebeeSubscriptionCreateResponse {
 pub struct ChargebeeSubscriptionDetails {
     pub id: String,
     pub status: ChargebeeSubscriptionStatus,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: CustomerId,
     pub currency_code: enums::Currency,
     pub total_dues: Option<MinorUnit>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
