@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 
 use base64::Engine;
 use common_utils::{
-    consts::BASE64_ENGINE_URL_SAFE_NO_PAD,
-    crypto::{GenerateDigest, Sha256},
+    consts,
+    crypto::{self, GenerateDigest},
     errors::CustomResult,
     ext_traits::ValueExt,
 };
@@ -160,11 +160,11 @@ pub(crate) fn get_idempotent_event_id(
     let common_prefix = format!("{primary_object_id}_{event_type}");
 
     // Hash the common prefix with SHA256 and encode with URL-safe base64 without padding
-    let digest = Sha256
+    let digest = crypto::Sha256
         .generate_digest(common_prefix.as_bytes())
         .change_context(errors::WebhooksFlowError::IdGenerationFailed)
         .attach_printable("Failed to generate idempotent event ID")?;
-    let base_encoded = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
+    let base_encoded = consts::BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
 
     let result = match delivery_attempt {
         WebhookDeliveryAttempt::InitialAttempt => base_encoded,
