@@ -675,6 +675,41 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    invoice (id) {
+        #[max_length = 255]
+        id -> Varchar,
+        #[max_length = 255]
+        subscription_id -> Varchar,
+        #[max_length = 255]
+        connector_subscription_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 255]
+        profile_id -> Varchar,
+        #[max_length = 255]
+        merchant_connector_id -> Varchar,
+        #[max_length = 255]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        customer_id -> Varchar,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        #[max_length = 50]
+        status -> Varchar,
+        #[max_length = 100]
+        provider_name -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -1623,6 +1658,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     gateway_status_map,
     generic_link,
     incremental_authorization,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,

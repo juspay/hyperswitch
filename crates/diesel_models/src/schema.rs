@@ -661,9 +661,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    invoices (invoice_id) {
+    invoice (id) {
         #[max_length = 255]
-        invoice_id -> Varchar,
+        id -> Varchar,
         #[max_length = 255]
         subscription_id -> Varchar,
         #[max_length = 255]
@@ -681,8 +681,7 @@ diesel::table! {
         #[max_length = 255]
         customer_id -> Varchar,
         amount -> Int8,
-        #[max_length = 3]
-        currency -> Varchar,
+        currency -> Nullable<Currency>,
         #[max_length = 50]
         status -> Varchar,
         #[max_length = 100]
@@ -1704,7 +1703,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     gateway_status_map,
     generic_link,
     incremental_authorization,
-    invoices,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,
