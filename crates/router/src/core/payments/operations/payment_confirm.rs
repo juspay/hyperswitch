@@ -1446,7 +1446,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("Error while parsing ThreeDsMetaData")
                 })
                 .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;            
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let merchant_country_code = authentication.acquirer_country_code.clone();
             let return_url = helpers::create_authorize_url(
                 &state.base_url,
