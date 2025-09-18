@@ -1,12 +1,10 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
+#[cfg(feature = "v2")]
+use api_models::enums as api_enums;
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
-};
-#[cfg(feature = "v2")]
-use api_models::{
-    enums as api_enums,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
