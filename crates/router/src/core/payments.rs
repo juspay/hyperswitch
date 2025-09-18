@@ -4247,9 +4247,12 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if !matches!(
+        if matches!(
             call_connector_action,
             CallConnectorAction::UCSHandleResponse(_)
+        ) || !matches!(
+            call_connector_action,
+            CallConnectorAction::UCSConsumeResponse(_)
         ) && !matches!(
             call_connector_action,
             CallConnectorAction::HandleResponse(_),
@@ -4309,6 +4312,7 @@ where
                     state,
                     merchant_connector_account.clone(),
                     merchant_context,
+                    call_connector_action,
                 )
                 .await?;
 
@@ -4848,6 +4852,7 @@ where
                     state,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    call_connector_action,
                 )
                 .await?;
 
@@ -4945,6 +4950,7 @@ where
                     state,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    call_connector_action,
                 )
                 .await?;
 
