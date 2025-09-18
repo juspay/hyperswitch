@@ -2780,7 +2780,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     request: payments_api::PaymentsRequest,
-    mut header_payload: HeaderPayload,
+    header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
@@ -4568,7 +4568,7 @@ where
             customer,
             &merchant_connector_account_type_details,
             None,
-            None,
+            Some(header_payload),
         )
         .await?;
 
@@ -4766,7 +4766,7 @@ where
             &None,
             &merchant_connector_account_type_details,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5113,7 +5113,7 @@ where
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5278,7 +5278,7 @@ where
             &None,
             &merchant_connector_account,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5402,7 +5402,7 @@ where
             &None,
             &merchant_connector_account,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5978,7 +5978,7 @@ where
                 customer,
                 &merchant_connector_account,
                 None,
-                None,
+                Some(header_payload.clone()),
             )
             .await?;
 
@@ -6100,7 +6100,7 @@ where
                 customer,
                 &merchant_connector_account,
                 None,
-                None,
+                Some(header_payload.clone()),
             )
             .await?;
 

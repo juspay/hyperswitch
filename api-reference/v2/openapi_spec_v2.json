@@ -2593,6 +2593,64 @@
         ]
       }
     },
+    "/v2/payments/{id}/check-gift-card-balance": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Gift Card Balance Check",
+        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
+        "operationId": "Retrieve Gift Card Balance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Get the Gift Card Balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -8675,6 +8733,7 @@
           "threedsecureio",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -12142,6 +12201,35 @@
             }
           }
         ]
+      },
+      "GiftCardBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency",
+          "needs_additional_pm_data",
+          "remaining_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "needs_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
       },
       "GiftCardData": {
         "oneOf": [
@@ -19344,6 +19432,19 @@
           }
         }
       },
+      "PaymentsGiftCardBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Gift Card balance check",
+        "required": [
+          "gift_card_data"
+        ],
+        "properties": {
+          "gift_card_data": {
+            "$ref": "#/components/schemas/GiftCardData"
+          }
+        },
+        "additionalProperties": false
+      },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
         "required": [
@@ -23867,6 +23968,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
