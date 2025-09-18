@@ -8067,6 +8067,7 @@ pub enum AuthenticationConnectors {
     UnifiedAuthenticationService,
     Juspaythreedsserver,
     CtpVisa,
+    Cardinal,
 }
 
 impl AuthenticationConnectors {
@@ -8077,7 +8078,8 @@ impl AuthenticationConnectors {
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
-            | Self::CtpVisa => false,
+            | Self::CtpVisa
+            | Self::Cardinal => false,
             Self::Gpayments => true,
         }
     }

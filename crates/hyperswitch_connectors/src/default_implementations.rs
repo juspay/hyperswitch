@@ -1442,7 +1442,6 @@ default_imp_for_create_customer!(
     connectors::Breadpay,
     connectors::Cashtocode,
     connectors::Celero,
-    connectors::Chargebee,
     connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,

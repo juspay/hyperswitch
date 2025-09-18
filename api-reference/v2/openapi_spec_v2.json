@@ -5217,7 +5217,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationDetails": {
@@ -8651,6 +8652,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -19399,6 +19401,11 @@
           "challenge_request": {
             "type": "string",
             "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
             "nullable": true
           },
           "acs_reference_number": {
