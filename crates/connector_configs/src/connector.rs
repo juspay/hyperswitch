@@ -172,6 +172,11 @@ pub struct ConfigMetadata {
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
     pub account_id: Option<AccountIDSupportedMethods>,
+    pub name: Option<InputData>,
+    pub client_merchant_reference_id: Option<InputData>,
+    pub route: Option<InputData>,
+    pub mid: Option<InputData>,
+    pub tid: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
