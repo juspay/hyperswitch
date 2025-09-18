@@ -621,12 +621,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
             ResultCode::Ok => match item.response.customer_profile_id.clone() {
                 Some(connector_customer_id) => Ok(Self {
                     response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                        ConnectorCustomerResponseData {
-                            connector_customer_id,
-                            name: None,
-                            email: None,
-                            billing_address: None,
-                        },
+                        ConnectorCustomerResponseData::new_with_customer_id(connector_customer_id),
                     )),
                     ..item.data
                 }),
@@ -644,12 +639,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                 {
                     Ok(Self {
                         response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                            ConnectorCustomerResponseData {
+                            ConnectorCustomerResponseData::new_with_customer_id(
                                 connector_customer_id,
-                                name: None,
-                                email: None,
-                                billing_address: None,
-                            },
+                            ),
                         )),
                         ..item.data
                     })

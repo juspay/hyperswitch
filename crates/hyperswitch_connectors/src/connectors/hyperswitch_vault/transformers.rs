@@ -111,12 +111,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                ConnectorCustomerResponseData {
-                    connector_customer_id: item.response.id,
-                    name: None,
-                    email: None,
-                    billing_address: None,
-                },
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
             )),
             ..item.data
         })

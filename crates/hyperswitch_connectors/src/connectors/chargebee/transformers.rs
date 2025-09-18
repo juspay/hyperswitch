@@ -903,18 +903,18 @@ impl
 
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
-                ConnectorCustomerResponseData {
-                    connector_customer_id: customer_response.id.clone(),
-                    name: customer_response
+                ConnectorCustomerResponseData::new(
+                    customer_response.id.clone(),
+                    customer_response
                         .name
                         .as_ref()
                         .map(|name| name.clone().expose()),
-                    email: customer_response
+                    customer_response
                         .email
                         .as_ref()
                         .map(|email| email.clone().expose().expose()),
-                    billing_address: customer_response.billing_address.clone(),
-                },
+                    customer_response.billing_address.clone(),
+                ),
             )),
             ..item.data
         })

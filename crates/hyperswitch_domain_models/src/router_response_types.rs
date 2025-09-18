@@ -32,6 +32,25 @@ pub struct ConnectorCustomerResponseData {
     pub billing_address: Option<AddressDetails>,
 }
 
+impl ConnectorCustomerResponseData {
+    pub fn new_with_customer_id(connector_customer_id: String) -> Self {
+        Self::new(connector_customer_id, None, None, None)
+    }
+    pub fn new(
+        connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
+    ) -> Self {
+        Self {
+            connector_customer_id,
+            name,
+            email,
+            billing_address,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
