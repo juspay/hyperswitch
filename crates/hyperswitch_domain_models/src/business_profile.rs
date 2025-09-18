@@ -1434,6 +1434,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2161,6 +2162,7 @@ impl super::behaviour::Conversion for Profile {
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 
@@ -2328,6 +2330,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
+            billing_processor_id: self.billing_processor_id,
         })
     }
 }
