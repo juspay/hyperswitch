@@ -1776,7 +1776,7 @@ where
 
             ..Default::default()
         })?;
-        let return_url = "https://baf141b098ed.ngrok-free.app".to_string(); // item.request.get_return_url_required()?;
+        let return_url = item.request.get_return_url_required()?;
 
         let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
         let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;
@@ -3755,11 +3755,11 @@ pub fn map_notification_to_event(
     match (status, transaction_type) {
         (
             DmnStatus::Success | DmnStatus::Approved,
-            NuveiTransactionType::Auth | NuveiTransactionType::Auth3D,
+            NuveiTransactionType::Auth,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
         (
             DmnStatus::Success | DmnStatus::Approved,
-            NuveiTransactionType::Sale | NuveiTransactionType::InitAuth3D,
+            NuveiTransactionType::Sale,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
         (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
@@ -3772,11 +3772,11 @@ pub fn map_notification_to_event(
         }
         (
             DmnStatus::Error | DmnStatus::Declined,
-            NuveiTransactionType::Auth | NuveiTransactionType::Auth3D,
+            NuveiTransactionType::Auth
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure),
         (
             DmnStatus::Error | DmnStatus::Declined,
-            NuveiTransactionType::Sale | NuveiTransactionType::InitAuth3D,
+            NuveiTransactionType::Sale 
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
         (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Settle) => {
             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
@@ -3790,7 +3790,6 @@ pub fn map_notification_to_event(
         (
             DmnStatus::Pending,
             NuveiTransactionType::Auth
-            | NuveiTransactionType::Auth3D
             | NuveiTransactionType::Sale
             | NuveiTransactionType::Settle,
         ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
@@ -3830,7 +3829,6 @@ pub fn map_dispute_notification_to_event(
         | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
         | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
         | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
-        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
         | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
             Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
         }
@@ -3854,6 +3852,7 @@ pub fn map_dispute_notification_to_event(
         DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
         | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
         | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
         | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
             Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
         }

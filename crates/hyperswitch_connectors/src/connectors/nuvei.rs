@@ -560,7 +560,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nuv
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let nuvie_psync_common_response: nuvei::NuveiPaymentSyncResponse = res
             .response
-            .parse_struct("NuveiTransactionSyncResponse")
+            .parse_struct("NuveiPaymentSyncResponse")
             .switch()?;
 
         event_builder.map(|i| i.set_response_body(&nuvie_psync_common_response));
