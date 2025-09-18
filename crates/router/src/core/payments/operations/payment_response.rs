@@ -3288,7 +3288,8 @@ impl<F: Clone + Send + Sync>
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_intent")?;
 
         let payment_attempt_update =
             router_data.get_payment_attempt_update(&payment_data, storage_scheme);
@@ -3302,7 +3303,8 @@ impl<F: Clone + Send + Sync>
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_attempt")?;
 
         payment_data.set_payment_intent(updated_payment_intent);
         payment_data.set_payment_attempt(updated_payment_attempt);
