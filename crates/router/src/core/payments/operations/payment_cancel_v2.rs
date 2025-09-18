@@ -153,7 +153,8 @@ impl<F: Send + Clone + Sync>
                 storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Failed to find payment intent for cancellation")?;
 
         self.validate_status_for_operation(payment_intent.status)?;
 

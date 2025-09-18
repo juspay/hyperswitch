@@ -4902,7 +4902,7 @@ pub struct PaymentsCancelResponse {
 
     /// The connector used for the payment
     #[schema(example = "stripe")]
-    pub connector: Option<String>,
+    pub connector: Option<api_enums::Connector>,
 
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]

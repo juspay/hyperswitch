@@ -12650,7 +12650,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     ) {
-        self.payment_intent.setup_future_usage = setup_future_usage;
+        todo!()
     }
 
     fn set_prerouting_algorithm_in_payment_intent(

@@ -324,6 +324,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
         router_data.apple_pay_flow = apple_pay_flow;
         router_data.connector_response = connector_response;
         router_data.payment_method_status = payment_method_status;
+        router_data.connector_auth_type = new_router_data.connector_auth_type;
         Ok(router_data)
     }
 }

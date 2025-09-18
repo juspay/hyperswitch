@@ -4,6 +4,10 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
+#[cfg(feature = "v2")]
+use api_models::{
+    enums as api_enums,
+};
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -21,9 +25,12 @@ use diesel_models::{
     },
 };
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    router_data_v2::{flow_common_types, RouterDataV2},
+    ApiModelToDieselModelConvertor,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
@@ -200,7 +207,7 @@ pub async fn construct_external_vault_proxy_router_data_v2<'a>(
     customer_id: Option<common_utils::id_type::CustomerId>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<
-    hyperswitch_domain_models::router_data_v2::RouterDataV2<
+    RouterDataV2<
         api::ExternalVaultProxy,
         hyperswitch_domain_models::router_data_v2::ExternalVaultProxyFlowData,
         types::ExternalVaultProxyPaymentsData,
@@ -685,11 +692,12 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     .await?;
 
     // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
-    let router_data = hyperswitch_domain_models::router_data_v2::flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Cannot construct router data for making the unified connector service call",
-        )?;
+    let router_data =
+        flow_common_types::ExternalVaultProxyFlowData::to_old_router_data(router_data_v2)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Cannot construct router data for making the unified connector service call",
+            )?;
 
     Ok(router_data)
 }
@@ -994,6 +1002,87 @@ pub async fn construct_router_data_for_psync<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+pub async fn construct_cancel_router_data_v2<'a>(
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+    payment_data: &hyperswitch_domain_models::payments::PaymentCancelData<api::Void>,
+    request: types::PaymentsCancelData,
+    connector_request_reference_id: String,
+    customer_id: Option<common_utils::id_type::CustomerId>,
+    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+) -> RouterResult<
+    RouterDataV2<
+        api::Void,
+        flow_common_types::PaymentFlowData,
+        types::PaymentsCancelData,
+        types::PaymentsResponseData,
+    >,
+> {
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let payment_cancel_data = flow_common_types::PaymentFlowData {
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        connector_customer: None,
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: payment_data
+            .payment_attempt
+            .get_id()
+            .get_string_repr()
+            .to_owned(),
+        status: payment_data.payment_attempt.status,
+        payment_method: payment_data.payment_attempt.payment_method_type,
+        description: payment_data
+            .payment_intent
+            .description
+            .as_ref()
+            .map(|description| description.get_string_repr())
+            .map(ToOwned::to_owned),
+        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+        auth_type: payment_data.payment_attempt.authentication_type,
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        recurring_mandate_payment_data: None,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id.clone(),
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_request_reference_id,
+        test_mode: Some(true),
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        connector_response: None,
+        payment_method_status: None,
+    };
+
+    let router_data_v2 = RouterDataV2 {
+        flow: PhantomData,
+        tenant_id: state.tenant.tenant_id.clone(),
+        resource_common_data: payment_cancel_data,
+        connector_auth_type: auth_type,
+        request,
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+    };
+
+    Ok(router_data_v2)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_router_data_for_cancel<'a>(
     state: &'a SessionState,
     payment_data: hyperswitch_domain_models::payments::PaymentCancelData<
@@ -1020,10 +1109,6 @@ pub async fn construct_router_data_for_cancel<'a>(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
     let payment_intent = payment_data.get_payment_intent();
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
     let attempt = payment_data.get_payment_attempt();
     let connector_request_reference_id = payment_data
         .payment_attempt
@@ -1048,64 +1133,25 @@ pub async fn construct_router_data_for_cancel<'a>(
         capture_method: Some(payment_intent.capture_method),
     };
 
-    let router_data = types::RouterData {
-        flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
-        customer_id,
-        connector: connector_id.to_string(),
-        tenant_id: state.tenant.tenant_id.clone(),
-        payment_id: payment_intent.id.get_string_repr().to_owned(),
-        attempt_id: attempt.get_id().get_string_repr().to_owned(),
-        status: attempt.status,
-        payment_method: attempt.payment_method_type,
-        connector_auth_type: auth_type,
-        description: payment_intent
-            .description
-            .as_ref()
-            .map(|description| description.get_string_repr())
-            .map(ToOwned::to_owned),
-        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-        auth_type: attempt.authentication_type,
-        connector_meta_data: None,
-        connector_wallets_details: None,
+    // Construct RouterDataV2 for cancel operation
+    let router_data_v2 = construct_cancel_router_data_v2(
+        state,
+        merchant_context.get_merchant_account(),
+        merchant_connector_account,
+        &payment_data,
         request,
-        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
-        access_token: None,
-        session_token: None,
-        reference_id: None,
-        payment_method_status: None,
-        payment_method_token: None,
-        connector_customer: None,
-        recurring_mandate_payment_data: None,
-        connector_request_reference_id,
-        preprocessing_id: attempt.preprocessing_step_id.clone(),
-        #[cfg(feature = "payouts")]
-        payout_method_data: None,
-        #[cfg(feature = "payouts")]
-        quote_id: None,
-        test_mode: Some(true),
-        payment_method_balance: None,
-        connector_api_version: None,
-        connector_http_status_code: None,
-        external_latency: None,
-        apple_pay_flow: None,
-        frm_metadata: None,
-        refund_id: None,
-        dispute_id: None,
-        connector_response: None,
-        integrity_check: Ok(()),
-        additional_merchant_data: None,
-        header_payload,
-        connector_mandate_request_reference_id: None,
-        authentication_id: None,
-        psd2_sca_exemption_type: None,
-        raw_connector_response: None,
-        is_payment_id_from_merchant: None,
-        l2_l3_data: None,
-        minor_amount_capturable: None,
-    };
+        connector_request_reference_id.clone(),
+        customer_id.clone(),
+        header_payload.clone(),
+    )
+    .await?;
+
+    // Convert RouterDataV2 to old RouterData (v1) using the existing RouterDataConversion trait
+    let router_data = flow_common_types::PaymentFlowData::to_old_router_data(router_data_v2)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Cannot construct router data for making the unified connector service call",
+        )?;
 
     Ok(router_data)
 }
@@ -2121,13 +2167,17 @@ where
             &payment_attempt.amount_details,
         ));
 
+        let connector = payment_attempt
+            .connector
+            .as_ref()
+            .and_then(|conn| api_enums::Connector::from_str(conn).ok());
         let response = api_models::payments::PaymentsCancelResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
             cancellation_reason: payment_attempt.cancellation_reason.clone(),
             amount,
             customer_id: payment_intent.customer_id.clone(),
-            connector: payment_attempt.connector.clone(),
+            connector,
             created: payment_intent.created_at,
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
@@ -4722,8 +4772,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        use masking::ExposeOptionInterface;
-
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
             &additional_data.state.conf.connectors,
