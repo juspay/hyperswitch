@@ -152,7 +152,7 @@ pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
     event_type: types::storage::enums::EventType,
     delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
-) -> String {
+) -> Result<String, Report<errors::WebhooksFlowError>> {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
@@ -168,8 +168,9 @@ pub(crate) fn get_idempotent_event_id(
     // Hash the base string with SHA256 and encode with URL-safe base64 without padding
     let digest = Sha256
         .generate_digest(base_string.as_bytes())
-        .expect("SHA256 digest generation failed");
-    BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest)
+        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
+        .attach_printable("Failed to generate idempotent event ID")?;
+    Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest))
 }
 
 #[inline]
