@@ -17,6 +17,7 @@ mod profile_acquirer;
 mod refunds;
 mod relay;
 mod routing;
+mod subscription;
 mod tenant;
 
 use std::{borrow::Cow, fmt::Debug};
@@ -55,6 +56,7 @@ pub use self::{
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,
+    subscription::SubscriptionId,
     tenant::TenantId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};

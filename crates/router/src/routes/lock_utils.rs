@@ -26,6 +26,7 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    Subscription,
     Blocklist,
     Forex,
     RustLockerMigration,
@@ -49,6 +50,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
+    RecoveryDataBackfill,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -87,6 +89,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
+
+            Flow::CreateSubscription => Self::Subscription,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -380,6 +384,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
                 Self::GenericTokenization
             }
+
+            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
         }
     }
 }
