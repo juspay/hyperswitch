@@ -1,7 +1,11 @@
-use common_enums::enums::{self, AttemptStatus, PaymentChannel};
+use common_enums::{
+    enums::{self, AttemptStatus, PaymentChannel},
+    CountryAlpha2,
+};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
+    id_type::CustomerId,
     request::Method,
     types::MinorUnit,
 };
@@ -25,6 +29,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use time::PrimitiveDateTime;
 use url::Url;
 
@@ -269,6 +274,54 @@ pub struct ReturnUrl {
     pub failure_url: Option<String>,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutCustomer {
+    pub name: Option<CustomerId>,
+    pub tax_number: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutProcessing {
+    pub order_id: Option<String>,
+    pub tax_amount: Option<MinorUnit>,
+    pub discount_amount: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_tax_amount: Option<MinorUnit>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutShippingAddress {
+    pub country: Option<CountryAlpha2>,
+    pub zip: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutShipping {
+    pub address: Option<CheckoutShippingAddress>,
+    pub from_address_zip: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutLineItem {
+    pub commodity_code: Option<String>,
+    pub discount_amount: Option<MinorUnit>,
+    pub name: Option<String>,
+    pub quantity: Option<u16>,
+    pub reference: Option<String>,
+    pub tax_exempt: Option<bool>,
+    pub tax_amount: Option<MinorUnit>,
+    pub total_amount: Option<MinorUnit>,
+    pub unit_of_measure: Option<String>,
+    pub unit_price: Option<MinorUnit>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
@@ -285,6 +338,12 @@ pub struct PaymentsRequest {
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
     pub previous_payment_id: Option<String>,
+
+    // Level 2/3 data fields
+    pub customer: Option<CheckoutCustomer>,
+    pub processing: Option<CheckoutProcessing>,
+    pub shipping: Option<CheckoutShipping>,
+    pub items: Option<Vec<CheckoutLineItem>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -513,7 +572,52 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
 
-        Ok(Self {
+        // Extract Level 2/3 data if present
+        let (customer, processing, shipping, items) =
+            if let Some(l2l3_data) = &item.router_data.l2_l3_data {
+                (
+                    Some(CheckoutCustomer {
+                        name: l2l3_data.customer_id.clone(),
+                        tax_number: l2l3_data.customer_tax_registration_id.clone(),
+                    }),
+                    Some(CheckoutProcessing {
+                        order_id: l2l3_data.merchant_order_reference_id.clone(),
+                        tax_amount: l2l3_data.order_tax_amount,
+                        discount_amount: l2l3_data.discount_amount,
+                        duty_amount: l2l3_data.duty_amount,
+                        shipping_amount: l2l3_data.shipping_cost,
+                        shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                    }),
+                    Some(CheckoutShipping {
+                        address: Some(CheckoutShippingAddress {
+                            country: l2l3_data.shipping_country.clone(),
+                            zip: l2l3_data.shipping_destination_zip.clone(),
+                        }),
+                        from_address_zip: l2l3_data.shipping_origin_zip.clone().map(|z| z.expose()),
+                    }),
+                    l2l3_data.order_details.as_ref().map(|details| {
+                        details
+                            .iter()
+                            .map(|item| CheckoutLineItem {
+                                commodity_code: item.commodity_code.clone(),
+                                discount_amount: item.unit_discount_amount,
+                                name: Some(item.product_name.clone()),
+                                quantity: Some(item.quantity),
+                                reference: item.product_id.clone(),
+                                tax_exempt: None,
+                                tax_amount: item.total_tax_amount,
+                                total_amount: item.total_amount,
+                                unit_of_measure: item.unit_of_measure.clone(),
+                                unit_price: Some(item.amount),
+                            })
+                            .collect()
+                    }),
+                )
+            } else {
+                (None, None, None, None)
+            };
+
+        let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
             currency: item.router_data.request.currency.to_string(),
@@ -526,7 +630,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             payment_type,
             merchant_initiated,
             previous_payment_id,
-        })
+            customer,
+            processing,
+            shipping,
+            items,
+        };
+
+        Ok(request)
     }
 }
 
