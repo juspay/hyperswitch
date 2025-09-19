@@ -102,10 +102,7 @@ impl InvoiceNew {
 }
 
 impl InvoiceUpdate {
-    pub fn new(
-        payment_method_id: Option<String>,
-        status: Option<InvoiceStatus>,
-    ) -> Self {
+    pub fn new(payment_method_id: Option<String>, status: Option<InvoiceStatus>) -> Self {
         Self {
             payment_method_id,
             status: status.map(|status| status.to_string()),

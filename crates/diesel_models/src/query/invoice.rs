@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, ExpressionMethods};
+
 use super::generics;
 use crate::{
     invoice::{Invoice, InvoiceNew, InvoiceUpdate},
@@ -27,7 +28,7 @@ impl Invoice {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::id.eq(id.to_owned())
+            dsl::id.eq(id.to_owned()),
         )
         .await
     }
@@ -42,11 +43,7 @@ impl Invoice {
             _,
             _,
             _,
-        >(
-            conn,
-            dsl::id.eq(id.to_owned()),
-            invoice_update,
-        )
+        >(conn, dsl::id.eq(id.to_owned()), invoice_update)
         .await
     }
 }
