@@ -80,6 +80,8 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -139,6 +141,8 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -199,6 +203,8 @@ pub struct ProfileUpdateInternal {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -256,6 +262,8 @@ impl ProfileUpdateInternal {
             dispute_polling_interval,
             is_manual_retry_enabled,
             always_enable_overcapture,
+            is_external_vault_enabled,
+            external_vault_connector_details,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -345,6 +353,10 @@ impl ProfileUpdateInternal {
             is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
             always_enable_overcapture: always_enable_overcapture
                 .or(source.always_enable_overcapture),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
+            external_vault_connector_details: external_vault_connector_details
+                .or(source.external_vault_connector_details),
         }
     }
 }

@@ -51,11 +51,16 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
+    #[cfg(feature = "v2")]
     pub entity_id: Option<id_type::GlobalCustomerId>,
+    #[cfg(feature = "v1")]
+    pub entity_id: Option<id_type::CustomerId>,
+    #[cfg(feature = "v2")]
     pub vault_id: domain::VaultId,
+    #[cfg(feature = "v1")]
+    pub vault_id: String,
     pub fingerprint_id: Option<String>,
 }
 

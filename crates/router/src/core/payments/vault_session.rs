@@ -352,7 +352,7 @@ where
 
     let mut router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_account().get_id(),
         merchant_connector_account_type,
         None,
         None,

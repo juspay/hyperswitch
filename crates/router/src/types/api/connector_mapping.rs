@@ -76,13 +76,16 @@ impl ConnectorData {
         })
     }
 
-    #[cfg(feature = "v2")]
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
-        connector: &enums::Connector,
+        #[cfg(feature = "v1")] connector: String,
+        #[cfg(feature = "v2")] connector: &enums::Connector,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        #[cfg(feature = "v1")]
+        let connector_enum = Self::convert_connector(&connector)?;
+        #[cfg(feature = "v2")]
         let connector_enum = Self::convert_connector(&connector.to_string())?;
         let external_vault_connector_name =
             enums::VaultConnectors::from_str(&connector.to_string())

@@ -235,6 +235,10 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             dispute_polling_interval: item.dispute_polling_interval,
             is_manual_retry_enabled: item.is_manual_retry_enabled,
             always_enable_overcapture: item.always_enable_overcapture,
+            is_external_vault_enabled: item.is_external_vault_enabled,
+            external_vault_connector_details: item
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
         })
     }
 }
@@ -495,5 +499,9 @@ pub async fn create_profile_from_merchant_account(
         dispute_polling_interval: request.dispute_polling_interval,
         is_manual_retry_enabled: request.is_manual_retry_enabled,
         always_enable_overcapture: request.always_enable_overcapture,
+        is_external_vault_enabled: request.is_external_vault_enabled,
+        external_vault_connector_details: request
+            .external_vault_connector_details
+            .map(ForeignInto::foreign_into),
     }))
 }

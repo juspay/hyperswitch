@@ -11,13 +11,11 @@ use common_utils::{
     pii, type_name,
     types::keymanager,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
-};
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::{
-    ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
+    CardTestingGuardConfig, ExternalVaultConnectorDetails, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -86,6 +84,8 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -144,6 +144,8 @@ pub struct ProfileSetter {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -209,6 +211,8 @@ impl From<ProfileSetter> for Profile {
             dispute_polling_interval: value.dispute_polling_interval,
             is_manual_retry_enabled: value.is_manual_retry_enabled,
             always_enable_overcapture: value.always_enable_overcapture,
+            is_external_vault_enabled: value.is_external_vault_enabled,
+            external_vault_connector_details: value.external_vault_connector_details,
         }
     }
 }
@@ -276,6 +280,8 @@ pub struct ProfileGeneralUpdate {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -361,6 +367,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     always_request_extended_authorization,
                     is_manual_retry_enabled,
                     always_enable_overcapture,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 } = *update;
 
                 Self {
@@ -416,6 +424,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     dispute_polling_interval,
                     is_manual_retry_enabled,
                     always_enable_overcapture,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -474,6 +484,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -529,6 +541,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -584,6 +598,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -639,6 +655,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -694,6 +712,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -749,6 +769,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -804,6 +826,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
         }
     }
@@ -879,6 +903,8 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 
@@ -980,6 +1006,8 @@ impl super::behaviour::Conversion for Profile {
                 dispute_polling_interval: item.dispute_polling_interval,
                 is_manual_retry_enabled: item.is_manual_retry_enabled,
                 always_enable_overcapture: item.always_enable_overcapture,
+                is_external_vault_enabled: item.is_external_vault_enabled,
+                external_vault_connector_details: item.external_vault_connector_details,
             })
         }
         .await
@@ -1047,6 +1075,8 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 }

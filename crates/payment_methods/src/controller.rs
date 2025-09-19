@@ -54,6 +54,8 @@ pub trait PaymentMethodsController {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
+        vault_type: Option<common_enums::VaultType>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -74,6 +76,8 @@ pub trait PaymentMethodsController {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
+        vault_type: Option<common_enums::VaultType>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
