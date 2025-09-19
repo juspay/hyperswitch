@@ -8,7 +8,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{self, Email, IpAddress},
     request::Method,
-    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{FloatMajorUnit, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -925,6 +925,19 @@ pub fn encode_payload(
     Ok(hex::encode(digest))
 }
 
+impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {
+    fn from(value: NuveiPaymentSyncResponse) -> Self {
+        match value {
+            NuveiPaymentSyncResponse::NuveiDmn(payment_dmn_notification) => {
+                Self::from(*payment_dmn_notification)
+            }
+            NuveiPaymentSyncResponse::NuveiApi(nuvei_transaction_sync_response) => {
+                *nuvei_transaction_sync_response
+            }
+        }
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1503,7 +1516,7 @@ where
             card_holder_name: data.card_holder_name,
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
-            ..Default::default() // CVV should be disabled by nuvei fo
+            ..Default::default() // CVV should be disabled by nuvei
         }),
         redirect_url: None,
         user_payment_option_id: None,
@@ -2340,6 +2353,7 @@ pub struct NuveiTransactionSyncResponseDetails {
     gw_error_reason: Option<String>,
     gw_extended_error_code: Option<i64>,
     transaction_id: Option<String>,
+    // Status of the payment
     transaction_status: Option<NuveiTransactionStatus>,
     transaction_type: Option<NuveiTransactionType>,
     auth_code: Option<String>,
@@ -2357,6 +2371,7 @@ pub struct NuveiTransactionSyncResponse {
     pub fraud_details: Option<FraudDetails>,
     pub client_unique_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    // API response status
     pub status: NuveiPaymentStatus,
     pub err_code: Option<i64>,
     pub reason: Option<String>,
@@ -2519,6 +2534,7 @@ struct ErrorResponseParams {
     gw_error_code: Option<i64>,
     gw_error_reason: Option<String>,
     transaction_status: Option<NuveiTransactionStatus>,
+    transaction_id: Option<String>,
 }
 
 fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
@@ -2530,6 +2546,7 @@ fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
             params.merchant_advice_code.clone(),
             params.gw_error_code.map(|code| code.to_string()),
             params.gw_error_reason.clone(),
+            params.transaction_id.clone(),
         )),
 
         _ => {
@@ -2540,6 +2557,7 @@ fn build_error_response(params: ErrorResponseParams) -> Option<ErrorResponse> {
                 params.merchant_advice_code,
                 params.gw_error_code.map(|e| e.to_string()),
                 params.gw_error_reason.clone(),
+                params.transaction_id.clone(),
             ));
 
             match params.transaction_status {
@@ -2630,6 +2648,7 @@ impl
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2852,6 +2871,7 @@ impl
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2914,6 +2934,7 @@ where
                 gw_error_code: response.gw_error_code,
                 gw_error_reason: response.gw_error_reason.clone(),
                 transaction_status: response.transaction_status.clone(),
+                transaction_id: response.transaction_id.clone(),
             }) {
                 Err(err)
             } else {
@@ -2984,6 +3005,9 @@ where
                 transaction_status: transaction_details
                     .as_ref()
                     .and_then(|details| details.transaction_status.clone()),
+                transaction_id: transaction_details
+                    .as_ref()
+                    .and_then(|details| details.transaction_id.clone()),
             }) {
                 Err(err)
             } else {
@@ -3075,21 +3099,70 @@ impl TryFrom<RefundsResponseRouterData<Execute, NuveiPaymentsResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, NuveiPaymentsResponse>>
+impl TryFrom<RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>>
     for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, NuveiPaymentsResponse>,
+        item: RefundsResponseRouterData<RSync, NuveiTransactionSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item
+        let txn_id = item
             .response
-            .transaction_id
-            .clone()
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.transaction_id.clone())
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        let refund_response =
-            get_refund_response(item.response.clone(), item.http_code, transaction_id);
+        let refund_status = item
+            .response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.transaction_status.clone())
+            .map(enums::RefundStatus::from)
+            .unwrap_or(enums::RefundStatus::Failure);
+
+        let network_decline_code = item
+            .response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.gw_error_code.map(|e| e.to_string()));
+
+        let network_error_msg = item
+            .response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| details.gw_error_reason.clone());
+
+        let refund_response = match item.response.status {
+            NuveiPaymentStatus::Error => Err(Box::new(get_error_response(
+                item.response.err_code,
+                item.response.reason.clone(),
+                item.http_code,
+                item.response.merchant_advice_code,
+                network_decline_code,
+                network_error_msg,
+                Some(txn_id.clone()),
+            ))),
+            _ => match item
+                .response
+                .transaction_details
+                .and_then(|nuvei_response| nuvei_response.transaction_status)
+            {
+                Some(NuveiTransactionStatus::Error) => Err(Box::new(get_error_response(
+                    item.response.err_code,
+                    item.response.reason,
+                    item.http_code,
+                    item.response.merchant_advice_code,
+                    network_decline_code,
+                    network_error_msg,
+                    Some(txn_id.clone()),
+                ))),
+                _ => Ok(RefundsResponseData {
+                    connector_refund_id: txn_id,
+                    refund_status,
+                }),
+            },
+        };
 
         Ok(Self {
             response: refund_response.map_err(|err| *err),
@@ -3175,6 +3248,7 @@ fn get_refund_response(
             response.merchant_advice_code,
             response.gw_error_code.map(|e| e.to_string()),
             response.gw_error_reason,
+            Some(txn_id.clone()),
         ))),
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => Err(Box::new(get_error_response(
@@ -3184,6 +3258,7 @@ fn get_refund_response(
                 response.merchant_advice_code,
                 response.gw_error_code.map(|e| e.to_string()),
                 response.gw_error_reason,
+                Some(txn_id.clone()),
             ))),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: txn_id,
@@ -3200,6 +3275,7 @@ fn get_error_response(
     network_advice_code: Option<String>,
     network_decline_code: Option<String>,
     network_error_message: Option<String>,
+    transaction_id: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         code: error_code
@@ -3211,7 +3287,7 @@ fn get_error_response(
         reason: None,
         status_code: http_code,
         attempt_status: None,
-        connector_transaction_id: None,
+        connector_transaction_id: transaction_id,
         network_advice_code: network_advice_code.clone(),
         network_decline_code: network_decline_code.clone(),
         network_error_message: network_error_message.clone(),
@@ -3225,6 +3301,14 @@ fn get_error_response(
 pub enum NuveiWebhook {
     PaymentDmn(PaymentDmnNotification),
     Chargeback(ChargebackNotification),
+}
+
+/// Represents Psync Response from Nuvei.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NuveiPaymentSyncResponse {
+    NuveiDmn(Box<PaymentDmnNotification>),
+    NuveiApi(Box<NuveiTransactionSyncResponse>),
 }
 
 /// Represents the status of a chargeback event.
@@ -3243,27 +3327,225 @@ pub enum ChargebackStatus {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChargebackNotification {
-    #[serde(rename = "ppp_TransactionID")]
-    pub ppp_transaction_id: Option<String>,
-    pub merchant_unique_id: Option<String>,
-    pub merchant_id: Option<String>,
-    pub merchant_site_id: Option<String>,
-    pub request_version: Option<String>,
-    pub message: Option<String>,
-    pub status: Option<ChargebackStatus>,
-    pub reason: Option<String>,
-    pub case_id: Option<String>,
-    pub processor_case_id: Option<String>,
+    pub client_id: Option<i64>,
+    pub client_name: Option<String>,
+    pub event_date_u_t_c: Option<String>,
+    pub event_correlation_id: Option<String>,
+    pub chargeback: ChargebackData,
+    pub transaction_details: ChargebackTransactionDetails,
+    pub event_id: Option<String>,
+    pub event_date: Option<String>,
+    pub processing_entity_type: Option<String>,
+    pub processing_entity_id: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChargebackData {
+    pub date: Option<time::PrimitiveDateTime>,
+    pub chargeback_status_category: ChargebackStatusCategory,
+    #[serde(rename = "Type")]
+    pub webhook_type: ChargebackType,
+    pub status: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
+    pub reported_amount: FloatMajorUnit,
+    pub reported_currency: String,
+    pub chargeback_reason: Option<String>,
+    pub chargeback_reason_category: Option<String>,
+    pub reason_message: Option<String>,
+    pub dispute_id: Option<String>,
+    pub dispute_due_date: Option<time::PrimitiveDateTime>,
+    pub dispute_event_id: Option<i64>,
+    pub dispute_unified_status_code: Option<DisputeUnifiedStatusCode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
+pub enum DisputeUnifiedStatusCode {
+    #[serde(rename = "FC")]
+    FirstChargebackInitiatedByIssuer,
+
+    #[serde(rename = "CC")]
+    CreditChargebackInitiatedByIssuer,
+
+    #[serde(rename = "CC-A-ACPT")]
+    CreditChargebackAcceptedAutomatically,
+
+    #[serde(rename = "FC-A-EPRD")]
+    FirstChargebackNoResponseExpired,
+
+    #[serde(rename = "FC-M-ACPT")]
+    FirstChargebackAcceptedByMerchant,
+
+    #[serde(rename = "FC-A-ACPT")]
+    FirstChargebackAcceptedAutomatically,
+
+    #[serde(rename = "FC-A-ACPT-MCOLL")]
+    FirstChargebackAcceptedAutomaticallyMcoll,
+
+    #[serde(rename = "FC-M-PART")]
+    FirstChargebackPartiallyAcceptedByMerchant,
+
+    #[serde(rename = "FC-M-PART-EXP")]
+    FirstChargebackPartiallyAcceptedByMerchantExpired,
+
+    #[serde(rename = "FC-M-RJCT")]
+    FirstChargebackRejectedByMerchant,
+
+    #[serde(rename = "FC-M-RJCT-EXP")]
+    FirstChargebackRejectedByMerchantExpired,
+
+    #[serde(rename = "FC-A-RJCT")]
+    FirstChargebackRejectedAutomatically,
+
+    #[serde(rename = "FC-A-RJCT-EXP")]
+    FirstChargebackRejectedAutomaticallyExpired,
+
+    #[serde(rename = "IPA")]
+    PreArbitrationInitiatedByIssuer,
+
+    #[serde(rename = "MPA-I-ACPT")]
+    MerchantPreArbitrationAcceptedByIssuer,
+
+    #[serde(rename = "MPA-I-RJCT")]
+    MerchantPreArbitrationRejectedByIssuer,
+
+    #[serde(rename = "MPA-I-PART")]
+    MerchantPreArbitrationPartiallyAcceptedByIssuer,
+
+    #[serde(rename = "FC-CLSD-MF")]
+    FirstChargebackClosedMerchantFavour,
+
+    #[serde(rename = "FC-CLSD-CHF")]
+    FirstChargebackClosedCardholderFavour,
+
+    #[serde(rename = "FC-CLSD-RCL")]
+    FirstChargebackClosedRecall,
+
+    #[serde(rename = "FC-I-RCL")]
+    FirstChargebackRecalledByIssuer,
+
+    #[serde(rename = "PA-CLSD-MF")]
+    PreArbitrationClosedMerchantFavour,
+
+    #[serde(rename = "PA-CLSD-CHF")]
+    PreArbitrationClosedCardholderFavour,
+
+    #[serde(rename = "RDR")]
+    Rdr,
+
+    #[serde(rename = "FC-SPCSE")]
+    FirstChargebackDisputeResponseNotAllowed,
+
+    #[serde(rename = "MCC")]
+    McCollaborationInitiatedByIssuer,
+
+    #[serde(rename = "MCC-A-RJCT")]
+    McCollaborationPreviouslyRefundedAuto,
+
+    #[serde(rename = "MCC-M-ACPT")]
+    McCollaborationRefundedByMerchant,
+
+    #[serde(rename = "MCC-EXPR")]
+    McCollaborationExpired,
+
+    #[serde(rename = "MCC-M-RJCT")]
+    McCollaborationRejectedByMerchant,
+
+    #[serde(rename = "MCC-A-ACPT")]
+    McCollaborationAutomaticAccept,
+
+    #[serde(rename = "MCC-CLSD-MF")]
+    McCollaborationClosedMerchantFavour,
+
+    #[serde(rename = "MCC-CLSD-CHF")]
+    McCollaborationClosedCardholderFavour,
+
+    #[serde(rename = "INQ")]
+    InquiryInitiatedByIssuer,
+
+    #[serde(rename = "INQ-M-RSP")]
+    InquiryRespondedByMerchant,
+
+    #[serde(rename = "INQ-EXPR")]
+    InquiryExpired,
+
+    #[serde(rename = "INQ-A-RJCT")]
+    InquiryAutomaticallyRejected,
+
+    #[serde(rename = "INQ-A-CNLD")]
+    InquiryCancelledAfterRefund,
+
+    #[serde(rename = "INQ-M-RFND")]
+    InquiryAcceptedFullRefund,
+
+    #[serde(rename = "INQ-M-P-RFND")]
+    InquiryPartialAcceptedPartialRefund,
+
+    #[serde(rename = "INQ-UPD")]
+    InquiryUpdated,
+
+    #[serde(rename = "IPA-M-ACPT")]
+    PreArbitrationAcceptedByMerchant,
+
+    #[serde(rename = "IPA-M-PART")]
+    PreArbitrationPartiallyAcceptedByMerchant,
+
+    #[serde(rename = "IPA-M-PART-EXP")]
+    PreArbitrationPartiallyAcceptedByMerchantExpired,
+
+    #[serde(rename = "IPA-M-RJCT")]
+    PreArbitrationRejectedByMerchant,
+
+    #[serde(rename = "IPA-M-RJCT-EXP")]
+    PreArbitrationRejectedByMerchantExpired,
+
+    #[serde(rename = "IPA-A-ACPT")]
+    PreArbitrationAutomaticallyAcceptedByMerchant,
+
+    #[serde(rename = "PA-CLSD-RC")]
+    PreArbitrationClosedRecall,
+
+    #[serde(rename = "IPAR-M-ACPT")]
+    RejectedPreArbAcceptedByMerchant,
+
+    #[serde(rename = "IPAR-A-ACPT")]
+    RejectedPreArbExpiredAutoAccepted,
+
+    #[serde(rename = "CC-I-RCLL")]
+    CreditChargebackRecalledByIssuer,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChargebackTransactionDetails {
+    pub transaction_id: i64,
+    pub transaction_date: Option<String>,
+    pub client_unique_id: Option<String>,
+    pub acquirer_name: Option<String>,
+    pub masked_card_number: Option<String>,
     pub arn: Option<String>,
-    pub retrieval_request_date: Option<String>,
-    pub chargeback_date: Option<String>,
-    pub chargeback_amount: Option<String>,
-    pub chargeback_currency: Option<String>,
-    pub original_amount: Option<String>,
-    pub original_currency: Option<String>,
-    #[serde(rename = "transactionID")]
-    pub transaction_id: Option<String>,
-    pub user_token_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ChargebackType {
+    Chargeback,
+    Retrieval,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ChargebackStatusCategory {
+    #[serde(rename = "Regular")]
+    Regular,
+    #[serde(rename = "cancelled")]
+    Cancelled,
+    #[serde(rename = "Duplicate")]
+    Duplicate,
+    #[serde(rename = "RDR-Refund")]
+    RdrRefund,
+    #[serde(rename = "Soft_CB")]
+    SoftCb,
 }
 
 /// Represents the overall status of the DMN.
@@ -3271,7 +3553,18 @@ pub struct ChargebackNotification {
 #[serde(rename_all = "UPPERCASE")]
 pub enum DmnStatus {
     Success,
+    Approved,
     Error,
+    Pending,
+    Declined,
+}
+
+/// Represents the transaction status of the DMN
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DmnApiTransactionStatus {
+    Ok,
+    Fail,
     Pending,
 }
 
@@ -3288,63 +3581,51 @@ pub enum TransactionStatus {
     Settled,
 }
 
-/// Represents the type of transaction.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "PascalCase")]
-pub enum PaymentTransactionType {
-    Auth,
-    Sale,
-    Settle,
-    Credit,
-    Void,
-    Auth3D,
-    Sale3D,
-    Verif,
-}
-
 /// Represents a Payment Direct Merchant Notification (DMN) webhook.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentDmnNotification {
+    // Status of the Api transaction
+    #[serde(rename = "ppp_status")]
+    pub ppp_status: DmnApiTransactionStatus,
     #[serde(rename = "PPP_TransactionID")]
-    pub ppp_transaction_id: Option<String>,
+    pub ppp_transaction_id: String,
+    pub total_amount: String,
+    pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
+    // Status of the Payment
+    #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
+    pub transaction_type: Option<NuveiTransactionType>,
     #[serde(rename = "ErrCode")]
     pub err_code: Option<String>,
-    #[serde(rename = "ExErrCode")]
-    pub ex_err_code: Option<String>,
-    pub desc: Option<String>,
-    pub merchant_unique_id: Option<String>,
-    pub custom_data: Option<String>,
-    pub product_id: Option<String>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub email: Option<String>,
-    pub total_amount: Option<String>,
-    pub currency: Option<String>,
-    pub fee: Option<String>,
-    #[serde(rename = "AuthCode")]
-    pub auth_code: Option<String>,
-    pub transaction_status: Option<TransactionStatus>,
-    pub transaction_type: Option<PaymentTransactionType>,
+    #[serde(rename = "Reason")]
+    pub reason: Option<String>,
+    #[serde(rename = "ReasonCode")]
+    pub reason_code: Option<String>,
     #[serde(rename = "user_token_id")]
     pub user_token_id: Option<String>,
     #[serde(rename = "payment_method")]
     pub payment_method: Option<String>,
     #[serde(rename = "responseTimeStamp")]
-    pub response_time_stamp: Option<String>,
+    pub response_time_stamp: String,
     #[serde(rename = "invoice_id")]
     pub invoice_id: Option<String>,
     #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<Secret<String>>,
     #[serde(rename = "merchant_site_id")]
-    pub merchant_site_id: Option<String>,
+    pub merchant_site_id: Option<Secret<String>>,
     #[serde(rename = "responsechecksum")]
     pub response_checksum: Option<String>,
     #[serde(rename = "advanceResponseChecksum")]
     pub advance_response_checksum: Option<String>,
+    pub product_id: Option<String>,
+    pub merchant_advice_code: Option<String>,
+    #[serde(rename = "AuthCode")]
+    pub auth_code: Option<String>,
+    pub acquirer_bank: Option<String>,
+    pub client_request_id: Option<String>,
 }
 
 // For backward compatibility with existing code
@@ -3354,56 +3635,42 @@ pub struct NuveiWebhookTransactionId {
     pub ppp_transaction_id: String,
 }
 
-// Helper struct to extract transaction ID from either webhook type
-impl From<&NuveiWebhook> for NuveiWebhookTransactionId {
-    fn from(webhook: &NuveiWebhook) -> Self {
-        match webhook {
-            NuveiWebhook::Chargeback(notification) => Self {
-                ppp_transaction_id: notification.ppp_transaction_id.clone().unwrap_or_default(),
-            },
-            NuveiWebhook::PaymentDmn(notification) => Self {
-                ppp_transaction_id: notification.ppp_transaction_id.clone().unwrap_or_default(),
-            },
-        }
-    }
-}
-
 // Convert webhook to payments response for further processing
-impl From<NuveiWebhook> for NuveiPaymentsResponse {
-    fn from(webhook: NuveiWebhook) -> Self {
-        match webhook {
-            NuveiWebhook::Chargeback(notification) => Self {
-                transaction_status: Some(NuveiTransactionStatus::Processing),
-                transaction_id: notification.transaction_id,
-                transaction_type: Some(NuveiTransactionType::Credit), // Using Credit as placeholder for chargeback
-                ..Default::default()
+impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
+    fn from(notification: PaymentDmnNotification) -> Self {
+        Self {
+            status: match notification.ppp_status {
+                DmnApiTransactionStatus::Ok => NuveiPaymentStatus::Success,
+                DmnApiTransactionStatus::Fail => NuveiPaymentStatus::Failed,
+                DmnApiTransactionStatus::Pending => NuveiPaymentStatus::Processing,
             },
-            NuveiWebhook::PaymentDmn(notification) => {
-                let transaction_type = notification.transaction_type.map(|tt| match tt {
-                    PaymentTransactionType::Auth => NuveiTransactionType::Auth,
-                    PaymentTransactionType::Sale => NuveiTransactionType::Sale,
-                    PaymentTransactionType::Settle => NuveiTransactionType::Settle,
-                    PaymentTransactionType::Credit => NuveiTransactionType::Credit,
-                    PaymentTransactionType::Void => NuveiTransactionType::Void,
-                    PaymentTransactionType::Auth3D => NuveiTransactionType::Auth3D,
-                    PaymentTransactionType::Sale3D => NuveiTransactionType::Auth3D, // Map to closest equivalent
-                    PaymentTransactionType::Verif => NuveiTransactionType::Auth, // Map to closest equivalent
-                });
-
-                Self {
-                    transaction_status: notification.transaction_status.map(|ts| match ts {
-                        TransactionStatus::Approved => NuveiTransactionStatus::Approved,
-                        TransactionStatus::Declined => NuveiTransactionStatus::Declined,
-                        TransactionStatus::Error => NuveiTransactionStatus::Error,
-                        TransactionStatus::Settled => NuveiTransactionStatus::Approved,
-
-                        _ => NuveiTransactionStatus::Processing,
-                    }),
-                    transaction_id: notification.transaction_id,
-                    transaction_type,
-                    ..Default::default()
-                }
-            }
+            err_code: notification
+                .err_code
+                .and_then(|code| code.parse::<i64>().ok()),
+            reason: notification.reason.clone(),
+            transaction_details: Some(NuveiTransactionSyncResponseDetails {
+                gw_error_code: notification
+                    .reason_code
+                    .and_then(|code| code.parse::<i64>().ok()),
+                gw_error_reason: notification.reason.clone(),
+                gw_extended_error_code: None,
+                transaction_id: notification.transaction_id,
+                transaction_status: notification.status.map(|ts| match ts {
+                    DmnStatus::Success | DmnStatus::Approved => NuveiTransactionStatus::Approved,
+                    DmnStatus::Declined => NuveiTransactionStatus::Declined,
+                    DmnStatus::Pending => NuveiTransactionStatus::Pending,
+                    DmnStatus::Error => NuveiTransactionStatus::Error,
+                }),
+                transaction_type: notification.transaction_type,
+                auth_code: notification.auth_code,
+                processed_amount: None,
+                processed_currency: None,
+                acquiring_bank_name: notification.acquirer_bank,
+            }),
+            merchant_id: notification.merchant_id,
+            merchant_site_id: notification.merchant_site_id,
+            merchant_advice_code: notification.merchant_advice_code,
+            ..Default::default()
         }
     }
 }
@@ -3477,5 +3744,190 @@ fn convert_to_additional_payment_method_connector_response(
             domestic_network: None,
         }),
         Err(_) => None,
+    }
+}
+
+pub fn map_notification_to_event(
+    status: DmnStatus,
+    transaction_type: NuveiTransactionType,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
+    match (status, transaction_type) {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Auth) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Sale) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Settle) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Void) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
+        }
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Auth) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Sale) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Settle) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Void) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure)
+        }
+        (DmnStatus::Error | DmnStatus::Declined, NuveiTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+        }
+        (
+            DmnStatus::Pending,
+            NuveiTransactionType::Auth | NuveiTransactionType::Sale | NuveiTransactionType::Settle,
+        ) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing),
+        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+    }
+}
+
+pub fn map_dispute_notification_to_event(
+    dispute_code: DisputeUnifiedStatusCode,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
+    match dispute_code {
+        DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+        | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+        | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+        | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+        | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeOpened)
+        }
+        DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+        | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+        | DisputeUnifiedStatusCode::Rdr
+        | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+        | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+        | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+        | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+        | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeAccepted)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+        | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+        | DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+        | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+        | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeChallenged)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+        | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+        | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+        | DisputeUnifiedStatusCode::McCollaborationExpired
+        | DisputeUnifiedStatusCode::InquiryExpired
+        | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+        | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeExpired)
+        }
+        DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+        | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+        | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+        | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+        | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeWon)
+        }
+        DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+        | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+        | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+        | DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::DisputeCancelled)
+        }
+
+        DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+        | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+        | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+        | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+        | DisputeUnifiedStatusCode::InquiryUpdated => {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+        }
+    }
+}
+
+impl From<DisputeUnifiedStatusCode> for common_enums::DisputeStage {
+    fn from(code: DisputeUnifiedStatusCode) -> Self {
+        match code {
+            // --- PreDispute ---
+            DisputeUnifiedStatusCode::Rdr
+            | DisputeUnifiedStatusCode::InquiryInitiatedByIssuer
+            | DisputeUnifiedStatusCode::InquiryRespondedByMerchant
+            | DisputeUnifiedStatusCode::InquiryExpired
+            | DisputeUnifiedStatusCode::InquiryAutomaticallyRejected
+            | DisputeUnifiedStatusCode::InquiryCancelledAfterRefund
+            | DisputeUnifiedStatusCode::InquiryAcceptedFullRefund
+            | DisputeUnifiedStatusCode::InquiryPartialAcceptedPartialRefund
+            | DisputeUnifiedStatusCode::InquiryUpdated => Self::PreDispute,
+
+            // --- Dispute ---
+            DisputeUnifiedStatusCode::FirstChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::CreditChargebackInitiatedByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackNoResponseExpired
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackAcceptedAutomaticallyMcoll
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchant
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomatically
+            | DisputeUnifiedStatusCode::FirstChargebackRejectedAutomaticallyExpired
+            | DisputeUnifiedStatusCode::FirstChargebackClosedMerchantFavour
+            | DisputeUnifiedStatusCode::FirstChargebackClosedCardholderFavour
+            | DisputeUnifiedStatusCode::FirstChargebackClosedRecall
+            | DisputeUnifiedStatusCode::FirstChargebackRecalledByIssuer
+            | DisputeUnifiedStatusCode::FirstChargebackDisputeResponseNotAllowed
+            | DisputeUnifiedStatusCode::McCollaborationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::McCollaborationPreviouslyRefundedAuto
+            | DisputeUnifiedStatusCode::McCollaborationRefundedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationExpired
+            | DisputeUnifiedStatusCode::McCollaborationRejectedByMerchant
+            | DisputeUnifiedStatusCode::McCollaborationAutomaticAccept
+            | DisputeUnifiedStatusCode::McCollaborationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::McCollaborationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::CreditChargebackAcceptedAutomatically => Self::Dispute,
+
+            // --- PreArbitration ---
+            DisputeUnifiedStatusCode::PreArbitrationInitiatedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationAcceptedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationRejectedByIssuer
+            | DisputeUnifiedStatusCode::MerchantPreArbitrationPartiallyAcceptedByIssuer
+            | DisputeUnifiedStatusCode::PreArbitrationClosedMerchantFavour
+            | DisputeUnifiedStatusCode::PreArbitrationClosedCardholderFavour
+            | DisputeUnifiedStatusCode::PreArbitrationAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationPartiallyAcceptedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationRejectedByMerchantExpired
+            | DisputeUnifiedStatusCode::PreArbitrationAutomaticallyAcceptedByMerchant
+            | DisputeUnifiedStatusCode::PreArbitrationClosedRecall
+            | DisputeUnifiedStatusCode::RejectedPreArbAcceptedByMerchant
+            | DisputeUnifiedStatusCode::RejectedPreArbExpiredAutoAccepted => Self::PreArbitration,
+
+            // --- DisputeReversal ---
+            DisputeUnifiedStatusCode::CreditChargebackRecalledByIssuer => Self::DisputeReversal,
+        }
     }
 }
