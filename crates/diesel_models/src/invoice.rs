@@ -103,7 +103,11 @@ impl InvoiceNew {
 }
 
 impl InvoiceUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<InvoiceStatus>, payment_intent_id: Option<common_utils::id_type::PaymentId>) -> Self {
+    pub fn new(
+        payment_method_id: Option<String>,
+        status: Option<InvoiceStatus>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    ) -> Self {
         Self {
             payment_method_id,
             payment_intent_id,
