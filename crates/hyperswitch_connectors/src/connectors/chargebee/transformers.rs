@@ -21,7 +21,6 @@ use hyperswitch_domain_models::{
         CreateConnectorCustomer, InvoiceRecordBack,
     },
     router_request_types::{
-        
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{SubscriptionAutoCollection, SubscriptionCreateRequest},
         ConnectorCustomerData, ResponseId,
