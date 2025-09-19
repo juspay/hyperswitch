@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
-    pub subscription_id: String,
+    pub subscription_id: id_type::SubscriptionId,
     pub status: SubscriptionStatus,
     pub customer_id: id_type::CustomerId,
     pub currency_code: Currency,

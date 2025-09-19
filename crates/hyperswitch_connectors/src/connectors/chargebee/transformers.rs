@@ -5,7 +5,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::CustomerId,
+    id_type::{CustomerId, SubscriptionId},
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -49,7 +49,7 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(rename = "id")]
-    pub subscription_id: String,
+    pub subscription_id: SubscriptionId,
     #[serde(rename = "subscription_items[item_price_id][0]")]
     pub item_price_id: String,
     #[serde(rename = "subscription_items[quantity][0]")]
@@ -120,7 +120,7 @@ pub struct ChargebeeSubscriptionCreateResponse {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionDetails {
-    pub id: String,
+    pub id: SubscriptionId,
     pub status: ChargebeeSubscriptionStatus,
     pub customer_id: CustomerId,
     pub currency_code: enums::Currency,
