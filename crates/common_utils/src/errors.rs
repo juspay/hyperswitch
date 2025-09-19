@@ -75,6 +75,10 @@ pub enum ValidationError {
     /// An invalid input was provided.
     #[error("{message}")]
     InvalidValue { message: String },
+
+    /// An error occurred while decrypting the input.
+    #[error("Error while decrypting data: {message}")]
+    DecryptionError { message: String },
 }
 
 /// Integrity check errors.

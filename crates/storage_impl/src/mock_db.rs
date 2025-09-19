@@ -140,7 +140,7 @@ impl MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(StorageError::DecryptionError)?,
+                .map_err(|error| error_stack::report!(StorageError::from(error)))?,
             )),
             None => Ok(None),
         }
@@ -193,7 +193,7 @@ impl MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(StorageError::DecryptionError)
+                    .map_err(|error| error_stack::report!(StorageError::from(error)))
                 })
                 .collect::<Vec<_>>();
 
@@ -225,7 +225,7 @@ impl MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(StorageError::DecryptionError)?;
+                .map_err(|error| error_stack::report!(StorageError::from(error)))?;
             Ok(result)
         } else {
             Err(StorageError::ValueNotFound(error_message).into())
