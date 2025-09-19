@@ -188,11 +188,6 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
-    operation
-        .to_domain()?
-        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
-        .await?;
-
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(
@@ -215,6 +210,11 @@ where
     let connector = operation
         .to_domain()?
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
+        .await?;
+
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
         .await?;
 
     let mut connector_http_status_code = None;
@@ -1546,15 +1546,15 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    operation
-        .to_domain()?
-        .create_or_fetch_payment_method(state, &merchant_context, &profile, &mut payment_data)
-        .await?;
-
     // consume the req merchant_connector_id and set it in the payment_data
     let connector = operation
         .to_domain()?
         .perform_routing(&merchant_context, &profile, state, &mut payment_data)
+        .await?;
+
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, &profile, &mut payment_data)
         .await?;
 
     let payment_data = match connector {

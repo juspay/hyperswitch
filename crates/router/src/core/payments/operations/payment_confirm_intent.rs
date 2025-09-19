@@ -471,43 +471,69 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             })
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
-            (None, Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance)) => {
-                let customer_id = match &payment_data.payment_intent.customer_id {
-                    Some(customer_id) => customer_id.clone(),
-                    None => {
-                        return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "customer_id",
-                        })
-                        .attach_printable("customer_id not provided");
-                    }
+            (None, Some(pm_data @ domain::PaymentMethodData::Card(card)), customer_acceptance) => {
+                let payment_method_pm_data = if let Some(_customer_acceptance) = customer_acceptance
+                {
+                    let customer_id = match &payment_data.payment_intent.customer_id {
+                        Some(customer_id) => customer_id.clone(),
+                        None => {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "customer_id",
+                            })
+                            .attach_printable("customer_id not provided");
+                        }
+                    };
+
+                    let pm_create_data =
+                        api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
+
+                    let req = api::PaymentMethodCreate {
+                        payment_method_type: payment_data.payment_attempt.payment_method_type,
+                        payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                        metadata: None,
+                        customer_id,
+                        payment_method_data: pm_create_data,
+                        billing: None,
+                        psp_tokenization: None,
+                        network_tokenization: None,
+                    };
+
+                    let (_pm_response, payment_method) =
+                        Box::pin(payment_methods::create_payment_method_core(
+                            state,
+                            &state.get_req_state(),
+                            req,
+                            merchant_context,
+                            business_profile,
+                        ))
+                        .await?;
+
+                    // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                    (Some(payment_method), None)
+                } else {
+                    (None, None)
                 };
 
-                let pm_create_data =
-                    api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
-
-                let req = api::PaymentMethodCreate {
-                    payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
-                    metadata: None,
-                    customer_id,
-                    payment_method_data: pm_create_data,
-                    billing: None,
-                    psp_tokenization: None,
-                    network_tokenization: None,
-                };
-
-                let (_pm_response, payment_method) =
-                    Box::pin(payment_methods::create_payment_method_core(
+                if helpers::should_store_payment_method_data_in_vault(
+                    &state.conf.temp_locker_enable_config,
+                    payment_data.payment_attempt.connector.clone(),
+                    payment_data.payment_attempt.payment_method_type,
+                ) {
+                    let ppmt = payment_methods::store_card_data_in_redis(
                         state,
-                        &state.get_req_state(),
-                        req,
+                        pm_data,
+                        &payment_data.payment_intent,
+                        &payment_data.payment_attempt,
+                        payment_data.payment_attempt.payment_method_type,
                         merchant_context,
                         business_profile,
-                    ))
+                    )
                     .await?;
 
-                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
-                (Some(payment_method), None)
+                    payment_data.update_payment_token(ppmt);
+                }
+
+                payment_method_pm_data
             }
             _ => (None, None), // Pass payment_data unmodified for any other case
         };
@@ -620,7 +646,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                             .attach_printable("Merchant connector id is none when constructing response")
                     })?,
                     authentication_type,
-                    payment_method_id : payment_method.get_id().clone()
+                    payment_method_id : payment_method.get_id().clone(),
+                    payment_token: payment_data.payment_attempt.payment_token.clone()
                 }
             }
             None => {
@@ -632,6 +659,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     authentication_type,
                     connector_request_reference_id,
                     connector_response_reference_id,
+                    payment_token: payment_data.payment_attempt.payment_token.clone()
                 }
             }
         };
