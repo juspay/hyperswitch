@@ -145,9 +145,7 @@ pub enum ChargebeeSubscriptionStatus {
     Transferred,
 }
 
-impl From<ChargebeeSubscriptionStatus>
-    for SubscriptionStatus
-{
+impl From<ChargebeeSubscriptionStatus> for SubscriptionStatus {
     fn from(status: ChargebeeSubscriptionStatus) -> Self {
         match status {
             ChargebeeSubscriptionStatus::Future => Self::Pending,
