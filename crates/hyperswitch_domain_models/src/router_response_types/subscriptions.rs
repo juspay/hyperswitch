@@ -1,7 +1,6 @@
-use common_enums::enums;
+use common_enums::{enums, Currency};
 use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
-use common_enums::Currency;
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
@@ -25,7 +24,6 @@ pub enum SubscriptionStatus {
     Cancelled,
     Failed,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansResponse {

@@ -27,8 +27,10 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
-       
-        subscriptions::{self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        subscriptions::{
+            self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},

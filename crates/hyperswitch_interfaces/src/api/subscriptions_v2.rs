@@ -1,13 +1,16 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::{GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData},
-    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+    router_data_v2::flow_common_types::{
+        GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+    },
+    router_flow_types::subscriptions::{
+        GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate,
+    },
     router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest
+        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, 
-        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 

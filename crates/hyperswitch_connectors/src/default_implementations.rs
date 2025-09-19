@@ -48,7 +48,10 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication,
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -67,7 +70,10 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        subscriptions::{GetSubscriptionPlansPricesResponse,GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        subscriptions::{
+            GetSubscriptionPlansPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
         DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
         MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
@@ -131,7 +137,10 @@ use hyperswitch_interfaces::{
             PaymentsPreAuthenticate, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow, SubscriptionCreate, Subscriptions},
+        subscriptions::{
+            GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow, SubscriptionCreate,
+            Subscriptions,
+        },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,

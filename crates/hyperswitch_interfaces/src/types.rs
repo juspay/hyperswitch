@@ -32,7 +32,10 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -57,7 +60,10 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        subscriptions::{
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,

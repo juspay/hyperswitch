@@ -6,7 +6,7 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{GetSubscriptionPlans, SubscriptionCreate,GetSubscriptionPlans},
+        subscriptions::{GetSubscriptionPlans, SubscriptionCreate},
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
@@ -20,7 +20,10 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -42,7 +45,10 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        subscriptions::{
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
         VerifyWebhookSourceResponseData,

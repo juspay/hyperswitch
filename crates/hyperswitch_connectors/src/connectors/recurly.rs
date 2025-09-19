@@ -10,11 +10,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
-        
-        flow_common_types::{GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-        SubscriptionCreateData},
+        flow_common_types::{
+            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+        },
         UasFlowData,
-    ,
     },
     router_flow_types::{
         subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
@@ -23,7 +22,10 @@ use hyperswitch_domain_models::{
         },
     },
     router_request_types::{
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -31,8 +33,7 @@ use hyperswitch_domain_models::{
         },
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, 
-        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

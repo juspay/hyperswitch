@@ -1,15 +1,15 @@
 //! Subscriptions Interface for V1
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
+    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
     router_request_types::subscriptions::{
+        router_request_types::subscriptions::SubscriptionCreateRequest,
         GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
-    router_request_types::subscriptions::SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
+        router_response_types::subscriptions::SubscriptionCreateResponse,
         GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-    router_response_types::subscriptions::SubscriptionCreateResponse,
     },
 };
 
@@ -53,7 +53,8 @@ pub trait Subscriptions:
     ConnectorCommon
     + GetSubscriptionPlansFlow
     + GetSubscriptionPlanPricesFlow
-    + SubscriptionCreate + PaymentsConnectorCustomer
+    + SubscriptionCreate
+    + PaymentsConnectorCustomer
 {
 }
 
