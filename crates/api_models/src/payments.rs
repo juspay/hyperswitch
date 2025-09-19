@@ -666,6 +666,23 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GiftCardBalanceCheckResponse {
+    /// Global Payment Id for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
+    /// The balance of the gift card
+    pub balance: MinorUnit,
+    /// The currency of the Gift Card
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
+    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
+    pub needs_additional_pm_data: bool,
+    /// Transaction amount left after subtracting gift card balance (Used for split payments)
+    pub remaining_amount: MinorUnit,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -5768,6 +5785,17 @@ pub struct PaymentsConfirmIntentRequest {
     pub return_raw_connector_response: Option<bool>,
 }
 
+// Serialize is implemented because, this will be serialized in the api events.
+// Usually request types should not have serialize implemented.
+//
+/// Request for Gift Card balance check
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsGiftCardBalanceCheckRequest {
+    pub gift_card_data: GiftCardData,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -8420,6 +8448,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
+    /// Challenge request key which should be set as form field name for creq
+    pub challenge_request_key: Option<String>,
     /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
     pub acs_reference_number: Option<String>,
     /// Unique identifier assigned by the ACS to identify a single transaction

@@ -8,7 +8,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{Execute, RSync, SetupMandate},
     router_request_types::{ResponseId, SetupMandateRequestData},
     router_response_types::{
@@ -721,6 +724,8 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Source {
     id: Option<String>,
+    avs_check: Option<String>,
+    cvv_check: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -840,6 +845,10 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             None
         };
 
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
@@ -855,6 +864,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
         Ok(Self {
             status,
             response: Ok(payments_response_data),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -1007,6 +1017,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
@@ -1022,6 +1036,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         Ok(Self {
             status,
             response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -1668,7 +1683,9 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             processed_on: data.processed_on,
             approved: data.approved,
             source: Some(Source {
-                id: details.source.and_then(|src| src.id),
+                id: details.source.clone().and_then(|src| src.id),
+                avs_check: details.source.clone().and_then(|src| src.avs_check),
+                cvv_check: details.source.clone().and_then(|src| src.cvv_check),
             }),
             scheme_id: None,
             processing: None,
@@ -1731,4 +1748,21 @@ impl From<String> for utils::ErrorCodeAndMessage {
             error_message: error,
         }
     }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    source: Option<&Source>,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    source.map(|code| {
+        let payment_checks = serde_json::json!({
+            "avs_result": code.avs_check,
+            "card_validation_result": code.cvv_check,
+        });
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: Some(payment_checks),
+            card_network: None,
+            domestic_network: None,
+        }
+    })
 }
