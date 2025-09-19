@@ -71,7 +71,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         subscriptions::{
-            GetSubscriptionPlansPricesResponse, GetSubscriptionPlansResponse,
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
             SubscriptionCreateResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,

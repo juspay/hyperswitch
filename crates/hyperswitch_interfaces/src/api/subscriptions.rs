@@ -4,12 +4,10 @@ use hyperswitch_domain_models::{
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
     router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
     router_request_types::subscriptions::{
-        router_request_types::subscriptions::SubscriptionCreateRequest,
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        router_response_types::subscriptions::SubscriptionCreateResponse,
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 

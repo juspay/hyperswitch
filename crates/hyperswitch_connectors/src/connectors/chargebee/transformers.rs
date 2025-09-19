@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse,
+            SubscriptionCreateResponse, SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
@@ -146,7 +146,7 @@ pub enum ChargebeeSubscriptionStatus {
 }
 
 impl From<ChargebeeSubscriptionStatus>
-    for hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus
+    for SubscriptionStatus
 {
     fn from(status: ChargebeeSubscriptionStatus) -> Self {
         match status {
