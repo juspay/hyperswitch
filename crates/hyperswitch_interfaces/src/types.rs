@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
-        subscriptions::{GetSubscriptionPlans, SubscriptionCreate},
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::{GetSubscriptionPlansRequest, SubscriptionCreateRequest},
+        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -57,7 +57,7 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::{GetSubscriptionPlansResponse, SubscriptionCreateResponse},
+        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse},
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -180,6 +180,13 @@ pub type IncrementalAuthorizationType = dyn ConnectorIntegration<
     IncrementalAuthorization,
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
+>;
+
+/// Type alias for ConnectorIntegration<GetSubscriptionPlanPrices, GetSubscriptionPlanPricesRequest, GetSubscriptionPlanPricesResponse>
+pub type GetSubscriptionPlanPricesType = dyn ConnectorIntegration<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>`

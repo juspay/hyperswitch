@@ -108,6 +108,8 @@ pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,

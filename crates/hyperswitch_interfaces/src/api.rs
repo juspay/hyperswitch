@@ -81,8 +81,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -106,7 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
-    + subscriptions::Subscriptions
+    + Subscriptions
 {
 }
 
@@ -130,7 +130,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + subscriptions::Subscriptions,
+            + Subscriptions,
     > Connector for T
 {
 }
