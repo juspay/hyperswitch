@@ -734,29 +734,29 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     invoice (id) {
-        #[max_length = 255]
+        #[max_length = 64]
         id -> Varchar,
-        #[max_length = 255]
-        subscription_id -> Varchar,
-        #[max_length = 255]
-        connector_subscription_id -> Nullable<Varchar>,
-        #[max_length = 255]
-        merchant_id -> Varchar,
-        #[max_length = 255]
-        profile_id -> Varchar,
-        #[max_length = 255]
-        merchant_connector_id -> Varchar,
-        #[max_length = 255]
-        payment_intent_id -> Nullable<Varchar>,
         #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 128]
+        connector_subscription_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
+        #[max_length = 64]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 64]
         customer_id -> Varchar,
         amount -> Int8,
-        currency -> Nullable<Currency>,
-        #[max_length = 50]
+        currency -> Currency,
+        #[max_length = 64]
         status -> Varchar,
-        #[max_length = 100]
+        #[max_length = 128]
         provider_name -> Varchar,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,

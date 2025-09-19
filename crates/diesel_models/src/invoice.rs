@@ -18,7 +18,7 @@ pub struct InvoiceNew {
     pub payment_method_id: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
-    pub currency: Option<common_enums::Currency>,
+    pub currency: common_enums::Currency,
     pub status: String,
     pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
@@ -45,7 +45,7 @@ pub struct Invoice {
     payment_method_id: Option<String>,
     customer_id: common_utils::id_type::CustomerId,
     amount: MinorUnit,
-    currency: Option<common_enums::Currency>,
+    currency: common_enums::Currency,
     status: String,
     provider_name: Connector,
     metadata: Option<SecretSerdeValue>,
@@ -58,7 +58,6 @@ pub struct Invoice {
 pub struct InvoiceUpdate {
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
-    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub modified_at: time::PrimitiveDateTime,
 }
 
@@ -75,7 +74,7 @@ impl InvoiceNew {
         payment_method_id: Option<String>,
         customer_id: common_utils::id_type::CustomerId,
         amount: MinorUnit,
-        currency: Option<common_enums::Currency>,
+        currency: common_enums::Currency,
         status: InvoiceStatus,
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
@@ -106,11 +105,9 @@ impl InvoiceUpdate {
     pub fn new(
         payment_method_id: Option<String>,
         status: Option<InvoiceStatus>,
-        payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
             payment_method_id,
-            payment_intent_id,
             status: status.map(|status| status.to_string()),
             modified_at: common_utils::date_time::now(),
         }

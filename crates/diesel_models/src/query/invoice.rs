@@ -1,9 +1,6 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use error_stack::report;
-
+use diesel::{associations::HasTable, ExpressionMethods};
 use super::generics;
 use crate::{
-    errors,
     invoice::{Invoice, InvoiceNew, InvoiceUpdate},
     schema::invoice::dsl,
     PgPooledConn, StorageResult,
@@ -24,16 +21,13 @@ impl Invoice {
         .await
     }
 
-    pub async fn find_invoice_by_merchant_id_invoice_id(
+    pub async fn find_invoice_by_id_invoice_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
         id: String,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::id.eq(id.to_owned())),
+            dsl::id.eq(id.to_owned())
         )
         .await
     }
@@ -43,17 +37,16 @@ impl Invoice {
         id: String,
         invoice_update: InvoiceUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, InvoiceUpdate, _, _>(
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             dsl::id.eq(id.to_owned()),
             invoice_update,
         )
-        .await?
-        .first()
-        .cloned()
-        .ok_or_else(|| {
-            report!(errors::DatabaseError::NotFound)
-                .attach_printable("Error while updating invoice entry")
-        })
+        .await
     }
 }

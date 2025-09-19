@@ -878,19 +878,12 @@ impl TryFrom<Connector> for RoutableConnectors {
 // Enum representing different status an invoice can have.
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum InvoiceStatus {
-    PendingPayment,
-    PaymentRequiresAction,
-    PaymentAuthorized,
+    InvoiceCreated,
     PaymentPending,
     PaymentPendingTimeout,
     PaymentSucceeded,
     PaymentFailed,
     PaymentCanceled,
-    SubscriptionCreating,
-    SubscriptionCreated,
-    SubscriptionCreationFailed,
     InvoicePaid,
-    Disputed,
-    Refunded,
     ManualReview,
 }
