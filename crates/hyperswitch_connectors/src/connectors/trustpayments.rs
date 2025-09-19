@@ -315,7 +315,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 }
                 hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => {
                     let connector_req =
-                        trustpayments::TrustpaymentsTrustlyRequest::try_from(&connector_router_data)?;
+                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
                     println!("This is a Trustly payment");
 
                     Ok(RequestContent::Json(Box::new(connector_req)))
@@ -406,19 +406,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         http_code: res.status_code,
                     })
                 }
-                // hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => {
-                //     let response: trustpayments::TrustpaymentsTrustlyResponse = res
-                //         .response
-                //         .parse_struct("Trustpayments TrustlyResponse")
-                //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                //     event_builder.map(|i| i.set_response_body(&response));
-                //     router_env::logger::info!(connector_response=?response);
-                //     RouterData::try_from(ResponseRouterData {
-                //         response,
-                //         data: data.clone(),
-                //         http_code: res.status_code,
-                //     })
-                // }
+                hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => {
+                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
+                        .response
+                        .parse_struct("Trustpayments TrustlyResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    event_builder.map(|i| i.set_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
+                    RouterData::try_from(ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                }
                 _ => {
                     let response: trustpayments::TrustpaymentsPaymentsResponse = res
                         .response

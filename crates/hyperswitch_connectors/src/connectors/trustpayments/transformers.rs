@@ -372,29 +372,6 @@ pub struct TrustpaymentsAlipayRequestData{
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsTrustlyRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsTrustlyRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsTrustlyRequestData {
-    pub sitereference: String,
-    pub orderreference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub paymenttypedescription: String,
-    pub accounttypedescription: String,
-    pub currencyiso3a: String,
-    pub baseamount: String,
-    pub returnurl: String,
-    pub billingfirstname: Option<String>,
-    pub billinglastname: Option<String>,
-    pub billingcountryiso2a: Option<String>,
-    pub billingemail: String,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsSepaRequest {
     pub alias: String,
     pub version: String,
@@ -463,115 +440,6 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         }
     }
 }
-
-impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-    for TrustpaymentsTrustlyRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
-
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                match bank_redirect_data {
-                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
-                        Ok(Self {
-                            alias: auth.username.expose(),
-                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                            request: vec![TrustpaymentsTrustlyRequestData {
-                                sitereference: auth.site_reference.expose(),
-                                orderreference: item.router_data.connector_request_reference_id.clone(),
-                                requesttypedescriptions: vec!["AUTH".to_string()],
-                                paymenttypedescription: "TRUSTLY".to_string(),
-                                accounttypedescription: "ECOM".to_string(),
-                                currencyiso3a: item.router_data.request.currency.to_string(),
-                                baseamount: item.amount.to_string(),
-                                returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
-                                billingfirstname: item
-                                    .router_data
-                                    .get_optional_billing_first_name()
-                                    .map(|name| name.expose()),
-                                billinglastname: item
-                                    .router_data
-                                    .get_optional_billing_last_name()
-                                    .map(|name| name.expose()),
-                                billingcountryiso2a: country.map(|c| c.to_string()),
-                                billingemail: "abc@gmail.com".to_string(),
-                            }],
-                        })
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank redirect method not supported for Trustly".to_string(),
-                    )
-                    .into()),
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported for Trustly".to_string(),
-            )
-            .into()),
-        }
-    }
-}
-
-// impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-//     for TrustpaymentsPaymentsRequest
-// {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
-//     ) -> Result<Self, Self::Error> {
-//         let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
-
-//         match item.router_data.request.payment_method_data.clone() {
-//             PaymentMethodData::Wallet(wallet_data) => {
-//                 match wallet_data {
-//                     hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
-//                         Ok(Self {
-//                             alias: auth.username.expose(),
-//                             version: TRUSTPAYMENTS_API_VERSION.to_string(),
-//                             request: vec![TrustpaymentsPaymentRequestData {
-//                                 sitereference: auth.site_reference.expose(),
-//                                 orderreference: item.router_data.connector_request_reference_id.clone(),
-//                                 requesttypedescriptions: vec!["AUTH".to_string()],
-//                                 paymenttypedescription: "PAYSERA".to_string(),
-//                                 accounttypedescription: "ECOM".to_string(),
-//                                 currencyiso3a: item.router_data.request.currency.to_string(),
-//                                 baseamount: item.amount.to_string(),
-//                                 returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
-//                                 successfulurlredirect: item.router_data.request.router_return_url.clone(),
-//                                 errorurlredirect: item.router_data.request.router_return_url.clone(),
-//                                 billingfirstname: item
-//                                     .router_data
-//                                     .get_optional_billing_first_name()
-//                                     .map(|name| name.expose()),
-//                                 billinglastname: item
-//                                     .router_data
-//                                     .get_optional_billing_last_name()
-//                                     .map(|name| name.expose()),
-//                                 billingcountryiso2a: item
-//                                     .router_data
-//                                     .get_optional_billing_country()
-//                                     .map(|country| country.to_string()),
-//                                 billingemail: "abc@gmail.com".to_string(),
-//                             }],
-//                         })
-//                     }
-//                     _ => Err(errors::ConnectorError::NotImplemented(
-//                         "Wallet method not supported for Paysera".to_string(),
-//                     )
-//                     .into()),
-//                 }
-//             }
-//             _ => Err(errors::ConnectorError::NotImplemented(
-//                 "Payment method not supported for Paysera".to_string(),
-//             )
-//             .into()),
-//         }
-//     }
-// }
 
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     for TrustpaymentsSepaRequest
@@ -1042,32 +910,6 @@ pub struct TrustpaymentsAlipayResponseData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsTrustlyResponse {
-    #[serde(alias = "response")]
-    pub responses: Vec<TrustpaymentsTrustlyResponseData>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsTrustlyResponseData {
-    pub errorcode: TrustpaymentsErrorCode,
-    pub errormessage: String,
-    pub transactionreference: Option<String>,
-    pub requesttypedescription: String,
-    pub redirecturl: Option<String>,
-    pub merchantname: Option<String>,
-    pub paymenttypedescription: Option<String>,
-    pub orderreference: Option<String>,
-    pub settleduedate: Option<String>,
-    pub baseamount: Option<String>,
-    pub transactionstartedtimestamp: Option<String>,
-    pub settlestatus: Option<String>,
-    pub accounttypedescription: Option<String>,
-    pub operatorname: Option<String>,
-    pub livestatus: Option<String>,
-    pub currencyiso3a: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustpaymentsPayseraResponse {
     #[serde(alias = "response")]
     pub responses: Vec<TrustpaymentsPayseraResponseData>,
@@ -1134,20 +976,6 @@ impl TrustpaymentsAlipayResponseData {
     }
 }
 
-impl TrustpaymentsTrustlyResponseData {
-    pub fn get_trustly_status(&self) -> common_enums::AttemptStatus {
-        match self.errorcode {
-            TrustpaymentsErrorCode::Success => {
-                if self.redirecturl.is_some() {
-                    common_enums::AttemptStatus::AuthenticationPending
-                } else {
-                    common_enums::AttemptStatus::Authorized
-                }
-            }
-            _ => self.errorcode.get_attempt_status(),
-        }
-    }
-}
 
 
 impl TrustpaymentsSepaResponseData {
