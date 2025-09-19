@@ -571,8 +571,6 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
-
-        // Extract Level 2/3 data if present
         let (customer, processing, shipping, items) =
             if let Some(l2l3_data) = &item.router_data.l2_l3_data {
                 (
@@ -590,7 +588,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     }),
                     Some(CheckoutShipping {
                         address: Some(CheckoutShippingAddress {
-                            country: l2l3_data.shipping_country.clone(),
+                            country: l2l3_data.shipping_country,
                             zip: l2l3_data.shipping_destination_zip.clone(),
                         }),
                         from_address_zip: l2l3_data.shipping_origin_zip.clone().map(|z| z.expose()),
