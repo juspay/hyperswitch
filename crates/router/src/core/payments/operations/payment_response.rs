@@ -2268,8 +2268,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 async move {
                     let should_route_to_open_router =
                         state.conf.open_router.dynamic_routing_enabled;
+                    let is_success_rate_based = matches!(
+                        payment_attempt.routing_approach,
+                        Some(enums::RoutingApproach::SuccessRateExploitation)
+                            | Some(enums::RoutingApproach::SuccessRateExploration)
+                    );
 
-                    if should_route_to_open_router {
+                    if should_route_to_open_router && is_success_rate_based {
                         routing_helpers::update_gateway_score_helper_with_open_router(
                             &state,
                             &payment_attempt,
