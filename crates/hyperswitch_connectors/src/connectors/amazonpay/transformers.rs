@@ -32,7 +32,7 @@ impl<T> From<(StringMajorUnit, T)> for AmazonpayRouterData<T> {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayFinalizeRequest {
     charge_amount: ChargeAmount,
@@ -607,7 +607,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayErrorResponse {
     pub reason_code: String,
