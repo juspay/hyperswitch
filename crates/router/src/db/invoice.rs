@@ -108,7 +108,9 @@ impl InvoiceInterface for KafkaStore {
         &self,
         invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
-        self.diesel_store.find_invoice_by_invoice_id(invoice_id).await
+        self.diesel_store
+            .find_invoice_by_invoice_id(invoice_id)
+            .await
     }
 
     #[instrument(skip_all)]
