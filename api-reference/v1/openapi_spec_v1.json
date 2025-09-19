@@ -32015,43 +32015,35 @@
           {
             "type": "object",
             "required": [
-              "threeDSMethodData"
+              "three_ds_method_data_submission",
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
-              "threeDSMethodData": {
-                "type": "object",
-                "required": [
-                  "three_ds_method_data_submission",
-                  "consume_post_message_for_three_ds_method_completion"
-                ],
-                "properties": {
-                  "three_ds_method_data_submission": {
-                    "type": "boolean",
-                    "description": "Whether ThreeDS method data submission is required"
-                  },
-                  "three_ds_method_data": {
-                    "type": "string",
-                    "description": "ThreeDS method data",
-                    "nullable": true
-                  },
-                  "three_ds_method_url": {
-                    "type": "string",
-                    "description": "ThreeDS method url",
-                    "nullable": true
-                  },
-                  "three_ds_method_key": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/ThreeDsMethodKey"
-                      }
-                    ],
-                    "nullable": true
-                  },
-                  "consume_post_message_for_three_ds_method_completion": {
-                    "type": "boolean",
-                    "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+              "three_ds_method_data_submission": {
+                "type": "boolean",
+                "description": "Whether ThreeDS method data submission is required"
+              },
+              "three_ds_method_data": {
+                "type": "string",
+                "description": "ThreeDS method data",
+                "nullable": true
+              },
+              "three_ds_method_url": {
+                "type": "string",
+                "description": "ThreeDS method url",
+                "nullable": true
+              },
+              "three_ds_method_key": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
                   }
-                }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
