@@ -837,7 +837,7 @@ pub struct ChargebeeCustomerCreateRequest {
     #[serde(rename = "first_name")]
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,
-    pub billing_address: Option<api_models::payments::AddressDetails>,
+    // pub billing_address: Option<api_models::payments::AddressDetails>,
 }
 
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
@@ -860,7 +860,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .clone(),
             name: req.name.clone(),
             email: req.email.clone(),
-            billing_address: req.billing_address.clone(),
+            // billing_address: req.billing_address.clone(),
         })
     }
 }

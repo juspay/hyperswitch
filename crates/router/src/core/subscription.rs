@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::subscription::{
     self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
 };
-use common_utils::{ext_traits::ValueExt, id_type::GenerateId};
+use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
@@ -69,31 +69,33 @@ pub async fn create_subscription(
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    profile_id: String,
     request: subscription_types::ConfirmSubscriptionRequest,
-    subscription_id: String,
+    subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let handler = SubscriptionHandler::new(state, merchant_context, request);
 
-    let subscription_entry = handler.find_subscription(subscription_id).await?;
+    let subscription_entry = handler
+        .find_subscription(subscription_id.get_string_repr().to_string())
+        .await?;
 
     let billing_handler = subscription_entry.get_billing_handler().await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
-    let customer_create_response = billing_handler.create_customer(&handler.state).await?;
+    let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
-    let _subscription_create_response = billing_handler.create_subscription().await?;
+    // let _subscription_create_response = billing_handler.create_subscription().await?;
 
-    let invoice = invoice_handler.create_invoice_in_db().await?;
-    let payment_response = invoice_handler.create_cit_payment().await?;
+    // let invoice = invoice_handler.create_invoice_in_db().await?;
+    // let payment_response = invoice_handler.create_cit_payment().await?;
 
-    invoice_handler
-        .create_invoice_job(&payment_response)
-        .await?;
+    // invoice_handler
+    //     .create_invoice_job(&payment_response)
+    //     .await?;
 
-    invoice_handler.update_invoice_record().await?;
+    // invoice_handler.update_invoice_record().await?;
 
-    let response = subscription_entry.generate_response(&payment_response)?;
+    let response = subscription_entry.generate_response()?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -149,8 +151,9 @@ impl<'a> SubscriptionWithHandler<'a> {
     fn generate_response(
         &self,
         // _invoice: &subscription_types::Invoice,
-        _payment_response: &subscription_types::PaymentResponseData,
+        // _payment_response: &subscription_types::PaymentResponseData,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
+        crate::logger::info!("Generating confirm subscription response");
         todo!(
             "Generate ConfirmSubscriptionResponse from subscription, invoice and payment_response"
         )
@@ -161,11 +164,18 @@ impl<'a> SubscriptionWithHandler<'a> {
         })
     }
     pub async fn get_billing_handler(&self) -> errors::RouterResult<BillingHandler> {
-        let mca_id = self.subscription.merchant_connector_id.clone().ok_or(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: "No mca_id associated with this subscription".to_string(),
-            },
-        )?;
+        // let mca_id = self.subscription.merchant_connector_id.clone().ok_or(
+        //     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        //         id: "No mca_id associated with this subscription".to_string(),
+        //     },
+        // )?;
+
+        let mca_id = common_utils::id_type::MerchantConnectorAccountId::wrap(
+            "mca_aR9xLgJB3K1CWabu8g2X".to_string(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "merchant_connector_account_id",
+        })?;
 
         let billing_processor_mca = self
             .handler
@@ -231,6 +241,7 @@ impl<'a> SubscriptionWithHandler<'a> {
             connector_data,
             connector_params,
             request: self.handler.request.clone(),
+            connector_metadata: billing_processor_mca.metadata.clone(),
         })
     }
 }
@@ -242,6 +253,7 @@ pub struct BillingHandler {
     auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
     connector_data: api_types::ConnectorData,
     connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
+    connector_metadata: Option<pii::SecretSerdeValue>,
     request: subscription_types::ConfirmSubscriptionRequest,
 }
 
@@ -296,22 +308,11 @@ impl BillingHandler {
         let router_data = self.build_customer_router_data(state)?;
         let connector_integration = self.connector_data.connector.get_connector_integration();
 
-        let router_resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &router_data,
-            payments_core::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "Failed while calling {} at billing processor",
-            "create_customer"
-        ))?;
+        let response = self
+            .call_connector(state, router_data, "create customer", connector_integration)
+            .await?;
 
-        match router_resp.response {
+        match response {
             Ok(response_data) => match response_data {
                 hyperswitch_domain_models::router_response_types::PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
                     Ok(customer_response)
@@ -331,38 +332,51 @@ impl BillingHandler {
     pub async fn create_subscription(
         &self,
     ) -> errors::RouterResult<subscription_types::SubscriptionCreateResponse> {
-        let router_data = self.build_subscription_router_data(&self.subscription.customer_id)?;
-        let response = self
-            .call_connector(router_data, "create subscription")
-            .await?;
-
-        Ok(response)
+        todo!("Create subscription at billing processor and return the response")
     }
 
-    async fn call_connector<F, Req, Resp>(
+    async fn call_connector<F, ResourceCommonData, Req, Resp>(
         &self,
+        state: &SessionState,
         router_data: hyperswitch_domain_models::router_data::RouterData<F, Req, Resp>,
         operation_name: &str,
-    ) -> errors::RouterResult<Resp>
+        connector_integration: hyperswitch_interfaces::connector_integration_interface::BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
+    ) -> errors::RouterResult<Result<Resp, hyperswitch_domain_models::router_data::ErrorResponse>>
     where
-        F: Clone + std::fmt::Debug,
-        Req: Clone + std::fmt::Debug,
-        Resp: Clone + std::fmt::Debug,
+        F: Clone + std::fmt::Debug + 'static,
+        Req: Clone + std::fmt::Debug + 'static,
+        Resp: Clone + std::fmt::Debug + 'static,
+        ResourceCommonData:
+            hyperswitch_interfaces::connector_integration_interface::RouterDataConversion<
+                    F,
+                    Req,
+                    Resp,
+                > + Clone
+                + 'static,
     {
         // Uncomment the below code once the connector integration is done
+        let router_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments_core::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed while calling {operation_name} at billing processor"
+        ))?;
 
-        todo!("Call the connector and return the response")
+        Ok(router_resp.response)
+
+        // todo!("Call the connector and return the response")
     }
     fn build_customer_router_data(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_data::RouterData<
-            hyperswitch_domain_models::router_flow_types::payments::CreateConnectorCustomer,
-            hyperswitch_domain_models::router_request_types::ConnectorCustomerData,
-            hyperswitch_domain_models::router_response_types::PaymentsResponseData,
-        >,
-    > {
+    ) -> errors::RouterResult<hyperswitch_domain_models::types::ConnectorCustomerRouterData> {
         // Build customer creation router data
 
         let customer_req = hyperswitch_domain_models::router_request_types::ConnectorCustomerData {
@@ -405,7 +419,7 @@ impl BillingHandler {
             description: None,
             address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
-            connector_meta_data: None,
+            connector_meta_data: self.connector_metadata.clone(),
             connector_wallets_details: None,
             amount_captured: None,
             minor_amount_captured: None,

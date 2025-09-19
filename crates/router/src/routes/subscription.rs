@@ -73,7 +73,7 @@ pub async fn create_subscription(
 pub async fn confirm_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,
-    subscription_id: web::Path<String>,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
     json_payload: web::Json<subscription_types::ConfirmSubscriptionRequest>,
 ) -> impl Responder {
     let flow = Flow::ConfirmSubscription;
@@ -100,7 +100,7 @@ pub async fn confirm_subscription(
             subscription::confirm_subscription(
                 state,
                 merchant_context,
-                auth.profile_id,
+                profile_id.clone(),
                 payload.clone(),
                 subscription_id.clone(), // make this typed
             )
