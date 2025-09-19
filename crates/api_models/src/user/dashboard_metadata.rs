@@ -1,4 +1,5 @@
 use common_enums::{CountryAlpha2, MerchantProductType};
+use common_types::primitive_wrappers::SafeString;
 use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
@@ -50,16 +51,16 @@ pub struct ProcessorConnected {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct OnboardingSurvey {
-    pub designation: Option<String>,
-    pub about_business: Option<String>,
-    pub business_website: Option<String>,
-    pub hyperswitch_req: Option<String>,
-    pub major_markets: Option<Vec<String>>,
-    pub business_size: Option<String>,
-    pub required_features: Option<Vec<String>>,
-    pub required_processors: Option<Vec<String>>,
-    pub planned_live_date: Option<String>,
-    pub miscellaneous: Option<String>,
+    pub designation: Option<SafeString>,
+    pub about_business: Option<SafeString>,
+    pub business_website: Option<SafeString>,
+    pub hyperswitch_req: Option<SafeString>,
+    pub major_markets: Option<Vec<SafeString>>,
+    pub business_size: Option<SafeString>,
+    pub required_features: Option<Vec<SafeString>>,
+    pub required_processors: Option<Vec<SafeString>>,
+    pub planned_live_date: Option<SafeString>,
+    pub miscellaneous: Option<SafeString>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -85,27 +86,27 @@ pub enum ConfigurationType {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Feedback {
     pub email: pii::Email,
-    pub description: Option<String>,
+    pub description: Option<SafeString>,
     pub rating: Option<i32>,
-    pub category: Option<String>,
+    pub category: Option<SafeString>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct ProdIntent {
-    pub legal_business_name: Option<String>,
-    pub business_label: Option<String>,
+    pub legal_business_name: Option<SafeString>,
+    pub business_label: Option<SafeString>,
     pub business_location: Option<CountryAlpha2>,
-    pub display_name: Option<String>,
-    pub poc_email: Option<Secret<String>>,
-    pub business_type: Option<String>,
-    pub business_identifier: Option<String>,
-    pub business_website: Option<String>,
-    pub poc_name: Option<Secret<String>>,
-    pub poc_contact: Option<Secret<String>>,
-    pub comments: Option<String>,
+    pub display_name: Option<SafeString>,
+    pub poc_email: Option<pii::Email>,
+    pub business_type: Option<SafeString>,
+    pub business_identifier: Option<SafeString>,
+    pub business_website: Option<SafeString>,
+    pub poc_name: Option<Secret<SafeString>>,
+    pub poc_contact: Option<Secret<SafeString>>,
+    pub comments: Option<SafeString>,
     pub is_completed: bool,
     #[serde(default)]
     pub product_type: MerchantProductType,
-    pub business_country_name: Option<String>,
+    pub business_country_name: Option<SafeString>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
