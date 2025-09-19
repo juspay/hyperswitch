@@ -336,7 +336,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
                     let connector_req =
-                        trustpayments::TrustpaymentsPayseraRequest::try_from(&connector_router_data)?;
+                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
                     Ok(RequestContent::Json(Box::new(connector_req)))
                 }
                 _ => {
