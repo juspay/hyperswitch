@@ -273,6 +273,7 @@ pub struct ConnectorConfig {
     pub flexiti: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
+    pub gigadat: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
