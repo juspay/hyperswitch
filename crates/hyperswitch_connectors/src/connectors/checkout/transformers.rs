@@ -349,27 +349,25 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             Some(enums::CaptureMethod::Automatic)
         );
 
-        let (payment_type, challenge_indicator, store_for_future_use) =
-            if item.router_data.request.payment_channel == Some(PaymentChannel::MailOrder)
-                || item.router_data.request.payment_channel == Some(PaymentChannel::TelephoneOrder)
-            {
+        let payment_type = if matches!(
+            item.router_data.request.payment_channel,
+            Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
+        ) {
+            CheckoutPaymentType::Moto
+        } else if item.router_data.request.is_mandate_payment() {
+            CheckoutPaymentType::Unscheduled
+        } else {
+            CheckoutPaymentType::Regular
+        };
+
+        let (challenge_indicator, store_for_future_use) =
+            if item.router_data.request.is_mandate_payment() {
                 (
-                    CheckoutPaymentType::Moto,
-                    CheckoutChallengeIndicator::ChallengeRequested,
-                    None,
-                )
-            } else if item.router_data.request.is_mandate_payment() {
-                (
-                    CheckoutPaymentType::Unscheduled,
                     CheckoutChallengeIndicator::ChallengeRequestedMandate,
                     Some(true),
                 )
             } else {
-                (
-                    CheckoutPaymentType::Regular,
-                    CheckoutChallengeIndicator::ChallengeRequested,
-                    None,
-                )
+                (CheckoutChallengeIndicator::ChallengeRequested, None)
             };
 
         let (
