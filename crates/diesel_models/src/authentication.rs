@@ -65,6 +65,7 @@ pub struct Authentication {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
 }
 
 impl Authentication {
@@ -129,6 +130,7 @@ pub struct AuthenticationNew {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
 }
 
 #[derive(Debug)]
@@ -179,6 +181,7 @@ pub enum AuthenticationUpdate {
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
         message_extension: Option<pii::SecretSerdeValue>,
+        challenge_request_key: Option<String>,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -245,6 +248,7 @@ pub struct AuthenticationUpdateInternal {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -289,6 +293,7 @@ impl Default for AuthenticationUpdateInternal {
             challenge_cancel: Default::default(),
             challenge_code_reason: Default::default(),
             message_extension: Default::default(),
+            challenge_request_key: Default::default(),
         }
     }
 }
@@ -335,6 +340,7 @@ impl AuthenticationUpdateInternal {
             challenge_cancel,
             challenge_code_reason,
             message_extension,
+            challenge_request_key,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -380,6 +386,7 @@ impl AuthenticationUpdateInternal {
             challenge_cancel: challenge_cancel.or(source.challenge_cancel),
             challenge_code_reason: challenge_code_reason.or(source.challenge_code_reason),
             message_extension: message_extension.or(source.message_extension),
+            challenge_request_key: challenge_request_key.or(source.challenge_request_key),
             ..source
         }
     }
@@ -472,6 +479,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 challenge_cancel,
                 challenge_code_reason,
                 message_extension,
+                challenge_request_key,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
@@ -488,6 +496,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 challenge_cancel,
                 challenge_code_reason,
                 message_extension,
+                challenge_request_key,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
