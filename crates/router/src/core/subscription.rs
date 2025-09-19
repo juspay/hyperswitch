@@ -80,11 +80,11 @@ pub async fn confirm_subscription(
         .await?;
 
     let billing_handler = subscription_entry.get_billing_handler().await?;
-    let invoice_handler = subscription_entry.get_invoice_handler().await?;
+    let _invoice_handler = subscription_entry.get_invoice_handler().await?;
 
     let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
-    // let _subscription_create_response = billing_handler.create_subscription().await?;
+    let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
 
     // let invoice = invoice_handler.create_invoice_in_db().await?;
     // let payment_response = invoice_handler.create_cit_payment().await?;
@@ -94,8 +94,13 @@ pub async fn confirm_subscription(
     //     .await?;
 
     // invoice_handler.update_invoice_record().await?;
+    subscription_entry
+        .update_subscription_status(
+            SubscriptionStatus::from(subscription_create_response.status).to_string(),
+        )
+        .await?;
 
-    let response = subscription_entry.generate_response()?;
+    let response = subscription_entry.generate_response(subscription_create_response.status)?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -152,11 +157,36 @@ impl<'a> SubscriptionWithHandler<'a> {
         &self,
         // _invoice: &subscription_types::Invoice,
         // _payment_response: &subscription_types::PaymentResponseData,
+        status: hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
-        crate::logger::info!("Generating confirm subscription response");
-        todo!(
-            "Generate ConfirmSubscriptionResponse from subscription, invoice and payment_response"
-        )
+        Ok(subscription_types::ConfirmSubscriptionResponse {
+            id: self.subscription.id.clone(),
+            merchant_reference_id: self.subscription.merchant_reference_id.clone(),
+            status: SubscriptionStatus::from(status),
+            plan_id: None,
+            profile_id: self.subscription.profile_id.to_owned(),
+            payment: None,
+            customer_id: Some(self.subscription.customer_id.clone()),
+            // invoice: Some(invoice.clone()),
+        })
+    }
+
+    async fn update_subscription_status(&self, status: String) -> errors::RouterResult<()> {
+        let db = self.handler.state.store.as_ref();
+        let updated_subscription = db
+            .update_subscription_entry(
+                self.handler
+                    .merchant_context
+                    .get_merchant_account()
+                    .get_id(),
+                self.subscription.id.get_string_repr().to_string(),
+                diesel_models::subscription::SubscriptionUpdate::new(None, Some(status)),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to update subscription entry in database")?;
+
+        Ok(())
     }
     async fn get_invoice_handler(&self) -> errors::RouterResult<InvoiceHandler> {
         Ok(InvoiceHandler {
@@ -331,8 +361,33 @@ impl BillingHandler {
     }
     pub async fn create_subscription(
         &self,
-    ) -> errors::RouterResult<subscription_types::SubscriptionCreateResponse> {
-        todo!("Create subscription at billing processor and return the response")
+        state: &SessionState,
+    ) -> errors::RouterResult<
+        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
+    > {
+        let router_data = self.build_subscription_router_data(state)?;
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "create subscription",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(response_data) => Ok(response_data),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
     }
 
     async fn call_connector<F, ResourceCommonData, Req, Resp>(
@@ -462,15 +517,82 @@ impl BillingHandler {
 
     fn build_subscription_router_data(
         &self,
-        _customer_id: &common_utils::id_type::CustomerId,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_data::RouterData<
-            subscription_types::CreateSubscription,
-            subscription_types::SubscriptionCreateRequest,
-            subscription_types::SubscriptionCreateResponse,
-        >,
-    > {
+        state: &SessionState,
+    ) -> errors::RouterResult<hyperswitch_domain_models::types::SubscriptionCreateRouterData> {
         // Build subscription creation router data using customer_id
-        todo!("Build subscription router data")
+        let subscription_item =
+            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionItem {
+                item_price_id: self.request.item_price_id.clone().ok_or(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "item_price_id is required".to_string(),
+                    },
+                )?,
+                quantity: Some(1),
+            };
+        let subscription_req = hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
+            subscription_id: self.subscription.id.to_owned(),
+            customer_id: self.subscription.customer_id.to_owned(),
+            subscription_items: vec![subscription_item], // to be filled
+            billing_address: self.request.billing_address.clone().ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "billing_address",
+            })?,
+            auto_collection: hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionAutoCollection::Off,
+            connector_params: self.connector_params.clone(),
+         };
+
+        Ok(hyperswitch_domain_models::router_data::RouterData {
+            flow: std::marker::PhantomData,
+            merchant_id: self.subscription.merchant_id.to_owned(),
+            customer_id: Some(self.subscription.customer_id.to_owned()),
+            connector_customer: None,
+            connector: self.connector_name.clone(),
+            payment_id: "DefaultPaymentId".to_string(),
+            tenant_id: state.tenant.tenant_id.clone(),
+            attempt_id: "Subscriptions attempt".to_owned(),
+            status: common_enums::AttemptStatus::default(),
+            payment_method: common_enums::PaymentMethod::default(),
+            connector_auth_type: self.auth_type.clone(),
+            description: None,
+            address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_meta_data: self.connector_metadata.clone(),
+            connector_wallets_details: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request: subscription_req,
+            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+            connector_request_reference_id: "Notjing".to_owned(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: None,
+            #[cfg(feature = "payouts")]
+            quote_id: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payment_method_status: None,
+            connector_response: None,
+            integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
+        })
     }
 }
