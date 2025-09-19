@@ -2044,6 +2044,11 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_payment_id: Option<String>,
     },
+    VoidUpdate {
+        status: storage_enums::AttemptStatus,
+        cancellation_reason: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -2849,6 +2854,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2890,6 +2896,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: error.network_error_message,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -2937,6 +2944,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2970,6 +2978,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3002,6 +3011,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3033,6 +3043,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3068,6 +3079,40 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
+            },
+            PaymentAttemptUpdate::VoidUpdate {
+                status,
+                cancellation_reason,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                cancellation_reason,
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                payment_method_id: None,
             },
         }
     }

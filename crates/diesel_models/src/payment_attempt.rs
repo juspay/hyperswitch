@@ -862,7 +862,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub connector_payment_data: Option<String>,
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
-    // cancellation_reason: Option<String>,
+    pub cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,
     // payment_token: Option<String>,
@@ -914,6 +914,7 @@ impl PaymentAttemptUpdateInternal {
             modified_at,
             browser_info,
             error_code,
+            cancellation_reason,
             connector_metadata,
             error_reason,
             amount_capturable,
@@ -1404,6 +1405,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1451,6 +1453,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1496,6 +1499,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1539,6 +1543,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1578,6 +1583,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1622,6 +1628,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
         }

@@ -743,7 +743,8 @@ impl Payments {
                 .service(
                     web::resource("/check-gift-card-balance")
                         .route(web::post().to(payments::payment_check_gift_card_balance)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
