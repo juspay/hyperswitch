@@ -55,6 +55,16 @@ pub mod transformers;
 // Re-export webhook transformer types for easier access
 pub use transformers::WebhookTransformData;
 
+/// Type alias for the complex return type used by unified connector service response handlers
+type UnifiedConnectorServiceResult = CustomResult<
+    (
+        Option<AttemptStatus>,
+        Result<PaymentsResponseData, ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
@@ -570,15 +580,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+) -> UnifiedConnectorServiceResult {
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -590,15 +593,8 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+) -> UnifiedConnectorServiceResult {
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -610,15 +606,8 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+) -> UnifiedConnectorServiceResult {
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -630,15 +619,8 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
+) -> UnifiedConnectorServiceResult {
+    let status = Option::<AttemptStatus>::foreign_try_from(response.status())?;
 
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
