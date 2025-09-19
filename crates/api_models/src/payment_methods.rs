@@ -781,6 +781,18 @@ pub struct CardDetailUpdate {
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
+
+    /// Card's Last 4 Digits
+    #[schema(value_type = Option<String>,example = "1111")]
+    pub last4_digits: Option<String>,
+
+    /// Issuing Bank of the Particular Card
+    #[schema(value_type = Option<String>,example = "Bank of America")]
+    pub card_issuer: Option<String>,
+
+    /// The country where that particular card was issued
+    #[schema(value_type = Option<String>,example = "US")]
+    pub issuer_country: Option<String>,
 }
 
 #[cfg(feature = "v1")]

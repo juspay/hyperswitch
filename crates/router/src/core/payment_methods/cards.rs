@@ -1765,8 +1765,12 @@ pub async fn update_customer_payment_method(
             // Construct new updated card object. Consider a field if passed in request or else populate it with the existing value from existing_card_data
             let updated_card = Some(api::CardDetailFromLocker {
                 scheme: existing_card_data.scheme,
-                last4_digits: Some(card_data_from_locker.card_number.get_last4()),
-                issuer_country: existing_card_data.issuer_country,
+                last4_digits: card_update
+                    .last4_digits
+                    .or(Some(card_data_from_locker.card_number.get_last4())),
+                issuer_country: card_update
+                    .issuer_country
+                    .or(existing_card_data.issuer_country),
                 card_number: existing_card_data.card_number,
                 expiry_month: card_update
                     .card_exp_month
@@ -1780,7 +1784,7 @@ pub async fn update_customer_payment_method(
                 nick_name: card_update.nick_name.or(existing_card_data.nick_name),
                 card_network: existing_card_data.card_network,
                 card_isin: existing_card_data.card_isin,
-                card_issuer: existing_card_data.card_issuer,
+                card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
                 saved_to_locker: true,
             });

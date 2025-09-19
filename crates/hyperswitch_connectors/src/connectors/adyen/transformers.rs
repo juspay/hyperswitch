@@ -5035,6 +5035,10 @@ pub struct AdyenAdditionalDataWH {
     pub shopper_email: Option<String>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
+    pub expiry_date: Option<Secret<String>>,
+    pub card_summary: Option<Secret<String>>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_bank: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
