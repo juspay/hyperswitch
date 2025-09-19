@@ -165,7 +165,7 @@ pub struct PaysafeProfile {
 pub enum PaysafePaymentMethod {
     ApplePay {
         #[serde(rename = "applePay")]
-        apple_pay: PaysafeApplepayPayment,
+        apple_pay: Box<PaysafeApplepayPayment>,
     },
     Card {
         card: PaysafeCard,
@@ -527,7 +527,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                             PaysafeApplepayPayment::try_from((&applepay_data, item))?;
 
                         let payment_method = PaysafePaymentMethod::ApplePay {
-                            apple_pay: applepay_payment,
+                            apple_pay: Box::new(applepay_payment),
                         };
 
                         let payment_type = PaysafePaymentType::Card;
