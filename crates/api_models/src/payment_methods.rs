@@ -479,6 +479,9 @@ pub struct PaymentMethodUpdate {
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetailUpdate>,
 
+    /// Wallet Details
+    pub wallet: Option<PaymentMethodDataWalletInfo>,
+
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
@@ -1093,7 +1096,7 @@ pub struct PaymentMethodDataBankCreds {
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
     pub last4: String,
