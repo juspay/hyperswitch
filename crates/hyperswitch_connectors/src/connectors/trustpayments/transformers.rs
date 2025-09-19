@@ -3,7 +3,7 @@ use common_utils::{request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use url;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
@@ -35,7 +35,9 @@ pub enum TrustpaymentsSettleStatus {
     #[serde(rename = "3")]
     Voided,
     #[serde(rename = "10")]
-    EpsPending,
+    PendingSettlementRedirect,
+    #[serde(rename = "100")]
+    SettledRedirect,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -71,8 +73,8 @@ impl TrustpaymentsSettleStatus {
             Self::Settled => "1",
             Self::ManualCapture => "2",
             Self::Voided => "3",
-            Self::EpsPending => "10",
-
+            Self::PendingSettlementRedirect => "10",
+            Self::SettledRedirect => "100",
         }
     }
 }
@@ -304,7 +306,6 @@ impl<T> From<(StringMinorUnit, T)> for TrustpaymentsRouterData<T> {
             router_data: item,
         }
     }
-}
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsPaymentsRequest {
@@ -312,50 +313,183 @@ pub struct TrustpaymentsPaymentsRequest {
     pub version: String,
     pub request: Vec<TrustpaymentsPaymentRequestData>,
 }
-
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsPaymentRequestData {
-    pub accounttypedescription: String,
-    pub baseamount: StringMinorUnit,
-    pub billingfirstname: Option<String>,
-    pub billinglastname: Option<String>,
-    pub currencyiso3a: String,
-    pub expirydate: Secret<String>,
-    pub orderreference: String,
-    pub pan: cards::CardNumber,
-    pub requesttypedescriptions: Vec<String>,
-    pub securitycode: Secret<String>,
-    pub sitereference: String,
-    pub credentialsonfile: String,
-    pub settlestatus: String,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsEpsRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsEpsRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsEpsRequestData {
+    // Common fields for all payment types
     pub sitereference: String,
     pub requesttypedescriptions: Vec<String>,
     pub accounttypedescription: String,
-    pub paymenttypedescription: String,
     pub currencyiso3a: String,
     pub baseamount: String,
     pub orderreference: String,
+    
+    // Optional fields based on payment method
+    pub paymenttypedescription: Option<String>,
+    
+    // Card-specific fields
+    pub pan: Option<cards::CardNumber>,
+    pub expirydate: Option<Secret<String>>,
+    pub securitycode: Option<Secret<String>>,
+    pub credentialsonfile: Option<String>,
+    pub settlestatus: Option<String>,
+    
+    // Redirect-specific fields
+    pub returnurl: Option<String>,
+    pub successfulurlredirect: Option<String>,
+    pub errorurlredirect: Option<String>,
+    
+    // Billing fields (common across payment types)
+    pub billingfirstname: Option<String>,
+    pub billinglastname: Option<String>,
+    pub billingcountryiso2a: Option<String>,
+    pub billingemail: Option<String>,
+    
+    // Application type for specific payment methods
+    pub applicationtype: Option<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsAlipayRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsAlipayRequestData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsAlipayRequestData{
+    pub currencyiso3a: String,
+    pub orderreference: String,
+    pub requesttypedescriptions: Vec<String>,
+    pub accounttypedescription: String,
+    pub baseamount:String,
+    pub returnurl: String,
+    pub billingcountryiso2a: String,
+    pub sitereference: String,
+    pub paymenttypedescription: String,
+    pub applicationtype: Option<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsTrustlyRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsTrustlyRequestData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsTrustlyRequestData {
+    pub sitereference: String,
+    pub orderreference: String,
+    pub requesttypedescriptions: Vec<String>,
+    pub paymenttypedescription: String,
+    pub accounttypedescription: String,
+    pub currencyiso3a: String,
+    pub baseamount: String,
+    pub returnurl: String,
+    pub billingfirstname: Option<String>,
+    pub billinglastname: Option<String>,
+    pub billingcountryiso2a: Option<String>,
+    pub billingemail: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsPayseraRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsPayseraRequestData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsPayseraRequestData {
+    pub sitereference: String,
+    pub orderreference: String,
+    pub requesttypedescriptions: Vec<String>,
+    pub paymenttypedescription: String,
+    pub accounttypedescription: String,
+    pub currencyiso3a: String,
+    pub baseamount: String,
+    pub returnurl: String,
     pub successfulurlredirect: Option<String>,
     pub errorurlredirect: Option<String>,
     pub billingfirstname: Option<String>,
     pub billinglastname: Option<String>,
     pub billingcountryiso2a: Option<String>,
-    pub billingemail: Option<String>,
+    pub billingemail: String,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsSepaRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsSepaRequestData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct TrustpaymentsSepaRequestData {
+    pub sitereference: String,
+    pub orderreference: String,
+    pub requesttypedescriptions: Vec<String>,
+    pub paymenttypedescription: String,
+    pub accounttypedescription: String,
+    pub currencyiso3a: String,
+    pub baseamount: String,
+    pub billingfirstname: Option<String>,
+    pub billinglastname: Option<String>,
+    pub billingcountryiso2a: Option<String>,
+    pub billingemail: String,
 }
 
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-    for TrustpaymentsEpsRequest
+    for TrustpaymentsAlipayRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
+                        Ok(Self {
+                            alias: auth.username.expose(),
+                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                            request: vec![TrustpaymentsAlipayRequestData {
+                                currencyiso3a: item.router_data.request.currency.to_string(),
+                                orderreference: item.router_data.connector_request_reference_id.clone(),
+                                requesttypedescriptions: vec!["AUTH".to_string()],
+                                accounttypedescription: "ECOM".to_string(),
+                                baseamount: item.amount.to_string(),
+                                returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
+                                billingcountryiso2a: item
+                                    .router_data
+                                    .get_optional_billing_country()
+                                    .map(|country| country.to_string())
+                                    .unwrap_or_else(|| "CN".to_string()),
+                                sitereference: auth.site_reference.expose(),
+                                paymenttypedescription: "ALIPAY".to_string(),
+                                applicationtype: None,
+                            }],
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Wallet method not supported for Alipay".to_string(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for Alipay".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
+    for TrustpaymentsTrustlyRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -366,18 +500,71 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
-                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
+                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { country } => {
                         Ok(Self {
                             alias: auth.username.expose(),
                             version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                            request: vec![TrustpaymentsEpsRequestData {
+                            request: vec![TrustpaymentsTrustlyRequestData {
                                 sitereference: auth.site_reference.expose(),
+                                orderreference: item.router_data.connector_request_reference_id.clone(),
                                 requesttypedescriptions: vec!["AUTH".to_string()],
+                                paymenttypedescription: "TRUSTLY".to_string(),
                                 accounttypedescription: "ECOM".to_string(),
-                                paymenttypedescription: "EPS".to_string(),
                                 currencyiso3a: item.router_data.request.currency.to_string(),
                                 baseamount: item.amount.to_string(),
+                                returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
+                                billingfirstname: item
+                                    .router_data
+                                    .get_optional_billing_first_name()
+                                    .map(|name| name.expose()),
+                                billinglastname: item
+                                    .router_data
+                                    .get_optional_billing_last_name()
+                                    .map(|name| name.expose()),
+                                billingcountryiso2a: country.map(|c| c.to_string()),
+                                billingemail: "abc@gmail.com".to_string(),
+                            }],
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank redirect method not supported for Trustly".to_string(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for Trustly".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
+    for TrustpaymentsPayseraRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
+                        Ok(Self {
+                            alias: auth.username.expose(),
+                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                            request: vec![TrustpaymentsPayseraRequestData {
+                                sitereference: auth.site_reference.expose(),
                                 orderreference: item.router_data.connector_request_reference_id.clone(),
+                                requesttypedescriptions: vec!["AUTH".to_string()],
+                                paymenttypedescription: "PAYSERA".to_string(),
+                                accounttypedescription: "ECOM".to_string(),
+                                currencyiso3a: item.router_data.request.currency.to_string(),
+                                baseamount: item.amount.to_string(),
+                                returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
                                 successfulurlredirect: item.router_data.request.router_return_url.clone(),
                                 errorurlredirect: item.router_data.request.router_return_url.clone(),
                                 billingfirstname: item
@@ -392,18 +579,72 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                                     .router_data
                                     .get_optional_billing_country()
                                     .map(|country| country.to_string()),
-                                billingemail: Some("abc@gmail.com".to_string()),
+                                billingemail: "abc@gmail.com".to_string(),
                             }],
                         })
                     }
                     _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank redirect method not supported for EPS".to_string(),
+                        "Wallet method not supported for Paysera".to_string(),
                     )
                     .into()),
                 }
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported for EPS".to_string(),
+                "Payment method not supported for Paysera".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
+    for TrustpaymentsSepaRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match *bank_transfer_data {
+                    hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer{ .. } => {
+                        Ok(Self {
+                            alias: auth.username.expose(),
+                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+                            request: vec![TrustpaymentsSepaRequestData {
+                                sitereference: auth.site_reference.expose(),
+                                orderreference: item.router_data.connector_request_reference_id.clone(),
+                                requesttypedescriptions: vec!["AUTH".to_string()],
+                                paymenttypedescription: "SEPA".to_string(),
+                                accounttypedescription: "ECOM".to_string(),
+                                currencyiso3a: item.router_data.request.currency.to_string(),
+                                baseamount: item.amount.to_string(),
+                                billingfirstname: item
+                                    .router_data
+                                    .get_optional_billing_first_name()
+                                    .map(|name| name.expose()),
+                                billinglastname: item
+                                    .router_data
+                                    .get_optional_billing_last_name()
+                                    .map(|name| name.expose()),
+                                billingcountryiso2a: item
+                                    .router_data
+                                    .get_optional_billing_country()
+                                    .map(|country| country.to_string()),
+                                billingemail: "abc@gmail.com".to_string(),
+                            }],
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank transfer method not supported for SEPA".to_string(),
+                    )
+                    .into()),
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for SEPA".to_string(),
             )
             .into()),
         }
@@ -431,86 +672,304 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = req_card.clone();
-
-                let request_types = match item.router_data.request.capture_method {
-                    Some(common_enums::CaptureMethod::Automatic) | None => vec!["AUTH".to_string()],
-                    Some(common_enums::CaptureMethod::Manual) => vec!["AUTH".to_string()],
-                    Some(common_enums::CaptureMethod::ManualMultiple)
-                    | Some(common_enums::CaptureMethod::Scheduled)
-                    | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
-                        return Err(errors::ConnectorError::NotSupported {
-                            message: "Capture method not supported by TrustPayments".to_string(),
-                            connector: "TrustPayments",
-                        }
-                        .into());
-                    }
-                };
-
-                Ok(Self {
-                    alias: auth.username.expose(),
-                    version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                    request: vec![TrustpaymentsPaymentRequestData {
-                        accounttypedescription: "ECOM".to_string(),
-                        baseamount: item.amount.clone(),
-                        billingfirstname: item
-                            .router_data
-                            .get_optional_billing_first_name()
-                            .map(|name| name.expose()),
-                        billinglastname: item
-                            .router_data
-                            .get_optional_billing_last_name()
-                            .map(|name| name.expose()),
-                        currencyiso3a: item.router_data.request.currency.to_string(),
-                        expirydate: card
-                            .get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
-                        orderreference: item.router_data.connector_request_reference_id.clone(),
-                        pan: card.card_number.clone(),
-                        requesttypedescriptions: request_types,
-                        securitycode: card.card_cvc.clone(),
-                        sitereference: auth.site_reference.expose(),
-                        credentialsonfile:
-                            TrustpaymentsCredentialsOnFile::CardholderInitiatedTransaction
-                                .to_string(),
-                        settlestatus: match item.router_data.request.capture_method {
-                            Some(common_enums::CaptureMethod::Manual) => {
-                                TrustpaymentsSettleStatus::ManualCapture
-                                    .as_str()
-                                    .to_string()
-                            }
-                            Some(common_enums::CaptureMethod::Automatic) | None => {
-                                TrustpaymentsSettleStatus::PendingSettlement
-                                    .as_str()
-                                    .to_string()
-                            }
-                            _ => TrustpaymentsSettleStatus::PendingSettlement
-                                .as_str()
-                                .to_string(),
-                        },
-                    }],
-                })
+                Self::build_card_request(item, &auth, &req_card)
             }
-
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
-                    hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            "EPS requests should use TrustpaymentsEpsRequest".to_string(),
-                        )
-                        .into())
+                    BankRedirectData::Eps { .. } => {
+                        Self::build_eps_request(item, &auth)
+                    }
+                    BankRedirectData::Trustly { .. } => {
+                        Self::build_trustly_request(item, &auth)
                     }
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Bank redirect method not supported".to_string(),
-                    )
-                    .into()),
+                    ).into()),
                 }
             }
-
+            PaymentMethodData::Wallet(wallet_data) => {
+                match wallet_data {
+                    hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
+                        Self::build_alipay_request(item, &auth)
+                    }
+                    hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
+                        Self::build_paysera_request(item, &auth)
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Wallet method not supported".to_string(),
+                    ).into()),
+                }
+            }
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match &*bank_transfer_data {
+                    hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer { .. } => {
+                        Self::build_sepa_request(item, &auth)
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank transfer method not supported".to_string(),
+                    ).into()),
+                }
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method not supported".to_string(),
-            )
-            .into()),
+            ).into()),
         }
+    }
+}
+
+impl TrustpaymentsPaymentsRequest {
+    
+    fn build_card_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+        card: &hyperswitch_domain_models::payment_method_data::Card,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        let request_types = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Automatic) | None => vec!["AUTH".to_string()],
+            Some(common_enums::CaptureMethod::Manual) => vec!["AUTH".to_string()],
+            Some(common_enums::CaptureMethod::ManualMultiple)
+            | Some(common_enums::CaptureMethod::Scheduled)
+            | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: "Capture method not supported by TrustPayments".to_string(),
+                    connector: "TrustPayments",
+                }
+                .into());
+            }
+        };
+
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: request_types,
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // Card-specific fields
+                paymenttypedescription: None,
+                pan: Some(card.card_number.clone()),
+                expirydate: Some(card.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?),
+                securitycode: Some(card.card_cvc.clone()),
+                credentialsonfile: Some(TrustpaymentsCredentialsOnFile::CardholderInitiatedTransaction.to_string()),
+                settlestatus: Some(match item.router_data.request.capture_method {
+                    Some(common_enums::CaptureMethod::Manual) => {
+                        TrustpaymentsSettleStatus::ManualCapture.as_str().to_string()
+                    }
+                    Some(common_enums::CaptureMethod::Automatic) | None => {
+                        TrustpaymentsSettleStatus::PendingSettlement.as_str().to_string()
+                    }
+                    _ => TrustpaymentsSettleStatus::PendingSettlement.as_str().to_string(),
+                }),
+                
+                // Not used for cards
+                returnurl: None,
+                successfulurlredirect: None,
+                errorurlredirect: None,
+                
+                // Billing fields
+                billingfirstname: item.router_data.get_optional_billing_first_name().map(|name| name.expose()),
+                billinglastname: item.router_data.get_optional_billing_last_name().map(|name| name.expose()),
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for cards
+                applicationtype: None,
+            }],
+        })
+    }
+
+    fn build_eps_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: vec!["AUTH".to_string()],
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // EPS-specific fields
+                paymenttypedescription: Some("EPS".to_string()),
+                returnurl: item.router_data.request.router_return_url.clone(),
+                successfulurlredirect: item.router_data.request.router_return_url.clone(),
+                errorurlredirect: item.router_data.request.router_return_url.clone(),
+                
+                // Billing fields
+                billingfirstname: item.router_data.get_optional_billing_first_name().map(|name| name.expose()),
+                billinglastname: item.router_data.get_optional_billing_last_name().map(|name| name.expose()),
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for EPS
+                pan: None,
+                expirydate: None,
+                securitycode: None,
+                credentialsonfile: None,
+                settlestatus: None,
+                applicationtype: None,
+            }],
+        })
+    }
+
+    fn build_trustly_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: vec!["AUTH".to_string()],
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // Trustly-specific fields
+                paymenttypedescription: Some("TRUSTLY".to_string()),
+                returnurl: item.router_data.request.router_return_url.clone(),
+                successfulurlredirect: None,
+                errorurlredirect: None,
+                
+                // Billing fields
+                billingfirstname: item.router_data.get_optional_billing_first_name().map(|name| name.expose()),
+                billinglastname: item.router_data.get_optional_billing_last_name().map(|name| name.expose()),
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for Trustly
+                pan: None,
+                expirydate: None,
+                securitycode: None,
+                credentialsonfile: None,
+                settlestatus: None,
+                applicationtype: None,
+            }],
+        })
+    }
+
+    fn build_alipay_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: vec!["AUTH".to_string()],
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // Alipay-specific fields
+                paymenttypedescription: Some("ALIPAY".to_string()),
+                returnurl: item.router_data.request.router_return_url.clone(),
+                successfulurlredirect: None,
+                errorurlredirect: None,
+                
+                // Billing fields
+                billingfirstname: None,
+                billinglastname: None,
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()).or_else(|| Some("CN".to_string())),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for Alipay
+                pan: None,
+                expirydate: None,
+                securitycode: None,
+                credentialsonfile: None,
+                settlestatus: None,
+                applicationtype: None,
+            }],
+        })
+    }
+
+    fn build_paysera_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: vec!["AUTH".to_string()],
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // Paysera-specific fields
+                paymenttypedescription: Some("PAYSERA".to_string()),
+                returnurl: item.router_data.request.router_return_url.clone(),
+                successfulurlredirect: item.router_data.request.router_return_url.clone(),
+                errorurlredirect: item.router_data.request.router_return_url.clone(),
+                
+                // Billing fields
+                billingfirstname: item.router_data.get_optional_billing_first_name().map(|name| name.expose()),
+                billinglastname: item.router_data.get_optional_billing_last_name().map(|name| name.expose()),
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for Paysera
+                pan: None,
+                expirydate: None,
+                securitycode: None,
+                credentialsonfile: None,
+                settlestatus: None,
+                applicationtype: None,
+            }],
+        })
+    }
+
+    fn build_sepa_request(
+        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        auth: &TrustpaymentsAuthType,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        Ok(Self {
+            alias: auth.username.clone().expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![TrustpaymentsPaymentRequestData {
+                sitereference: auth.site_reference.clone().expose(),
+                requesttypedescriptions: vec!["AUTH".to_string()],
+                accounttypedescription: "ECOM".to_string(),
+                currencyiso3a: item.router_data.request.currency.to_string(),
+                baseamount: item.amount.to_string(),
+                orderreference: item.router_data.connector_request_reference_id.clone(),
+                
+                // SEPA-specific fields
+                paymenttypedescription: Some("SEPA".to_string()),
+                returnurl: None,
+                successfulurlredirect: None,
+                errorurlredirect: None,
+                
+                // Billing fields
+                billingfirstname: item.router_data.get_optional_billing_first_name().map(|name| name.expose()),
+                billinglastname: item.router_data.get_optional_billing_last_name().map(|name| name.expose()),
+                billingcountryiso2a: item.router_data.get_optional_billing_country().map(|country| country.to_string()),
+                billingemail: Some("abc@gmail.com".to_string()),
+                
+                // Not used for SEPA
+                pan: None,
+                expirydate: None,
+                securitycode: None,
+                credentialsonfile: None,
+                settlestatus: None,
+                applicationtype: None,
+            }],
+        })
     }
 }
 
@@ -567,25 +1026,125 @@ pub struct TrustpaymentsPaymentResponseData {
     pub settlestatus: Option<TrustpaymentsSettleStatus>,
     pub requesttypedescription: String,
     pub securityresponsesecuritycode: Option<String>,
+    pub redirecturl: Option<String>,
+    pub records: Option<Vec<TrustpaymentsPaymentRecords>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsEpsResponse {
+pub struct TrustpaymentsPaymentRecords{
+    pub settlestatus: Option<TrustpaymentsSettleStatus>
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsAlipayResponse {
     #[serde(alias = "response")]
-    pub responses: Vec<TrustpaymentsEpsResponseData>,
+    pub responses: Vec<TrustpaymentsAlipayResponseData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TrustpaymentsEpsResponseData {
+pub struct TrustpaymentsAlipayResponseData {
     pub errorcode: TrustpaymentsErrorCode,
     pub errormessage: String,
     pub transactionreference: Option<String>,
     pub requesttypedescription: String,
     pub redirecturl: Option<String>,
+    pub merchantname: Option<String>,
+    pub paymenttypedescription: Option<String>,
+    pub orderreference: Option<String>,
+    pub settleduedate: Option<String>,
+    pub baseamount: Option<String>,
+    pub transactionstartedtimestamp: Option<String>,
+    pub settlestatus: Option<String>,
+    pub accounttypedescription: Option<String>,
+    pub operatorname: Option<String>,
+    pub livestatus: Option<String>,
+    pub currencyiso3a: Option<String>,
+    #[serde(rename = "partner id")]
+    pub partner_id: Option<String>,
 }
 
-impl TrustpaymentsEpsResponseData {
-    pub fn get_eps_status(&self) -> common_enums::AttemptStatus {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsTrustlyResponse {
+    #[serde(alias = "response")]
+    pub responses: Vec<TrustpaymentsTrustlyResponseData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsTrustlyResponseData {
+    pub errorcode: TrustpaymentsErrorCode,
+    pub errormessage: String,
+    pub transactionreference: Option<String>,
+    pub requesttypedescription: String,
+    pub redirecturl: Option<String>,
+    pub merchantname: Option<String>,
+    pub paymenttypedescription: Option<String>,
+    pub orderreference: Option<String>,
+    pub settleduedate: Option<String>,
+    pub baseamount: Option<String>,
+    pub transactionstartedtimestamp: Option<String>,
+    pub settlestatus: Option<String>,
+    pub accounttypedescription: Option<String>,
+    pub operatorname: Option<String>,
+    pub livestatus: Option<String>,
+    pub currencyiso3a: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsPayseraResponse {
+    #[serde(alias = "response")]
+    pub responses: Vec<TrustpaymentsPayseraResponseData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsPayseraResponseData {
+    pub errorcode: TrustpaymentsErrorCode,
+    pub errormessage: String,
+    pub transactionreference: Option<String>,
+    pub requesttypedescription: String,
+    pub redirecturl: Option<String>,
+    pub merchantname: Option<String>,
+    pub paymenttypedescription: Option<String>,
+    pub orderreference: Option<String>,
+    pub settleduedate: Option<String>,
+    pub baseamount: Option<String>,
+    pub transactionstartedtimestamp: Option<String>,
+    pub settlestatus: Option<String>,
+    pub accounttypedescription: Option<String>,
+    pub operatorname: Option<String>,
+    pub livestatus: Option<String>,
+    pub currencyiso3a: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsSepaResponse {
+    #[serde(alias = "response")]
+    pub responses: Vec<TrustpaymentsSepaResponseData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustpaymentsSepaResponseData {
+    pub errorcode: TrustpaymentsErrorCode,
+    pub errormessage: String,
+    pub transactionreference: Option<String>,
+    pub requesttypedescription: String,
+    pub redirecturl: Option<String>,
+    pub merchantname: Option<String>,
+    pub paymenttypedescription: Option<String>,
+    pub orderreference: Option<String>,
+    pub settleduedate: Option<String>,
+    pub baseamount: Option<String>,
+    pub transactionstartedtimestamp: Option<String>,
+    pub settlestatus: Option<String>,
+    pub accounttypedescription: Option<String>,
+    pub operatorname: Option<String>,
+    pub livestatus: Option<String>,
+    pub currencyiso3a: Option<String>,
+}
+
+impl TrustpaymentsAlipayResponseData {
+    pub fn get_alipay_status(&self) -> common_enums::AttemptStatus {
         match self.errorcode {
             TrustpaymentsErrorCode::Success => {
                 if self.redirecturl.is_some() {
@@ -599,34 +1158,107 @@ impl TrustpaymentsEpsResponseData {
     }
 }
 
+impl TrustpaymentsTrustlyResponseData {
+    pub fn get_trustly_status(&self) -> common_enums::AttemptStatus {
+        match self.errorcode {
+            TrustpaymentsErrorCode::Success => {
+                if self.redirecturl.is_some() {
+                    common_enums::AttemptStatus::AuthenticationPending
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            _ => self.errorcode.get_attempt_status(),
+        }
+    }
+}
+
+
+impl TrustpaymentsSepaResponseData {
+    pub fn get_sepa_status(&self) -> common_enums::AttemptStatus {
+        match self.errorcode {
+            TrustpaymentsErrorCode::Success => {
+                if self.redirecturl.is_some() {
+                    common_enums::AttemptStatus::AuthenticationPending
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            _ => self.errorcode.get_attempt_status(),
+        }
+    }
+}
+
+impl TrustpaymentsPayseraResponseData {
+    pub fn get_paysera_status(&self) -> common_enums::AttemptStatus {
+        match self.errorcode {
+            TrustpaymentsErrorCode::Success => {
+                if self.redirecturl.is_some() {
+                    common_enums::AttemptStatus::AuthenticationPending
+                } else if self.requesttypedescription == "TRANSACTIONQUERY" 
+                    && self.transactionreference.is_none() 
+                    && self.redirecturl.is_none() {
+                    // For Paysera sync queries, when transactionreference and redirecturl are null,
+                    // check if we have any indication of completion (timestamp, settlestatus, etc.)
+                    if self.transactionstartedtimestamp.is_some() || 
+                       self.settlestatus.is_some() ||
+                       self.baseamount.is_some() {
+                        // Payment has been processed/completed
+                        common_enums::AttemptStatus::Charged
+                    } else {
+                        // Payment is still pending (no processing indicators)
+                        common_enums::AttemptStatus::AuthenticationPending
+                    }
+                } else {
+                    common_enums::AttemptStatus::Authorized
+                }
+            }
+            _ => self.errorcode.get_attempt_status(),
+        }
+    }
+}
+
 impl TrustpaymentsPaymentResponseData {
+    fn map_settlestatus_to_attempt_status(&self, default_for_none: common_enums::AttemptStatus) -> common_enums::AttemptStatus {
+        match &self.settlestatus {
+            Some(TrustpaymentsSettleStatus::PendingSettlement) => {
+                // settlestatus "0" = Authorized. The payment has been authorized, no further action required
+                common_enums::AttemptStatus::Charged
+            }
+            Some(TrustpaymentsSettleStatus::Settled) => {
+                // settlestatus "1" = Authorized. Same as status 0, the payment has been authorized
+                common_enums::AttemptStatus::Charged
+            }
+            Some(TrustpaymentsSettleStatus::ManualCapture) => {
+                // settlestatus "2" = Suspended. Funds are not scheduled for settlement
+                common_enums::AttemptStatus::Authorized
+            }
+            Some(TrustpaymentsSettleStatus::Voided) => {
+                // settlestatus "3" = Cancelled. The payment has been declined, encountered an error, or was subsequently cancelled
+                common_enums::AttemptStatus::Voided
+            }
+            Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
+                // settlestatus "10" = Pending settlement. The initial status after a successful AUTH request, indicating funds have not yet been settled
+                common_enums::AttemptStatus::Authorizing
+            }
+            Some(TrustpaymentsSettleStatus::SettledRedirect) => {
+                // settlestatus "100" = Settled. The funds have been successfully transferred to your account
+                common_enums::AttemptStatus::Charged
+            }
+            None => default_for_none,
+        }
+    }
+
     pub fn get_payment_status(&self) -> common_enums::AttemptStatus {
         match self.errorcode {
             TrustpaymentsErrorCode::Success => {
-                if self.authcode.is_some() {
-                    match &self.settlestatus {
-                        Some(TrustpaymentsSettleStatus::PendingSettlement) => {
-                            // settlestatus "0" = automatic capture, scheduled to settle
-                            common_enums::AttemptStatus::Charged
-                        }
-                        Some(TrustpaymentsSettleStatus::Settled) => {
-                            // settlestatus "1" or "100" = transaction has been settled
-                            common_enums::AttemptStatus::Charged
-                        }
-                        Some(TrustpaymentsSettleStatus::ManualCapture) => {
-                            // settlestatus "2" = suspended, manual capture needed
-                            common_enums::AttemptStatus::Authorized
-                        }
-                        Some(TrustpaymentsSettleStatus::Voided) => {
-                            // settlestatus "3" = transaction has been cancelled
-                            common_enums::AttemptStatus::Voided
-                        }
-                        Some(TrustpaymentsSettleStatus::EpsPending) => {
-                            // settlestatus "10" = EPS transaction pending
-                            common_enums::AttemptStatus::AuthenticationPending
-                        }
-                        None => common_enums::AttemptStatus::Authorized,
-                    }
+                if self.redirecturl.is_some() {
+                    // For redirect-based payments (like EPS), return AuthenticationPending
+                    // This will trigger Hyperswitch to populate the next_action field
+                    common_enums::AttemptStatus::AuthenticationPending
+                } else if self.authcode.is_some() {
+                    // For card payments with authcode
+                    self.map_settlestatus_to_attempt_status(common_enums::AttemptStatus::Authorized)
                 } else {
                     common_enums::AttemptStatus::Failure
                 }
@@ -636,41 +1268,129 @@ impl TrustpaymentsPaymentResponseData {
     }
 
     pub fn get_payment_status_for_sync(&self) -> common_enums::AttemptStatus {
-        match self.errorcode {
+        router_env::logger::info!(
+            "TrustPayments PSync Status Logic - Starting status computation with errorcode={:?}, requesttypedescription={}, authcode={:?}, settlestatus={:?}, transactionreference={:?}",
+            self.errorcode,
+            self.requesttypedescription,
+            self.authcode,
+            self.settlestatus,
+            self.transactionreference
+        );
+
+        let status = match self.errorcode {
             TrustpaymentsErrorCode::Success => {
+                router_env::logger::info!("TrustPayments PSync Status Logic - Success errorcode, evaluating conditions");
+
+                router_env::logger::info!("dfsdfsd auth code{} records{} transactionreference{}", self.authcode.is_some(), self.records.is_some(), self.transactionreference.is_some());
+                
                 if self.requesttypedescription == "TRANSACTIONQUERY"
                     && self.authcode.is_none()
-                    && self.settlestatus.is_none()
+                    && self.records.is_none()
                     && self.transactionreference.is_none()
                 {
-                    common_enums::AttemptStatus::Authorized
+                    router_env::logger::info!("TrustPayments PSync Status Logic - Condition 1 matched: TRANSACTIONQUERY with all fields None -> Authorized");
+                    common_enums::AttemptStatus::Charged
                 } else if self.authcode.is_some() {
-                    match &self.settlestatus {
+                    
+                    router_env::logger::info!(
+                        "TrustPayments PSync Status Logic - Condition 2 matched: authcode.is_some()={} OR (TRANSACTIONQUERY with settlestatus and transactionreference present)",
+                        self.authcode.is_some()
+                    );
+                    
+                    let settle_status = match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlement -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Settled) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Settled -> Charged");
                             common_enums::AttemptStatus::Charged
                         }
                         Some(TrustpaymentsSettleStatus::ManualCapture) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: ManualCapture -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Voided -> Voided");
                             common_enums::AttemptStatus::Voided
                         }
-                        Some(TrustpaymentsSettleStatus::EpsPending) => {
-                            // settlestatus "10" = EPS transaction pending
-                            common_enums::AttemptStatus::AuthenticationPending
+                        Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlementRedirect -> Authorizing");
+                            common_enums::AttemptStatus::Authorizing
                         }
-                        None => common_enums::AttemptStatus::Authorized,
+                        Some(TrustpaymentsSettleStatus::SettledRedirect) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: SettledRedirect -> Charged");
+                            common_enums::AttemptStatus::Charged
+                        }
+                        None => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: None -> Authorized");
+                            common_enums::AttemptStatus::Authorized
+                        }
+                    };
+                    settle_status
+                }else if self.requesttypedescription == "TRANSACTIONQUERY" 
+                    && self.authcode.is_none()
+                    && self.records.is_some()
+                    {
+
+                    let settle_status = match self.records.as_ref().and_then(|records| records.first()).and_then(|record| record.settlestatus.as_ref()) {
+                        Some(TrustpaymentsSettleStatus::PendingSettlement) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlement -> Authorized");
+                            common_enums::AttemptStatus::Authorized
+                        }
+                        Some(TrustpaymentsSettleStatus::Settled) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Settled -> Charged");
+                            common_enums::AttemptStatus::Charged
+                        }
+                        Some(TrustpaymentsSettleStatus::ManualCapture) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: ManualCapture -> Authorized");
+                            common_enums::AttemptStatus::Authorized
+                        }
+                        Some(TrustpaymentsSettleStatus::Voided) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Voided -> Voided");
+                            common_enums::AttemptStatus::Voided
+                        }
+                        Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlementRedirect -> Authorizing");
+                            common_enums::AttemptStatus::Authorizing
+                        }
+                        Some(TrustpaymentsSettleStatus::SettledRedirect) => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: SettledRedirect -> Charged");
+                            common_enums::AttemptStatus::Charged
+                        }
+                        None => {
+                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: None -> Authorized");
+                            common_enums::AttemptStatus::Authorized
+                        }
+                    };
+
+                    settle_status
                     }
-                } else {
+                
+                 else {
+                    router_env::logger::info!("TrustPayments PSync Status Logic - No conditions matched -> Pending");
                     common_enums::AttemptStatus::Pending
                 }
             }
-            _ => self.errorcode.get_attempt_status(),
-        }
+            _ => {
+                let error_status = self.errorcode.get_attempt_status();
+                router_env::logger::info!(
+                    "TrustPayments PSync Status Logic - Non-success errorcode={:?} -> {:?}",
+                    self.errorcode,
+                    error_status
+                );
+                error_status
+            }
+        };
+
+        router_env::logger::info!(
+            "TrustPayments PSync Status Logic - Final computed status: {:?}",
+            status
+        );
+
+        status
     }
+    
 
     pub fn get_error_message(&self) -> String {
         if self.errorcode.is_success() {
@@ -687,6 +1407,7 @@ impl TrustpaymentsPaymentResponseData {
             None
         }
     }
+
 }
 
 impl
@@ -719,7 +1440,9 @@ impl
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let status = response_data.get_payment_status();
+        router_env::logger::info!("TrustPayments response_data: {:?}", response_data);
+
+        let status: enums::AttemptStatus = response_data.get_payment_status();
         let transaction_id = response_data
             .transactionreference
             .clone()
@@ -745,11 +1468,23 @@ impl
             });
         }
 
+        let redirection_data = if let Some(redirect_url) = &response_data.redirecturl {
+            match url::Url::parse(redirect_url) {
+                Ok(parsed_url) => Some(hyperswitch_domain_models::router_response_types::RedirectForm::from((
+                    parsed_url,
+                    Method::Get,
+                ))),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
-                redirection_data: Box::new(None),
+                redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -786,12 +1521,37 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        router_env::logger::info!(
+            "TrustPayments PSync Response - Starting response transformation, http_code: {}",
+            item.http_code
+        );
+
         let response_data = item
             .response
             .responses
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        router_env::logger::info!("TrustPayments response_data: {:?}", response_data);
+
+        router_env::logger::info!(
+            "TrustPayments PSync Response - Raw response data: errorcode={:?}, errormessage={}, requesttypedescription={}, authcode={:?}, settlestatus={:?}, transactionreference={:?}, redirecturl={:?}",
+            response_data.errorcode,
+            response_data.errormessage,
+            response_data.requesttypedescription,
+            response_data.authcode,
+            response_data.settlestatus,
+            response_data.transactionreference,
+            response_data.redirecturl
+        );
+
         let status = response_data.get_payment_status_for_sync();
+        
+        router_env::logger::info!(
+            "TrustPayments PSync Response - Computed status: {:?}",
+            status
+        );
+        
         let transaction_id = item
             .data
             .request
@@ -799,7 +1559,19 @@ impl
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
+        router_env::logger::info!(
+            "TrustPayments PSync Response - Transaction ID from request: {}",
+            transaction_id
+        );
+
         if !response_data.errorcode.is_success() {
+            router_env::logger::warn!(
+                "TrustPayments PSync Response - Error response: errorcode={:?}, message={}, status={:?}",
+                response_data.errorcode,
+                response_data.errormessage,
+                status
+            );
+
             return Ok(Self {
                 status,
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
@@ -817,6 +1589,12 @@ impl
                 ..item.data
             });
         }
+
+        router_env::logger::info!(
+            "TrustPayments PSync Response - Success response: final_status={:?}, transaction_id={}",
+            status,
+            transaction_id
+        );
 
         Ok(Self {
             status,
@@ -980,7 +1758,6 @@ impl
         })
     }
 }
-
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsCaptureRequest {
     pub alias: String,
@@ -1477,7 +2254,10 @@ impl TrustpaymentsPaymentResponseData {
                 Some(TrustpaymentsSettleStatus::PendingSettlement) => enums::RefundStatus::Pending,
                 Some(TrustpaymentsSettleStatus::ManualCapture) => enums::RefundStatus::Failure,
                 Some(TrustpaymentsSettleStatus::Voided) => enums::RefundStatus::Failure,
-                Some(TrustpaymentsSettleStatus::EpsPending) => enums::RefundStatus::Pending,
+                Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
+                    enums::RefundStatus::Pending
+                },
+                Some(TrustpaymentsSettleStatus::SettledRedirect) => enums::RefundStatus::Success,
                 None => enums::RefundStatus::Success,
             },
             TrustpaymentsErrorCode::Processing => enums::RefundStatus::Pending,
@@ -1485,88 +2265,3 @@ impl TrustpaymentsPaymentResponseData {
         }
     }
 }
-
-impl
-    TryFrom<
-        ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::payments::Authorize,
-            TrustpaymentsEpsResponse,
-            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    >
-    for RouterData<
-        hyperswitch_domain_models::router_flow_types::payments::Authorize,
-        hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
-        PaymentsResponseData,
-    >
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::payments::Authorize,
-            TrustpaymentsEpsResponse,
-            hyperswitch_domain_models::router_request_types::PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let response_data = item
-            .response
-            .responses
-            .first()
-            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let status = response_data.get_eps_status();
-        let transaction_id = response_data
-            .transactionreference
-            .clone()
-            .unwrap_or_else(|| "unknown".to_string());
-
-        if !response_data.errorcode.is_success() {
-            return Ok(Self {
-                status,
-                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                    code: response_data.errorcode.to_string(),
-                    message: response_data.errormessage.clone(),
-                    reason: Some(response_data.errorcode.get_description().to_string()),
-                    status_code: item.http_code,
-                    attempt_status: Some(status),
-                    connector_transaction_id: response_data.transactionreference.clone(),
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                }),
-                ..item.data
-            });
-        }
-
-        let redirection_data = if let Some(redirect_url) = &response_data.redirecturl {
-            match url::Url::parse(redirect_url) {
-                Ok(parsed_url) => Some(hyperswitch_domain_models::router_response_types::RedirectForm::from((
-                    parsed_url,
-                    Method::Get,
-                ))),
-                Err(_) => None, 
-            }
-        } else {
-            None
-        };
-
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
-                redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(transaction_id),
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
-        })
-    }
-}
-

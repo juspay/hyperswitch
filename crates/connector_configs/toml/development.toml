@@ -6916,6 +6916,12 @@ key1 = "API Secret"
   payment_method_type = "Visa"
 [[trustpayments.bank_redirect]]
   payment_method_type = "eps"
+[[trustpayments.bank_redirect]]
+  payment_method_type = "trustly"
+[[trustpayments.wallet]]
+  payment_method_type = "ali_pay"
+[[trustpayments.wallet]]
+  payment_method_type = "paysera"
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 key1 = "Password"
