@@ -378,14 +378,20 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             store_for_future_use,
         ) = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
-                let a = PaymentSource::Card(CardSource {
+                let payment_source = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,
                     number: ccard.card_number.clone(),
                     expiry_month: ccard.card_exp_month.clone(),
                     expiry_year: ccard.card_exp_year.clone(),
                     cvv: Some(ccard.card_cvc),
                 });
-                Ok((a, None, Some(false), payment_type, store_for_future_use))
+                Ok((
+                    payment_source,
+                    None,
+                    Some(false),
+                    payment_type,
+                    store_for_future_use,
+                ))
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => {
