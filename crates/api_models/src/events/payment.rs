@@ -4,7 +4,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
     PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
-    RecoveryPaymentsCreate, RecoveryPaymentsResponse,
+    RecoveryPaymentListResponse, RecoveryPaymentsCreate, RecoveryPaymentsResponse,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
@@ -435,6 +435,13 @@ impl ApiEventMetric for RecoveryPaymentsCreate {
 impl ApiEventMetric for RecoveryPaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
 
