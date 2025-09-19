@@ -132,6 +132,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
+            | Flow::NetworkTokenStatusCheck
             | Flow::PaymentMethodCollectLink
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
