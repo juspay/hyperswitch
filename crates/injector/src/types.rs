@@ -207,7 +207,7 @@ pub mod models {
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
             // Process vault metadata if present
-            if let Some(vault_header) = headers.remove(EXTERNAL_VAULT_METADATA_HEADER) {
+            if let Some(vault_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
                 let vault_header_value = vault_header.expose();
                 logger::info!(
                     vault_header_length = vault_header_value.len(),
@@ -223,10 +223,21 @@ pub mod models {
                     ca_cert_configured = connection_config.ca_cert.is_some(),
                     "Vault metadata processing result in InjectorRequest::new"
                 );
+                
+                // Only remove the header if vault metadata was successfully applied
+                if vault_applied {
+                    headers.remove(EXTERNAL_VAULT_METADATA_HEADER);
+                    logger::debug!("Successfully removed vault metadata header after processing");
+                } else {
+                    logger::warn!("Vault metadata processing failed, keeping header for potential retry");
+                }
             }
 
-            // Set fallback configurations
-            connection_config.proxy_url = connection_config.proxy_url.or(proxy_url);
+            // Set fallback configurations only if vault metadata didn't provide them
+            if connection_config.proxy_url.is_none() && proxy_url.is_some() {
+                logger::info!("Using fallback proxy URL since vault metadata didn't provide one");
+                connection_config.proxy_url = proxy_url;
+            }
             connection_config.client_cert = connection_config.client_cert.or(client_cert);
             connection_config.client_key = connection_config.client_key.or(client_key);
             connection_config.ca_cert = connection_config.ca_cert.or(ca_cert);
