@@ -3478,6 +3478,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 
@@ -3629,6 +3630,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            billing_processor_id: self.billing_processor_id,
         }))
     }
 }
@@ -3976,6 +3978,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 dispute_polling_interval: self.dispute_polling_interval,
                 is_manual_retry_enabled: self.is_manual_retry_enabled,
                 always_enable_overcapture: self.always_enable_overcapture,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }
@@ -4121,6 +4124,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
+                billing_processor_id: self.billing_processor_id,
             },
         )))
     }
