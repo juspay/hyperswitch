@@ -646,6 +646,9 @@ pub mod core {
             };
 
             // Extract vault metadata directly from headers using existing functions
+            logger::info!("make_http_request: Checking for vault metadata header in {} headers", config.headers.len());
+            logger::debug!("Available headers: {:?}", config.headers.keys().collect::<Vec<_>>());
+            
             let vault_proxy_url = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
                 logger::info!("Found vault metadata header in make_http_request, processing...");
                 let mut temp_config = injector_types::ConnectionConfig::new(
@@ -655,14 +658,14 @@ pub mod core {
                 
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
-                    logger::info!("Successfully extracted vault proxy URL from header");
+                    logger::info!("Successfully extracted vault proxy URL from header: {:?}", temp_config.proxy_url.as_ref().map(|p| p.clone().expose()));
                     temp_config.proxy_url
                 } else {
                     logger::warn!("Failed to process vault metadata in make_http_request");
                     None
                 }
             } else {
-                logger::debug!("No vault metadata header found in make_http_request");
+                logger::warn!("No vault metadata header found in make_http_request - header missing!");
                 None
             };
 
@@ -689,14 +692,15 @@ pub mod core {
             // Build request with certificate configuration applied
             let request = build_request_with_certificates(request_builder, config);
 
-            // Determine which proxy to use: vault metadata > config > none
+            // Determine which proxy to use: vault metadata > backup > none
             let vault_proxy_available = vault_proxy_url.is_some();
-            let final_proxy_url = vault_proxy_url.or_else(|| config.proxy_url.clone());
+            logger::info!("Proxy selection: vault_proxy_available={}, backup_proxy_available={}", vault_proxy_available, config.backup_proxy_url.is_some());
+            let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
             
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
                 let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                logger::info!("Using proxy URL from {}: {}", proxy_source, proxy_url_str);
+                logger::error!("PROXY SELECTED: Using proxy URL from {}: {}", proxy_source, proxy_url_str);
                 
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {

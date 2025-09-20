@@ -74,6 +74,9 @@ pub mod models {
         pub headers: HashMap<String, Secret<String>>,
         /// Optional proxy URL for routing the request through a proxy server
         pub proxy_url: Option<Secret<String>>,
+        /// Optional backup proxy URL to use if vault metadata doesn't provide one
+        #[serde(default)]
+        pub backup_proxy_url: Option<Secret<String>>,
         /// Optional client certificate for mutual TLS authentication
         pub client_cert: Option<Secret<String>>,
         /// Optional client private key for mutual TLS authentication
@@ -209,11 +212,8 @@ pub mod models {
                 logger::info!("Vault metadata header found, will be processed in make_http_request");
             }
 
-            // Set fallback configurations only if vault metadata didn't provide them
-            if connection_config.proxy_url.is_none() && proxy_url.is_some() {
-                logger::info!("Using fallback proxy URL since vault metadata didn't provide one");
-                connection_config.proxy_url = proxy_url;
-            }
+            // Store backup proxy for make_http_request to use as fallback
+            connection_config.backup_proxy_url = proxy_url;
             connection_config.client_cert = connection_config.client_cert.or(client_cert);
             connection_config.client_key = connection_config.client_key.or(client_key);
             connection_config.ca_cert = connection_config.ca_cert.or(ca_cert);
@@ -235,6 +235,7 @@ pub mod models {
                 http_method,
                 headers: HashMap::new(),
                 proxy_url: None,
+                backup_proxy_url: None,
                 client_cert: None,
                 client_key: None,
                 ca_cert: None,
