@@ -1929,29 +1929,19 @@ fn get_additional_data(item: &PaymentsAuthorizeRouterData) -> Option<AdditionalD
     let execute_three_d = if matches!(item.auth_type, storage_enums::AuthenticationType::ThreeDs) {
         Some("true".to_string())
     } else {
-        None
+        Some("false".to_string())
     };
-    if authorisation_type.is_none()
-        && manual_capture.is_none()
-        && execute_three_d.is_none()
-        && riskdata.is_none()
-    {
-        //without this if-condition when the above 3 values are None, additionalData will be serialized to JSON like this -> additionalData: {}
-        //returning None, ensures that additionalData key will not be present in the serialized JSON
-        None
-    } else {
-        Some(AdditionalData {
-            authorisation_type,
-            manual_capture,
-            execute_three_d,
-            network_tx_reference: None,
-            recurring_detail_reference: None,
-            recurring_shopper_reference: None,
-            recurring_processing_model: None,
-            riskdata,
-            ..AdditionalData::default()
-        })
-    }
+    Some(AdditionalData {
+        authorisation_type,
+        manual_capture,
+        execute_three_d,
+        network_tx_reference: None,
+        recurring_detail_reference: None,
+        recurring_shopper_reference: None,
+        recurring_processing_model: None,
+        riskdata,
+        ..AdditionalData::default()
+    })
 }
 
 fn get_channel_type(pm_type: Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
