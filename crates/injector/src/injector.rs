@@ -17,6 +17,7 @@ pub mod core {
 
     use crate as injector_types;
     use crate::types::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
+    use crate::vault_metadata::VaultMetadataExtractorExt;
 
     impl From<injector_types::HttpMethod> for Method {
         fn from(method: injector_types::HttpMethod) -> Self {
@@ -644,6 +645,27 @@ pub mod core {
                 }
             };
 
+            // Extract vault metadata directly from headers using existing functions
+            let vault_proxy_url = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
+                logger::info!("Found vault metadata header in make_http_request, processing...");
+                let mut temp_config = injector_types::ConnectionConfig::new(
+                    config.endpoint.clone(), 
+                    config.http_method
+                );
+                
+                // Use existing vault metadata extraction with fallback
+                if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
+                    logger::info!("Successfully extracted vault proxy URL from header");
+                    temp_config.proxy_url
+                } else {
+                    logger::warn!("Failed to process vault metadata in make_http_request");
+                    None
+                }
+            } else {
+                logger::debug!("No vault metadata header found in make_http_request");
+                None
+            };
+
             // Build request safely with certificate configuration
             let mut request_builder = RequestBuilder::new()
                 .method(method)
@@ -667,44 +689,24 @@ pub mod core {
             // Build request with certificate configuration applied
             let request = build_request_with_certificates(request_builder, config);
 
-            let proxy = if let Some(proxy_url) = &config.proxy_url {
-                let proxy_url_str = proxy_url.clone().expose();
-                logger::debug!("Using proxy URL from vault metadata");
-
-                // Parse URL to determine scheme
-                let parsed_proxy_url = reqwest::Url::parse(&proxy_url_str).map_err(|e| {
-                    logger::error!("Failed to parse proxy URL: {}", e);
-                    error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                        "Invalid proxy URL: {e}"
-                    )))
-                })?;
-
-                logger::debug!(
-                    proxy_scheme = parsed_proxy_url.scheme(),
-                    proxy_host = ?parsed_proxy_url.host(),
-                    proxy_port = ?parsed_proxy_url.port(),
-                    "Parsed proxy URL information"
-                );
-
-                if parsed_proxy_url.scheme() == "https" {
-                    logger::debug!("Using HTTPS proxy configuration");
-                    Proxy {
-                        http_url: None,
-                        https_url: Some(proxy_url_str),
-                        idle_pool_connection_timeout: Some(90),
-                        bypass_proxy_hosts: None,
-                    }
-                } else {
-                    logger::debug!("Using HTTP proxy configuration");
-                    Proxy {
-                        http_url: Some(proxy_url_str),
-                        https_url: None,
-                        idle_pool_connection_timeout: Some(90),
-                        bypass_proxy_hosts: None,
-                    }
+            // Determine which proxy to use: vault metadata > config > none
+            let vault_proxy_available = vault_proxy_url.is_some();
+            let final_proxy_url = vault_proxy_url.or_else(|| config.proxy_url.clone());
+            
+            let proxy = if let Some(proxy_url) = final_proxy_url {
+                let proxy_url_str = proxy_url.expose();
+                let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
+                logger::info!("Using proxy URL from {}: {}", proxy_source, proxy_url_str);
+                
+                // Set proxy URL for both HTTP and HTTPS traffic
+                Proxy {
+                    http_url: Some(proxy_url_str.clone()),
+                    https_url: Some(proxy_url_str),
+                    idle_pool_connection_timeout: Some(90),
+                    bypass_proxy_hosts: None,
                 }
             } else {
-                logger::debug!("No proxy configured, using direct connection to target");
+                logger::info!("No proxy configured, using direct connection");
                 Proxy::default()
             };
 

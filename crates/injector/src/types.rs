@@ -3,14 +3,12 @@ pub mod models {
 
     use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
-    use masking::{ExposeInterface, Secret};
+    use masking::Secret;
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
-    // Import vault metadata processing trait at top level
-    use crate::{
-        consts::EXTERNAL_VAULT_METADATA_HEADER, vault_metadata::VaultMetadataExtractorExt,
-    };
+    // Import vault metadata header constant
+    use crate::consts::EXTERNAL_VAULT_METADATA_HEADER;
 
     // Enums for the injector - making it standalone
 
@@ -203,34 +201,12 @@ pub mod models {
             client_key: Option<Secret<String>>,
             ca_cert: Option<Secret<String>>,
         ) -> Self {
-            let mut headers = headers.unwrap_or_default();
+            let headers = headers.unwrap_or_default();
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
-            // Process vault metadata if present
-            if let Some(vault_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
-                let vault_header_value = vault_header.clone().expose();
-                logger::info!(
-                    vault_header_length = vault_header_value.len(),
-                    "Processing vault metadata header in InjectorRequest::new"
-                );
-                let vault_applied = connection_config
-                    .extract_and_apply_vault_metadata_with_fallback_from_header(
-                        &vault_header_value,
-                    );
-                logger::info!(
-                    vault_applied = vault_applied,
-                    proxy_configured = connection_config.proxy_url.is_some(),
-                    ca_cert_configured = connection_config.ca_cert.is_some(),
-                    "Vault metadata processing result in InjectorRequest::new"
-                );
-                
-                // Only remove the header if vault metadata was successfully applied
-                if vault_applied {
-                    headers.remove(EXTERNAL_VAULT_METADATA_HEADER);
-                    logger::debug!("Successfully removed vault metadata header after processing");
-                } else {
-                    logger::warn!("Vault metadata processing failed, keeping header for potential retry");
-                }
+            // Keep vault metadata header for processing in make_http_request
+            if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {
+                logger::info!("Vault metadata header found, will be processed in make_http_request");
             }
 
             // Set fallback configurations only if vault metadata didn't provide them
