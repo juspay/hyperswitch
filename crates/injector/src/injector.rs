@@ -647,7 +647,6 @@ pub mod core {
 
             // Extract vault metadata directly from headers using existing functions
             logger::info!("make_http_request: Checking for vault metadata header in {} headers", config.headers.len());
-            logger::debug!("Available headers: {:?}", config.headers.keys().collect::<Vec<_>>());
             
             let (vault_proxy_url, vault_ca_cert) = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
                 logger::info!("Found vault metadata header in make_http_request, processing...");
@@ -658,7 +657,7 @@ pub mod core {
                 
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
-                    logger::info!("Successfully extracted vault proxy URL from header: {:?}", temp_config.proxy_url.as_ref().map(|p| p.clone().expose()));
+                    logger::info!("Successfully extracted vault proxy URL from header: {}", temp_config.proxy_url.is_some());
                     logger::info!("Successfully extracted vault CA cert: {}", temp_config.ca_cert.is_some());
                     (temp_config.proxy_url, temp_config.ca_cert)
                 } else {
@@ -710,7 +709,7 @@ pub mod core {
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
                 let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                logger::error!("PROXY SELECTED: Using proxy URL from {}: {}", proxy_source, proxy_url_str);
+                logger::info!("PROXY SELECTED: Using proxy from {}", proxy_source);
                 
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {

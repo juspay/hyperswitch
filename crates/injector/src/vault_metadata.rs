@@ -84,7 +84,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         connection_config: &mut ConnectionConfig,
     ) -> Result<(), VaultMetadataError> {
         logger::debug!(
-            proxy_url = %self.proxy_url,
             proxy_url_scheme = self.proxy_url.scheme(),
             proxy_url_host = ?self.proxy_url.host(),
             proxy_url_port = ?self.proxy_url.port(),
@@ -96,9 +95,8 @@ impl VaultMetadataProcessor for VgsMetadata {
         connection_config.proxy_url = Some(Secret::new(proxy_url_str.clone()));
 
         logger::info!(
-            original_proxy_url = %self.proxy_url,
-            processed_proxy_url = %proxy_url_str,
             proxy_url_length = proxy_url_str.len(),
+            proxy_url_scheme = self.proxy_url.scheme(),
             "Set proxy URL from VGS metadata"
         );
 
@@ -146,11 +144,10 @@ impl VaultMetadataProcessor for VgsMetadata {
         connection_config.ca_cert = Some(Secret::new(decoded_cert.clone()));
 
         logger::info!(
-            proxy_url = %self.proxy_url,
-            proxy_url_as_str = self.proxy_url.as_str(),
             proxy_url_set = connection_config.proxy_url.is_some(),
             ca_cert_set = connection_config.ca_cert.is_some(),
             ca_cert_length = decoded_cert.len(),
+            proxy_url_scheme = self.proxy_url.scheme(),
             "Successfully applied VGS vault metadata to connection config"
         );
 
