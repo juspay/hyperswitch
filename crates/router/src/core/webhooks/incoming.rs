@@ -271,6 +271,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?
         };
 
+    // if it is a setup webhook event, return ok status
+    if webhook_processing_result.event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
     let final_request_details = match &webhook_processing_result.decoded_body {
         Some(decoded_body) => IncomingWebhookRequestDetails {
@@ -1443,6 +1452,7 @@ async fn relay_incoming_webhook_flow(
         | webhooks::WebhookFlow::ReturnResponse
         | webhooks::WebhookFlow::BankTransfer
         | webhooks::WebhookFlow::Mandate
+        | webhooks::WebhookFlow::Setup
         | webhooks::WebhookFlow::ExternalAuthentication
         | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
             message: "Relay webhook flow types not supported".to_string(),
