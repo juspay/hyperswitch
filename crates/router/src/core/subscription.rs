@@ -69,13 +69,13 @@ pub async fn create_subscription(
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    _profile_id: String,
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let handler = SubscriptionHandler::new(state, merchant_context, request);
 
-    let subscription_entry = handler
+    let mut subscription_entry = handler
         .find_subscription(subscription_id.get_string_repr().to_string())
         .await?;
 
@@ -171,7 +171,7 @@ impl<'a> SubscriptionWithHandler<'a> {
         })
     }
 
-    async fn update_subscription_status(&self, status: String) -> errors::RouterResult<()> {
+    async fn update_subscription_status(&mut self, status: String) -> errors::RouterResult<()> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
@@ -185,6 +185,8 @@ impl<'a> SubscriptionWithHandler<'a> {
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("subscriptions: unable to update subscription entry in database")?;
+
+        self.subscription = updated_subscription;
 
         Ok(())
     }

@@ -1,13 +1,11 @@
 use common_types::payments::CustomerAcceptance;
-use common_utils::{events::ApiEventMetric, pii, types::MinorUnit};
+use common_utils::{events::ApiEventMetric, types::MinorUnit};
 use masking::Secret;
-use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    customers::{CustomerRequest, CustomerResponse},
     enums as api_enums,
-    payments::{Address, CustomerDetails, CustomerDetailsResponse, PaymentMethodDataRequest},
+    payments::{Address, CustomerDetails, PaymentMethodDataRequest},
 };
 
 // use crate::{
@@ -170,46 +168,3 @@ pub struct ConfirmSubscriptionResponse {
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
-
-// Dummy types from here onwards, to be replaced after connector integration
-#[derive(Debug, Clone)]
-pub struct SubscriptionCreateResponse {
-    pub subscription_id: String,
-    pub status: String,
-    pub customer_id: String,
-    pub currency_code: api_enums::Currency,
-    pub total_amount: MinorUnit,
-    pub next_billing_at: Option<PrimitiveDateTime>,
-    pub created_at: Option<PrimitiveDateTime>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateCustomer;
-
-#[derive(Debug, Clone)]
-pub struct CreateCustomerRequest {
-    pub id: common_utils::id_type::CustomerId,
-    // More fields can be added as needed
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateCustomerResponse {
-    pub id: common_utils::id_type::CustomerId,
-    // More fields can be added as needed
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateSubscription;
-
-#[derive(Debug, Clone)]
-pub struct SubscriptionCreateRequest {
-    pub id: String, // More fields can be added as needed
-}
-
-#[allow(clippy::todo)]
-impl Default for SubscriptionCreateResponse {
-    fn default() -> Self {
-        // TODO: Replace with a proper default implementation after connector integration
-        todo!()
-    }
-}
