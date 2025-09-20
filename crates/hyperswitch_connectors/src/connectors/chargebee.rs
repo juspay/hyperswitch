@@ -127,13 +127,28 @@ impl ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, Subscri
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
         let customer_id = &req.request.customer_id.get_string_repr().to_string();
         Ok(format!(
-            "{url}v2/customers/{customer_id}/subscription_for_items"
+            "{base}v2/customers/{customer_id}/subscription_for_items"
         ))
     }
 
