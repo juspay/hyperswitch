@@ -649,7 +649,7 @@ pub mod core {
             logger::info!("make_http_request: Checking for vault metadata header in {} headers", config.headers.len());
             logger::debug!("Available headers: {:?}", config.headers.keys().collect::<Vec<_>>());
             
-            let vault_proxy_url = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
+            let (vault_proxy_url, vault_ca_cert) = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
                 logger::info!("Found vault metadata header in make_http_request, processing...");
                 let mut temp_config = injector_types::ConnectionConfig::new(
                     config.endpoint.clone(), 
@@ -659,14 +659,15 @@ pub mod core {
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
                     logger::info!("Successfully extracted vault proxy URL from header: {:?}", temp_config.proxy_url.as_ref().map(|p| p.clone().expose()));
-                    temp_config.proxy_url
+                    logger::info!("Successfully extracted vault CA cert: {}", temp_config.ca_cert.is_some());
+                    (temp_config.proxy_url, temp_config.ca_cert)
                 } else {
                     logger::warn!("Failed to process vault metadata in make_http_request");
-                    None
+                    (None, None)
                 }
             } else {
                 logger::warn!("No vault metadata header found in make_http_request - header missing!");
-                None
+                (None, None)
             };
 
             // Build request safely with certificate configuration
@@ -679,18 +680,27 @@ pub mod core {
                 request_builder = request_builder.set_body(content);
             }
 
+            // Create final config with vault CA certificate if available
+            let mut final_config = config.clone();
+            let has_vault_ca_cert = vault_ca_cert.is_some();
+            if has_vault_ca_cert {
+                logger::info!("Applying vault CA certificate to connection config");
+                final_config.ca_cert = vault_ca_cert;
+            }
+
             // Log certificate configuration (but not the actual content)
             logger::info!(
-                has_client_cert = config.client_cert.is_some(),
-                has_client_key = config.client_key.is_some(),
-                has_ca_cert = config.ca_cert.is_some(),
-                insecure = config.insecure.unwrap_or(false),
-                cert_format = ?config.cert_format,
+                has_client_cert = final_config.client_cert.is_some(),
+                has_client_key = final_config.client_key.is_some(),
+                has_ca_cert = final_config.ca_cert.is_some(),
+                has_vault_ca_cert = has_vault_ca_cert,
+                insecure = final_config.insecure.unwrap_or(false),
+                cert_format = ?final_config.cert_format,
                 "Certificate configuration applied"
             );
 
             // Build request with certificate configuration applied
-            let request = build_request_with_certificates(request_builder, config);
+            let request = build_request_with_certificates(request_builder, &final_config);
 
             // Determine which proxy to use: vault metadata > backup > none
             let vault_proxy_available = vault_proxy_url.is_some();
