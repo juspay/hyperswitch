@@ -102,7 +102,7 @@ pub async fn confirm_subscription(
                 merchant_context,
                 profile_id.clone(),
                 payload.clone(),
-                subscription_id.clone(), // make this typed
+                subscription_id.clone(),
             )
         },
         auth::auth_type(
