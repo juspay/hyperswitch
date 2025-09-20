@@ -208,7 +208,7 @@ pub mod models {
 
             // Process vault metadata if present
             if let Some(vault_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
-                let vault_header_value = vault_header.expose();
+                let vault_header_value = vault_header.clone().expose();
                 logger::info!(
                     vault_header_length = vault_header_value.len(),
                     "Processing vault metadata header in InjectorRequest::new"
