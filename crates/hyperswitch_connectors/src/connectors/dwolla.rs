@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorCustomerResponseData, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
@@ -346,9 +346,9 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
 
         Ok(RouterData {
             connector_customer: Some(connector_customer_id.clone()),
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id,
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(connector_customer_id),
+            )),
             ..data.clone()
         })
     }

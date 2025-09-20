@@ -110,6 +110,28 @@ pub struct ConfigMerchantAdditionalDetails {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIdConfigForCard {
+    pub three_ds: Option<Vec<InputData>>,
+    pub no_three_ds: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIdConfigForRedirect {
+    pub three_ds: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIDSupportedMethods {
+    card: HashMap<String, AccountIdConfigForCard>,
+    skrill: HashMap<String, AccountIdConfigForRedirect>,
+    interac: HashMap<String, AccountIdConfigForRedirect>,
+    pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
@@ -149,7 +171,12 @@ pub struct ConfigMetadata {
     pub proxy_url: Option<InputData>,
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
-    pub account_id: Option<InputData>,
+    pub account_id: Option<AccountIDSupportedMethods>,
+    pub name: Option<InputData>,
+    pub client_merchant_reference_id: Option<InputData>,
+    pub route: Option<InputData>,
+    pub mid: Option<InputData>,
+    pub tid: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -214,6 +241,7 @@ pub struct ConnectorConfig {
     pub boku: Option<ConnectorTomlConfig>,
     pub braintree: Option<ConnectorTomlConfig>,
     pub breadpay: Option<ConnectorTomlConfig>,
+    pub cardinal: Option<ConnectorTomlConfig>,
     pub cashtocode: Option<ConnectorTomlConfig>,
     pub celero: Option<ConnectorTomlConfig>,
     pub chargebee: Option<ConnectorTomlConfig>,
@@ -377,6 +405,7 @@ impl ConnectorConfig {
                 Ok(connector_data.unified_authentication_service)
             }
             AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
+            AuthenticationConnectors::Cardinal => Ok(connector_data.cardinal),
         }
     }
 
@@ -424,6 +453,7 @@ impl ConnectorConfig {
             Connector::Braintree => Ok(connector_data.braintree),
             Connector::Breadpay => Ok(connector_data.breadpay),
             Connector::Cashtocode => Ok(connector_data.cashtocode),
+            Connector::Cardinal => Ok(connector_data.cardinal),
             Connector::Celero => Ok(connector_data.celero),
             Connector::Chargebee => Ok(connector_data.chargebee),
             Connector::Checkbook => Ok(connector_data.checkbook),
@@ -505,6 +535,7 @@ impl ConnectorConfig {
             Connector::Stripebilling => Ok(connector_data.stripebilling),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
+            Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),

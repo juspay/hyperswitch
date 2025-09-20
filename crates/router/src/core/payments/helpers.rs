@@ -2966,6 +2966,13 @@ pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
 ) -> RouterResult<()> {
+    utils::when(amount_to_capture.is_some_and(|value| value <= 0), || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string(),
+        }))
+    })?;
+
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
         || {
@@ -4448,6 +4455,21 @@ pub fn get_attempt_type(
     match payment_intent.status {
         enums::IntentStatus::Failed => {
             if matches!(is_manual_retry_enabled, Some(true)) {
+                // if it is false, don't go ahead with manual retry
+                fp_utils::when(
+                    !validate_manual_retry_cutoff(
+                        payment_intent.created_at,
+                        payment_intent.session_expiry,
+                    ),
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment using `manual_retry` because the allowed duration has expired")
+                            }
+                        ))
+                    },
+                )?;
+
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
@@ -4550,6 +4572,27 @@ pub fn get_attempt_type(
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => Ok(AttemptType::SameOld),
     }
+}
+
+fn validate_manual_retry_cutoff(
+    created_at: time::PrimitiveDateTime,
+    session_expiry: Option<time::PrimitiveDateTime>,
+) -> bool {
+    let utc_current_time = time::OffsetDateTime::now_utc();
+    let primitive_utc_current_time =
+        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let time_difference_from_creation = primitive_utc_current_time - created_at;
+
+    // cutoff time is 50% of session duration
+    let cutoff_limit = match session_expiry {
+        Some(session_expiry) => {
+            let duration = session_expiry - created_at;
+            duration.whole_seconds() / 2
+        }
+        None => consts::DEFAULT_SESSION_EXPIRY / 2,
+    };
+
+    time_difference_from_creation.whole_seconds() <= cutoff_limit
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

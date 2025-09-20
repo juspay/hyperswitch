@@ -85,6 +85,7 @@ pub enum ApiEventsType {
         payment_id: Option<id_type::GlobalPaymentId>,
     },
     Routing,
+    Subscription,
     ResourceListAPI,
     #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
