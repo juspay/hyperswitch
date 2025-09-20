@@ -209,7 +209,9 @@ pub mod models {
 
             // Keep vault metadata header for processing in make_http_request
             if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {
-                logger::info!("Vault metadata header found, will be processed in make_http_request");
+                logger::info!(
+                    "Vault metadata header found, will be processed in make_http_request"
+                );
             }
 
             // Store backup proxy for make_http_request to use as fallback
