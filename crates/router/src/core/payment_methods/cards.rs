@@ -4,6 +4,12 @@ use std::{
     str::FromStr,
 };
 
+/// Configuration key constants
+mod config_keys {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+}
+
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
@@ -77,6 +83,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
+        configs,
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
@@ -4124,19 +4131,26 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
+    let requires_cvv = configs::get_config_bool(
+        state,
+        config_keys::REQUIRES_CVV, // superposition key
+        &merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_requires_cvv_key(), // database key
+        Some(HashMap::from([(
+            "merchant_id".to_string(),
+            merchant_context
                 .get_merchant_account()
                 .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
-
-    let requires_cvv = is_requires_cvv.config != "false";
+                .get_string_repr()
+                .to_string(),
+        )])),
+        true, // default value
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch requires_cvv config")?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
