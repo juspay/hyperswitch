@@ -55,6 +55,7 @@ import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -117,6 +118,7 @@ const connectorDetails = {
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
