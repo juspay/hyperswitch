@@ -1219,7 +1219,6 @@ mod tests {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: Default::default(),
-
         };
         payment_method.clone()
     }
