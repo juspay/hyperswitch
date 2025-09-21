@@ -169,12 +169,8 @@ pub mod models {
 
             // Try to parse as JSON, fallback to string value with error logging
             let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
-                Ok(json) => {
-                    json
-                }
-                Err(e) => {
-                    serde_json::Value::String(response_text)
-                }
+                Ok(json) => json,
+                Err(e) => serde_json::Value::String(response_text),
             };
 
             Ok(InjectorResponse {
@@ -203,8 +199,7 @@ pub mod models {
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
             // Keep vault metadata header for processing in make_http_request
-            if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {
-            }
+            if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {}
 
             // Store backup proxy for make_http_request to use as fallback
             connection_config.backup_proxy_url = proxy_url;

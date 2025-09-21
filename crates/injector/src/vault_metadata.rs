@@ -90,7 +90,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         // Validate and decode certificate from VGS metadata
         let cert_content = self.certificate.clone().expose();
 
-
         // Check if certificate is base64 encoded and decode if necessary
         let decoded_cert = if cert_content.starts_with("-----BEGIN") {
             cert_content
@@ -117,7 +116,6 @@ impl VaultMetadataProcessor for VgsMetadata {
         };
 
         connection_config.ca_cert = Some(Secret::new(decoded_cert.clone()));
-
 
         Ok(())
     }
@@ -165,10 +163,7 @@ impl VaultMetadataFactory {
                 error = %e,
                 "Failed to decode base64 vault metadata header"
             );
-            VaultMetadataError::Base64DecodingFailed(format!(
-                "Invalid base64 encoding: {}",
-                e
-            ))
+            VaultMetadataError::Base64DecodingFailed(format!("Invalid base64 encoding: {}", e))
         })?;
 
         // Validate decoded size
@@ -189,10 +184,7 @@ impl VaultMetadataFactory {
                     error = %e,
                     "Failed to parse vault metadata JSON"
                 );
-                VaultMetadataError::JsonParsingFailed(format!(
-                    "Invalid JSON structure: {}",
-                    e
-                ))
+                VaultMetadataError::JsonParsingFailed(format!("Invalid JSON structure: {}", e))
             })?;
 
         logger::info!(
@@ -219,7 +211,6 @@ impl VaultMetadataExtractor for ConnectionConfig {
         headers: &HashMap<String, Secret<String>>,
     ) -> Result<(), VaultMetadataError> {
         if let Some(vault_metadata_header) = headers.get(EXTERNAL_VAULT_METADATA_HEADER) {
-
             let processor =
                 VaultMetadataFactory::from_base64_header(&vault_metadata_header.clone().expose())
                     .map_err(|e| {
@@ -229,7 +220,6 @@ impl VaultMetadataExtractor for ConnectionConfig {
                     );
                     e
                 })?;
-
 
             processor.process_metadata(self).map_err(|e| {
                 logger::error!(

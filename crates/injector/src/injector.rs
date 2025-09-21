@@ -136,7 +136,6 @@ pub mod core {
 
         // Configure proxy if provided
         if let Some(proxy_url) = &proxy_config.https_url {
-
             let proxy = reqwest::Proxy::https(proxy_url)
                 .change_context(InjectorError::HttpRequestFailed)
                 .inspect_err(|e| {
@@ -175,7 +174,6 @@ pub mod core {
     ) -> error_stack::Result<reqwest::Identity, InjectorError> {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
-
 
         let combined_pem = format!("{cert_str}\n{key_str}");
         reqwest::Identity::from_pem(combined_pem.as_bytes())
@@ -626,8 +624,11 @@ pub mod core {
             };
 
             // Extract vault metadata directly from headers using existing functions
-            
-            let (vault_proxy_url, vault_ca_cert) = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
+
+            let (vault_proxy_url, vault_ca_cert) = if config
+                .headers
+                .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
+            {
                 let mut temp_config = injector_types::ConnectionConfig::new(
                     config.endpoint.clone(),
                     config.http_method,
@@ -680,8 +681,12 @@ pub mod core {
 
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
-                let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                
+                let proxy_source = if vault_proxy_available {
+                    "vault metadata"
+                } else {
+                    "backup config"
+                };
+
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {
                     http_url: Some(proxy_url_str.clone()),
@@ -717,7 +722,6 @@ pub mod core {
             &self,
             request: InjectorRequest,
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
-
             let start_time = std::time::Instant::now();
 
             // Extract token data from SecretSerdeValue for vault data lookup
