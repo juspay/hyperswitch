@@ -20,6 +20,8 @@ use crate::{
     routes::SessionState,
 };
 
+const SECRET_SPLIT: &str = "_secret";
+
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
@@ -80,7 +82,7 @@ pub async fn get_subscription_plans(
 ) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
     let db = state.store.as_ref();
     let key_store = merchant_context.get_merchant_key_store();
-    let sub_vec = client_secret.split("_secret").collect::<Vec<&str>>();
+    let sub_vec = client_secret.split(SECRET_SPLIT).collect::<Vec<&str>>();
     let subscription_id =
         sub_vec
             .first()
@@ -136,7 +138,7 @@ pub async fn get_subscription_plans(
         Some(billing_processor_mca.get_id()),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("invalid connector name received in billing merchant connector account")?;
+    .attach_printable("Invalid connector name received in billing merchant connector account")?;
 
     let connector_integration_for_get_subscription_plans: crate::services::BoxedGetSubscriptionPlansInterface<
         hyperswitch_domain_models::router_flow_types::subscriptions::GetSubscriptionPlans,
@@ -191,10 +193,10 @@ pub async fn get_subscription_plans(
         .list
         .clone()
         .into_iter()
-        .map(|p| subscription_types::GetPlansResponse {
-            plan_id: p.subscription_provider_plan_id,
-            name: p.name,
-            description: p.description.unwrap_or_default(),
+        .map(|plan| subscription_types::GetPlansResponse {
+            plan_id: plan.subscription_provider_plan_id,
+            name: plan.name,
+            description: plan.description.unwrap_or_default(),
         })
         .collect();
     crate::logger::debug!("get_plans_response: {:?}", get_plans_response);
