@@ -3695,7 +3695,7 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
-    connectors::Tokenex,
+    
     connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
@@ -3797,6 +3797,7 @@ default_imp_for_payouts!(
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
