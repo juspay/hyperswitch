@@ -3478,10 +3478,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
-            is_external_vault_enabled: self.is_external_vault_enabled,
-            external_vault_connector_details: self
-                .external_vault_connector_details
-                .map(ForeignInto::foreign_into),
+            external_vault_details: domain::ExternalVaultDetails::try_from((
+                self.is_external_vault_enabled,
+                self.external_vault_connector_details
+                    .map(ForeignFrom::foreign_from),
+            )).change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("error while generating external vault details")?,
         }))
     }
 

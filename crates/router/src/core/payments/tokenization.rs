@@ -51,6 +51,7 @@ use crate::{
     },
     utils::{generate_id, OptionExt},
 };
+use diesel_models::business_profile::ExternalVaultConnectorDetails;
 
 #[cfg(feature = "v1")]
 async fn save_in_locker(
@@ -63,20 +64,24 @@ async fn save_in_locker(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    if business_profile.is_external_vault_enabled.unwrap_or(false) {
-        logger::info!("External vault is enabled, using vault_payment_method_external_v1");
+    match &business_profile.external_vault_details {
+        domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
+            logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
-        save_in_locker_external(
-            state,
-            merchant_context,
-            payment_method_request,
-            card_detail,
-            business_profile,
-        )
-        .await
-    } else {
-        // Use internal vault (locker)
-        save_in_locker_internal(state, merchant_context, payment_method_request, card_detail).await
+            save_in_locker_external(
+                state,
+                merchant_context,
+                payment_method_request,
+                card_detail,
+                external_vault_details,
+            )
+            .await
+        }
+        domain::ExternalVaultDetails::Skip => {
+            // Use internal vault (locker)
+            save_in_locker_internal(state, merchant_context, payment_method_request, card_detail)
+                .await
+        }
     }
 }
 
@@ -364,17 +369,16 @@ where
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
-                let external_vault_mca_id = &business_profile
-                    .external_vault_connector_details
-                    .clone()
+                let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
+                        (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
+                    },
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => (None, Some(common_enums::VaultType::Internal)),
+                };
+                let external_vault_mca_id = &external_vault_details
                     .map(|connector_details| connector_details.vault_connector_id.clone())
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("mca_id not present for external vault")?;
-                let vault_type = if business_profile.is_external_vault_enabled.unwrap_or(false) {
-                    Some(common_enums::VaultType::External)
-                } else {
-                    Some(common_enums::VaultType::Internal)
-                };
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -1147,7 +1151,7 @@ pub async fn save_in_locker_external(
     merchant_context: &domain::MerchantContext,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
-    business_profile: &domain::Profile,
+    external_vault_connector_details: &ExternalVaultConnectorDetails,
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
@@ -1160,12 +1164,16 @@ pub async fn save_in_locker_external(
     if let Some(card) = card_detail {
         let payment_method_vaulting_data =
             hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone());
-        let external_vault_mca_id = business_profile
-            .external_vault_connector_details
-            .clone()
-            .map(|connector_details| connector_details.vault_connector_id.clone())
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("mca_id not present for external vault")?;
+
+        // let external_vault_details = match business_profile.external_vault_details{
+        //     hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
+        //         Ok(external_vault_connector_details)
+        //     },
+        //     hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => Err(errors::ApiErrorResponse::InternalServerError)
+        //         .attach_printable("External vault is not enabled")?,
+        // }?;
+        let external_vault_mca_id = external_vault_connector_details
+            .vault_connector_id.clone();
 
         let key_manager_state = &state.into();
 

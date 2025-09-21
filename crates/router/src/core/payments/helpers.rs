@@ -2257,7 +2257,6 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                         locker_id,
                         card_token_data,
                         co_badged_card_data,
-                        business_profile.is_external_vault_enabled.unwrap_or(false),
                         payment_method_info,
                         merchant_key_store,
                     ))
@@ -2311,7 +2310,6 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                                     locker_id,
                                     card_token_data,
                                     co_badged_card_data,
-                                    business_profile.is_external_vault_enabled.unwrap_or(false),
                                     payment_method_info,
                                     merchant_key_store,
                                 ))
@@ -2392,12 +2390,10 @@ pub async fn fetch_card_details_from_locker(
     locker_id: &str,
     card_token_data: Option<&domain::CardToken>,
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
-    is_external_vault_enabled: bool,
     payment_method_info: domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Card> {
-    match is_external_vault_enabled
-        && matches!(
+    match matches!(
             payment_method_info.vault_type,
             Some(enums::VaultType::External)
         ) {

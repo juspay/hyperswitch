@@ -172,6 +172,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
         let card_testing_guard_config = item
             .card_testing_guard_config
             .or(Some(CardTestingGuardConfig::default()));
+        let (is_external_vault_enabled, external_vault_connector_details) =
+            item.external_vault_details.into();
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -235,10 +237,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             dispute_polling_interval: item.dispute_polling_interval,
             is_manual_retry_enabled: item.is_manual_retry_enabled,
             always_enable_overcapture: item.always_enable_overcapture,
-            is_external_vault_enabled: item.is_external_vault_enabled,
-            external_vault_connector_details: item
-                .external_vault_connector_details
-                .map(ForeignInto::foreign_into),
+            is_external_vault_enabled,
+            external_vault_connector_details: external_vault_connector_details
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -499,9 +500,10 @@ pub async fn create_profile_from_merchant_account(
         dispute_polling_interval: request.dispute_polling_interval,
         is_manual_retry_enabled: request.is_manual_retry_enabled,
         always_enable_overcapture: request.always_enable_overcapture,
-        is_external_vault_enabled: request.is_external_vault_enabled,
-        external_vault_connector_details: request
-            .external_vault_connector_details
-            .map(ForeignInto::foreign_into),
+        external_vault_details: domain::ExternalVaultDetails::try_from((
+            request.is_external_vault_enabled,
+            request.external_vault_connector_details.map(ForeignInto::foreign_into),
+        )).change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating external_vault_details")?,
     }))
 }

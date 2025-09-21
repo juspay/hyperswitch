@@ -80,7 +80,7 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
-    pub is_external_vault_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
@@ -141,7 +141,7 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
-    pub is_external_vault_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
@@ -203,7 +203,7 @@ pub struct ProfileUpdateInternal {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
-    pub is_external_vault_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
