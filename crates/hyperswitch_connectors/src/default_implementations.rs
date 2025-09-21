@@ -8001,6 +8001,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
