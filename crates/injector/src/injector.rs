@@ -16,8 +16,10 @@ pub mod core {
     use thiserror::Error;
 
     use crate as injector_types;
-    use crate::types::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse};
-    use crate::vault_metadata::VaultMetadataExtractorExt;
+    use crate::{
+        types::{ContentType, InjectorRequest, InjectorResponse, IntoInjectorResponse},
+        vault_metadata::VaultMetadataExtractorExt,
+    };
 
     impl From<injector_types::HttpMethod> for Method {
         fn from(method: injector_types::HttpMethod) -> Self {
@@ -627,10 +629,10 @@ pub mod core {
             
             let (vault_proxy_url, vault_ca_cert) = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
                 let mut temp_config = injector_types::ConnectionConfig::new(
-                    config.endpoint.clone(), 
-                    config.http_method
+                    config.endpoint.clone(),
+                    config.http_method,
                 );
-                
+
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
                     (temp_config.proxy_url, temp_config.ca_cert)
@@ -675,7 +677,7 @@ pub mod core {
             // Determine which proxy to use: vault metadata > backup > none
             let vault_proxy_available = vault_proxy_url.is_some();
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
-            
+
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
                 let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
