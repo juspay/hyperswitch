@@ -170,14 +170,9 @@ pub mod models {
             // Try to parse as JSON, fallback to string value with error logging
             let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
                 Ok(json) => {
-                    logger::debug!("Successfully parsed response as JSON");
                     json
                 }
                 Err(e) => {
-                    logger::debug!(
-                        "Failed to parse response as JSON: {}, returning as string",
-                        e
-                    );
                     serde_json::Value::String(response_text)
                 }
             };
@@ -209,7 +204,6 @@ pub mod models {
 
             // Keep vault metadata header for processing in make_http_request
             if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {
-                logger::info!("Vault metadata header found, will be processed in make_http_request");
             }
 
             // Store backup proxy for make_http_request to use as fallback

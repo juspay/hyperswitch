@@ -78,7 +78,6 @@ pub mod core {
                 logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
             }
 
-            logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
             let client_builder = get_client_builder(proxy_config)?;
 
             let identity = create_identity_from_certificate_and_key(
@@ -107,7 +106,6 @@ pub mod core {
 
         // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
         if let Some(ca_pem) = ca_certificate {
-            logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
             let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
             let cert = reqwest::Certificate::from_pem(pem.as_bytes())
                 .change_context(InjectorError::HttpRequestFailed)
@@ -125,7 +123,6 @@ pub mod core {
         }
 
         // Case 3: Default client (no certs)
-        logger::debug!("Creating default HTTP client (no client or CA certificates)");
         get_base_client(proxy_config)
     }
 
@@ -137,7 +134,6 @@ pub mod core {
 
         // Configure proxy if provided
         if let Some(proxy_url) = &proxy_config.https_url {
-            logger::debug!("Configuring HTTPS proxy");
 
             let proxy = reqwest::Proxy::https(proxy_url)
                 .change_context(InjectorError::HttpRequestFailed)
@@ -145,18 +141,15 @@ pub mod core {
                     logger::error!("Failed to configure HTTPS proxy: {:?}", e);
                 })?;
             client_builder = client_builder.proxy(proxy);
-            logger::debug!("HTTPS proxy configured successfully");
         }
 
         if let Some(proxy_url) = &proxy_config.http_url {
-            logger::debug!("Configuring HTTP proxy");
             let proxy = reqwest::Proxy::http(proxy_url)
                 .change_context(InjectorError::HttpRequestFailed)
                 .inspect_err(|e| {
                     logger::error!("Failed to configure HTTP proxy: {:?}", e);
                 })?;
             client_builder = client_builder.proxy(proxy);
-            logger::debug!("HTTP proxy configured successfully");
         }
 
         Ok(client_builder)
@@ -181,11 +174,6 @@ pub mod core {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
 
-        logger::debug!(
-            cert_length = cert_str.len(),
-            key_length = key_str.len(),
-            "Creating identity from certificate and key"
-        );
 
         let combined_pem = format!("{cert_str}\n{key_str}");
         reqwest::Identity::from_pem(combined_pem.as_bytes())
@@ -202,10 +190,6 @@ pub mod core {
         encoded_certificate: masking::Secret<String>,
     ) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
         let cert_str = encoded_certificate.expose();
-        logger::debug!(
-            cert_length = cert_str.len(),
-            "Creating certificate from PEM"
-        );
 
         let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
             .change_context(InjectorError::HttpRequestFailed)
@@ -244,17 +228,14 @@ pub mod core {
     ) -> common_utils::request::Request {
         // Add certificate configuration if provided
         if let Some(cert_content) = &config.client_cert {
-            logger::debug!("Adding client certificate content to request builder");
             request_builder = request_builder.add_certificate(Some(cert_content.clone()));
         }
 
         if let Some(key_content) = &config.client_key {
-            logger::debug!("Adding client private key content to request builder");
             request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
         }
 
         if let Some(ca_content) = &config.ca_cert {
-            logger::debug!("Adding CA certificate content to request builder");
             request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
         }
 
@@ -269,11 +250,9 @@ pub mod core {
         _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
         logger::info!(
-            proxy_url = ?client_proxy,
             has_client_cert = request.certificate.is_some(),
             has_client_key = request.certificate_key.is_some(),
             has_ca_cert = request.ca_certificate.is_some(),
-            request_url = %request.url,
             "Making HTTP request using standalone injector HTTP client with configuration"
         );
 
@@ -324,7 +303,6 @@ pub mod core {
         }
 
         // Send the request
-        logger::debug!("Sending HTTP request to connector");
         let response = req_builder
             .send()
             .await
@@ -646,10 +624,8 @@ pub mod core {
             };
 
             // Extract vault metadata directly from headers using existing functions
-            logger::info!("make_http_request: Checking for vault metadata header in {} headers", config.headers.len());
             
             let (vault_proxy_url, vault_ca_cert) = if config.headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
-                logger::info!("Found vault metadata header in make_http_request, processing...");
                 let mut temp_config = injector_types::ConnectionConfig::new(
                     config.endpoint.clone(), 
                     config.http_method
@@ -657,15 +633,11 @@ pub mod core {
                 
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
-                    logger::info!("Successfully extracted vault proxy URL from header: {}", temp_config.proxy_url.is_some());
-                    logger::info!("Successfully extracted vault CA cert: {}", temp_config.ca_cert.is_some());
                     (temp_config.proxy_url, temp_config.ca_cert)
                 } else {
-                    logger::warn!("Failed to process vault metadata in make_http_request");
                     (None, None)
                 }
             } else {
-                logger::warn!("No vault metadata header found in make_http_request - header missing!");
                 (None, None)
             };
 
@@ -683,7 +655,6 @@ pub mod core {
             let mut final_config = config.clone();
             let has_vault_ca_cert = vault_ca_cert.is_some();
             if has_vault_ca_cert {
-                logger::info!("Applying vault CA certificate to connection config");
                 final_config.ca_cert = vault_ca_cert;
             }
 
@@ -703,13 +674,11 @@ pub mod core {
 
             // Determine which proxy to use: vault metadata > backup > none
             let vault_proxy_available = vault_proxy_url.is_some();
-            logger::info!("Proxy selection: vault_proxy_available={}, backup_proxy_available={}", vault_proxy_available, config.backup_proxy_url.is_some());
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
             
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
                 let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                logger::info!("PROXY SELECTED: Using proxy from {}", proxy_source);
                 
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {
@@ -719,12 +688,10 @@ pub mod core {
                     bypass_proxy_hosts: None,
                 }
             } else {
-                logger::info!("No proxy configured, using direct connection");
                 Proxy::default()
             };
 
             // Send request using local standalone http client
-            logger::debug!("Sending HTTP request to connector");
             let response = send_request(&proxy, request, None).await?;
 
             // Convert reqwest::Response to InjectorResponse using trait
@@ -748,7 +715,6 @@ pub mod core {
             &self,
             request: InjectorRequest,
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
-            logger::info!("Starting token injection process");
 
             let start_time = std::time::Instant::now();
 
