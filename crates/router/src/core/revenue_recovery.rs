@@ -11,7 +11,7 @@ use common_utils::{
     id_type,
 };
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
-use error_stack::{self, ResultExt};
+use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
     payments::{PaymentIntent, PaymentIntentData},
     revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
@@ -28,6 +28,7 @@ use crate::{
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
+        api::{self as api_types},
         domain,
         storage::{self, revenue_recovery as pcr},
         transformers::{ForeignFrom, ForeignInto},
@@ -35,6 +36,8 @@ use crate::{
     workflows::revenue_recovery as revenue_recovery_workflow,
 };
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
+pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
+pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
 
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
@@ -490,25 +493,26 @@ pub async fn perform_calculate_workflow(
     };
 
     // 2. Get best available token
-    let best_time_to_schedule = match workflows::revenue_recovery::get_token_with_schedule_time_based_on_retry_algorithm_type(
-        state,
-        &connector_customer_id,
-        payment_intent,
-        retry_algorithm_type,
-        process.retry_count,
-    )
-    .await
-    {
-        Ok(token_opt) => token_opt,
-        Err(e) => {
-            logger::error!(
-                error = ?e,
-                connector_customer_id = %connector_customer_id,
-                "Failed to get best PSP token"
-            );
-            None
-        }
-    };
+    let best_time_to_schedule =
+        match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
+            state,
+            &connector_customer_id,
+            payment_intent,
+            retry_algorithm_type,
+            process.retry_count,
+        )
+        .await
+        {
+            Ok(token_opt) => token_opt,
+            Err(e) => {
+                logger::error!(
+                    error = ?e,
+                    connector_customer_id = %connector_customer_id,
+                    "Failed to get best PSP token"
+                );
+                None
+            }
+        };
 
     match best_time_to_schedule {
         Some(scheduled_time) => {
@@ -1021,7 +1025,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
         | enums::IntentStatus::Conflicted
-        | enums::IntentStatus::Expired => Err(report!(ApiErrorResponse::NotSupported {
+        | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
         })),
     }
