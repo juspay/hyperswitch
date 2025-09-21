@@ -3705,7 +3705,6 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
-    
     connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
