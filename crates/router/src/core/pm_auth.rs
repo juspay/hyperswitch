@@ -529,8 +529,7 @@ async fn store_bank_details_in_payment_methods(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
-                external_vault_source: None,
-                vault_type: None,
+                vault_source_details: Default::default(),
             };
 
             new_entries.push(pm_new);

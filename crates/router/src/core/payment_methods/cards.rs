@@ -131,8 +131,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
-        external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
-        vault_type: Option<common_enums::VaultType>,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -192,8 +191,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_requestor_reference_id,
                     network_token_locker_id,
                     network_token_payment_method_data,
-                    external_vault_source: external_vault_source.cloned(),
-                    vault_type,
+                    vault_source_details: vault_source_details.unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -324,8 +322,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
-                        None,
-                        None,
+                        Default::default(),
                     )
                     .await
                 } else {
@@ -470,8 +467,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
-        external_vault_source: Option<&id_type::MerchantConnectorAccountId>,
-        vault_type: Option<common_enums::VaultType>,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = resp.card.clone().map(|card| {
             PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
@@ -505,8 +501,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_requestor_reference_id,
             network_token_locker_id,
             network_token_payment_method_data,
-            external_vault_source,
-            vault_type,
+            vault_source_details,
         )
         .await
     }
@@ -1308,8 +1303,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
-                        None, //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence None is passed for vault source and type
-                        None,
+                        Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
                     )
                     .await?;
 
@@ -1384,8 +1378,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 None,
-                None,
-                None,
+                Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
             )
             .await?;
 

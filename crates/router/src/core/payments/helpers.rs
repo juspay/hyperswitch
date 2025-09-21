@@ -2393,11 +2393,8 @@ pub async fn fetch_card_details_from_locker(
     payment_method_info: domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Card> {
-    match matches!(
-            payment_method_info.vault_type,
-            Some(enums::VaultType::External)
-        ) {
-        true => {
+    match &payment_method_info.vault_source_details.clone() {
+        domain::PaymentMethodVaultSourceDetails::ExternalVault{ref external_vault_source}=> {
             fetch_card_details_from_external_vault(
                 state,
                 merchant_id,
@@ -2405,10 +2402,11 @@ pub async fn fetch_card_details_from_locker(
                 co_badged_card_data,
                 payment_method_info,
                 merchant_key_store,
+                external_vault_source,
             )
             .await
         }
-        false => {
+        domain::PaymentMethodVaultSourceDetails::InternalVault => {
             fetch_card_details_from_internal_locker(
                 state,
                 customer_id,
@@ -2487,14 +2485,8 @@ pub async fn fetch_card_details_from_external_vault(
     co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
     payment_method_info: domain::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
+    external_vault_mca_id: &id_type::MerchantConnectorAccountId,
 ) -> RouterResult<domain::Card> {
-    let external_vault_mca_id = payment_method_info
-        .external_vault_source
-        .as_ref()
-        .get_required_value("external_vault_mca_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to extract external vault MCA ID")?;
-
     let key_manager_state = &state.into();
 
     let merchant_connector_account_details = state

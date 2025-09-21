@@ -375,10 +375,13 @@ where
                     },
                     hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => (None, Some(common_enums::VaultType::Internal)),
                 };
-                let external_vault_mca_id = &external_vault_details
-                    .map(|connector_details| connector_details.vault_connector_id.clone())
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("mca_id not present for external vault")?;
+                let external_vault_mca_id = external_vault_details
+                    .map(|connector_details| connector_details.vault_connector_id.clone());
+
+                let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
+                    vault_type,
+                    external_vault_mca_id,
+                )).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Unable to create vault source details")?;
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -471,8 +474,7 @@ where
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
-                                                Some(external_vault_mca_id),
-                                                vault_type,
+                                                Some(vault_source_details),
                                             )
                                             .await
                                     } else {
@@ -592,8 +594,7 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
-                                                    Some(external_vault_mca_id),
-                                                    vault_type,
+                                                    Some(vault_source_details),
                                                 )
                                                 .await
                                         } else {
@@ -815,8 +816,7 @@ where
                                     network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
-                                    Some(external_vault_mca_id),
-                                    vault_type,
+                                    Some(vault_source_details),
                                 )
                                 .await?;
 
@@ -1165,15 +1165,7 @@ pub async fn save_in_locker_external(
         let payment_method_vaulting_data =
             hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone());
 
-        // let external_vault_details = match business_profile.external_vault_details{
-        //     hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
-        //         Ok(external_vault_connector_details)
-        //     },
-        //     hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => Err(errors::ApiErrorResponse::InternalServerError)
-        //         .attach_printable("External vault is not enabled")?,
-        // }?;
-        let external_vault_mca_id = external_vault_connector_details
-            .vault_connector_id.clone();
+        let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
 
         let key_manager_state = &state.into();
 
