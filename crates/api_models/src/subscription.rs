@@ -105,5 +105,13 @@ impl CreateSubscriptionResponse {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GetPlansResponse {
+    pub plan_id: String,
+    pub name: String,
+    pub description: String,
+}
+
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+impl ApiEventMetric for GetPlansResponse {}
