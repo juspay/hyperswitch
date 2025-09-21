@@ -7085,24 +7085,6 @@ label="mastercard Payment Facilitator Id"
 placeholder="Enter mastercard Payment Facilitator Id"
 required=false
 type="Text"
-[peachpayments.metadata.sub_mid]
-name="sub_mid"
-label="Sub Mid"
-placeholder="Enter Sub Mid"
-required=false
-type="Text"
-[peachpayments.metadata.visa_payment_facilitator_id]
-name="visa_payment_facilitator_id"
-label="Visa Payment Facilitator Id"
-placeholder="Enter Visa Payment Facilitator Id"
-required=false
-type="Text"
-[peachpayments.metadata.mastercard_payment_facilitator_id]
-name="mastercard_payment_facilitator_id"
-label="mastercard Payment Facilitator Id"
-placeholder="Enter mastercard Payment Facilitator Id"
-required=false
-type="Text"
 
 [tokenex]
 [tokenex.connector_auth.HeaderKey]
