@@ -3988,9 +3988,8 @@ fn filter_installment_based(
     payment_method: &RequestPaymentMethodTypes,
     installment_payment_enabled: Option<bool>,
 ) -> bool {
-    installment_payment_enabled.map_or(true, |enabled| {
-        payment_method.installment_payment_enabled == Some(enabled)
-    })
+    installment_payment_enabled
+        .is_none_or(|enabled| payment_method.installment_payment_enabled == Some(enabled))
 }
 
 fn filter_pm_card_network_based(
@@ -4016,16 +4015,14 @@ fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
     payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
+    allowed_types.is_none_or(|pm| pm.contains(&payment_method_type))
 }
 
 fn filter_recurring_based(
     payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
-    recurring_enabled.map_or(true, |enabled| {
-        payment_method.recurring_enabled == Some(enabled)
-    })
+    recurring_enabled.is_none_or(|enabled| payment_method.recurring_enabled == Some(enabled))
 }
 
 #[cfg(feature = "v1")]

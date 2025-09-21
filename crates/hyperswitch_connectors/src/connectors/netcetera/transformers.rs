@@ -155,6 +155,7 @@ impl
                             acs_trans_id: response.authentication_response.acs_trans_id,
                             three_dsserver_trans_id: Some(response.three_ds_server_trans_id),
                             acs_signed_content: response.authentication_response.acs_signed_content,
+                            challenge_request_key: None,
                         }))
                     }
                     Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,

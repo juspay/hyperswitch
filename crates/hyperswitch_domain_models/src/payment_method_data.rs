@@ -15,6 +15,7 @@ use common_utils::{
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
+    payout_method_utils,
     pii::{self, Email},
 };
 use masking::{PeekInterface, Secret};
@@ -2298,6 +2299,33 @@ impl PaymentMethodsData {
     #[cfg(feature = "v2")]
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
         todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_additional_payout_method_data(
+        &self,
+    ) -> Option<payout_method_utils::AdditionalPayoutMethodData> {
+        match self {
+            Self::Card(card_details) => {
+                router_env::logger::info!("Populating AdditionalPayoutMethodData from Card payment method data for recurring payout");
+                Some(payout_method_utils::AdditionalPayoutMethodData::Card(
+                    Box::new(payout_method_utils::CardAdditionalData {
+                        card_issuer: card_details.card_issuer.clone(),
+                        card_network: card_details.card_network.clone(),
+                        bank_code: None,
+                        card_type: card_details.card_type.clone(),
+                        card_issuing_country: card_details.issuer_country.clone(),
+                        last4: card_details.last4_digits.clone(),
+                        card_isin: card_details.card_isin.clone(),
+                        card_extended_bin: None,
+                        card_exp_month: card_details.expiry_month.clone(),
+                        card_exp_year: card_details.expiry_year.clone(),
+                        card_holder_name: card_details.card_holder_name.clone(),
+                    }),
+                ))
+            }
+            Self::BankDetails(_) | Self::WalletDetails(_) | Self::NetworkToken(_) => None,
+        }
     }
 }
 

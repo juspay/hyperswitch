@@ -17,7 +17,7 @@ use external_services::email::{
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
-    grpc_client::{GrpcClients, GrpcHeaders},
+    grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -65,7 +65,9 @@ use super::{
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -152,6 +154,10 @@ impl SessionState {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
+    }
+    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+        let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
+        GrpcHeadersUcs::builder().tenant_id(tenant_id)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -733,6 +739,10 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
+                )
+                .service(
+                    web::resource("/check-gift-card-balance")
+                        .route(web::post().to(payments::payment_check_gift_card_balance)),
                 ),
         );
 
@@ -879,7 +889,9 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(payments::post_3ds_payments_authorize)),
+                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
+                        .route(web::post().to(payments::post_3ds_payments_authorize))
+                        .route(web::get().to(payments::post_3ds_payments_authorize))
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
@@ -1152,6 +1164,22 @@ impl Routing {
                     .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
+    }
+}
+
+#[cfg(feature = "oltp")]
+pub struct Subscription;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl Subscription {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/subscription/create")
+            .app_data(web::Data::new(state.clone()))
+            .service(web::resource("").route(
+                web::post().to(|state, req, payload| {
+                    subscription::create_subscription(state, req, payload)
+                }),
+            ))
     }
 }
 
@@ -2339,12 +2367,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route
@@ -2956,5 +2988,26 @@ impl ProfileAcquirer {
                 web::resource("/{profile_id}/{profile_acquirer_id}")
                     .route(web::post().to(profile_acquirer::profile_acquirer_update)),
             )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct RecoveryDataBackfill;
+#[cfg(feature = "v2")]
+impl RecoveryDataBackfill {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/data-backfill")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(
+                    web::post()
+                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                ),
+            )
+            .service(web::resource("/status/{token_id}").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
     }
 }
