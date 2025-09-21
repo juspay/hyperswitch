@@ -191,7 +191,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_requestor_reference_id,
                     network_token_locker_id,
                     network_token_payment_method_data,
-                    vault_source_details: vault_source_details.unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
+                    vault_source_details: vault_source_details
+                        .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )

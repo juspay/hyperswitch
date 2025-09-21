@@ -502,8 +502,11 @@ pub async fn create_profile_from_merchant_account(
         always_enable_overcapture: request.always_enable_overcapture,
         external_vault_details: domain::ExternalVaultDetails::try_from((
             request.is_external_vault_enabled,
-            request.external_vault_connector_details.map(ForeignInto::foreign_into),
-        )).change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error while generating external_vault_details")?,
+            request
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
+        ))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error while generating external_vault_details")?,
     }))
 }

@@ -2394,7 +2394,9 @@ pub async fn fetch_card_details_from_locker(
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Card> {
     match &payment_method_info.vault_source_details.clone() {
-        domain::PaymentMethodVaultSourceDetails::ExternalVault{ref external_vault_source}=> {
+        domain::PaymentMethodVaultSourceDetails::ExternalVault {
+            ref external_vault_source,
+        } => {
             fetch_card_details_from_external_vault(
                 state,
                 merchant_id,

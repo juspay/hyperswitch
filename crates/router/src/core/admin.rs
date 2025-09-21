@@ -3482,8 +3482,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 self.is_external_vault_enabled,
                 self.external_vault_connector_details
                     .map(ForeignFrom::foreign_from),
-            )).change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("error while generating external vault details")?,
+            ))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error while generating external vault details")?,
         }))
     }
 
