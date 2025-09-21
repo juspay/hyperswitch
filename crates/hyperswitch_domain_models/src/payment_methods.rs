@@ -314,7 +314,11 @@ impl super::behaviour::Conversion for PaymentMethod {
         Self: Sized,
     {
         // Decrypt encrypted fields first
-        let (payment_method_data, payment_method_billing_address, network_token_payment_method_data) = async {
+        let (
+            payment_method_data,
+            payment_method_billing_address,
+            network_token_payment_method_data,
+        ) = async {
             let payment_method_data = item
                 .payment_method_data
                 .async_lift(|inner| async {
@@ -1110,36 +1114,60 @@ impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantI
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Default)]
 pub enum PaymentMethodVaultSourceDetails {
-    ExternalVault{
+    ExternalVault {
         external_vault_source: id_type::MerchantConnectorAccountId,
     },
     #[default]
     InternalVault,
 }
 
-impl TryFrom<(Option<storage_enums::VaultType>, Option<id_type::MerchantConnectorAccountId>)> for PaymentMethodVaultSourceDetails{
+impl
+    TryFrom<(
+        Option<storage_enums::VaultType>,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> for PaymentMethodVaultSourceDetails
+{
     type Error = error_stack::Report<ValidationError>;
-    fn try_from(value: (Option<storage_enums::VaultType>, Option<id_type::MerchantConnectorAccountId>)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (
+            Option<storage_enums::VaultType>,
+            Option<id_type::MerchantConnectorAccountId>,
+        ),
+    ) -> Result<Self, Self::Error> {
         match value {
-            (Some(storage_enums::VaultType::External), Some(external_vault_source)) => Ok(Self::ExternalVault{
-                external_vault_source,
-            }),
-            (Some(storage_enums::VaultType::External), None) => Err(ValidationError::MissingRequiredField {
-                field_name: "external vault mca id".to_string(),
+            (Some(storage_enums::VaultType::External), Some(external_vault_source)) => {
+                Ok(Self::ExternalVault {
+                    external_vault_source,
+                })
             }
-            .into()),
+            (Some(storage_enums::VaultType::External), None) => {
+                Err(ValidationError::MissingRequiredField {
+                    field_name: "external vault mca id".to_string(),
+                }
+                .into())
+            }
             (Some(storage_enums::VaultType::Internal), _) | (None, _) => Ok(Self::InternalVault), // defaulting to internal vault if vault type is none
         }
     }
-
-
 }
 #[cfg(feature = "v1")]
-impl From<PaymentMethodVaultSourceDetails> for (Option<storage_enums::VaultType>, Option<id_type::MerchantConnectorAccountId>){
+impl From<PaymentMethodVaultSourceDetails>
+    for (
+        Option<storage_enums::VaultType>,
+        Option<id_type::MerchantConnectorAccountId>,
+    )
+{
     fn from(value: PaymentMethodVaultSourceDetails) -> Self {
         match value {
-            PaymentMethodVaultSourceDetails::ExternalVault{external_vault_source} => (Some(storage_enums::VaultType::External), Some(external_vault_source)),
-            PaymentMethodVaultSourceDetails::InternalVault => (Some(storage_enums::VaultType::Internal), None),
+            PaymentMethodVaultSourceDetails::ExternalVault {
+                external_vault_source,
+            } => (
+                Some(storage_enums::VaultType::External),
+                Some(external_vault_source),
+            ),
+            PaymentMethodVaultSourceDetails::InternalVault => {
+                (Some(storage_enums::VaultType::Internal), None)
+            }
         }
     }
 }
@@ -1191,7 +1219,6 @@ mod tests {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details,
-
         };
         payment_method.clone()
     }

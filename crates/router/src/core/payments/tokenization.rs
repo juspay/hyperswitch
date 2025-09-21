@@ -15,6 +15,7 @@ use common_utils::{
     metrics::utils::record_operation_time,
     pii,
 };
+use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
@@ -51,7 +52,6 @@ use crate::{
     },
     utils::{generate_id, OptionExt},
 };
-use diesel_models::business_profile::ExternalVaultConnectorDetails;
 
 #[cfg(feature = "v1")]
 async fn save_in_locker(
@@ -381,7 +381,9 @@ where
                 let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
                     vault_type,
                     external_vault_mca_id,
-                )).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Unable to create vault source details")?;
+                ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to create vault source details")?;
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
