@@ -68,13 +68,13 @@ async fn save_in_locker(
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
             logger::info!("External vault is enabled, using vault_payment_method_external_v1");
 
-            save_in_locker_external(
+            Box::pin(save_in_locker_external(
                 state,
                 merchant_context,
                 payment_method_request,
                 card_detail,
                 external_vault_details,
-            )
+            ))
             .await
         }
         domain::ExternalVaultDetails::Skip => {
@@ -381,7 +381,9 @@ where
                 let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
                     vault_type,
                     external_vault_mca_id,
-                )).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Unable to create vault source details")?;
+                ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to create vault source details")?;
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
