@@ -1,8 +1,10 @@
 pub mod disputes;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 use std::collections::HashMap;
 
+use api_models::payments::AddressDetails;
 use common_utils::{pii, request::Method, types::MinorUnit};
 pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
@@ -20,6 +22,33 @@ pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
     // pub amount_received: Option<i32>, // Calculation for amount received not in place yet
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorCustomerResponseData {
+    pub connector_customer_id: String,
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub billing_address: Option<AddressDetails>,
+}
+
+impl ConnectorCustomerResponseData {
+    pub fn new_with_customer_id(connector_customer_id: String) -> Self {
+        Self::new(connector_customer_id, None, None, None)
+    }
+    pub fn new(
+        connector_customer_id: String,
+        name: Option<String>,
+        email: Option<String>,
+        billing_address: Option<AddressDetails>,
+    ) -> Self {
+        Self {
+            connector_customer_id,
+            name,
+            email,
+            billing_address,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,9 +83,7 @@ pub enum PaymentsResponseData {
         token: String,
     },
 
-    ConnectorCustomerResponse {
-        connector_customer_id: String,
-    },
+    ConnectorCustomerResponse(ConnectorCustomerResponseData),
 
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
@@ -83,6 +110,12 @@ pub enum PaymentsResponseData {
     PaymentsCreateOrderResponse {
         order_id: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckResponseData {
+    pub balance: MinorUnit,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Clone)]

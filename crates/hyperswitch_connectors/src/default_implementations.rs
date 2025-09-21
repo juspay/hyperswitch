@@ -35,17 +35,23 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PostCaptureVoid,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
-            UpdateMetadata,
+            CreateConnectorCustomer, CreateOrder, GiftCardBalanceCheck, IncrementalAuthorization,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+            SdkSessionUpdate, UpdateMetadata,
         },
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+        SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -54,8 +60,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
-        FetchDisputesRequestData, MandateRevokeRequestData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsCancelPostCaptureData,
+        FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsCancelPostCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
@@ -64,10 +70,14 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        subscriptions::{
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -123,10 +133,14 @@ use hyperswitch_interfaces::{
             PaymentAuthorizeSessionToken, PaymentIncrementalAuthorization, PaymentPostCaptureVoid,
             PaymentPostSessionTokens, PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata,
             PaymentsAuthenticate, PaymentsCompleteAuthorize, PaymentsCreateOrder,
-            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, TaxCalculation,
+            PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
+        subscriptions::{
+            GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow, SubscriptionCreate,
+            Subscriptions,
+        },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -1438,7 +1452,6 @@ default_imp_for_create_customer!(
     connectors::Breadpay,
     connectors::Cashtocode,
     connectors::Celero,
-    connectors::Chargebee,
     connectors::Checkbook,
     connectors::Checkout,
     connectors::Coinbase,
@@ -6934,6 +6947,165 @@ default_imp_for_revenue_recovery!(
     connectors::Zsl
 );
 
+macro_rules! default_imp_for_subscriptions {
+    ($($path:ident::$connector:ident),*) => {
+        $(  impl Subscriptions for $path::$connector {}
+            impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl SubscriptionCreate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionPlans,
+            GetSubscriptionPlansRequest,
+            GetSubscriptionPlansResponse
+            > for $path::$connector
+            {}
+            impl GetSubscriptionPlanPricesFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionPlanPrices,
+            GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlanPricesResponse
+            > for $path::$connector
+            {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCreateFlow,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
+            > for $path::$connector {}
+        )*
+    };
+}
+
+default_imp_for_subscriptions!(
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bluesnap,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Paysafe,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Paypal,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Paybox,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Square,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_payment_sync {
     ($($path:ident::$connector:ident),*) => {
@@ -7645,6 +7817,149 @@ default_imp_for_external_vault_insert!(
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Volt,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_gift_card_balance_check {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl PaymentsGiftCardBalanceCheck for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GiftCardBalanceCheck,
+            GiftCardBalanceCheckRequestData,
+            GiftCardBalanceCheckResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+default_imp_for_gift_card_balance_check!(
+    connectors::Aci,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluecode,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Braintree,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Facilitapay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Netcetera,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paystack,
+    connectors::Paysafe,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Riskified,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Signifyd,
+    connectors::Silverflow,
+    connectors::Square,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenio,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
@@ -8476,6 +8791,18 @@ impl<const T: u8> ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncRespon
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsGiftCardBalanceCheck for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GiftCardBalanceCheck,
+        GiftCardBalanceCheckRequestData,
+        GiftCardBalanceCheckResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsPreProcessing for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -8914,5 +9241,45 @@ impl<const T: u8> ExternalVaultProxyPaymentsCreateV1 for connectors::DummyConnec
 impl<const T: u8>
     ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
     for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionPlanPricesFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionPlanPrices,
+        GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlanPricesResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionPlans,
+        GetSubscriptionPlansRequest,
+        GetSubscriptionPlansResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionCreate for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionCreateFlow,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
+    > for connectors::DummyConnector<T>
 {
 }
