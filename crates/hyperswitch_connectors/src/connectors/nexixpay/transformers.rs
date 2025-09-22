@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, RefundStatus};
+use common_enums::{
+    AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
+};
 use common_utils::{
     errors::CustomResult, ext_traits::ValueExt, request::Method, types::StringMinorUnit,
 };
@@ -57,7 +59,7 @@ trait AddressConstructor {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self;
 }
 
@@ -67,7 +69,7 @@ impl AddressConstructor for BillingAddress {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self {
         Self {
             name,
@@ -85,7 +87,7 @@ impl AddressConstructor for ShippingAddress {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self {
         Self {
             name,
@@ -126,7 +128,7 @@ where
             data.get_optional_billing_full_name(),
             data.get_optional_billing_city(),
             data.get_optional_billing_zip(),
-            data.get_optional_billing_country(),
+            CountryAlpha2::from_alpha2_to_alpha3(data.get_billing_country()?),
             data.get_optional_billing().is_some(),
             "billing",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -141,7 +143,7 @@ where
             data.get_optional_shipping_full_name(),
             data.get_optional_shipping_city(),
             data.get_optional_shipping_zip(),
-            data.get_optional_shipping_country(),
+            CountryAlpha2::from_alpha2_to_alpha3(data.get_billing_country()?),
             data.get_optional_shipping().is_some(),
             "shipping",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -225,25 +227,23 @@ where
         }
 
         let country_val = opt_country;
-        if let Some(ref val) = country_val {
-            let length = val.to_string().len();
-            if length > max_country_len {
-                return Err(error_stack::Report::from(
-                    errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: format!("{address_type_str}.address.country"),
-                        connector: "Nexixpay".to_string(),
-                        max_length: max_country_len,
-                        received_length: length,
-                    },
-                ));
-            }
+        if country_val.to_string().len() > max_country_len {
+            return Err(error_stack::Report::from(
+                errors::ConnectorError::MaxFieldLengthViolated {
+                    field_name: format!("{address_type_str}.address.country"),
+                    connector: "Nexixpay".to_string(),
+                    max_length: max_country_len,
+                    received_length: country_val.to_string().len(),
+                },
+            ));
         }
+
         Ok(Some(AddressOutput::new(
             name_val,
             street_val,
             city_val,
             post_code_val,
-            country_val,
+            Some(country_val),
         )))
     } else {
         Ok(None)
@@ -392,7 +392,7 @@ pub struct BillingAddress {
     street: Option<Secret<String>>,
     city: Option<String>,
     post_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    country: Option<CountryAlpha3>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -402,7 +402,7 @@ pub struct ShippingAddress {
     street: Option<Secret<String>>,
     city: Option<String>,
     post_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    country: Option<CountryAlpha3>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -561,8 +561,9 @@ pub struct NexixpayPreProcessingResponse {
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     additional_data: AdditionalData,
+    channel: Option<Channel>,
     customer_info: CustomerInfo,
-    operation_amount: String,
+    operation_amount: StringMinorUnit,
     operation_currency: Currency,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
@@ -570,7 +571,22 @@ pub struct Operation {
     operation_type: NexixpayOperationType,
     order_id: String,
     payment_method: String,
-    warnings: Option<Vec<String>>,
+    warnings: Option<Vec<DetailedWarnings>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Channel {
+    Ecommerce,
+    Pos,
+    Backoffice,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetailedWarnings {
+    code: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
