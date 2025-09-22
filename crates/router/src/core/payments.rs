@@ -4320,17 +4320,13 @@ where
                 router_data.access_token = Some(access_token);
             }
 
-            let should_continue_with_ucs = true;
-
-            if should_continue_with_ucs {
-                router_data
-                    .call_unified_connector_service(
-                        state,
-                        merchant_connector_account.clone(),
-                        merchant_context,
-                    )
-                    .await?;
-            }
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account.clone(),
+                    merchant_context,
+                )
+                .await?;
 
             Ok((router_data, merchant_connector_account))
         } else {
@@ -4976,17 +4972,13 @@ where
                 router_data.access_token = Some(access_token);
             }
 
-            let should_continue_with_ucs = true;
-
-            if should_continue_with_ucs {
-                router_data
-                    .call_unified_connector_service(
-                        state,
-                        merchant_connector_account_type_details.clone(),
-                        merchant_context,
-                    )
-                    .await?;
-            }
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account_type_details.clone(),
+                    merchant_context,
+                )
+                .await?;
 
             Ok(router_data)
         } else {
