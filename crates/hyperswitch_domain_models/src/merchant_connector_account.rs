@@ -270,7 +270,7 @@ impl MerchantConnectorAccount {
 
     #[cfg(feature = "v2")]
     pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
-        self.connector_name.clone()
+        self.connector_name
     }
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
