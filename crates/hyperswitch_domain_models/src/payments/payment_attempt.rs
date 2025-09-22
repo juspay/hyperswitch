@@ -1401,6 +1401,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1676,6 +1677,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1720,6 +1722,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                request_extended_authorization,
             },
             Self::VoidUpdate {
                 status,
