@@ -3010,7 +3010,7 @@ impl RecoveryDataBackfill {
                 ),
             ))
             .service(web::resource("/update-ttl/{token_id}/{time}").route(
-                web::post().to(
+                web::put().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_update_ttl,
                 ),
             ))
