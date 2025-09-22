@@ -10,7 +10,6 @@ use crate::schema::invoice;
 pub struct InvoiceNew {
     pub id: String,
     pub subscription_id: String,
-    pub connector_subscription_id: Option<String>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -18,7 +17,7 @@ pub struct InvoiceNew {
     pub payment_method_id: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: String,
     pub status: String,
     pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
@@ -37,7 +36,6 @@ pub struct InvoiceNew {
 pub struct Invoice {
     id: String,
     subscription_id: String,
-    connector_subscription_id: Option<String>,
     merchant_id: common_utils::id_type::MerchantId,
     profile_id: common_utils::id_type::ProfileId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -45,7 +43,7 @@ pub struct Invoice {
     payment_method_id: Option<String>,
     customer_id: common_utils::id_type::CustomerId,
     amount: MinorUnit,
-    currency: common_enums::Currency,
+    currency: String,
     status: String,
     provider_name: Connector,
     metadata: Option<SecretSerdeValue>,
@@ -66,7 +64,6 @@ impl InvoiceNew {
     pub fn new(
         id: String,
         subscription_id: String,
-        connector_subscription_id: Option<String>,
         merchant_id: common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -74,7 +71,7 @@ impl InvoiceNew {
         payment_method_id: Option<String>,
         customer_id: common_utils::id_type::CustomerId,
         amount: MinorUnit,
-        currency: common_enums::Currency,
+        currency: String,
         status: InvoiceStatus,
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
@@ -83,7 +80,6 @@ impl InvoiceNew {
         Self {
             id,
             subscription_id,
-            connector_subscription_id,
             merchant_id,
             profile_id,
             merchant_connector_id,

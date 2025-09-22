@@ -724,8 +724,6 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 128]
         subscription_id -> Varchar,
-        #[max_length = 128]
-        connector_subscription_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -739,7 +737,8 @@ diesel::table! {
         #[max_length = 64]
         customer_id -> Varchar,
         amount -> Int8,
-        currency -> Currency,
+        #[max_length = 3]
+        currency -> Varchar,
         #[max_length = 64]
         status -> Varchar,
         #[max_length = 128]

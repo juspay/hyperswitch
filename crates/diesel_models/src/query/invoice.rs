@@ -14,14 +14,6 @@ impl InvoiceNew {
 }
 
 impl Invoice {
-    pub async fn find_invoice_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::id.eq(id.to_owned()),
-        )
-        .await
-    }
-
     pub async fn find_invoice_by_id_invoice_id(
         conn: &PgPooledConn,
         id: String,

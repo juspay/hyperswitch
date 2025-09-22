@@ -49,7 +49,7 @@ impl InvoiceInterface for Store {
         invoice_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Invoice::find_invoice_by_id(&conn, invoice_id)
+        storage::Invoice::find_invoice_by_id_invoice_id(&conn, invoice_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
