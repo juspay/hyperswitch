@@ -560,7 +560,7 @@ impl BillingHandler {
         let subscription_req = hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
             subscription_id: self.subscription.id.to_owned(),
             customer_id: self.subscription.customer_id.to_owned(),
-            subscription_items: vec![subscription_item], 
+            subscription_items: vec![subscription_item],
             billing_address: self.request.billing_address.clone().ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "billing_address",
             })?,
