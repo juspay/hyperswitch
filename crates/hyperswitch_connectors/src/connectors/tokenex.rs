@@ -312,6 +312,9 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
                 .headers(types::ExternalVaultRetrieveType::get_headers(
                     self, req, connectors,
                 )?)
+                .set_body(types::ExternalVaultRetrieveType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }

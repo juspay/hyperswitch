@@ -118,7 +118,7 @@ impl
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenexRetrieveRequest {
-    token: String, //Currently only card number is tokenized. Data can be stringified and can be tokenized
+    token: Secret<String>, //Currently only card number is tokenized. Data can be stringified and can be tokenized
     cache_cvv: bool,
 }
 
@@ -137,7 +137,7 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexRetrieveRequest {
             },
         )?;
         Ok(Self {
-            token: connector_vault_id.clone(),
+            token: Secret::new(connector_vault_id.clone()),
             cache_cvv: false, //since cvv is not stored at tokenex
         })
     }
