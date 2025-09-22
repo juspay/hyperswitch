@@ -88,7 +88,14 @@ pub async fn confirm_subscription(
         .await?;
 
     let billing_handler = subscription_entry.get_billing_handler().await?;
-    let invoice_handler = InvoiceHandler::new().await?;
+    let invoice_handler = subscription_entry
+        .get_invoice_handler(
+            &handler.state,
+            billing_handler.request.amount,
+            billing_handler.request.currency.to_string(),
+            billing_handler.connector_name.clone(),
+        )
+        .await?;
 
     let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
@@ -114,7 +121,6 @@ pub async fn confirm_subscription(
     Ok(ApplicationResponse::Json(response))
 }
 
-#[allow(dead_code)]
 pub struct SubscriptionHandler {
     state: SessionState,
     merchant_context: MerchantContext,
@@ -309,9 +315,39 @@ impl<'a> SubscriptionWithHandler<'a> {
             connector_metadata: billing_processor_mca.metadata.clone(),
         })
     }
+
+    pub async fn get_invoice_handler(
+        &self,
+        state: &SessionState,
+        amount: i64,
+        currency: String,
+        provider_name: String,
+    ) -> errors::RouterResult<InvoiceHandler> {
+        let invoice_handler = InvoiceHandler::new(
+            state,
+            self.subscription.id.to_owned(),
+            self.subscription.merchant_id.to_owned(),
+            self.subscription.profile_id.to_owned(),
+            self.profile.billing_processor_id.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_processor_id",
+                },
+            )?,
+            None,
+            self.subscription.payment_method_id.to_owned(),
+            self.subscription.customer_id.to_owned(),
+            common_utils::types::MinorUnit::new(amount),
+            currency.to_string(),
+            common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
+            provider_name.to_string(),
+            None,
+        )
+        .await?;
+
+        Ok(invoice_handler)
+    }
 }
 
-#[allow(dead_code)]
 pub struct BillingHandler {
     subscription: diesel_models::subscription::Subscription,
     connector_name: String,
@@ -322,22 +358,57 @@ pub struct BillingHandler {
     request: subscription_types::ConfirmSubscriptionRequest,
 }
 
-#[allow(dead_code)]
 pub struct InvoiceHandler {
     invoice: diesel_models::invoice::Invoice,
 }
 
-#[allow(dead_code)]
-pub struct SubscriptionCreatedBilling<'a> {
-    billing_handler: &'a BillingHandler,
-    subscription_response: CreateSubscriptionResponse,
-}
-
 #[allow(clippy::todo)]
 impl InvoiceHandler {
-    pub async fn new() -> errors::RouterResult<Self> {
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
+        state: &SessionState,
+        subscription_id: common_utils::id_type::SubscriptionId,
+        merchant_id: common_utils::id_type::MerchantId,
+        profile_id: common_utils::id_type::ProfileId,
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
+        payment_method_id: Option<String>,
+        customer_id: common_utils::id_type::CustomerId,
+        amount: common_utils::types::MinorUnit,
+        currency: String,
+        status: common_enums::connector_enums::InvoiceStatus,
+        provider_name: String,
+        metadata: Option<pii::SecretSerdeValue>,
+    ) -> errors::RouterResult<Self> {
         // create a new inoivce entry
-        todo!("Implement the new function for InvoiceHandler")
+
+        let connector = common_enums::connector_enums::Connector::from_str(&provider_name)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("unable to parse connector name {provider_name:?}"))?;
+
+        let invoice_new = diesel_models::invoice::InvoiceNew::new(
+            subscription_id,
+            merchant_id,
+            profile_id,
+            merchant_connector_id,
+            payment_intent_id,
+            payment_method_id,
+            customer_id,
+            amount,
+            currency,
+            status,
+            connector,
+            metadata,
+        );
+
+        let invoice = state
+            .store
+            .insert_invoice_entry(invoice_new)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("invoices: unable to insert invoice entry to database")?;
+
+        Ok(Self { invoice })
     }
 
     pub async fn create_invoice_record_back_job(

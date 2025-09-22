@@ -192,8 +192,8 @@ pub struct ConfirmSubscriptionResponse {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Invoice {
-    pub id: String,
-    pub subscription_id: String,
+    pub id: common_utils::id_type::InvoiceId,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
