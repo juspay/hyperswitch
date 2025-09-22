@@ -1,12 +1,16 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::{GetSubscriptionPlanPricesData, GetSubscriptionPlansData},
-    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+    router_data_v2::flow_common_types::{
+        GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+    },
+    router_flow_types::subscriptions::{
+        GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate,
+    },
     router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 
@@ -15,7 +19,7 @@ use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait SubscriptionsV2
 pub trait SubscriptionsV2:
-    GetSubscriptionPlansV2 + ConnectorCustomerV2 + GetSubscriptionPlanPricesV2
+    GetSubscriptionPlansV2 + SubscriptionsCreateV2 + ConnectorCustomerV2 + GetSubscriptionPlanPricesV2
 {
 }
 
@@ -37,6 +41,17 @@ pub trait GetSubscriptionPlanPricesV2:
     GetSubscriptionPlanPricesData,
     GetSubscriptionPlanPricesRequest,
     GetSubscriptionPlanPricesResponse,
+>
+{
+}
+
+/// trait SubscriptionsCreateV2
+pub trait SubscriptionsCreateV2:
+    ConnectorIntegrationV2<
+    SubscriptionCreate,
+    SubscriptionCreateData,
+    SubscriptionCreateRequest,
+    SubscriptionCreateResponse,
 >
 {
 }

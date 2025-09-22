@@ -13,8 +13,8 @@ use hyperswitch_domain_models::{
             BillingConnectorPaymentsSyncFlowData, DisputesFlowData, ExternalAuthenticationFlowData,
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionPlanPricesData,
             GetSubscriptionPlansData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData,
-            VaultConnectorFlowData, WebhookSourceVerifyData,
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, SubscriptionCreateData,
+            UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -878,6 +878,7 @@ macro_rules! default_router_data_conversion {
 }
 default_router_data_conversion!(GetSubscriptionPlansData);
 default_router_data_conversion!(GetSubscriptionPlanPricesData);
+default_router_data_conversion!(SubscriptionCreateData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(
