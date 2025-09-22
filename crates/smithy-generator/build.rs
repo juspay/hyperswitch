@@ -12,7 +12,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn run_build() -> Result<(), Box<dyn std::error::Error>> {
     let workspace_root = get_workspace_root()?;
 
-
     let mut smithy_models = Vec::new();
 
     // Scan all crates in the workspace for SmithyModel derives
@@ -48,7 +47,6 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-
 
     // Generate the registry file
     generate_model_registry(&smithy_models)?;
@@ -166,7 +164,6 @@ fn scan_rust_file(
                 // Validate that the item name is a valid Rust identifier
                 if is_valid_rust_identifier(item_name) {
                     let full_module_path = create_module_path(file_path, crate_name, module_path)?;
-
 
                     models.push(SmithyModelInfo {
                         struct_name: item_name.to_string(),
