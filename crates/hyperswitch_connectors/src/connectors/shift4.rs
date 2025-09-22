@@ -2,6 +2,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -46,7 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::Mask;
+use masking::{Mask, PeekInterface};
 use transformers::{self as shift4, Shift4PaymentsRequest, Shift4RefundRequest};
 
 use crate::{
@@ -111,9 +112,13 @@ impl ConnectorCommon for Shift4 {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = shift4::Shift4AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let api_key = format!(
+            "Basic {}",
+            common_utils::consts::BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()))
+        );
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            api_key.into_masked(),
         )])
     }
 
@@ -488,7 +493,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
         let connector_req = Shift4PaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
