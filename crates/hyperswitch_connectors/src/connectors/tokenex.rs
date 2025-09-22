@@ -73,6 +73,7 @@ pub mod auth_headers {
     pub const TOKENEX_ID: &str = "tx-tokenex-id";
     pub const TOKENEX_API_KEY: &str = "tx-apikey";
     pub const TOKENEX_SCHEME: &str = "tx-token-scheme";
+    pub const TOKENEX_SCHEME_VALUE: &str = "PCI";
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tokenex
@@ -92,7 +93,7 @@ where
         ),
         (auth_headers::TOKENEX_ID.to_string(), auth.tokenex_id.expose().into_masked()),
         (auth_headers::TOKENEX_API_KEY.to_string(), auth.api_key.expose().into_masked()),
-        (auth_headers::TOKENEX_SCHEME.to_string(), "PCI".to_string().into()),
+        (auth_headers::TOKENEX_SCHEME.to_string(), auth_headers::TOKENEX_SCHEME_VALUE.to_string().into()),
     ];
         Ok(header)
     }
