@@ -1153,7 +1153,7 @@ impl ConnectorRedirectResponse for Nuvei {
                             Ok(CallConnectorAction::StatusUpdate {
                                 status: enums::AttemptStatus::AuthenticationFailed,
                                 error_code: None,
-                                error_message: None,
+                                error_message: Some("User 3ds Authentication failed".to_string()),
                             })
                         }
                         _ => Ok(CallConnectorAction::Trigger),
