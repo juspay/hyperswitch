@@ -86,14 +86,13 @@ pub async fn confirm_subscription(
 
     let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
 
-    // let invoice = invoice_handler.create_invoice_in_db().await?;
     // let payment_response = invoice_handler.create_cit_payment().await?;
+    // let invoice = invoice_handler.create_invoice_in_db().await?;
 
     // invoice_handler
     //     .create_invoice_job(&payment_response)
     //     .await?;
 
-    // invoice_handler.update_invoice_record().await?;
     subscription_entry
         .update_subscription_status(
             SubscriptionStatus::from(subscription_create_response.status).to_string(),
@@ -323,11 +322,6 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         // Create a CIT payment for the invoice
         todo!("Create a CIT payment for the invoice")
-    }
-
-    pub async fn update_invoice_record(&self) -> errors::RouterResult<()> {
-        // Update the invoice record based on payment status
-        todo!("Update the invoice record based on payment status")
     }
 }
 
