@@ -7,6 +7,7 @@ mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
+mod invoice;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
@@ -47,6 +48,7 @@ pub use self::{
     authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
+    invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
