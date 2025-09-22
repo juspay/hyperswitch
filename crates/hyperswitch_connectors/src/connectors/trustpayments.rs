@@ -570,52 +570,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        // Check if this is a Paysera payment by looking at the payment method type
-        if let Some(payment_method_type) = &data.request.payment_method_type {
-            match payment_method_type {
-                // enums::PaymentMethodType::Paysera => {
-                //     let response: trustpayments::TrustpaymentsPayseraResponse = res
-                //         .response
-                //         .parse_struct("trustpayments PayseraResponse")
-                //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                //     event_builder.map(|i| i.set_response_body(&response));
-                //     router_env::logger::info!(connector_response=?response);
-                //     RouterData::try_from(ResponseRouterData {
-                //         response,
-                //         data: data.clone(),
-                //         http_code: res.status_code,
-                //     })
-                // }
-                _ => {
-                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                        .response
-                        .parse_struct("trustpayments PaymentsSyncResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-                    RouterData::try_from(ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-            }
-        } else {
-            // Default to generic payment response for backward compatibility
-            let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                .response
-                .parse_struct("trustpayments PaymentsSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
+        let response: trustpayments::TrustpaymentsPaymentsResponse = res
+            .response
+            .parse_struct("trustpayments PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
-
+    
     fn get_error_response(
         &self,
         res: Response,
