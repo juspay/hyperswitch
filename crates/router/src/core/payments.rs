@@ -6621,7 +6621,11 @@ where
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
                 && ((connector.connector_name == router_types::Connector::Nexixpay
                     && is_operation_complete_authorize(&operation))
-                    || ((connector.connector_name == router_types::Connector::Nuvei
+                    || (((connector.connector_name == router_types::Connector::Nuvei
+                        && payment_data
+                            .get_payment_intent()
+                            .request_external_three_ds_authentication
+                            != Some(true).into())
                         || connector.connector_name == router_types::Connector::Shift4)
                         && !is_operation_complete_authorize(&operation)))
             {
@@ -6729,7 +6733,7 @@ where
     let should_do_uas_confirmation_call = service_details
         .as_ref()
         .map(|details| details.is_network_confirmation_call_required())
-        .unwrap_or(true);
+        .unwrap_or(false);
     if should_do_uas_confirmation_call
         && (payment_intent.status == storage_enums::IntentStatus::Succeeded
             || payment_intent.status == storage_enums::IntentStatus::Failed)
