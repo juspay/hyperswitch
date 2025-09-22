@@ -1,13 +1,11 @@
 //! Custom validations for some shared types.
 
-use std::{collections::HashSet, sync::LazyLock};
-
-use ammonia::Builder as AmmoniaBuilder;
 use error_stack::report;
 use globset::Glob;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
+use std::{collections::HashSet, sync::LazyLock};
 
 use crate::errors::{CustomResult, ValidationError};
 
@@ -98,12 +96,7 @@ pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
         return true;
     }
 
-    let cleaned = AmmoniaBuilder::default()
-        .tags(HashSet::new())
-        .clean(&decoded)
-        .to_string();
-
-    if cleaned != decoded {
+    if ammonia::is_html(&decoded) {
         return true;
     }
 
