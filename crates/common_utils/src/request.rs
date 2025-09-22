@@ -51,6 +51,20 @@ pub struct Request {
     pub ca_certificate: Option<Secret<String>>,
 }
 
+pub struct MaskableMultipartForm {
+    pub inner: reqwest::multipart::Form,
+    pub content: Box<dyn masking::ErasedMaskSerialize + Send>,
+}
+
+impl std::fmt::Debug for MaskableMultipartForm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MaskableMultipartForm")
+            .field("inner", &self.inner)
+            .field("content", &"<masked>") 
+            .finish()
+    }
+}
+
 impl std::fmt::Debug for RequestContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -66,7 +80,7 @@ impl std::fmt::Debug for RequestContent {
 pub enum RequestContent {
     Json(Box<dyn masking::ErasedMaskSerialize + Send>),
     FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormData(reqwest::multipart::Form),
+    FormData(MaskableMultipartForm),
     Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
 }
@@ -77,7 +91,7 @@ impl RequestContent {
             Self::Json(i) => serde_json::to_string(&i).unwrap_or_default().into(),
             Self::FormUrlEncoded(i) => serde_urlencoded::to_string(i).unwrap_or_default().into(),
             Self::Xml(i) => quick_xml::se::to_string(&i).unwrap_or_default().into(),
-            Self::FormData(_) => String::new().into(),
+            Self::FormData(f) => serde_json::to_string(&f.content).unwrap_or_default().into(),
             Self::RawBytes(_) => String::new().into(),
         }
     }

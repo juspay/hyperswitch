@@ -6,7 +6,7 @@ use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
     id_type::CustomerId,
-    request::Method,
+    request::{MaskableMultipartForm, Method},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -1684,10 +1684,27 @@ pub struct CheckoutWebhookObjectResource {
     pub data: serde_json::Value,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CheckoutFileRequest {
+    pub purpose: &'static str,
+    #[serde(skip)]
+    pub file: Vec<u8>,
+    #[serde(skip)]
+    pub file_key: String,
+    #[serde(skip)]
+    pub file_type: String,
+}
+
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
+) -> CustomResult<MaskableMultipartForm, errors::ConnectorError> {
     let request = file_upload_router_data.request;
+    let checkout_file_request = CheckoutFileRequest {
+        purpose: "dispute_evidence",
+        file: request.file.clone(),
+        file_key: request.file_key.clone(),
+        file_type: request.file_type.to_string(),
+    };
     let mut multipart = reqwest::multipart::Form::new();
     multipart = multipart.text("purpose", "dispute_evidence");
     let file_data = reqwest::multipart::Part::bytes(request.file)
@@ -1705,7 +1722,10 @@ pub fn construct_file_upload_request(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);
-    Ok(multipart)
+    Ok(MaskableMultipartForm {
+        inner: multipart,
+        content: Box::new(checkout_file_request),
+    })
 }
 
 #[derive(Debug, Deserialize, Serialize)]

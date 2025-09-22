@@ -11,7 +11,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
-    request::{Method, RequestContent},
+    request::{MaskableMultipartForm, Method, RequestContent},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -4500,10 +4500,27 @@ pub fn get_bank_transfer_request_data(
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct StripeFileRequest {
+    pub purpose: &'static str,
+    #[serde(skip)]
+    pub file: Vec<u8>,
+    #[serde(skip)]
+    pub file_key: String,
+    #[serde(skip)]
+    pub file_type: String,
+}
+
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<reqwest::multipart::Form, ConnectorError> {
+) -> CustomResult<MaskableMultipartForm, ConnectorError> {
     let request = file_upload_router_data.request;
+    let stripe_file_request = StripeFileRequest {
+        purpose: "dispute_evidence",
+        file: request.file.clone(),
+        file_key: request.file_key.clone(),
+        file_type: request.file_type.to_string(),
+    };
     let mut multipart = reqwest::multipart::Form::new();
     multipart = multipart.text("purpose", "dispute_evidence");
     let file_data = reqwest::multipart::Part::bytes(request.file)
@@ -4511,7 +4528,10 @@ pub fn construct_file_upload_request(
         .mime_str(request.file_type.as_ref())
         .map_err(|_| ConnectorError::RequestEncodingFailed)?;
     multipart = multipart.part("file", file_data);
-    Ok(multipart)
+    Ok(MaskableMultipartForm {
+        inner: multipart,
+        content: Box::new(stripe_file_request),
+    })
 }
 
 #[derive(Debug, Deserialize, Serialize)]

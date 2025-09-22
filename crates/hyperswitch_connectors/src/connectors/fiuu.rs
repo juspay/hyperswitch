@@ -12,7 +12,7 @@ use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
     ext_traits::{ByteSliceExt, BytesExt},
-    request::{Method, Request, RequestBuilder, RequestContent},
+    request::{MaskableMultipartForm, Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
@@ -246,7 +246,9 @@ impl ConnectorCommon for Fiuu {
         })
     }
 }
-pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
+pub fn build_form_from_struct<T: Serialize + Send + 'static>(
+    data: T,
+) -> Result<MaskableMultipartForm, common_errors::ParsingError> {
     let mut form = Form::new();
     let serialized = serde_json::to_value(&data).map_err(|e| {
         router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
@@ -268,7 +270,10 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
         };
         form = form.text(key.clone(), value.clone());
     }
-    Ok(form)
+    Ok(MaskableMultipartForm {
+        inner: form,
+        content: Box::new(data),
+    })
 }
 
 impl ConnectorValidation for Fiuu {
