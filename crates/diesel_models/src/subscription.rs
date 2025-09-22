@@ -1,5 +1,6 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use error_stack::Report;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -93,6 +94,19 @@ impl SubscriptionNew {
             generate_id_with_default_len(&format!("{}_secret", self.id.get_string_repr()));
         self.client_secret = Some(client_secret.clone());
         Secret::new(client_secret)
+    }
+}
+
+impl Subscription {
+    pub fn get_merchant_connector_id(
+        &self,
+    ) -> Result<
+        &common_utils::id_type::MerchantConnectorAccountId,
+        Report<crate::errors::DatabaseError>,
+    > {
+        self.merchant_connector_id
+            .as_ref()
+            .ok_or_else(|| Report::new(crate::errors::DatabaseError::NotFound))
     }
 }
 

@@ -5,7 +5,7 @@
 
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
-use hyperswitch_domain_models::errors;
+use hyperswitch_domain_models::{errors, subscription::ClientSecret};
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -75,7 +75,7 @@ pub async fn get_subscription_plans(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
-    let client_secret = path.into_inner();
+    let client_secret = ClientSecret::new(path.into_inner());
     let flow = Flow::GetPlansForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
     let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {

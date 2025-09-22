@@ -8,6 +8,7 @@ use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext, router_data::ConnectorAuthType,
+    subscription::ClientSecret,
 };
 use masking::Secret;
 
@@ -19,8 +20,6 @@ use crate::{
     core::utils::subscription::authenticate_subscription_client_secret_and_check_expiry,
     routes::SessionState,
 };
-
-const SECRET_SPLIT: &str = "_secret";
 
 pub async fn create_subscription(
     state: SessionState,
@@ -78,17 +77,11 @@ pub async fn get_subscription_plans(
     state: SessionState,
     merchant_context: MerchantContext,
     _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
-    client_secret: String,
+    client_secret: ClientSecret,
 ) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
     let db = state.store.as_ref();
     let key_store = merchant_context.get_merchant_key_store();
-    let sub_vec = client_secret.split(SECRET_SPLIT).collect::<Vec<&str>>();
-    let subscription_id =
-        sub_vec
-            .first()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
-            })?;
+    let subscription_id = client_secret.get_subscription_id()?;
 
     let subscription = db
         .find_by_merchant_id_subscription_id(
@@ -101,9 +94,12 @@ pub async fn get_subscription_plans(
         })
         .attach_printable("Unable to find subscription")?;
 
-    authenticate_subscription_client_secret_and_check_expiry(&client_secret, &subscription)?;
+    authenticate_subscription_client_secret_and_check_expiry(
+        &client_secret.to_string(),
+        &subscription,
+    )?;
 
-    let mca_id = subscription.merchant_connector_id.ok_or(
+    let mca_id = subscription.get_merchant_connector_id().change_context(
         errors::ApiErrorResponse::GenericNotFoundError {
             message: "merchant_connector_id not found".to_string(),
         },
