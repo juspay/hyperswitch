@@ -681,8 +681,12 @@ pub mod core {
 
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
-                let _proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                
+                let _proxy_source = if vault_proxy_available {
+                    "vault metadata"
+                } else {
+                    "backup config"
+                };
+
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {
                     http_url: Some(proxy_url_str.clone()),

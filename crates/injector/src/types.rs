@@ -7,7 +7,6 @@ pub mod models {
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
-
     // Enums for the injector - making it standalone
 
     /// Content types supported by the injector for HTTP requests
@@ -167,12 +166,8 @@ pub mod models {
 
             // Try to parse as JSON, fallback to string value with error logging
             let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
-                Ok(json) => {
-                    json
-                }
-                Err(_e) => {
-                    serde_json::Value::String(response_text)
-                }
+                Ok(json) => json,
+                Err(_e) => serde_json::Value::String(response_text),
             };
 
             Ok(InjectorResponse {
