@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, fs, path::Path};
 
-use crate::types::SmithyModel;
+use crate::types::{self as types, SmithyModel};
 
 /// Generator for creating Smithy IDL files from models
 pub struct SmithyGenerator {
@@ -75,7 +75,7 @@ impl SmithyGenerator {
     fn generate_shape_definition(
         &self,
         name: &str,
-        shape: &crate::types::SmithyShape,
+        shape: &types::SmithyShape,
         current_namespace: &str,
         shape_to_namespace: &HashMap<String, String>,
     ) -> String {
@@ -83,7 +83,7 @@ impl SmithyGenerator {
             |target: &str| self.resolve_type(target, current_namespace, shape_to_namespace);
 
         match shape {
-            crate::types::SmithyShape::Structure {
+            types::SmithyShape::Structure {
                 members,
                 documentation,
                 traits,
@@ -116,7 +116,7 @@ impl SmithyGenerator {
                 def.push('}');
                 def
             }
-            crate::types::SmithyShape::Union {
+            types::SmithyShape::Union {
                 members,
                 documentation,
                 traits,
@@ -149,7 +149,7 @@ impl SmithyGenerator {
                 def.push('}');
                 def
             }
-            crate::types::SmithyShape::Enum {
+            types::SmithyShape::Enum {
                 values,
                 documentation,
                 traits,
@@ -176,7 +176,7 @@ impl SmithyGenerator {
                 def.push('}');
                 def
             }
-            crate::types::SmithyShape::String { traits } => {
+            types::SmithyShape::String { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
@@ -186,7 +186,7 @@ impl SmithyGenerator {
                 def.push_str(&format!("string {}", name));
                 def
             }
-            crate::types::SmithyShape::Integer { traits } => {
+            types::SmithyShape::Integer { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
@@ -196,7 +196,7 @@ impl SmithyGenerator {
                 def.push_str(&format!("integer {}", name));
                 def
             }
-            crate::types::SmithyShape::Long { traits } => {
+            types::SmithyShape::Long { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
@@ -206,7 +206,7 @@ impl SmithyGenerator {
                 def.push_str(&format!("long {}", name));
                 def
             }
-            crate::types::SmithyShape::Boolean { traits } => {
+            types::SmithyShape::Boolean { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
@@ -216,7 +216,7 @@ impl SmithyGenerator {
                 def.push_str(&format!("boolean {}", name));
                 def
             }
-            crate::types::SmithyShape::List { member, traits } => {
+            types::SmithyShape::List { member, traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
@@ -259,32 +259,32 @@ impl SmithyGenerator {
         }
     }
 
-    fn trait_to_string(&self, smithy_trait: &crate::types::SmithyTrait) -> String {
+    fn trait_to_string(&self, smithy_trait: &types::SmithyTrait) -> String {
         match smithy_trait {
-            crate::types::SmithyTrait::Pattern { pattern } => {
+            types::SmithyTrait::Pattern { pattern } => {
                 format!("pattern(\"{}\")", pattern)
             }
-            crate::types::SmithyTrait::Range { min, max } => match (min, max) {
+            types::SmithyTrait::Range { min, max } => match (min, max) {
                 (Some(min), Some(max)) => format!("range(min: {}, max: {})", min, max),
                 (Some(min), None) => format!("range(min: {})", min),
                 (None, Some(max)) => format!("range(max: {})", max),
                 (None, None) => "range".to_string(),
             },
-            crate::types::SmithyTrait::Required => "required".to_string(),
-            crate::types::SmithyTrait::Documentation { documentation } => {
+            types::SmithyTrait::Required => "required".to_string(),
+            types::SmithyTrait::Documentation { documentation } => {
                 format!("documentation(\"{}\")", documentation)
             }
-            crate::types::SmithyTrait::Length { min, max } => match (min, max) {
+            types::SmithyTrait::Length { min, max } => match (min, max) {
                 (Some(min), Some(max)) => format!("length(min: {}, max: {})", min, max),
                 (Some(min), None) => format!("length(min: {})", min),
                 (None, Some(max)) => format!("length(max: {})", max),
                 (None, None) => "length".to_string(),
             },
-            crate::types::SmithyTrait::HttpLabel => "httpLabel".to_string(),
-            crate::types::SmithyTrait::HttpQuery { name } => {
+            types::SmithyTrait::HttpLabel => "httpLabel".to_string(),
+            types::SmithyTrait::HttpQuery { name } => {
                 format!("httpQuery(\"{}\")", name)
             }
-            crate::types::SmithyTrait::Mixin => "mixin".to_string(),
+            types::SmithyTrait::Mixin => "mixin".to_string(),
         }
     }
 }
