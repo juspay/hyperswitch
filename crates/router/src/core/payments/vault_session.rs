@@ -1,7 +1,8 @@
 use std::{fmt::Debug, str::FromStr};
+
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use error_stack::{ResultExt, report};
+use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
@@ -349,10 +350,12 @@ where
         merchant_connector_account_type.get_mca_id(),
     )?;
     let merchant_connector_account = match &merchant_connector_account_type {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
         }
     }?;
 

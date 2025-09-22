@@ -11,10 +11,7 @@ use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
-use hyperswitch_domain_models::{
-    merchant_key_store, payment_methods,
-    type_encryption,
-};
+use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
