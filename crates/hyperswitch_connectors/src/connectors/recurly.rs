@@ -10,17 +10,22 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
-        flow_common_types::{GetSubscriptionPlanPricesData, GetSubscriptionPlansData},
+        flow_common_types::{
+            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+        },
         UasFlowData,
     },
     router_flow_types::{
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
     },
     router_request_types::{
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest},
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -28,7 +33,7 @@ use hyperswitch_domain_models::{
         },
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -165,6 +170,16 @@ impl
         GetSubscriptionPlanPricesData,
         GetSubscriptionPlanPricesRequest,
         GetSubscriptionPlanPricesResponse,
+    > for Recurly
+{
+}
+impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCreate,
+        SubscriptionCreateData,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
     > for Recurly
 {
 }
