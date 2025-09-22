@@ -3438,6 +3438,7 @@ where
             network_details: payment_attempt
                 .network_details
                 .map(NetworkDetails::foreign_from),
+            is_stored_credential: payment_attempt.is_stored_credential,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3738,6 +3739,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            is_stored_credential:pa.is_stored_credential
         }
     }
 }
@@ -4304,6 +4306,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            is_stored_credential: payment_data.payment_intent.is_stored_credential,
         })
     }
 }
@@ -5231,6 +5234,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_channel: payment_data.payment_intent.payment_channel,
             related_transaction_id: None,
             enrolled_for_3ds: true,
+            is_stored_credential: payment_data.payment_intent.is_stored_credential,
         })
     }
 }
@@ -5374,6 +5378,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_account_id,
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
+            is_stored_credential: payment_data.payment_intent.is_stored_credential,
         })
     }
 }
@@ -5484,6 +5489,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
             customer_acceptance: payment_data.customer_acceptance,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            is_stored_credential: payment_data.payment_intent.is_stored_credential,
         })
     }
 }

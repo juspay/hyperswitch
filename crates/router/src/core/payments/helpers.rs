@@ -4700,6 +4700,7 @@ impl AttemptType {
             connector_request_reference_id: None,
             network_transaction_id: None,
             network_details: None,
+            is_stored_credential: old_payment_attempt.is_stored_credential,
         }
     }
 

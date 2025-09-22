@@ -1395,6 +1395,7 @@ impl PaymentCreate {
                 connector_request_reference_id: None,
                 network_transaction_id:None,
                 network_details:None,
+                is_stored_credential:None
             },
             additional_pm_data,
 
@@ -1639,6 +1640,7 @@ impl PaymentCreate {
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
+            is_stored_credential: request.is_stored_credential,
         })
     }
 

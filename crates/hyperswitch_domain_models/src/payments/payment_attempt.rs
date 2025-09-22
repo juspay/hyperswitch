@@ -1032,6 +1032,7 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1330,6 +1331,7 @@ pub struct PaymentAttemptNew {
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2164,6 +2166,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_id: self.network_transaction_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 
@@ -2265,6 +2268,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 network_transaction_id: storage_model.network_transaction_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
+                is_stored_credential: storage_model.is_stored_credential,
             })
         }
         .await
@@ -2357,6 +2361,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 }

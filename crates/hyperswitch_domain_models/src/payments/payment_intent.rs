@@ -252,6 +252,7 @@ pub struct PaymentIntentUpdateFields {
     pub feature_metadata: Option<Secret<serde_json::Value>>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -449,6 +450,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1100,6 +1102,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     duty_amount: value.duty_amount,
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
+                    is_stored_credential: value.is_stored_credential,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1269,6 +1272,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            is_stored_credential,
         } = value;
         Self {
             amount,
@@ -1319,6 +1323,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            is_stored_credential,
         }
     }
 }
@@ -1790,6 +1795,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         })
     }
     async fn convert_back(
@@ -2112,6 +2118,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 
@@ -2221,6 +2228,7 @@ impl behaviour::Conversion for PaymentIntent {
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
+                is_stored_credential: storage_model.is_stored_credential,
             })
         }
         .await
@@ -2302,6 +2310,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 }

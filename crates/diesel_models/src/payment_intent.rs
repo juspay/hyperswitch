@@ -78,6 +78,7 @@ pub struct PaymentIntent {
     pub order_date: Option<PrimitiveDateTime>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -180,6 +181,7 @@ pub struct PaymentIntent {
     pub order_date: Option<PrimitiveDateTime>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -470,6 +472,7 @@ pub struct PaymentIntentNew {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -641,6 +644,7 @@ pub struct PaymentIntentUpdateFields {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -865,6 +869,7 @@ pub struct PaymentIntentUpdateInternal {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -919,6 +924,7 @@ impl PaymentIntentUpdate {
             duty_amount,
             enable_partial_authorization,
             enable_overcapture,
+            is_stored_credential,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -980,6 +986,8 @@ impl PaymentIntentUpdate {
             enable_partial_authorization: enable_partial_authorization
                 .or(source.enable_partial_authorization),
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
+            is_stored_credential: is_stored_credential.or(source.is_stored_credential),
+
             ..source
         }
     }
@@ -1041,6 +1049,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1092,6 +1101,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: value.duty_amount,
                 enable_partial_authorization: value.enable_partial_authorization,
                 enable_overcapture: value.enable_overcapture,
+                is_stored_credential: value.is_stored_credential,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1150,6 +1160,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1205,6 +1216,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1260,6 +1272,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1323,6 +1336,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1377,6 +1391,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1432,6 +1447,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1486,6 +1502,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1540,6 +1557,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1593,6 +1611,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1643,6 +1662,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1695,6 +1715,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1747,6 +1768,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1797,6 +1819,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -1852,6 +1875,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
+                is_stored_credential: None,
             },
         }
     }

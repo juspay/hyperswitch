@@ -124,6 +124,7 @@ pub struct PaymentIntent {
     pub duty_amount: Option<MinorUnit>,
     pub enable_partial_authorization: Option<bool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 impl PaymentIntent {

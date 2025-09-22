@@ -548,6 +548,7 @@ pub trait RouterData {
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
     fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
+    fn get_is_stored_credential(&self) -> Option<bool>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -1080,6 +1081,10 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
         self.customer_id.clone()
+    }
+
+    fn get_is_stored_credential(&self) -> Option<bool> {
+        todo!()
     }
 }
 
@@ -6759,6 +6764,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: data.request.is_stored_credential,
     }
 }
 
