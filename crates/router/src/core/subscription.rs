@@ -14,6 +14,8 @@ use crate::{
     core::payments as payments_core, routes::SessionState, services, types::api as api_types,
 };
 
+pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
+
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
@@ -69,11 +71,16 @@ pub async fn create_subscription(
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    _profile_id: String,
+    profile_id: String,
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let handler = SubscriptionHandler::new(state, merchant_context, request);
+    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "X-Profile-Id",
+        },
+    )?;
+    let handler = SubscriptionHandler::new(state, merchant_context, request, profile_id);
 
     let mut subscription_entry = handler
         .find_subscription(subscription_id.get_string_repr().to_string())
@@ -109,6 +116,7 @@ pub struct SubscriptionHandler {
     state: SessionState,
     merchant_context: MerchantContext,
     request: subscription_types::ConfirmSubscriptionRequest,
+    profile_id: common_utils::id_type::ProfileId,
 }
 
 impl SubscriptionHandler {
@@ -116,11 +124,13 @@ impl SubscriptionHandler {
         state: SessionState,
         merchant_context: MerchantContext,
         request: subscription_types::ConfirmSubscriptionRequest,
+        profile_id: common_utils::id_type::ProfileId,
     ) -> Self {
         Self {
             state,
             merchant_context,
             request,
+            profile_id,
         }
     }
     pub async fn find_subscription(
@@ -139,15 +149,33 @@ impl SubscriptionHandler {
                 message: format!("subscription not found for id: {subscription_id}"),
             })?;
 
+        let key_manager_state = &(&self.state).into();
+        let merchant_key_store = self.merchant_context.get_merchant_key_store();
+
+        let profile = self
+            .state
+            .store
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                &self.profile_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: self.profile_id.get_string_repr().to_string(),
+            })?;
+
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription,
+            profile,
         })
     }
 }
 pub struct SubscriptionWithHandler<'a> {
     handler: &'a SubscriptionHandler,
     subscription: diesel_models::subscription::Subscription,
+    profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 #[allow(clippy::todo)]
@@ -197,18 +225,11 @@ impl<'a> SubscriptionWithHandler<'a> {
         })
     }
     pub async fn get_billing_handler(&self) -> errors::RouterResult<BillingHandler> {
-        // let mca_id = self.subscription.merchant_connector_id.clone().ok_or(
-        //     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-        //         id: "No mca_id associated with this subscription".to_string(),
-        //     },
-        // )?;
-
-        let mca_id = common_utils::id_type::MerchantConnectorAccountId::wrap(
-            "mca_aR9xLgJB3K1CWabu8g2X".to_string(),
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "merchant_connector_account_id",
-        })?;
+        let mca_id = self.profile.billing_processor_id.clone().ok_or(
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: "No billing_processor_id associated with this profile".to_string(),
+            },
+        )?;
 
         let billing_processor_mca = self
             .handler
@@ -411,7 +432,6 @@ impl BillingHandler {
                 > + Clone
                 + 'static,
     {
-        // Uncomment the below code once the connector integration is done
         let router_resp = services::execute_connector_processing_step(
             state,
             connector_integration,
@@ -427,15 +447,11 @@ impl BillingHandler {
         ))?;
 
         Ok(router_resp.response)
-
-        // todo!("Call the connector and return the response")
     }
     fn build_customer_router_data(
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<hyperswitch_domain_models::types::ConnectorCustomerRouterData> {
-        // Build customer creation router data
-
         let customer_req = hyperswitch_domain_models::router_request_types::ConnectorCustomerData {
             email: self.request.customer.as_ref().and_then(|c| c.email.clone()),
             payment_method_data: self
@@ -467,9 +483,9 @@ impl BillingHandler {
             customer_id: Some(self.subscription.customer_id.to_owned()),
             connector_customer: None,
             connector: self.connector_name.clone(),
-            payment_id: "DefaultPaymentId".to_string(),
+            payment_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
             tenant_id: state.tenant.tenant_id.clone(),
-            attempt_id: "Subscriptions attempt".to_owned(),
+            attempt_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
             status: common_enums::AttemptStatus::default(),
             payment_method: common_enums::PaymentMethod::default(),
             connector_auth_type: self.auth_type.clone(),
@@ -490,7 +506,7 @@ impl BillingHandler {
             connector_api_version: None,
             request: customer_req,
             response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-            connector_request_reference_id: "Notjing".to_owned(),
+            connector_request_reference_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: None,
             #[cfg(feature = "payouts")]
@@ -521,7 +537,6 @@ impl BillingHandler {
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<hyperswitch_domain_models::types::SubscriptionCreateRouterData> {
-        // Build subscription creation router data using customer_id
         let subscription_item =
             hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionItem {
                 item_price_id: self.request.item_price_id.clone().ok_or(
@@ -548,9 +563,9 @@ impl BillingHandler {
             customer_id: Some(self.subscription.customer_id.to_owned()),
             connector_customer: None,
             connector: self.connector_name.clone(),
-            payment_id: "DefaultPaymentId".to_string(),
+            payment_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
             tenant_id: state.tenant.tenant_id.clone(),
-            attempt_id: "Subscriptions attempt".to_owned(),
+            attempt_id: SUBSCRIPTION_CONNECTOR_ID.to_owned(),
             status: common_enums::AttemptStatus::default(),
             payment_method: common_enums::PaymentMethod::default(),
             connector_auth_type: self.auth_type.clone(),
@@ -571,7 +586,7 @@ impl BillingHandler {
             connector_api_version: None,
             request: subscription_req,
             response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-            connector_request_reference_id: "Notjing".to_owned(),
+            connector_request_reference_id: SUBSCRIPTION_CONNECTOR_ID.to_owned(),
             #[cfg(feature = "payouts")]
             payout_method_data: None,
             #[cfg(feature = "payouts")]
