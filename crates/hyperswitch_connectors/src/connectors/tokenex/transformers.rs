@@ -3,10 +3,11 @@ use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
+    router_request_types::VaultRequestData,
+    router_response_types::VaultResponseData,
+    types::VaultRouterData,
+    vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -14,7 +15,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
-//TODO: Fill the struct with respective fields
 pub struct TokenexRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -30,33 +30,27 @@ impl<T> From<(StringMinorUnit, T)> for TokenexRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct TokenexPaymentsRequest {
-    amount: StringMinorUnit,
-    card: TokenexCard,
+pub struct TokenexInsertRequest {
+    data: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct TokenexCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&TokenexRouterData<&PaymentsAuthorizeRouterData>> for TokenexPaymentsRequest {
+impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &TokenexRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
+    fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
+        match item.request.payment_method_vaulting_data.clone() {
+            Some(PaymentMethodVaultingData::Card(req_card)) => {
+                let stringified_card = req_card
+                    .encode_to_string_of_json()
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Self {
+                    data: Secret::new(stringified_card),
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method apart from card".to_string(),
             )
             .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -65,148 +59,132 @@ impl TryFrom<&TokenexRouterData<&PaymentsAuthorizeRouterData>> for TokenexPaymen
 // Auth Struct
 pub struct TokenexAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) tokenex_id: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for TokenexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
+                tokenex_id: key1.to_owned(),
+                api_secret: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum TokenexPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
-impl From<TokenexPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: TokenexPaymentStatus) -> Self {
-        match item {
-            TokenexPaymentStatus::Succeeded => Self::Charged,
-            TokenexPaymentStatus::Failed => Self::Failure,
-            TokenexPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TokenexPaymentsResponse {
-    status: TokenexPaymentStatus,
-    id: String,
+pub struct TokenexInsertResponse {
+    token: String,
+    first_six: String,
+    success: bool,
 }
-
-impl<F, T> TryFrom<ResponseRouterData<F, TokenexPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            ExternalVaultInsertFlow,
+            TokenexInsertResponse,
+            VaultRequestData,
+            VaultResponseData,
+        >,
+    > for RouterData<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, TokenexPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            ExternalVaultInsertFlow,
+            TokenexInsertResponse,
+            VaultRequestData,
+            VaultResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let resp = item.response;
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
+            status: common_enums::AttemptStatus::Started,
+            response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                connector_vault_id: resp.token.clone(),
+                //fingerprint is not provided by tokenex, using token as fingerprint
+                fingerprint_id: resp.token.clone(),
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct TokenexRefundRequest {
-    pub amount: StringMinorUnit,
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TokenexRetrieveRequest {
+    token: String, //Currently only card number is tokenized. Data can be stringified and can be tokenized
+    cache_cvv: bool,
 }
 
-impl<F> TryFrom<&TokenexRouterData<&RefundsRouterData<F>>> for TokenexRefundRequest {
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TokenexRetrieveResponse {
+    value: Secret<String>,
+    success: bool,
+}
+
+impl<F> TryFrom<&VaultRouterData<F>> for TokenexRetrieveRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &TokenexRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
+        let connector_vault_id = item.request.connector_vault_id.as_ref().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_vault_id",
+            },
+        )?;
         Ok(Self {
-            amount: item.amount.to_owned(),
+            token: connector_vault_id.clone(),
+            cache_cvv: false, //since cvv is not stored at tokenex
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl
+    TryFrom<
+        ResponseRouterData<
+            ExternalVaultRetrieveFlow,
+            TokenexRetrieveResponse,
+            VaultRequestData,
+            VaultResponseData,
+        >,
+    > for RouterData<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: ResponseRouterData<
+            ExternalVaultRetrieveFlow,
+            TokenexRetrieveResponse,
+            VaultRequestData,
+            VaultResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
+        let resp = item.response;
+
+        let card_detail: api_models::payment_methods::CardDetail = resp
+            .value
+            .clone()
+            .expose()
+            .parse_struct("CardDetail")
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+
         Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::Started,
+            response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
+                vault_data: PaymentMethodVaultingData::Card(card_detail),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TokenexErrorResponse {
     pub status_code: u16,

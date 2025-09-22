@@ -7087,5 +7087,7 @@ required=false
 type="Text"
 
 [tokenex]
-[tokenex.connector_auth.HeaderKey]
+[tokenex.connector_auth.SignatureKey]
 api_key = "API Key"
+api_secret = "API Secret"
+key1 = "TokenEx ID"
