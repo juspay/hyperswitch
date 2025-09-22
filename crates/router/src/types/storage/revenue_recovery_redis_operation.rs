@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models;
+use api_models::{self, revenue_recovery_data_backfill::RedisKeyType};
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
@@ -125,6 +125,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         exp_in_seconds: i64,
+        key_type: &RedisKeyType,
     ) -> CustomResult<bool, errors::StorageError> {
         let redis_conn =
             state
@@ -134,24 +135,46 @@ impl RedisTokenManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let lock_key = Self::get_connector_customer_lock_key(connector_customer_id);
+        let (redis_key, operation_name, key_description) = match key_type {
+            RedisKeyType::Status => {
+                (Self::get_connector_customer_lock_key(connector_customer_id), "update_lock_ttl", "status lock")
+            }
+            RedisKeyType::Tokens => {
+                (Self::get_connector_customer_tokens_key(connector_customer_id), "update_tokens_ttl", "tokens")
+            }
+        };
 
-        let result: bool = redis_conn
-            .set_expiry(&lock_key.into(), exp_in_seconds)
-            .await
-            .map_or_else(
-                |error| {
-                    tracing::error!(operation = "update_lock_ttl", err = ?error);
-                    false
-                },
-                |_| true,
-            );
+        let result = match redis_conn.exists::<()>(&redis_key.clone().into()).await {
+            Ok(true) => redis_conn
+                .set_expiry(&redis_key.into(), exp_in_seconds)
+                .await
+                .map_or_else(
+                    |error| {
+                        tracing::error!(operation = operation_name, err = ?error);
+                        false
+                    },
+                    |_| true,
+                ),
+            Ok(false) => {
+                tracing::warn!(
+                    connector_customer_id = connector_customer_id,
+                    key_type = ?key_type,
+                    "Key does not exist, cannot set TTL"
+                );
+                false
+            }
+            Err(error) => {
+                tracing::error!(operation = "check_key_exists", err = ?error);
+                false
+            }
+        };
 
         tracing::debug!(
             connector_customer_id = connector_customer_id,
+            key_type = ?key_type,
             new_ttl_in_seconds = exp_in_seconds,
             ttl_updated = %result,
-            "Connector customer lock TTL update with new expiry time"
+            "Connector customer {} TTL update with new expiry time", key_description
         );
 
         Ok(result)

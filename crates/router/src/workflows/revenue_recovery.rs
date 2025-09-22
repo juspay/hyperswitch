@@ -540,6 +540,7 @@ pub async fn update_token_expiry_based_on_schedule_time(
                 state,
                 connector_customer_id,
                 expiry_time,
+                &api_models::revenue_recovery_data_backfill::RedisKeyType::Status,
             )
             .await
             .change_context(errors::ProcessTrackerError::ERedisError(
