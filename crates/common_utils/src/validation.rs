@@ -1,11 +1,12 @@
 //! Custom validations for some shared types.
 
+use std::{collections::HashSet, sync::LazyLock};
+
 use error_stack::report;
 use globset::Glob;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
-use std::{collections::HashSet, sync::LazyLock};
 
 use crate::errors::{CustomResult, ValidationError};
 
