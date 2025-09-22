@@ -10228,6 +10228,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .as_ref()
                 .map(ToString::to_string),
             challenge_request: authentication_response.challenge_request,
+            // If challenge_request_key is None, we send "creq" as a static value which is standard 3DS challenge form field name
+            challenge_request_key: authentication_response
+                .challenge_request_key
+                .or(Some(consts::CREQ_CHALLENGE_REQUEST_KEY.to_string())),
             acs_reference_number: authentication_response.acs_reference_number,
             acs_trans_id: authentication_response.acs_trans_id,
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,

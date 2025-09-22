@@ -206,7 +206,7 @@ pub enum AdyenTransactionDirection {
     Outgoing,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum AdyenTransferStatus {
     Authorised,
@@ -582,10 +582,27 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
         let response: AdyenTransferResponse = item.response;
         let status = enums::PayoutStatus::from(response.status);
 
-        let error_code = match status {
-            enums::PayoutStatus::Ineligible => Some(response.reason),
-            _ => None,
-        };
+        if matches!(status, enums::PayoutStatus::Failed) {
+            return Ok(Self {
+                response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: response.status.to_string(),
+                    message: if !response.reason.is_empty() {
+                        response.reason
+                    } else {
+                        response.status.to_string()
+                    },
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(response.id),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            });
+        }
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
@@ -593,7 +610,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AdyenTransferResponse>> for Payouts
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
-                error_code,
+                error_code: None,
                 error_message: None,
             }),
             ..item.data
@@ -605,8 +622,7 @@ impl From<AdyenTransferStatus> for enums::PayoutStatus {
     fn from(adyen_status: AdyenTransferStatus) -> Self {
         match adyen_status {
             AdyenTransferStatus::Authorised => Self::Initiated,
-            AdyenTransferStatus::Refused => Self::Ineligible,
-            AdyenTransferStatus::Error => Self::Failed,
+            AdyenTransferStatus::Error | AdyenTransferStatus::Refused => Self::Failed,
         }
     }
 }

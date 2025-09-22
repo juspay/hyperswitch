@@ -410,6 +410,7 @@ pub struct ShippingAddress {
 pub struct NexixpayCard {
     pan: CardNumber,
     expiry_date: Secret<String>,
+    cvv: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -798,6 +799,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                                     card: NexixpayCard {
                                         pan: req_card.card_number.clone(),
                                         expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                                        cvv: req_card.card_cvc.clone(),
                                     },
                                     recurrence: recurrence_request_obj,
                                 },
@@ -1357,6 +1359,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 PaymentMethodData::Card(req_card) => Ok(NexixpayCard {
                     pan: req_card.card_number.clone(),
                     expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                    cvv: req_card.card_cvc.clone(),
                 }),
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::Wallet(_)

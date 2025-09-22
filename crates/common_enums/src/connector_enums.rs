@@ -250,6 +250,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Breadpay,
+    Cardinal,
     Cashtocode,
     Celero,
     Chargebee,
@@ -335,6 +336,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    // Tokenex, added as template code for future usage
     Tokenio,
     Trustpay,
     Trustpayments,
@@ -544,6 +546,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
             | Self::Tokenio
@@ -867,7 +870,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Taxjar
             | Connector::Threedsecureio
             | Connector::Vgs
-            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
+            | Connector::CtpVisa
+            | Connector::Cardinal => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

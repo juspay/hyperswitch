@@ -566,6 +566,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
+        api_models::payments::ThreeDsMethodKey,
         api_models::payments::PollConfigResponse,
         api_models::payments::PollConfig,
         api_models::payments::ExternalAuthenticationDetailsResponse,

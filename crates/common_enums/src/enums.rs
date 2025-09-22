@@ -8067,6 +8067,7 @@ pub enum AuthenticationConnectors {
     UnifiedAuthenticationService,
     Juspaythreedsserver,
     CtpVisa,
+    Cardinal,
 }
 
 impl AuthenticationConnectors {
@@ -8077,8 +8078,22 @@ impl AuthenticationConnectors {
             | Self::CtpMastercard
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
-            | Self::CtpVisa => false,
+            | Self::CtpVisa
+            | Self::Cardinal => false,
             Self::Gpayments => true,
+        }
+    }
+
+    pub fn is_jwt_flow(&self) -> bool {
+        match self {
+            Self::Threedsecureio
+            | Self::Netcetera
+            | Self::CtpMastercard
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa
+            | Self::Gpayments => false,
+            Self::Cardinal => true,
         }
     }
 }
@@ -8412,6 +8427,7 @@ pub enum Resource {
     RunRecon,
     ReconConfig,
     RevenueRecovery,
+    Subscription,
     InternalConnector,
     Theme,
 }
