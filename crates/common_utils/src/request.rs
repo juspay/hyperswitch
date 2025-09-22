@@ -60,7 +60,7 @@ impl std::fmt::Debug for MaskableMultipartForm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MaskableMultipartForm")
             .field("inner", &self.inner)
-            .field("content", &"<masked>") 
+            .field("content", &"<masked>")
             .finish()
     }
 }
