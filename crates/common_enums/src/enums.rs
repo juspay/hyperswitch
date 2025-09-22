@@ -8083,6 +8083,19 @@ impl AuthenticationConnectors {
             Self::Gpayments => true,
         }
     }
+
+    pub fn is_jwt_flow(&self) -> bool {
+        match self {
+            Self::Threedsecureio
+            | Self::Netcetera
+            | Self::CtpMastercard
+            | Self::UnifiedAuthenticationService
+            | Self::Juspaythreedsserver
+            | Self::CtpVisa
+            | Self::Gpayments => false,
+            Self::Cardinal => true,
+        }
+    }
 }
 
 #[derive(
