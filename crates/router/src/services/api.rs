@@ -178,7 +178,7 @@ where
         .attach_printable("Failed to process UCS webhook response using PSync handler")?;
 
     let mut updated_router_data = router_data;
-    let router_data_response = router_data_response.map(|(response, status)|{
+    let router_data_response = router_data_response.map(|(response, status)| {
         updated_router_data.status = status;
         response
     });

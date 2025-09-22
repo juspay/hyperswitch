@@ -894,8 +894,8 @@ async fn call_unified_connector_service_authorize(
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
-            
-            let router_data_response = router_data_response.map(|(response, status)|{
+
+            let router_data_response = router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
@@ -982,7 +982,7 @@ async fn call_unified_connector_service_repeat_payment(
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)|{
+            let router_data_response = router_data_response.map(|(response, status)| {
                 router_data.status = status;
                 response
             });
