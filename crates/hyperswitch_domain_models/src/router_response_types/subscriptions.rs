@@ -25,6 +25,7 @@ pub enum SubscriptionStatus {
     Failed,
 }
 
+#[cfg(feature = "v1")]
 impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     fn from(status: SubscriptionStatus) -> Self {
         match status {
