@@ -1398,10 +1398,12 @@ pub async fn retrieve_payment_method_from_vault_external(
         .map(|id| id.get_string_repr().to_owned());
 
     let merchant_connector_account = match &merchant_connector_account {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
         }
     }?;
 
@@ -1421,8 +1423,7 @@ pub async fn retrieve_payment_method_from_vault_external(
             "Cannot construct router data for making the external vault retrieve api call",
         )?;
 
-    let connector_name = merchant_connector_account
-        .get_connector_name_as_string(); // always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name_as_string(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
@@ -1753,10 +1754,12 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     // Extract MerchantConnectorAccount from the enum
     let merchant_connector_account = match &merchant_connector_account {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
         }
     }?;
 
@@ -1776,8 +1779,7 @@ pub async fn delete_payment_method_data_from_vault_external(
             "Cannot construct router data for making the external vault delete api call",
         )?;
 
-    let connector_name = merchant_connector_account
-        .get_connector_name_as_string();// always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name_as_string(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,

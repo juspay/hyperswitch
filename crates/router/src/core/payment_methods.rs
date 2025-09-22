@@ -59,10 +59,7 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{
-        payment_methods::transformers as pm_transforms,
-        tokenization as tokenization_core,
-    },
+    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core},
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -2304,12 +2301,13 @@ pub async fn vault_payment_method_external(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-
     let merchant_connector_account = match &merchant_connector_account {
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
         }
     }?;
 
@@ -2329,8 +2327,7 @@ pub async fn vault_payment_method_external(
             "Cannot construct router data for making the external vault insert api call",
         )?;
 
-    let connector_name = merchant_connector_account
-        .get_connector_name_as_string(); // always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name_as_string(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
