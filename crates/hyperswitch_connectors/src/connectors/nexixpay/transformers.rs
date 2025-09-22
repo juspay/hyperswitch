@@ -128,7 +128,8 @@ where
             data.get_optional_billing_full_name(),
             data.get_optional_billing_city(),
             data.get_optional_billing_zip(),
-            CountryAlpha2::from_alpha2_to_alpha3(data.get_billing_country()?),
+            data.get_optional_billing_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
             data.get_optional_billing().is_some(),
             "billing",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -143,7 +144,8 @@ where
             data.get_optional_shipping_full_name(),
             data.get_optional_shipping_city(),
             data.get_optional_shipping_zip(),
-            CountryAlpha2::from_alpha2_to_alpha3(data.get_billing_country()?),
+            data.get_optional_shipping_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
             data.get_optional_shipping().is_some(),
             "shipping",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -227,23 +229,25 @@ where
         }
 
         let country_val = opt_country;
-        if country_val.to_string().len() > max_country_len {
-            return Err(error_stack::Report::from(
-                errors::ConnectorError::MaxFieldLengthViolated {
-                    field_name: format!("{address_type_str}.address.country"),
-                    connector: "Nexixpay".to_string(),
-                    max_length: max_country_len,
-                    received_length: country_val.to_string().len(),
-                },
-            ));
+        if let Some(ref val) = country_val {
+            let length = val.to_string().len();
+            if length > max_country_len {
+                return Err(error_stack::Report::from(
+                    errors::ConnectorError::MaxFieldLengthViolated {
+                        field_name: format!("{address_type_str}.address.country"),
+                        connector: "Nexixpay".to_string(),
+                        max_length: max_country_len,
+                        received_length: length,
+                    },
+                ));
+            }
         }
-
         Ok(Some(AddressOutput::new(
             name_val,
             street_val,
             city_val,
             post_code_val,
-            Some(country_val),
+            country_val,
         )))
     } else {
         Ok(None)
