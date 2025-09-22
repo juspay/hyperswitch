@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
+pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
 
 pub async fn create_subscription(
     state: SessionState,
@@ -493,9 +494,9 @@ impl BillingHandler {
             customer_id: Some(self.subscription.customer_id.to_owned()),
             connector_customer: None,
             connector: self.connector_name.clone(),
-            payment_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
+            payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
             tenant_id: state.tenant.tenant_id.clone(),
-            attempt_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
+            attempt_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
             status: common_enums::AttemptStatus::default(),
             payment_method: common_enums::PaymentMethod::default(),
             connector_auth_type: self.auth_type.clone(),
@@ -559,7 +560,7 @@ impl BillingHandler {
         let subscription_req = hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
             subscription_id: self.subscription.id.to_owned(),
             customer_id: self.subscription.customer_id.to_owned(),
-            subscription_items: vec![subscription_item], // to be filled
+            subscription_items: vec![subscription_item], 
             billing_address: self.request.billing_address.clone().ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "billing_address",
             })?,
@@ -573,9 +574,9 @@ impl BillingHandler {
             customer_id: Some(self.subscription.customer_id.to_owned()),
             connector_customer: None,
             connector: self.connector_name.clone(),
-            payment_id: SUBSCRIPTION_CONNECTOR_ID.to_string(),
+            payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
             tenant_id: state.tenant.tenant_id.clone(),
-            attempt_id: SUBSCRIPTION_CONNECTOR_ID.to_owned(),
+            attempt_id: SUBSCRIPTION_PAYMENT_ID.to_owned(),
             status: common_enums::AttemptStatus::default(),
             payment_method: common_enums::PaymentMethod::default(),
             connector_auth_type: self.auth_type.clone(),
