@@ -305,7 +305,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
-    
+
     fn build_request(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -334,122 +334,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match &data.request.payment_method_data {
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-                bank_redirect_data,
-            ) => match bank_redirect_data {
-                hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
-                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                        .response
-                        .parse_struct("Trustpayments EpsResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-                    RouterData::try_from(ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-                hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => {
-                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                        .response
-                        .parse_struct("Trustpayments TrustlyResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-                    RouterData::try_from(ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-                _ => {
-                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                        .response
-                        .parse_struct("Trustpayments PaymentsAuthorizeResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-                    RouterData::try_from(ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-            },
-            // hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
-            //     wallet_data,
-            // ) => match wallet_data {
-            //     hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
-            //         let response: trustpayments::TrustpaymentsAlipayResponse = res
-            //             .response
-            //             .parse_struct("Trustpayments AlipayResponse")
-            //             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            //         event_builder.map(|i| i.set_response_body(&response));
-            //         router_env::logger::info!(connector_response=?response);
-            //         RouterData::try_from(ResponseRouterData {
-            //             response,
-            //             data: data.clone(),
-            //             http_code: res.status_code,
-            //         })
-            //     }
-            //     hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
-            //         let response: trustpayments::TrustpaymentsPayseraResponse = res
-            //             .response
-            //             .parse_struct("Trustpayments PayseraResponse")
-            //             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            //         event_builder.map(|i| i.set_response_body(&response));
-            //         router_env::logger::info!(connector_response=?response);
-            //         RouterData::try_from(ResponseRouterData {
-            //             response,
-            //             data: data.clone(),
-            //             http_code: res.status_code,
-            //         })
-            //     }
-            //     _ => {
-            //         let response: trustpayments::TrustpaymentsPaymentsResponse = res
-            //             .response
-            //             .parse_struct("Trustpayments PaymentsAuthorizeResponse")
-            //             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            //         event_builder.map(|i| i.set_response_body(&response));
-            //         router_env::logger::info!(connector_response=?response);
-            //         RouterData::try_from(ResponseRouterData {
-            //             response,
-            //             data: data.clone(),
-            //             http_code: res.status_code,
-            //         })
-            //     }
-            // },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(
-                bank_transfer_data,
-            ) => {
-                let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                    .response
-                    .parse_struct("Trustpayments PaymentsAuthorizeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            },
-            _ => {
-                let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                    .response
-                    .parse_struct("Trustpayments PaymentsAuthorizeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        let response: trustpayments::TrustpaymentsPaymentsResponse = res
+            .response
+            .parse_struct("Trustpayments PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -515,52 +410,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        // Check if this is a Paysera payment by looking at the payment method type
-        if let Some(payment_method_type) = &data.request.payment_method_type {
-            match payment_method_type {
-                // enums::PaymentMethodType::Paysera => {
-                //     let response: trustpayments::TrustpaymentsPayseraResponse = res
-                //         .response
-                //         .parse_struct("trustpayments PayseraResponse")
-                //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                //     event_builder.map(|i| i.set_response_body(&response));
-                //     router_env::logger::info!(connector_response=?response);
-                //     RouterData::try_from(ResponseRouterData {
-                //         response,
-                //         data: data.clone(),
-                //         http_code: res.status_code,
-                //     })
-                // }
-                _ => {
-                    let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                        .response
-                        .parse_struct("trustpayments PaymentsSyncResponse")
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    event_builder.map(|i| i.set_response_body(&response));
-                    router_env::logger::info!(connector_response=?response);
-                    RouterData::try_from(ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-            }
-        } else {
-            // Default to generic payment response for backward compatibility
-            let response: trustpayments::TrustpaymentsPaymentsResponse = res
-                .response
-                .parse_struct("trustpayments PaymentsSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
+        let response: trustpayments::TrustpaymentsPaymentsResponse = res
+            .response
+            .parse_struct("trustpayments PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
-
+    
     fn get_error_response(
         &self,
         res: Response,
@@ -1015,8 +877,6 @@ static TRUSTPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
                 specific_features: None,
             },
         );
-
-
 
         trustpayments_supported_payment_methods
     });
