@@ -353,8 +353,7 @@ impl ProfileUpdateInternal {
             is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
             always_enable_overcapture: always_enable_overcapture
                 .or(source.always_enable_overcapture),
-            external_vault_mode: external_vault_mode
-                .or(source.external_vault_mode),
+            external_vault_mode: external_vault_mode.or(source.external_vault_mode),
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
         }
