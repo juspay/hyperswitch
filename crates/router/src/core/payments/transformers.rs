@@ -1187,7 +1187,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         authentication_data: None,
         customer_acceptance: None,
         split_payments: None,
-        merchant_order_reference_id: None,
+        merchant_order_reference_id: payment_data.payment_intent.merchant_reference_id.clone(),
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
         additional_payment_method_data: None,
@@ -3705,6 +3705,9 @@ where
                                         let payment_connector_name = payment_attempt.connector
                                             .as_ref()
                                             .get_required_value("connector")?;
+                                        let is_jwt_flow = authentication.is_jwt_flow()
+                                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                                            .attach_printable("Failed to determine if the authentication is JWT flow")?;
                                         Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                             three_ds_data: api_models::payments::ThreeDsData {
                                                 three_ds_authentication_url: helpers::create_authentication_url(base_url, &payment_attempt),
@@ -3718,11 +3721,20 @@ where
                                                         three_ds_method_data_submission: true,
                                                         three_ds_method_data: Some(three_ds_method_data.clone()),
                                                         three_ds_method_url: Some(three_ds_method_url.to_owned()),
+                                                        three_ds_method_key: if is_jwt_flow {
+                                                            Some(api_models::payments::ThreeDsMethodKey::JWT)
+                                                        } else {
+                                                            Some(api_models::payments::ThreeDsMethodKey::ThreeDsMethodData)
+                                                        },
+                                                        // In JWT flow, we need to wait for post message to get the result
+                                                        consume_post_message_for_three_ds_method_completion: is_jwt_flow,
                                                     }
                                                 }).unwrap_or(api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                         three_ds_method_data_submission: false,
                                                         three_ds_method_data: None,
                                                         three_ds_method_url: None,
+                                                        three_ds_method_key: None,
+                                                        consume_post_message_for_three_ds_method_completion: false,
                                                 }),
                                                 poll_config: api_models::payments::PollConfigResponse {poll_id: request_poll_id, delay_in_secs: poll_config.delay_in_secs, frequency: poll_config.frequency},
                                                 message_version: authentication.message_version.as_ref()
