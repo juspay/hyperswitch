@@ -342,9 +342,13 @@ impl BillingHandler {
         let router_data = self.build_customer_router_data(state)?;
         let connector_integration = self.connector_data.connector.get_connector_integration();
 
-        let response = self
-            .call_connector(state, router_data, "create customer", connector_integration)
-            .await?;
+        let response = Box::pin(self.call_connector(
+            state,
+            router_data,
+            "create customer",
+            connector_integration,
+        ))
+        .await?;
 
         match response {
             Ok(response_data) => match response_data {
