@@ -39,15 +39,19 @@ use hyperswitch_domain_models::{
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
             SdkSessionUpdate, UpdateMetadata,
         },
-        subscriptions::GetSubscriptionPlans,
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
         ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
+        SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -66,11 +70,14 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        subscriptions::GetSubscriptionPlansResponse, AcceptDisputeResponse,
-        AuthenticationResponseData, DefendDisputeResponse, DisputeSyncResponse,
-        FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        subscriptions::{
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
+        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
+        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -130,7 +137,10 @@ use hyperswitch_interfaces::{
             PaymentsPreAuthenticate, PaymentsPreProcessing, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
-        subscriptions::{GetSubscriptionPlansFlow, Subscriptions},
+        subscriptions::{
+            GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow, SubscriptionCreate,
+            Subscriptions,
+        },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
             ExternalVaultRetrieve,
@@ -268,6 +278,7 @@ default_imp_for_authorize_session_token!(
     connectors::Volt,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -409,6 +420,7 @@ default_imp_for_calculate_tax!(
     connectors::Stripebilling,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -562,6 +574,7 @@ default_imp_for_session_update!(
     connectors::Prophetpay,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -702,6 +715,7 @@ default_imp_for_post_session_tokens!(
     connectors::Prophetpay,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -844,6 +858,7 @@ default_imp_for_create_order!(
     connectors::Prophetpay,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -987,6 +1002,7 @@ default_imp_for_update_metadata!(
     connectors::Riskified,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1129,6 +1145,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Riskified,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1245,6 +1262,7 @@ default_imp_for_complete_authorize!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1385,6 +1403,7 @@ default_imp_for_incremental_authorization!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1521,6 +1540,7 @@ default_imp_for_create_customer!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1650,6 +1670,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
@@ -1787,6 +1808,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -1929,6 +1951,7 @@ default_imp_for_authenticate_steps!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2071,6 +2094,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2202,6 +2226,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Tsys,
     connectors::UnifiedAuthenticationService,
@@ -2343,6 +2368,7 @@ default_imp_for_post_processing_steps!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2488,6 +2514,7 @@ default_imp_for_approve!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2633,6 +2660,7 @@ default_imp_for_reject!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2777,6 +2805,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -2921,6 +2950,7 @@ default_imp_for_accept_dispute!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3062,6 +3092,7 @@ default_imp_for_submit_evidence!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3204,6 +3235,7 @@ default_imp_for_defend_dispute!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3349,6 +3381,7 @@ default_imp_for_fetch_disputes!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3493,6 +3526,7 @@ default_imp_for_dispute_sync!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3643,6 +3677,7 @@ default_imp_for_file_upload!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3771,6 +3806,7 @@ default_imp_for_payouts!(
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -3912,6 +3948,7 @@ default_imp_for_payouts_create!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4056,6 +4093,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4199,6 +4237,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4337,6 +4376,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4479,6 +4519,7 @@ default_imp_for_payouts_cancel!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4623,6 +4664,7 @@ default_imp_for_payouts_quote!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4766,6 +4808,7 @@ default_imp_for_payouts_recipient!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -4910,6 +4953,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5055,6 +5099,7 @@ default_imp_for_frm_sale!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5200,6 +5245,7 @@ default_imp_for_frm_checkout!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5345,6 +5391,7 @@ default_imp_for_frm_transaction!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5490,6 +5537,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5635,6 +5683,7 @@ default_imp_for_frm_record_return!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5776,6 +5825,7 @@ default_imp_for_revoking_mandates!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -5919,6 +5969,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6061,6 +6112,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6204,6 +6256,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6338,6 +6391,7 @@ default_imp_for_connector_request_id!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6475,6 +6529,7 @@ default_imp_for_fraud_check!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6641,6 +6696,7 @@ default_imp_for_connector_authentication!(
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6783,6 +6839,7 @@ default_imp_for_uas_authentication!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6919,6 +6976,7 @@ default_imp_for_revenue_recovery!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -6941,6 +6999,7 @@ macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
         $(  impl Subscriptions for $path::$connector {}
             impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl SubscriptionCreate for $path::$connector {}
             impl
             ConnectorIntegration<
             GetSubscriptionPlans,
@@ -6948,6 +7007,20 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionPlansResponse
             > for $path::$connector
             {}
+            impl GetSubscriptionPlanPricesFlow for $path::$connector {}
+            impl
+            ConnectorIntegration<
+            GetSubscriptionPlanPrices,
+            GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlanPricesResponse
+            > for $path::$connector
+            {}
+            impl
+            ConnectorIntegration<
+            SubscriptionCreateFlow,
+            SubscriptionCreateRequest,
+            SubscriptionCreateResponse,
+            > for $path::$connector {}
         )*
     };
 }
@@ -7063,6 +7136,7 @@ default_imp_for_subscriptions!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7208,6 +7282,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7352,6 +7427,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7497,6 +7573,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Threedsecureio,
     connectors::Taxjar,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7635,6 +7712,7 @@ default_imp_for_external_vault!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7779,6 +7857,7 @@ default_imp_for_external_vault_insert!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -7921,6 +8000,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -8066,6 +8146,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -8210,6 +8291,7 @@ default_imp_for_external_vault_delete!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -8354,6 +8436,7 @@ default_imp_for_external_vault_create!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -8498,6 +8581,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -8641,6 +8725,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,
+    connectors::Tokenex,
     connectors::Tokenio,
     connectors::Trustpay,
     connectors::Trustpayments,
@@ -9220,6 +9305,21 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> GetSubscriptionPlanPricesFlow for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        GetSubscriptionPlanPrices,
+        GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlanPricesResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -9232,4 +9332,14 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> Subscriptions for connectors::DummyConnector<T> {}
+impl<const T: u8> SubscriptionCreate for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        SubscriptionCreateFlow,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
+    > for connectors::DummyConnector<T>
+{
+}

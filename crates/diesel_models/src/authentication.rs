@@ -1,5 +1,12 @@
-use common_utils::{encryption::Encryption, pii};
+use std::str::FromStr;
+
+use common_utils::{
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    pii,
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use error_stack::ResultExt;
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
@@ -73,6 +80,22 @@ impl Authentication {
         self.maximum_supported_version
             .as_ref()
             .is_some_and(|version| version.get_major() == 2)
+    }
+
+    // get authentication_connector from authentication record and check if it is jwt flow
+    pub fn is_jwt_flow(&self) -> CustomResult<bool, ValidationError> {
+        Ok(self
+            .authentication_connector
+            .clone()
+            .map(|connector| {
+                common_enums::AuthenticationConnectors::from_str(&connector)
+                    .change_context(ValidationError::InvalidValue {
+                        message: "failed to parse authentication_connector".to_string(),
+                    })
+                    .map(|connector_enum| connector_enum.is_jwt_flow())
+            })
+            .transpose()?
+            .unwrap_or(false))
     }
 }
 
