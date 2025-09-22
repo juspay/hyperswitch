@@ -108,6 +108,8 @@ pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -211,6 +213,9 @@ where
     }
     Ok(())
 }
+
+pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
