@@ -68,6 +68,22 @@ pub async fn set_access_token_for_ucs(
 ) -> Result<(), errors::StorageError> {
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
+    // Check if the same access token is already cached
+    if let Ok(Some(cached_token)) = state
+        .store
+        .get_access_token(merchant_id, connector_name)
+        .await
+    {
+        if cached_token.token.peek() == access_token.token.peek() {
+            logger::debug!(
+                merchant_id = ?merchant_id,
+                connector_name = connector_name,
+                "Access token already cached, skipping re-cache"
+            );
+            return Ok(());
+        }
+    }
+
     let modified_access_token = AccessToken {
         expires: access_token
             .expires
