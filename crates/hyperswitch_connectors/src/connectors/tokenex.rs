@@ -20,10 +20,11 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData, VaultRequestData
+        RefundsData, SetupMandateRequestData, VaultRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, VaultResponseData
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        VaultResponseData,
     },
     types::VaultRouterData,
 };
@@ -70,11 +71,9 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
 pub mod auth_headers {
     pub const TOKENEX_ID: &str = "tx-tokenex-id";
-pub const TOKENEX_API_KEY: &str = "tx-apikey";
-pub const TOKENEX_SCHEME: &str = "tx-token-scheme";
+    pub const TOKENEX_API_KEY: &str = "tx-apikey";
+    pub const TOKENEX_SCHEME: &str = "tx-token-scheme";
 }
-
-
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tokenex
 where
@@ -85,7 +84,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-                let auth = tokenex::TokenexAuthType::try_from(&req.connector_auth_type)
+        let auth = tokenex::TokenexAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -156,8 +155,7 @@ impl ConnectorCommon for Tokenex {
     }
 }
 
-impl ConnectorValidation for Tokenex {
-}
+impl ConnectorValidation for Tokenex {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Tokenex {
     //TODO: implement sessions flow
@@ -167,24 +165,21 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Tokenex {
-}
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tokenex {
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Tokenex {
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Tokenex {}
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tokenex {
-}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tokenex {
-}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tokenex {}
 
-impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData> for Tokenex {
+impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
+    for Tokenex
+{
     fn get_url(
         &self,
         _req: &VaultRouterData<ExternalVaultInsertFlow>,
@@ -260,14 +255,18 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
     }
 }
 
-impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData> for Tokenex {
+impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
+    for Tokenex
+{
     fn get_url(
         &self,
         _req: &VaultRouterData<ExternalVaultRetrieveFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-
-        Ok(format!("{}/v2/Pci/DetokenizeWithCvv", self.base_url(connectors)))
+        Ok(format!(
+            "{}/v2/Pci/DetokenizeWithCvv",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_headers(
@@ -312,10 +311,10 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<VaultRouterData<ExternalVaultRetrieveFlow>, errors::ConnectorError> {
-        let response: tokenex::TokenexRetrieveResponse =
-            res.response
-                .parse_struct("TokenexRetrieveResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: tokenex::TokenexRetrieveResponse = res
+            .response
+            .parse_struct("TokenexRetrieveResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
