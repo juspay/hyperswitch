@@ -349,28 +349,6 @@ pub struct TrustpaymentsPaymentRequestData {
     pub applicationtype: Option<String>,
 }
 
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsAlipayRequest {
-    pub alias: String,
-    pub version: String,
-    pub request: Vec<TrustpaymentsAlipayRequestData>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct TrustpaymentsAlipayRequestData{
-    pub currencyiso3a: String,
-    pub orderreference: String,
-    pub requesttypedescriptions: Vec<String>,
-    pub accounttypedescription: String,
-    pub baseamount:String,
-    pub returnurl: String,
-    pub billingcountryiso2a: String,
-    pub sitereference: String,
-    pub paymenttypedescription: String,
-    pub applicationtype: Option<String>,
-}
-
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsSepaRequest {
     pub alias: String,
@@ -393,53 +371,6 @@ pub struct TrustpaymentsSepaRequestData {
     pub billingemail: String,
 }
 
-impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
-    for TrustpaymentsAlipayRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = TrustpaymentsAuthType::try_from(&item.router_data.connector_auth_type)?;
-
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Wallet(wallet_data) => {
-                match wallet_data {
-                    hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
-                        Ok(Self {
-                            alias: auth.username.expose(),
-                            version: TRUSTPAYMENTS_API_VERSION.to_string(),
-                            request: vec![TrustpaymentsAlipayRequestData {
-                                currencyiso3a: item.router_data.request.currency.to_string(),
-                                orderreference: item.router_data.connector_request_reference_id.clone(),
-                                requesttypedescriptions: vec!["AUTH".to_string()],
-                                accounttypedescription: "ECOM".to_string(),
-                                baseamount: item.amount.to_string(),
-                                returnurl: item.router_data.request.router_return_url.clone().unwrap_or_default(),
-                                billingcountryiso2a: item
-                                    .router_data
-                                    .get_optional_billing_country()
-                                    .map(|country| country.to_string())
-                                    .unwrap_or_else(|| "CN".to_string()),
-                                sitereference: auth.site_reference.expose(),
-                                paymenttypedescription: "ALIPAY".to_string(),
-                                applicationtype: None,
-                            }],
-                        })
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Wallet method not supported for Alipay".to_string(),
-                    )
-                    .into()),
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported for Alipay".to_string(),
-            )
-            .into()),
-        }
-    }
-}
 
 impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     for TrustpaymentsSepaRequest

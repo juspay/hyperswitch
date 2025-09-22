@@ -331,7 +331,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             ) => match wallet_data {
                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
                     let connector_req =
-                        trustpayments::TrustpaymentsAlipayRequest::try_from(&connector_router_data)?;
+                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
                     Ok(RequestContent::Json(Box::new(connector_req)))
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
