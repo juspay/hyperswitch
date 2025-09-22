@@ -301,66 +301,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = trustpayments::TrustpaymentsRouterData::from((amount, req));
-
-        match &req.request.payment_method_data {
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-                bank_redirect_data,
-            ) => match bank_redirect_data {
-                hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    println!("This is an EPS payment");
-
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-                hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    println!("This is a Trustly payment");
-
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-                _ => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
-                wallet_data,
-            ) => match wallet_data {
-                hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-                hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-                _ => {
-                    let connector_req =
-                        trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                    Ok(RequestContent::Json(Box::new(connector_req)))
-                }
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(
-                bank_transfer_data,
-            ) => {
-                let connector_req =
-                    trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
-            },
-            _ => {
-                let connector_req =
-                    trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
-                Ok(RequestContent::Json(Box::new(connector_req)))
-            }
-        }
-
+        let connector_req =
+            trustpayments::TrustpaymentsPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
-
+    
     fn build_request(
         &self,
         req: &PaymentsAuthorizeRouterData,
