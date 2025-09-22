@@ -110,9 +110,9 @@ pub struct BackfillQuery {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum RedisKeyType {
     #[serde(rename = "status")]
-    Status,  // for customer:{id}:status
+    Status, // for customer:{id}:status
     #[serde(rename = "tokens")]
-    Tokens,  // for customer:{id}:tokens
+    Tokens, // for customer:{id}:tokens
 }
 
 #[derive(Debug, Deserialize)]

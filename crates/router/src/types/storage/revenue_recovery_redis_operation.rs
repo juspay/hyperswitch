@@ -136,12 +136,16 @@ impl RedisTokenManager {
                 ))?;
 
         let (redis_key, operation_name, key_description) = match key_type {
-            RedisKeyType::Status => {
-                (Self::get_connector_customer_lock_key(connector_customer_id), "update_lock_ttl", "status lock")
-            }
-            RedisKeyType::Tokens => {
-                (Self::get_connector_customer_tokens_key(connector_customer_id), "update_tokens_ttl", "tokens")
-            }
+            RedisKeyType::Status => (
+                Self::get_connector_customer_lock_key(connector_customer_id),
+                "update_lock_ttl",
+                "status lock",
+            ),
+            RedisKeyType::Tokens => (
+                Self::get_connector_customer_tokens_key(connector_customer_id),
+                "update_tokens_ttl",
+                "tokens",
+            ),
         };
 
         let result = match redis_conn.exists::<()>(&redis_key.clone().into()).await {

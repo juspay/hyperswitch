@@ -1,6 +1,8 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::revenue_recovery_data_backfill::{BackfillQuery, RevenueRecoveryDataBackfillForm, UpdateTTLQuery};
+use api_models::revenue_recovery_data_backfill::{
+    BackfillQuery, RevenueRecoveryDataBackfillForm, UpdateTTLQuery,
+};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -93,10 +95,7 @@ pub async fn revenue_recovery_data_backfill_status(
 pub async fn revenue_recovery_data_backfill_update_ttl(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(
-        String,
-        i64,
-    )>,
+    path: web::Path<(String, i64)>,
     query: web::Query<UpdateTTLQuery>,
 ) -> HttpResponse {
     let flow = Flow::RecoveryDataBackfill;
@@ -109,7 +108,12 @@ pub async fn revenue_recovery_data_backfill_update_ttl(
         &req,
         (),
         |state, _: (), _, _| {
-            revenue_recovery_data_backfill::update_connector_customer_ttl(state, &connector_customer_id, ttl_time, key_type)
+            revenue_recovery_data_backfill::update_connector_customer_ttl(
+                state,
+                &connector_customer_id,
+                ttl_time,
+                key_type,
+            )
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
