@@ -282,7 +282,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Shift4 {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Shift4 {
+    fn build_request(
+        &self,
+        _req: &hyperswitch_domain_models::types::PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Void".to_string(),
+            connector: "Shift4",
+        }
+        .into())
+    }
+}
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Shift4 {
     fn get_headers(
@@ -378,6 +390,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        if req.request.amount_to_capture != req.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Shift4",
+            })?
+        }
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
