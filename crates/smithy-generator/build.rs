@@ -12,10 +12,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn run_build() -> Result<(), Box<dyn std::error::Error>> {
     let workspace_root = get_workspace_root()?;
 
-    println!(
-        "cargo:warning=Scanning workspace root: {}",
-        workspace_root.display()
-    );
 
     let mut smithy_models = Vec::new();
 
@@ -44,7 +40,6 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
 
-                println!("cargo:warning=Scanning crate: {}", crate_name);
                 if let Err(e) =
                     scan_crate_for_smithy_models(&crate_path, &crate_name, &mut smithy_models)
                 {
@@ -54,16 +49,6 @@ fn run_build() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!(
-        "cargo:warning=Found {} SmithyModel structs",
-        smithy_models.len()
-    );
-    for model in &smithy_models {
-        println!(
-            "cargo:warning=  - {}: {}",
-            model.crate_name, model.struct_name
-        );
-    }
 
     // Generate the registry file
     generate_model_registry(&smithy_models)?;
@@ -182,14 +167,8 @@ fn scan_rust_file(
                 if is_valid_rust_identifier(item_name) {
                     let full_module_path = create_module_path(file_path, crate_name, module_path)?;
 
-                    println!(
-                        "cargo:warning=Found SmithyModel: {} in {}",
-                        item_name,
-                        file_path.display()
-                    );
 
                     models.push(SmithyModelInfo {
-                        crate_name: crate_name.to_string(),
                         struct_name: item_name.to_string(),
                         module_path: full_module_path,
                     });
@@ -271,7 +250,6 @@ fn create_module_path(
 
 #[derive(Debug)]
 struct SmithyModelInfo {
-    crate_name: String,
     struct_name: String,
     module_path: String,
 }
@@ -326,10 +304,6 @@ fn generate_model_registry(models: &[SmithyModelInfo]) -> Result<(), Box<dyn std
             e
         )
     })?;
-    println!(
-        "cargo:warning=Generated model registry at: {}",
-        registry_path.display()
-    );
 
     Ok(())
 }
