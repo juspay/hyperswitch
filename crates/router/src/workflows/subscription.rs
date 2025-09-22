@@ -1,12 +1,14 @@
 // use api_models::payments::BillingConnectorDetails;
 use async_trait::async_trait;
+use common_enums::connector_enums::InvoiceStatus;
 use common_utils::{ext_traits::ValueExt, id_type};
-use diesel_models::invoice::{InvoiceNew, InvoiceUpdate};
-use diesel_models::process_tracker::business_status;
+use diesel_models::{
+    invoice::{InvoiceNew, InvoiceUpdate},
+    process_tracker::business_status,
+};
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
-use common_enums::connector_enums::InvoiceStatus;
 
 use crate::{
     core::{errors::RecoveryError::ProcessTrackerFailure, payments},
