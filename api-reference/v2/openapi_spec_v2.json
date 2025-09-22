@@ -13421,6 +13421,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
