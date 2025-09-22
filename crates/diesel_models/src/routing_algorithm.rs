@@ -42,9 +42,48 @@ pub struct RoutingProfileMetadata {
     pub algorithm_for: enums::TransactionType,
 }
 
+fn extract_display_name(name: &str) -> String {
+    const PREFIXES: &[&str] = &["SUCCESS:", "ELIMINATION:", "CONTRACT:"];
+
+    for prefix in PREFIXES {
+        if name.starts_with(prefix) {
+            return name.strip_prefix(prefix).unwrap_or(name).to_string();
+        }
+    }
+    name.to_string()
+}
+
 impl RoutingProfileMetadata {
     pub fn metadata_is_advanced_rule_for_payments(&self) -> bool {
         matches!(self.kind, enums::RoutingAlgorithmKind::Advanced)
             && matches!(self.algorithm_for, enums::TransactionType::Payment)
+    }
+
+    pub fn get_display_name(&self) -> String {
+        extract_display_name(&self.name)
+    }
+}
+
+impl RoutingAlgorithmMetadata {
+    pub fn get_display_name(&self) -> String {
+        extract_display_name(&self.name)
+    }
+}
+
+impl RoutingAlgorithm {
+    pub fn get_display_name(&self) -> String {
+        extract_display_name(&self.name)
+    }
+
+    pub fn create_success_prefixed_name(name: &str) -> String {
+        format!("SUCCESS:{}", name)
+    }
+
+    pub fn create_elimination_prefixed_name(name: &str) -> String {
+        format!("ELIMINATION:{}", name)
+    }
+
+    pub fn create_contract_prefixed_name(name: &str) -> String {
+        format!("CONTRACT:{}", name)
     }
 }
