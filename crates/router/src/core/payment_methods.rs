@@ -1167,7 +1167,9 @@ pub async fn create_payment_method_proxy_card_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse External vault token data")?;
 
-    let vault_type = external_vault_source.is_some().then_some(common_enums::VaultType::External);
+    let vault_type = external_vault_source
+        .is_some()
+        .then_some(common_enums::VaultType::External);
 
     let payment_method = create_payment_method_for_confirm(
         state,
@@ -1182,7 +1184,7 @@ pub async fn create_payment_method_proxy_card_core(
         payment_method_billing_address,
         encrypted_payment_method_data,
         encrypted_external_vault_token_data,
-        vault_type
+        vault_type,
     )
     .await?;
 

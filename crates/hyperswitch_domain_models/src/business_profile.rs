@@ -95,7 +95,7 @@ pub enum ExternalVaultDetails {
 }
 
 #[cfg(feature = "v1")]
-impl ExternalVaultDetails{
+impl ExternalVaultDetails {
     pub fn is_external_vault_enabled(&self) -> bool {
         match self {
             Self::ExternalVaultEnabled(_) => true,
@@ -135,23 +135,14 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl
-    TryFrom<(
-        Option<bool>,
-        Option<ExternalVaultConnectorDetails>,
-    )> for ExternalVaultDetails
-{
+impl TryFrom<(Option<bool>, Option<ExternalVaultConnectorDetails>)> for ExternalVaultDetails {
     type Error = error_stack::Report<ValidationError>;
     fn try_from(
-        item: (
-            Option<bool>,
-            Option<ExternalVaultConnectorDetails>,
-        ),
+        item: (Option<bool>, Option<ExternalVaultConnectorDetails>),
     ) -> Result<Self, Self::Error> {
         match item {
             (is_external_vault_enabled, external_vault_connector_details)
-                if is_external_vault_enabled
-                    .unwrap_or(false) =>
+                if is_external_vault_enabled.unwrap_or(false) =>
             {
                 Ok(Self::ExternalVaultEnabled(
                     external_vault_connector_details
@@ -182,18 +173,12 @@ impl From<ExternalVaultDetails>
 }
 
 #[cfg(feature = "v1")]
-impl From<ExternalVaultDetails>
-    for (
-        Option<bool>,
-        Option<ExternalVaultConnectorDetails>,
-    )
-{
+impl From<ExternalVaultDetails> for (Option<bool>, Option<ExternalVaultConnectorDetails>) {
     fn from(external_vault_details: ExternalVaultDetails) -> Self {
         match external_vault_details {
-            ExternalVaultDetails::ExternalVaultEnabled(connector_details) => (
-                Some(true),
-                Some(connector_details),
-            ),
+            ExternalVaultDetails::ExternalVaultEnabled(connector_details) => {
+                (Some(true), Some(connector_details))
+            }
             ExternalVaultDetails::Skip => (Some(false), None),
         }
     }
