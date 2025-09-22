@@ -520,6 +520,8 @@ pub fn build_unified_connector_service_auth_metadata(
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> CustomResult<String, UnifiedConnectorServiceError> {
+    use crate::services::api;
+
     let external_vault_metadata = external_vault_merchant_connector_account
         .get_metadata()
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
@@ -550,7 +552,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault => None,
+        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
