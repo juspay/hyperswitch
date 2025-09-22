@@ -332,3 +332,6 @@ pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
 
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
+
+/// Form field name for challenge request during creq submission
+pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
