@@ -1233,7 +1233,7 @@ pub struct BrowserInformation {
     /// Accept-language of the browser
     pub accept_language: Option<String>,
 
-    /// URL of the webpage that linked to the current request
+    /// Identifier of the source that initiated the request.
     pub referer: Option<String>,
 }
 
