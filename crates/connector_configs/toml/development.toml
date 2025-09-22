@@ -7089,3 +7089,7 @@ type="Text"
 [tokenex]
 [tokenex.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"
