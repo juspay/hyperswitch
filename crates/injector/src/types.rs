@@ -7,8 +7,6 @@ pub mod models {
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
-    // Import vault metadata header constant
-    use crate::consts::EXTERNAL_VAULT_METADATA_HEADER;
 
     // Enums for the injector - making it standalone
 
@@ -172,7 +170,7 @@ pub mod models {
                 Ok(json) => {
                     json
                 }
-                Err(e) => {
+                Err(_e) => {
                     serde_json::Value::String(response_text)
                 }
             };
@@ -203,8 +201,6 @@ pub mod models {
             let mut connection_config = ConnectionConfig::new(endpoint, http_method);
 
             // Keep vault metadata header for processing in make_http_request
-            if headers.contains_key(EXTERNAL_VAULT_METADATA_HEADER) {
-            }
 
             // Store backup proxy for make_http_request to use as fallback
             connection_config.backup_proxy_url = proxy_url;

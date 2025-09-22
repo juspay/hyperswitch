@@ -680,7 +680,7 @@ pub mod core {
 
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
-                let proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
+                let _proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
                 
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {
@@ -829,6 +829,7 @@ mod tests {
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None, // Remove proxy that was causing issues
+                backup_proxy_url: None,
                 // Certificate fields (None for basic test)
                 client_cert: None,
                 client_key: None,
@@ -908,6 +909,7 @@ mod tests {
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None, // Remove proxy to make test work reliably
+                backup_proxy_url: None,
                 // Test without certificates for basic functionality
                 client_cert: None,
                 client_key: None,

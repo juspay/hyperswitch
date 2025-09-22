@@ -166,8 +166,7 @@ impl VaultMetadataFactory {
                 "Failed to decode base64 vault metadata header"
             );
             VaultMetadataError::Base64DecodingFailed(format!(
-                "Invalid base64 encoding: {}",
-                e
+                "Invalid base64 encoding: {e}"
             ))
         })?;
 
@@ -190,8 +189,7 @@ impl VaultMetadataFactory {
                     "Failed to parse vault metadata JSON"
                 );
                 VaultMetadataError::JsonParsingFailed(format!(
-                    "Invalid JSON structure: {}",
-                    e
+                    "Invalid JSON structure: {e}"
                 ))
             })?;
 
@@ -247,7 +245,6 @@ impl VaultMetadataExtractor for ConnectionConfig {
                 client_cert_applied = self.client_cert.is_some(),
                 "Successfully applied vault metadata to connection configuration"
             );
-        } else {
         }
         Ok(())
     }
