@@ -6621,8 +6621,22 @@ where
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
                 && ((connector.connector_name == router_types::Connector::Nexixpay
                     && is_operation_complete_authorize(&operation))
-                    || ((connector.connector_name == router_types::Connector::Nuvei
-                        || connector.connector_name == router_types::Connector::Shift4)
+                    || (((connector.connector_name == router_types::Connector::Nuvei && {
+                        #[cfg(feature = "v1")]
+                        {
+                            payment_data
+                                .get_payment_intent()
+                                .request_external_three_ds_authentication
+                                != Some(true)
+                        }
+                        #[cfg(feature = "v2")]
+                        {
+                            payment_data
+                                .get_payment_intent()
+                                .request_external_three_ds_authentication
+                                != Some(true).into()
+                        }
+                    }) || connector.connector_name == router_types::Connector::Shift4)
                         && !is_operation_complete_authorize(&operation)))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;

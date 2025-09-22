@@ -497,7 +497,6 @@ impl Connector {
             | Self::Nomupay
             | Self::Nordea
             | Self::Novalnet
-            | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
             | Self::Payload
@@ -554,7 +553,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
     }
 
