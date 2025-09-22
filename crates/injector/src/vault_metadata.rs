@@ -161,9 +161,7 @@ impl VaultMetadataFactory {
                 error = %e,
                 "Failed to decode base64 vault metadata header"
             );
-            VaultMetadataError::Base64DecodingFailed(format!(
-                "Invalid base64 encoding: {e}"
-            ))
+            VaultMetadataError::Base64DecodingFailed(format!("Invalid base64 encoding: {e}"))
         })?;
 
         // Validate decoded size
@@ -184,9 +182,7 @@ impl VaultMetadataFactory {
                     error = %e,
                     "Failed to parse vault metadata JSON"
                 );
-                VaultMetadataError::JsonParsingFailed(format!(
-                    "Invalid JSON structure: {e}"
-                ))
+                VaultMetadataError::JsonParsingFailed(format!("Invalid JSON structure: {e}"))
             })?;
 
         logger::info!(
