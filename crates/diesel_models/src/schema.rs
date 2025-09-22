@@ -258,7 +258,7 @@ diesel::table! {
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
         #[max_length = 16]
-        is_external_vault_enabled -> Nullable<Varchar>,
+        external_vault_mode -> Nullable<Varchar>,
         external_vault_connector_details -> Nullable<Jsonb>,
     }
 }

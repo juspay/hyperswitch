@@ -476,7 +476,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     dispute_polling_interval,
                     is_manual_retry_enabled,
                     always_enable_overcapture,
-                    is_external_vault_enabled,
+                    external_vault_mode: is_external_vault_enabled,
                     external_vault_connector_details,
                 }
             }
@@ -536,7 +536,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -593,7 +593,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -650,7 +650,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -707,7 +707,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -764,7 +764,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -821,7 +821,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
@@ -878,7 +878,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                is_external_vault_enabled: None,
+                external_vault_mode: None,
                 external_vault_connector_details: None,
             },
         }
@@ -892,7 +892,7 @@ impl super::behaviour::Conversion for Profile {
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        let (is_external_vault_enabled, external_vault_connector_details) =
+        let (external_vault_mode, external_vault_connector_details) =
             self.external_vault_details.into();
 
         Ok(diesel_models::business_profile::Profile {
@@ -958,7 +958,7 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
-            is_external_vault_enabled,
+            external_vault_mode,
             external_vault_connector_details,
         })
     }
@@ -1015,7 +1015,7 @@ impl super::behaviour::Conversion for Profile {
         })?;
 
         let external_vault_details = ExternalVaultDetails::try_from((
-            item.is_external_vault_enabled,
+            item.external_vault_mode,
             item.external_vault_connector_details,
         ))?;
 
@@ -1087,7 +1087,7 @@ impl super::behaviour::Conversion for Profile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        let (is_external_vault_enabled, external_vault_connector_details) =
+        let (external_vault_mode, external_vault_connector_details) =
             self.external_vault_details.into();
 
         Ok(diesel_models::business_profile::ProfileNew {
@@ -1148,7 +1148,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
-            is_external_vault_enabled,
+            external_vault_mode,
             external_vault_connector_details,
         })
     }
