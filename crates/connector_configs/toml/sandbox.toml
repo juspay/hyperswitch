@@ -4288,6 +4288,24 @@ payment_method_type = "giropay"
 payment_method_type = "sofort"
 [[shift4.bank_redirect]]
 payment_method_type = "eps"
+[[shift4.bank_redirect]]
+  payment_method_type = "trustly"
+[[shift4.bank_redirect]]
+  payment_method_type = "blik"
+[[shift4.wallet]]
+  payment_method_type = "ali_pay"
+[[shift4.wallet]]
+  payment_method_type = "we_chat_pay"
+[[shift4.wallet]]
+  payment_method_type = "paysera"
+[[shift4.wallet]]
+  payment_method_type = "skrill"
+[[shift4.pay_later]]
+  payment_method_type = "klarna"
+[[shift4.voucher]]
+  payment_method_type = "boleto"
+[[shift4.crypto]]
+  payment_method_type = "crypto_currency"
 [shift4.connector_auth.HeaderKey]
 api_key = "API Key"
 [shift4.connector_webhook_details]
@@ -5514,6 +5532,18 @@ placeholder = "Enter Merchant Configuration ID"
 required = false
 type = "Text"
 
+[cardinal]
+[cardinal.connector_auth.SignatureKey]
+api_key = "API Key"
+api_secret = "API ID"
+key1 = "Organization Unit ID"
+
+[cardinal.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
 
 [taxjar]
 [taxjar.connector_auth.HeaderKey]
@@ -6703,10 +6733,18 @@ merchant_secret="Source verification key"
 api_key = "API Key"
 key1 = "API Secret"
 
+
 [trustpayments]
+[[trustpayments.credit]]
+payment_method_type = "Mastercard"
+[[trustpayments.credit]]
+payment_method_type = "Visa"
+[[trustpayments.debit]]
+payment_method_type = "Mastercard"
+[[trustpayments.debit]]
+payment_method_type = "Visa"
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
-
 
 [breadpay]
 [breadpay.connector_auth.BodyKey]
@@ -6817,29 +6855,71 @@ key1 = "Password"
 [paysafe.connector_webhook_details]
 merchant_secret = "Source verification key"
 [[paysafe.metadata.account_id.card.USD.three_ds]]
-name="account_id"
+name="three_ds"
 label="ThreeDS account id"
 placeholder="Enter ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.USD.no_three_ds]]
 name="no_three_ds"
 label="Non ThreeDS account id"
 placeholder="Enter Non ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.EUR.three_ds]]
-name="account_id"
+name="three_ds"
 label="ThreeDS account id"
 placeholder="Enter ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
 [[paysafe.metadata.account_id.card.EUR.no_three_ds]]
 name="no_three_ds"
 label="Non ThreeDS account id"
 placeholder="Enter Non ThreeDS Account ID"
 required=true
-type="Number"
+type="Text"
+[[paysafe.metadata.account_id.interac.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.USD.three_ds]]
+name="three_ds"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.EUR.three_ds]]
+name="three_ds"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.USD.three_ds]]
+name="three_ds"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.EUR.three_ds]]
+name="three_ds"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
 
 
 

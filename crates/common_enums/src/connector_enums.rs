@@ -156,6 +156,7 @@ pub enum RoutableConnectors {
     Stripebilling,
     // Taxjar,
     Trustpay,
+    Trustpayments,
     // Thunes
     Tokenio,
     // Tsys,
@@ -249,6 +250,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Breadpay,
+    Cardinal,
     Cashtocode,
     Celero,
     Chargebee,
@@ -336,6 +338,7 @@ pub enum Connector {
     //Thunes,
     Tokenio,
     Trustpay,
+    Trustpayments,
     Tsys,
     // UnifiedAuthenticationService,
     Vgs,
@@ -519,6 +522,7 @@ impl Connector {
             | Self::Taxjar
             // | Self::Thunes
             | Self::Trustpay
+            | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
             // | Self::UnifiedAuthenticationService
@@ -541,6 +545,7 @@ impl Connector {
             | Self::Threedsecureio
             | Self::Netcetera
             | Self::CtpMastercard
+            | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
             | Self::Tokenio
@@ -570,7 +575,7 @@ impl Connector {
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
-        matches!(self, Self::Adyenplatform)
+        matches!(self, Self::Adyenplatform | Self::Adyen)
     }
 
     /// Validates if dummy connector can be created
@@ -702,6 +707,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
+            RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
             RoutableConnectors::Volt => Self::Volt,
@@ -835,6 +841,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Trustpay => Ok(Self::Trustpay),
+            Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
@@ -862,7 +869,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Taxjar
             | Connector::Threedsecureio
             | Connector::Vgs
-            | Connector::CtpVisa => Err("Invalid conversion. Not a routable connector"),
+            | Connector::CtpVisa
+            | Connector::Cardinal => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }
@@ -870,19 +878,12 @@ impl TryFrom<Connector> for RoutableConnectors {
 // Enum representing different status an invoice can have.
 #[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
 pub enum InvoiceStatus {
-    PendingPayment,
-    PaymentRequiresAction,
-    PaymentAuthorized,
+    InvoiceCreated,
     PaymentPending,
     PaymentPendingTimeout,
     PaymentSucceeded,
     PaymentFailed,
     PaymentCanceled,
-    SubscriptionCreating,
-    SubscriptionCreated,
-    SubscriptionCreationFailed,
     InvoicePaid,
-    Disputed,
-    Refunded,
     ManualReview,
 }
