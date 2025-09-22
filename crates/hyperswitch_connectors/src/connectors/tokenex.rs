@@ -7,11 +7,9 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -27,10 +25,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, VaultResponseData
     },
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, VaultRouterData
-    },
+    types::VaultRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -46,7 +41,7 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as tokenex;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData};
 
 #[derive(Clone)]
 pub struct Tokenex;
@@ -92,7 +87,7 @@ where
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
                 let auth = tokenex::TokenexAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         ),
@@ -268,7 +263,7 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
 impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData> for Tokenex {
     fn get_url(
         &self,
-        req: &VaultRouterData<ExternalVaultRetrieveFlow>,
+        _req: &VaultRouterData<ExternalVaultRetrieveFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
 

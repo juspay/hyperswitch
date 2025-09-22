@@ -1,7 +1,5 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{ ext_traits::{Encode, StringExt},types::StringMinorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
     router_request_types::VaultRequestData,
@@ -9,11 +7,12 @@ use hyperswitch_domain_models::{
     types::VaultRouterData,
     vault::PaymentMethodVaultingData,
 };
+use error_stack::ResultExt;
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::types::ResponseRouterData;
 
 pub struct TokenexRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -60,21 +59,18 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
 pub struct TokenexAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) tokenex_id: Secret<String>,
-    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for TokenexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::BodyKey {
                 api_key,
                 key1,
-                api_secret,
             } => Ok(Self {
                 api_key: api_key.to_owned(),
                 tokenex_id: key1.to_owned(),
-                api_secret: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
