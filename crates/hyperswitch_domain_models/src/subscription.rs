@@ -13,10 +13,6 @@ impl ClientSecret {
         Self(secret)
     }
 
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-
     pub fn get_subscription_id(&self) -> error_stack::Result<String, ApiErrorResponse> {
         let sub_id = self
             .0
@@ -28,6 +24,12 @@ impl ClientSecret {
             .attach_printable("Failed to extract subscription_id from client_secret")?;
 
         Ok(sub_id.to_string())
+    }
+}
+
+impl std::fmt::Display for ClientSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

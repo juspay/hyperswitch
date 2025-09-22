@@ -109,7 +109,7 @@ pub async fn get_subscription_plans(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &(&state).into(),
             merchant_context.get_merchant_account().get_id(),
-            &mca_id,
+            mca_id,
             key_store,
         )
         .await
