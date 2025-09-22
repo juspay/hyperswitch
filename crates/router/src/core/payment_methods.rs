@@ -60,7 +60,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{
-        payment_methods::transformers as pm_transforms, payments as payments_core,
+        payment_methods::transformers as pm_transforms,
         tokenization as tokenization_core,
     },
     headers,
@@ -2304,10 +2304,19 @@ pub async fn vault_payment_method_external(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::AddVaultResponse> {
+
+    let merchant_connector_account = match &merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+        }
+    }?;
+
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
-        &merchant_connector_account,
+        merchant_connector_account,
         Some(pmd.clone()),
         None,
         None,
@@ -2321,15 +2330,13 @@ pub async fn vault_payment_method_external(
         )?;
 
     let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+        .get_connector_name_as_string(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
-        &connector_name,
+        connector_name,
         api::GetToken::Connector,
-        merchant_connector_account.get_mca_id(),
+        Some(merchant_connector_account.get_id()),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;

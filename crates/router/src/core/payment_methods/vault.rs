@@ -1397,10 +1397,18 @@ pub async fn retrieve_payment_method_from_vault_external(
         .clone()
         .map(|id| id.get_string_repr().to_owned());
 
+    let merchant_connector_account = match &merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+        }
+    }?;
+
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
-        &merchant_connector_account,
+        merchant_connector_account,
         None,
         connector_vault_id,
         None,
@@ -1414,15 +1422,13 @@ pub async fn retrieve_payment_method_from_vault_external(
         )?;
 
     let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+        .get_connector_name_as_string(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
-        &connector_name,
+        connector_name,
         api::GetToken::Connector,
-        merchant_connector_account.get_mca_id(),
+        Some(merchant_connector_account.get_id()),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
@@ -1745,10 +1751,19 @@ pub async fn delete_payment_method_data_from_vault_external(
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
 
+    // Extract MerchantConnectorAccount from the enum
+    let merchant_connector_account = match &merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => Ok(mca.as_ref()),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+        }
+    }?;
+
     let router_data = core_utils::construct_vault_router_data(
         state,
         merchant_account.get_id(),
-        &merchant_connector_account,
+        merchant_connector_account,
         None,
         Some(connector_vault_id),
         None,
@@ -1762,15 +1777,13 @@ pub async fn delete_payment_method_data_from_vault_external(
         )?;
 
     let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
+        .get_connector_name_as_string();// always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
-        &connector_name,
+        connector_name,
         api::GetToken::Connector,
-        merchant_connector_account.get_mca_id(),
+        Some(merchant_connector_account.get_id()),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;

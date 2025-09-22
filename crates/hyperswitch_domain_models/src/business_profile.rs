@@ -94,6 +94,7 @@ pub enum ExternalVaultDetails {
     Skip,
 }
 
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         Option<common_enums::ExternalVaultEnabled>,

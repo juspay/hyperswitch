@@ -1121,6 +1121,7 @@ pub enum PaymentMethodVaultSourceDetails {
     InternalVault,
 }
 
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         Option<storage_enums::VaultType>,
