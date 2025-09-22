@@ -587,6 +587,7 @@ pub async fn create_new_authentication(
         three_ds_method_url: None,
         acs_url: None,
         challenge_request: None,
+        challenge_request_key: None,
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
