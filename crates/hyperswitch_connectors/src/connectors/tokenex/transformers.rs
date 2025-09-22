@@ -1,4 +1,8 @@
-use common_utils::{ ext_traits::{Encode, StringExt},types::StringMinorUnit};
+use common_utils::{
+    ext_traits::{Encode, StringExt},
+    types::StringMinorUnit,
+};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
@@ -7,7 +11,6 @@ use hyperswitch_domain_models::{
     types::VaultRouterData,
     vault::PaymentMethodVaultingData,
 };
-use error_stack::ResultExt;
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -65,10 +68,7 @@ impl TryFrom<&ConnectorAuthType> for TokenexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey {
-                api_key,
-                key1,
-            } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 tokenex_id: key1.to_owned(),
             }),

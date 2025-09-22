@@ -87,14 +87,24 @@ where
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = tokenex::TokenexAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        ),
-        (auth_headers::TOKENEX_ID.to_string(), auth.tokenex_id.expose().into_masked()),
-        (auth_headers::TOKENEX_API_KEY.to_string(), auth.api_key.expose().into_masked()),
-        (auth_headers::TOKENEX_SCHEME.to_string(), auth_headers::TOKENEX_SCHEME_VALUE.to_string().into()),
-    ];
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                auth_headers::TOKENEX_ID.to_string(),
+                auth.tokenex_id.expose().into_masked(),
+            ),
+            (
+                auth_headers::TOKENEX_API_KEY.to_string(),
+                auth.api_key.expose().into_masked(),
+            ),
+            (
+                auth_headers::TOKENEX_SCHEME.to_string(),
+                auth_headers::TOKENEX_SCHEME_VALUE.to_string().into(),
+            ),
+        ];
         Ok(header)
     }
 }
