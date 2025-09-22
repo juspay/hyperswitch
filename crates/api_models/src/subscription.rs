@@ -187,7 +187,22 @@ pub struct ConfirmSubscriptionResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment: Option<PaymentResponseData>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    // pub invoice: Option<Invoice>,
+    pub invoice: Option<Invoice>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Invoice {
+    pub id: String,
+    pub subscription_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub payment_method_id: Option<String>,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub status: String,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}

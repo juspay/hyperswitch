@@ -87,17 +87,16 @@ pub async fn confirm_subscription(
         .await?;
 
     let billing_handler = subscription_entry.get_billing_handler().await?;
-    let _invoice_handler = subscription_entry.get_invoice_handler().await?;
+    let invoice_handler = InvoiceHandler::new().await?;
 
     let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
     let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
 
     // let payment_response = invoice_handler.create_cit_payment().await?;
-    // let invoice = invoice_handler.create_invoice_in_db().await?;
 
     // invoice_handler
-    //     .create_invoice_job(&payment_response)
+    //     .create_invoice_record_back_job(&payment_response)
     //     .await?;
 
     subscription_entry
@@ -106,7 +105,10 @@ pub async fn confirm_subscription(
         )
         .await?;
 
-    let response = subscription_entry.generate_response(subscription_create_response.status)?;
+    let response = subscription_entry.generate_response(
+        &invoice_handler.invoice,
+        subscription_create_response.status,
+    )?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -182,7 +184,7 @@ pub struct SubscriptionWithHandler<'a> {
 impl<'a> SubscriptionWithHandler<'a> {
     fn generate_response(
         &self,
-        // _invoice: &subscription_types::Invoice,
+        invoice: &diesel_models::invoice::Invoice,
         // _payment_response: &subscription_types::PaymentResponseData,
         status: hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
@@ -196,7 +198,19 @@ impl<'a> SubscriptionWithHandler<'a> {
             customer_id: Some(self.subscription.customer_id.clone()),
             price_id: None,
             coupon: None,
-            // invoice: Some(invoice.clone()),
+            invoice: Some(subscription_types::Invoice {
+                id: invoice.id.clone(),
+                subscription_id: invoice.subscription_id.clone(),
+                merchant_id: invoice.merchant_id.clone(),
+                profile_id: invoice.profile_id.clone(),
+                merchant_connector_id: invoice.merchant_connector_id.clone(),
+                payment_intent_id: invoice.payment_intent_id.clone(),
+                payment_method_id: invoice.payment_method_id.clone(),
+                customer_id: invoice.customer_id.clone(),
+                amount: invoice.amount,
+                currency: invoice.currency.clone(),
+                status: invoice.status.clone(),
+            }),
         })
     }
 
@@ -219,11 +233,7 @@ impl<'a> SubscriptionWithHandler<'a> {
 
         Ok(())
     }
-    async fn get_invoice_handler(&self) -> errors::RouterResult<InvoiceHandler> {
-        Ok(InvoiceHandler {
-            subscription: self.subscription.clone(),
-        })
-    }
+
     pub async fn get_billing_handler(&self) -> errors::RouterResult<BillingHandler> {
         let mca_id = self.profile.billing_processor_id.clone().ok_or(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -313,8 +323,7 @@ pub struct BillingHandler {
 
 #[allow(dead_code)]
 pub struct InvoiceHandler {
-    subscription: diesel_models::subscription::Subscription,
-    // An invoice diesel type to be added here
+    invoice: diesel_models::invoice::Invoice,
 }
 
 #[allow(dead_code)]
@@ -325,11 +334,12 @@ pub struct SubscriptionCreatedBilling<'a> {
 
 #[allow(clippy::todo)]
 impl InvoiceHandler {
-    pub async fn create_invoice_in_db(&self) -> errors::RouterResult<()> {
-        // Create invoice in DB and return the invoice details
-        todo!("Create invoice in DB and return the invoice details")
+    pub async fn new() -> errors::RouterResult<Self> {
+        // create a new inoivce entry
+        todo!("Implement the new function for InvoiceHandler")
     }
-    pub async fn create_invoice_job(
+
+    pub async fn create_invoice_record_back_job(
         &self,
         // _invoice: &subscription_types::Invoice,
         _payment_response: &subscription_types::PaymentResponseData,
