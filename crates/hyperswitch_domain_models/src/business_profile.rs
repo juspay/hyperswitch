@@ -98,8 +98,8 @@ pub enum ExternalVaultDetails {
 impl ExternalVaultDetails{
     pub fn is_external_vault_enabled(&self) -> bool {
         match self {
-            ExternalVaultDetails::ExternalVaultEnabled(_) => true,
-            ExternalVaultDetails::Skip => false,
+            Self::ExternalVaultEnabled(_) => true,
+            Self::Skip => false,
         }
     }
 }
