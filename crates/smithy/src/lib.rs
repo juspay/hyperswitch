@@ -780,60 +780,52 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
             attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("value_type") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes.value_type = Some(lit_str.value());
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes.value_type = Some(lit_str.value());
                         }
                     }
                 } else if meta.path.is_ident("pattern") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes
-                                    .constraints
-                                    .push(SmithyConstraint::Pattern(lit_str.value()));
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes
+                                .constraints
+                                .push(SmithyConstraint::Pattern(lit_str.value()));
                         }
                     }
                 } else if meta.path.is_ident("range") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                let range_str = lit_str.value();
-                                match parse_range(&range_str) {
-                                    Ok((min, max)) => {
-                                        field_attributes
-                                            .constraints
-                                            .push(SmithyConstraint::Range(min, max));
-                                    }
-                                    Err(e) => {
-                                        return Err(syn::Error::new_spanned(
-                                            &meta.path,
-                                            format!("Invalid range: {}", e),
-                                        ));
-                                    }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            let range_str = lit_str.value();
+                            match parse_range(&range_str) {
+                                Ok((min, max)) => {
+                                    field_attributes
+                                        .constraints
+                                        .push(SmithyConstraint::Range(min, max));
+                                }
+                                Err(e) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &meta.path,
+                                        format!("Invalid range: {}", e),
+                                    ));
                                 }
                             }
                         }
                     }
                 } else if meta.path.is_ident("length") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                let length_str = lit_str.value();
-                                match parse_length(&length_str) {
-                                    Ok((min, max)) => {
-                                        field_attributes
-                                            .constraints
-                                            .push(SmithyConstraint::Length(min, max));
-                                    }
-                                    Err(e) => {
-                                        return Err(syn::Error::new_spanned(
-                                            &meta.path,
-                                            format!("Invalid length: {}", e),
-                                        ));
-                                    }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            let length_str = lit_str.value();
+                            match parse_length(&length_str) {
+                                Ok((min, max)) => {
+                                    field_attributes
+                                        .constraints
+                                        .push(SmithyConstraint::Length(min, max));
+                                }
+                                Err(e) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &meta.path,
+                                        format!("Invalid length: {}", e),
+                                    ));
                                 }
                             }
                         }
@@ -844,12 +836,10 @@ fn parse_smithy_field_attributes(attrs: &[Attribute]) -> syn::Result<SmithyField
                     field_attributes.constraints.push(SmithyConstraint::HttpLabel);
                 } else if meta.path.is_ident("http_query") {
                     if let Ok(value) = meta.value() {
-                        if let Ok(lit) = value.parse::<Lit>() {
-                            if let Lit::Str(lit_str) = lit {
-                                field_attributes
-                                    .constraints
-                                    .push(SmithyConstraint::HttpQuery(lit_str.value()));
-                            }
+                        if let Ok(Lit::Str(lit_str)) = value.parse::<Lit>() {
+                            field_attributes
+                                .constraints
+                                .push(SmithyConstraint::HttpQuery(lit_str.value()));
                         }
                     }
                 }
