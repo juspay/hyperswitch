@@ -29,13 +29,13 @@ impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     fn from(status: SubscriptionStatus) -> Self {
         match status {
             SubscriptionStatus::Pending => Self::Pending,
-            SubscriptionStatus::Trial => Self::Active,
+            SubscriptionStatus::Trial => Self::Trial,
             SubscriptionStatus::Active => Self::Active,
-            SubscriptionStatus::Paused => Self::InActive,
-            SubscriptionStatus::Unpaid => Self::InActive,
-            SubscriptionStatus::Onetime => Self::Active,
-            SubscriptionStatus::Cancelled => Self::InActive,
-            SubscriptionStatus::Failed => Self::InActive,
+            SubscriptionStatus::Paused => Self::Paused,
+            SubscriptionStatus::Unpaid => Self::Unpaid,
+            SubscriptionStatus::Onetime => Self::Onetime,
+            SubscriptionStatus::Cancelled => Self::Cancelled,
+            SubscriptionStatus::Failed => Self::Failed,
         }
     }
 }

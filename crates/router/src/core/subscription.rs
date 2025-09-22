@@ -167,6 +167,8 @@ impl<'a> SubscriptionWithHandler<'a> {
             profile_id: self.subscription.profile_id.to_owned(),
             payment: None,
             customer_id: Some(self.subscription.customer_id.clone()),
+            price_id: None,
+            coupon: None,
             // invoice: Some(invoice.clone()),
         })
     }

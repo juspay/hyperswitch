@@ -69,7 +69,14 @@ pub struct CreateSubscriptionResponse {
 ///
 /// - `Created`: Subscription was created but not yet activated.
 /// - `Active`: Subscription is currently active.
-/// - `InActive`: Subscription is inactive (e.g., cancelled or expired).
+/// - `InActive`: Subscription is inactive.
+/// - `Pending`: Subscription is pending activation.
+/// - `Trial`: Subscription is in a trial period.
+/// - `Paused`: Subscription is paused.
+/// - `Unpaid`: Subscription is unpaid.
+/// - `Onetime`: Subscription is a one-time payment.
+/// - `Cancelled`: Subscription has been cancelled.
+/// - `Failed`: Subscription has failed.
 #[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
 pub enum SubscriptionStatus {
     /// Subscription is active.
@@ -80,6 +87,18 @@ pub enum SubscriptionStatus {
     InActive,
     /// Subscription is in pending state.
     Pending,
+    /// Subscription is in trial state.
+    Trial,
+    /// Subscription is paused.
+    Paused,
+    /// Subscription is unpaid.
+    Unpaid,
+    /// Subscription is a one-time payment.
+    Onetime,
+    /// Subscription is cancelled.
+    Cancelled,
+    /// Subscription has failed.
+    Failed,
 }
 
 impl CreateSubscriptionResponse {
@@ -159,6 +178,10 @@ pub struct ConfirmSubscriptionResponse {
 
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
+
+    pub price_id: Option<String>,
+
+    pub coupon: Option<String>,
 
     /// Associated profile ID.
     pub profile_id: common_utils::id_type::ProfileId,

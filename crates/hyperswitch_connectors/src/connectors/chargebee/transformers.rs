@@ -991,7 +991,20 @@ pub struct ChargebeeCustomerCreateRequest {
     #[serde(rename = "first_name")]
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,
-    // pub billing_address: Option<api_models::payments::AddressDetails>,
+    #[serde(rename = "billing_address[first_name]")]
+    pub billing_address_first_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[last_name]")]
+    pub billing_address_last_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[line1]")]
+    pub billing_address_line1: Option<Secret<String>>,
+    #[serde(rename = "billing_address[city]")]
+    pub billing_address_city: Option<String>,
+    #[serde(rename = "billing_address[state]")]
+    pub billing_address_state: Option<Secret<String>>,
+    #[serde(rename = "billing_address[zip]")]
+    pub billing_address_zip: Option<Secret<String>>,
+    #[serde(rename = "billing_address[country]")]
+    pub billing_address_country: Option<String>,
 }
 
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
@@ -1014,7 +1027,34 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .clone(),
             name: req.name.clone(),
             email: req.email.clone(),
-            // billing_address: req.billing_address.clone(),
+            billing_address_first_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.first_name.clone()),
+            billing_address_last_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.last_name.clone()),
+            billing_address_line1: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.line1.clone()),
+            billing_address_city: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.city.clone()),
+            billing_address_country: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_state: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.state.clone()),
+            billing_address_zip: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.zip.clone()),
         })
     }
 }
