@@ -7522,6 +7522,11 @@
             "type": "string",
             "description": "Accept-language of the browser",
             "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "URL of the webpage that linked to the current request",
+            "nullable": true
           }
         }
       },
