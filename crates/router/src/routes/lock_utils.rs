@@ -26,6 +26,7 @@ pub enum ApiIdentifier {
     ApiKeys,
     PaymentLink,
     Routing,
+    Subscription,
     Blocklist,
     Forex,
     RustLockerMigration,
@@ -49,6 +50,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
+    RecoveryDataBackfill,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -88,6 +90,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
 
+            Flow::CreateSubscription => Self::Subscription,
+
             Flow::RetrieveForexFlow => Self::Forex,
 
             Flow::AddToBlocklist => Self::Blocklist,
@@ -121,6 +125,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
+            | Flow::PaymentMethodsBatchUpdate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
@@ -162,6 +167,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
+            | Flow::GiftCardBalanceCheck
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
@@ -314,7 +320,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 
-            Flow::GetDataFromHyperswitchAiFlow => Self::AiWorkflow,
+            Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
@@ -378,6 +384,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
                 Self::GenericTokenization
             }
+
+            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
         }
     }
 }

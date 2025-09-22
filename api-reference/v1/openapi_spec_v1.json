@@ -8169,7 +8169,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationCreateRequest": {
@@ -10792,7 +10793,55 @@
         "properties": {
           "social_security_number": {
             "type": "string",
-            "description": "The shopper's social security number",
+            "description": "The shopper's social security number (CPF or CNPJ)",
+            "nullable": true
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The shopper's bank account number associated with the boleto",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "default": "Cnpj",
+            "nullable": true
+          },
+          "fine_percentage": {
+            "type": "string",
+            "description": "The fine percentage charged if payment is overdue",
+            "nullable": true
+          },
+          "fine_quantity_days": {
+            "type": "string",
+            "description": "The number of days after the due date when the fine is applied",
+            "nullable": true
+          },
+          "interest_percentage": {
+            "type": "string",
+            "description": "The interest percentage charged on late payments",
+            "nullable": true
+          },
+          "write_off_quantity_days": {
+            "type": "string",
+            "description": "The number of days after which the boleto is written off (canceled)",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Custom messages or instructions to display on the boleto",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-08-22",
             "nullable": true
           }
         }
@@ -12001,6 +12050,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -12059,9 +12109,11 @@
           "payme",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -12081,6 +12133,7 @@
           "threedsecureio",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -14576,6 +14629,13 @@
           "dispute_lost"
         ]
       },
+      "DocumentKind": {
+        "type": "string",
+        "enum": [
+          "CNPJ",
+          "CPF"
+        ]
+      },
       "DokuBankTransferInstructions": {
         "type": "object",
         "required": [
@@ -16832,7 +16892,8 @@
           "payout_processor",
           "authentication_provider",
           "fraud_and_risk_management_provider",
-          "tax_calculation_provider"
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
         ]
       },
       "IfStatement": {
@@ -19183,6 +19244,15 @@
           "entity": {
             "type": "string",
             "example": "12345"
+          }
+        }
+      },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -23487,6 +23557,12 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -24093,6 +24169,24 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24203,6 +24297,11 @@
           "challenge_request": {
             "type": "string",
             "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
             "nullable": true
           },
           "acs_reference_number": {
@@ -24856,6 +24955,12 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25488,6 +25593,24 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26093,6 +26216,12 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
@@ -28474,8 +28603,18 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
-            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "description": "Time interval (in hours) for polling the connector to check  for new disputes",
             "example": 2,
+            "nullable": true
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           }
         },
@@ -28799,9 +28938,20 @@
           "dispute_polling_interval": {
             "type": "integer",
             "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
             "example": 2,
             "nullable": true,
             "minimum": 0
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
           }
         }
       },
@@ -30073,9 +30223,11 @@
           "payload",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
           "paytm",
           "payu",
+          "peachpayments",
           "phonepe",
           "placetopay",
           "powertranz",
@@ -30094,6 +30246,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
@@ -31863,7 +32016,7 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_key"
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
               "three_ds_method_data_submission": {
@@ -31881,17 +32034,27 @@
                 "nullable": true
               },
               "three_ds_method_key": {
-                "type": "string",
-                "enum": [
-                  "threeDSMethodData"
-                ]
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
+                  }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
-        ],
-        "discriminator": {
-          "propertyName": "three_ds_method_key"
-        }
+        ]
+      },
+      "ThreeDsMethodKey": {
+        "type": "string",
+        "enum": [
+          "threeDSMethodData",
+          "JWT"
+        ]
       },
       "TimeRange": {
         "type": "object",
@@ -32772,28 +32935,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ali_pay_qr"
-            ],
-            "properties": {
-              "ali_pay_qr": {
-                "$ref": "#/components/schemas/AliPayQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ali_pay_redirect"
-            ],
-            "properties": {
-              "ali_pay_redirect": {
-                "$ref": "#/components/schemas/AliPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "AliPayHkRedirect",
             "required": [
               "ali_pay_hk_redirect"
             ],
@@ -32805,6 +32947,31 @@
           },
           {
             "type": "object",
+            "title": "AliPayQr",
+            "required": [
+              "ali_pay_qr"
+            ],
+            "properties": {
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AliPayRedirect",
+            "required": [
+              "ali_pay_redirect"
+            ],
+            "properties": {
+              "ali_pay_redirect": {
+                "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPay",
             "required": [
               "amazon_pay"
             ],
@@ -32816,6 +32983,7 @@
           },
           {
             "type": "object",
+            "title": "AmazonPayRedirect",
             "required": [
               "amazon_pay_redirect"
             ],
@@ -32827,6 +32995,43 @@
           },
           {
             "type": "object",
+            "title": "ApplePay",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/ApplePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ApplePayRedirect",
+            "required": [
+              "apple_pay_redirect"
+            ],
+            "properties": {
+              "apple_pay_redirect": {
+                "$ref": "#/components/schemas/ApplePayRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ApplePayThirdPartySdk",
+            "required": [
+              "apple_pay_third_party_sdk"
+            ],
+            "properties": {
+              "apple_pay_third_party_sdk": {
+                "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BluecodeRedirect",
             "required": [
               "bluecode_redirect"
             ],
@@ -32839,105 +33044,19 @@
           },
           {
             "type": "object",
+            "title": "CashappQr",
             "required": [
-              "skrill"
+              "cashapp_qr"
             ],
             "properties": {
-              "skrill": {
-                "$ref": "#/components/schemas/SkrillData"
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
               }
             }
           },
           {
             "type": "object",
-            "required": [
-              "paysera"
-            ],
-            "properties": {
-              "paysera": {
-                "$ref": "#/components/schemas/PayseraData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "momo_redirect"
-            ],
-            "properties": {
-              "momo_redirect": {
-                "$ref": "#/components/schemas/MomoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay"
-            ],
-            "properties": {
-              "apple_pay": {
-                "$ref": "#/components/schemas/ApplePayWalletData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay_redirect"
-            ],
-            "properties": {
-              "apple_pay_redirect": {
-                "$ref": "#/components/schemas/ApplePayRedirectData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "apple_pay_third_party_sdk"
-            ],
-            "properties": {
-              "apple_pay_third_party_sdk": {
-                "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "DanaRedirect",
             "required": [
               "dana_redirect"
             ],
@@ -32950,6 +33069,31 @@
           },
           {
             "type": "object",
+            "title": "GcashRedirect",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GoPayRedirect",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GooglePay",
             "required": [
               "google_pay"
             ],
@@ -32961,6 +33105,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayRedirect",
             "required": [
               "google_pay_redirect"
             ],
@@ -32972,6 +33117,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayThirdPartySdk",
             "required": [
               "google_pay_third_party_sdk"
             ],
@@ -32983,6 +33129,19 @@
           },
           {
             "type": "object",
+            "title": "KakaoPayRedirect",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MbWayRedirect",
             "required": [
               "mb_way_redirect"
             ],
@@ -32994,6 +33153,19 @@
           },
           {
             "type": "object",
+            "title": "Mifinity",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayRedirect",
             "required": [
               "mobile_pay_redirect"
             ],
@@ -33005,6 +33177,19 @@
           },
           {
             "type": "object",
+            "title": "MomoRedirect",
+            "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PaypalRedirect",
             "required": [
               "paypal_redirect"
             ],
@@ -33016,6 +33201,7 @@
           },
           {
             "type": "object",
+            "title": "PaypalSdk",
             "required": [
               "paypal_sdk"
             ],
@@ -33027,6 +33213,19 @@
           },
           {
             "type": "object",
+            "title": "Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Paze",
             "required": [
               "paze"
             ],
@@ -33038,6 +33237,19 @@
           },
           {
             "type": "object",
+            "title": "RevolutPay",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SamsungPay",
             "required": [
               "samsung_pay"
             ],
@@ -33049,6 +33261,43 @@
           },
           {
             "type": "object",
+            "title": "Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SwishQr",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TouchNGoRedirect",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TwintRedirect",
             "required": [
               "twint_redirect"
             ],
@@ -33061,6 +33310,7 @@
           },
           {
             "type": "object",
+            "title": "VippsRedirect",
             "required": [
               "vipps_redirect"
             ],
@@ -33073,28 +33323,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "touch_n_go_redirect"
-            ],
-            "properties": {
-              "touch_n_go_redirect": {
-                "$ref": "#/components/schemas/TouchNGoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "we_chat_pay_redirect"
-            ],
-            "properties": {
-              "we_chat_pay_redirect": {
-                "$ref": "#/components/schemas/WeChatPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "WeChatPayQr",
             "required": [
               "we_chat_pay_qr"
             ],
@@ -33106,45 +33335,13 @@
           },
           {
             "type": "object",
+            "title": "WeChatPayRedirect",
             "required": [
-              "cashapp_qr"
+              "we_chat_pay_redirect"
             ],
             "properties": {
-              "cashapp_qr": {
-                "$ref": "#/components/schemas/CashappQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish_qr"
-            ],
-            "properties": {
-              "swish_qr": {
-                "$ref": "#/components/schemas/SwishQrData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mifinity"
-            ],
-            "properties": {
-              "mifinity": {
-                "$ref": "#/components/schemas/MifinityData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "revolut_pay"
-            ],
-            "properties": {
-              "revolut_pay": {
-                "$ref": "#/components/schemas/RevolutPayData"
+              "we_chat_pay_redirect": {
+                "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
           }

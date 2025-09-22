@@ -271,6 +271,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?
         };
 
+    // if it is a setup webhook event, return ok status
+    if webhook_processing_result.event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
+
     // Update request_details with the appropriate body (decoded for non-UCS, raw for UCS)
     let final_request_details = match &webhook_processing_result.decoded_body {
         Some(decoded_body) => IncomingWebhookRequestDetails {
@@ -1157,7 +1166,7 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data = Box::pin(payouts::make_payout_data(
+        let mut payout_data = Box::pin(payouts::make_payout_data(
             &state,
             &merchant_context,
             None,
@@ -1181,8 +1190,9 @@ async fn payouts_incoming_webhook_flow(
                     payout_attempt.payout_attempt_id
                 )
             })?;
+        payout_data.payout_attempt = updated_payout_attempt;
 
-        let event_type: Option<enums::EventType> = updated_payout_attempt.status.into();
+        let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
 
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
@@ -1195,20 +1205,21 @@ async fn payouts_incoming_webhook_flow(
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Payouts,
-                updated_payout_attempt
+                payout_data
+                    .payout_attempt
                     .payout_id
                     .get_string_repr()
                     .to_string(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
-                Some(updated_payout_attempt.created_at),
+                Some(payout_data.payout_attempt.created_at),
             ))
             .await?;
         }
 
         Ok(WebhookResponseTracker::Payout {
-            payout_id: updated_payout_attempt.payout_id,
-            status: updated_payout_attempt.status,
+            payout_id: payout_data.payout_attempt.payout_id,
+            status: payout_data.payout_attempt.status,
         })
     } else {
         metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
@@ -1441,6 +1452,7 @@ async fn relay_incoming_webhook_flow(
         | webhooks::WebhookFlow::ReturnResponse
         | webhooks::WebhookFlow::BankTransfer
         | webhooks::WebhookFlow::Mandate
+        | webhooks::WebhookFlow::Setup
         | webhooks::WebhookFlow::ExternalAuthentication
         | webhooks::WebhookFlow::FraudCheck => Err(errors::ApiErrorResponse::NotSupported {
             message: "Relay webhook flow types not supported".to_string(),
@@ -2371,7 +2383,7 @@ async fn update_connector_mandate_details(
                         .clone()
                         .get_required_value("merchant_connector_id")?;
 
-                    if mandate_details.payments.as_ref().map_or(true, |payments| {
+                    if mandate_details.payments.as_ref().is_none_or(|payments| {
                         !payments.0.contains_key(&merchant_connector_account_id)
                     }) {
                         // Update the payment attempt to maintain consistency across tables.
