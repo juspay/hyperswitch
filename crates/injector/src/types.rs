@@ -165,7 +165,6 @@ pub mod models {
                 "Processing connector response"
             );
 
-            // Try to parse as JSON, fallback to string value with error logging
             let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
                 Ok(json) => {
                     json

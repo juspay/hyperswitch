@@ -155,8 +155,6 @@ impl VaultMetadataFactory {
             return Err(VaultMetadataError::EmptyOrMalformedHeader);
         }
 
-        // Log the attempt (without exposing sensitive data)
-
         // Decode base64 with detailed error context
         let decoded_bytes = BASE64_ENGINE.decode(base64_value.trim()).map_err(|e| {
             logger::error!(

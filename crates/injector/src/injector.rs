@@ -676,13 +676,11 @@ pub mod core {
             let request = build_request_with_certificates(request_builder, &final_config);
 
             // Determine which proxy to use: vault metadata > backup > none
-            let vault_proxy_available = vault_proxy_url.is_some();
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
 
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
-                let _proxy_source = if vault_proxy_available { "vault metadata" } else { "backup config" };
-                
+
                 // Set proxy URL for both HTTP and HTTPS traffic
                 Proxy {
                     http_url: Some(proxy_url_str.clone()),
