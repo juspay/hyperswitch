@@ -7085,3 +7085,7 @@ label="mastercard Payment Facilitator Id"
 placeholder="Enter mastercard Payment Facilitator Id"
 required=false
 type="Text"
+
+[tokenex]
+[tokenex.connector_auth.HeaderKey]
+api_key = "API Key"

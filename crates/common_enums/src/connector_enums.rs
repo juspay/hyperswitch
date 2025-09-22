@@ -336,6 +336,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    // Tokenex, added as template code for future usage
     Tokenio,
     Trustpay,
     Trustpayments,
