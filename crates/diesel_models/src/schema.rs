@@ -257,8 +257,7 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
-        #[max_length = 16]
-        external_vault_mode -> Nullable<Varchar>,
+        is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
     }
 }

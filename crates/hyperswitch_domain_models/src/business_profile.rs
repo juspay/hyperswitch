@@ -95,6 +95,16 @@ pub enum ExternalVaultDetails {
 }
 
 #[cfg(feature = "v1")]
+impl ExternalVaultDetails{
+    pub fn is_external_vault_enabled(&self) -> bool {
+        match self {
+            ExternalVaultDetails::ExternalVaultEnabled(_) => true,
+            ExternalVaultDetails::Skip => false,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         Option<common_enums::ExternalVaultEnabled>,
@@ -125,6 +135,35 @@ impl
 }
 
 #[cfg(feature = "v1")]
+impl
+    TryFrom<(
+        Option<bool>,
+        Option<ExternalVaultConnectorDetails>,
+    )> for ExternalVaultDetails
+{
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(
+        item: (
+            Option<bool>,
+            Option<ExternalVaultConnectorDetails>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match item {
+            (is_external_vault_enabled, external_vault_connector_details)
+                if is_external_vault_enabled
+                    .unwrap_or(false) =>
+            {
+                Ok(Self::ExternalVaultEnabled(
+                    external_vault_connector_details
+                        .get_required_value("ExternalVaultConnectorDetails")?,
+                ))
+            }
+            _ => Ok(Self::Skip),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl From<ExternalVaultDetails>
     for (
         Option<common_enums::ExternalVaultEnabled>,
@@ -138,6 +177,24 @@ impl From<ExternalVaultDetails>
                 Some(connector_details),
             ),
             ExternalVaultDetails::Skip => (Some(common_enums::ExternalVaultEnabled::Skip), None),
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ExternalVaultDetails>
+    for (
+        Option<bool>,
+        Option<ExternalVaultConnectorDetails>,
+    )
+{
+    fn from(external_vault_details: ExternalVaultDetails) -> Self {
+        match external_vault_details {
+            ExternalVaultDetails::ExternalVaultEnabled(connector_details) => (
+                Some(true),
+                Some(connector_details),
+            ),
+            ExternalVaultDetails::Skip => (Some(false), None),
         }
     }
 }
@@ -423,6 +480,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     external_vault_connector_details,
                 } = *update;
 
+                let is_external_vault_enabled = match is_external_vault_enabled {
+                    Some(external_vault_mode) => match external_vault_mode {
+                        common_enums::ExternalVaultEnabled::Enable => Some(true),
+                        common_enums::ExternalVaultEnabled::Skip => Some(false),
+                    },
+                    None => Some(false),
+                };
+
                 Self {
                     profile_name,
                     modified_at: now,
@@ -476,7 +541,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     dispute_polling_interval,
                     is_manual_retry_enabled,
                     always_enable_overcapture,
-                    external_vault_mode: is_external_vault_enabled,
+                    is_external_vault_enabled,
                     external_vault_connector_details,
                 }
             }
@@ -536,7 +601,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -593,7 +658,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -650,7 +715,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -707,7 +772,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -764,7 +829,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -821,7 +886,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
@@ -878,7 +943,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
                 always_enable_overcapture: None,
-                external_vault_mode: None,
+                is_external_vault_enabled: None,
                 external_vault_connector_details: None,
             },
         }
@@ -892,7 +957,7 @@ impl super::behaviour::Conversion for Profile {
     type NewDstType = diesel_models::business_profile::ProfileNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        let (external_vault_mode, external_vault_connector_details) =
+        let (is_external_vault_enabled, external_vault_connector_details) =
             self.external_vault_details.into();
 
         Ok(diesel_models::business_profile::Profile {
@@ -958,7 +1023,7 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
-            external_vault_mode,
+            is_external_vault_enabled,
             external_vault_connector_details,
         })
     }
@@ -1015,7 +1080,7 @@ impl super::behaviour::Conversion for Profile {
         })?;
 
         let external_vault_details = ExternalVaultDetails::try_from((
-            item.external_vault_mode,
+            item.is_external_vault_enabled,
             item.external_vault_connector_details,
         ))?;
 
@@ -1087,7 +1152,7 @@ impl super::behaviour::Conversion for Profile {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        let (external_vault_mode, external_vault_connector_details) =
+        let (is_external_vault_enabled, external_vault_connector_details) =
             self.external_vault_details.into();
 
         Ok(diesel_models::business_profile::ProfileNew {
@@ -1148,7 +1213,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
-            external_vault_mode,
+            is_external_vault_enabled,
             external_vault_connector_details,
         })
     }

@@ -1110,6 +1110,8 @@ pub async fn create_payment_method_proxy_card_core(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    use crate::core::payment_methods::vault::Vault;
+
     let key_manager_state = &(state).into();
 
     let external_vault_source = profile
@@ -1165,6 +1167,8 @@ pub async fn create_payment_method_proxy_card_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse External vault token data")?;
 
+    let vault_type = external_vault_source.is_some().then_some(common_enums::VaultType::External);
+
     let payment_method = create_payment_method_for_confirm(
         state,
         customer_id,
@@ -1178,6 +1182,7 @@ pub async fn create_payment_method_proxy_card_core(
         payment_method_billing_address,
         encrypted_payment_method_data,
         encrypted_external_vault_token_data,
+        vault_type
     )
     .await?;
 
@@ -1918,6 +1923,8 @@ pub async fn create_payment_method_for_intent(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+    use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
+
     let db = &*state.store;
 
     let current_time = common_utils::date_time::now();
@@ -1951,6 +1958,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_requestor_reference_id: None,
                 external_vault_source: None,
                 external_vault_token_data: None,
+                vault_type: None,
             },
             storage_scheme,
         )
@@ -1981,6 +1989,7 @@ pub async fn create_payment_method_for_confirm(
     encrypted_external_vault_token_data: Option<
         Encryptable<payment_methods::ExternalVaultTokenData>,
     >,
+    vault_type: Option<common_enums::VaultType>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let key_manager_state = &state.into();
@@ -2015,6 +2024,7 @@ pub async fn create_payment_method_for_confirm(
                 network_token_requestor_reference_id: None,
                 external_vault_source,
                 external_vault_token_data: encrypted_external_vault_token_data,
+                vault_type,
             },
             storage_scheme,
         )

@@ -128,6 +128,7 @@ pub struct PaymentMethod {
     #[encrypt(ty = Value)]
     pub external_vault_token_data:
         Option<Encryptable<api_models::payment_methods::ExternalVaultTokenData>>,
+    pub vault_type: Option<storage_enums::VaultType>,
 }
 
 impl PaymentMethod {
@@ -502,6 +503,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             external_vault_source: self.external_vault_source,
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
+            vault_type: self.vault_type,
         })
     }
 
@@ -607,6 +609,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 network_token_payment_method_data,
                 external_vault_source: storage_model.external_vault_source,
                 external_vault_token_data,
+                vault_type: storage_model.vault_type,
             })
         }
         .await
@@ -644,6 +647,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
+            vault_type: self.vault_type,
         })
     }
 }
