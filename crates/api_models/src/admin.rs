@@ -2205,6 +2205,7 @@ pub struct ProfileCreate {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
     /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
 
     /// External Vault Connector Details
