@@ -1,10 +1,12 @@
 // use api_models::payments::BillingConnectorDetails;
 use async_trait::async_trait;
 use common_utils::{ext_traits::ValueExt, id_type};
+use diesel_models::invoice::{InvoiceNew, InvoiceUpdate};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
+use common_enums::connector_enums::InvoiceStatus;
 
 use crate::{
     core::{errors::RecoveryError::ProcessTrackerFailure, payments},
@@ -57,6 +59,30 @@ async fn perform_subscription_mit_payment(
             &state.store.get_master_key().to_vec().into(),
         )
         .await?;
+
+    let invoice_new = InvoiceNew {
+        id: tracking_data.invoice_id.clone(),
+        subscription_id: tracking_data.subscription_id.clone(),
+        merchant_id: tracking_data.merchant_id.clone(),
+        profile_id: tracking_data.profile_id.clone(),
+        merchant_connector_id: tracking_data.billing_connector_mca_id.clone(),
+        payment_intent_id: None,
+        payment_method_id: None,
+        customer_id: tracking_data.customer_id.clone(),
+        amount: tracking_data.amount,
+        currency: tracking_data.currency,
+        status: InvoiceStatus::Pending,
+        provider_name: tracking_data.connector_name.clone(),
+        metadata: None,
+        created_at: common_utils::date_time::now(),
+        modified_at: common_utils::date_time::now(),
+    };
+
+    let invoice = state
+        .store
+        .insert_invoice_entry(invoice_new)
+        .await
+        .expect("Failed to create invoice entry");
 
     let merchant_account = state
         .store
