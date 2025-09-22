@@ -76,6 +76,9 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            access_token: None,
+            capture_method: None,
+            handle_response: None,
         })
     }
 }
@@ -507,6 +510,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             browser_info,
             test_mode: None,
             payment_method_type: None,
+            access_token: None,
         })
     }
 }
@@ -1016,6 +1020,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
             device_model: browser_info.device_model,
             accept_language: browser_info.accept_language,
             time_zone_offset_minutes: browser_info.time_zone,
+            referer: browser_info.referer,
         })
     }
 }
@@ -1281,6 +1286,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
+        access_token: None,
     })
 }
 
