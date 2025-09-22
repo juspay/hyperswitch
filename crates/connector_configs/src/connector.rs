@@ -330,6 +330,7 @@ pub struct ConnectorConfig {
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
+    pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub trustpayments: Option<ConnectorTomlConfig>,

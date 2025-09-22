@@ -111,6 +111,7 @@ mod stax;
 mod stripe;
 mod stripebilling;
 mod taxjar;
+mod tokenex;
 mod tokenio;
 mod trustpay;
 mod trustpayments;
