@@ -3438,7 +3438,7 @@ where
             network_details: payment_attempt
                 .network_details
                 .map(NetworkDetails::foreign_from),
-                request_extended_authorization: payment_attempt.request_extended_authorization,
+            request_extended_authorization: payment_attempt.request_extended_authorization,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))

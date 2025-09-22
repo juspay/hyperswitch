@@ -2856,7 +2856,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
-                request_extended_authorization
+                request_extended_authorization,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
