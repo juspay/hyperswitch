@@ -149,7 +149,7 @@ impl PaymentIntentInterface for MockDb {
             .clone()
             .convert()
             .await
-            .change_context(StorageError::EncryptionError)?;
+            .map_err(|error| error_stack::report!(StorageError::from(error)))?;
 
         *payment_intent = PaymentIntent::convert_back(
             state,

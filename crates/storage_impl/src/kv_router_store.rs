@@ -269,7 +269,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     pub async fn find_optional_resource_by_id<D, R, M>(
@@ -340,7 +340,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| error_stack::report!(errors::StorageError::from(error)))?,
             )),
             None => Ok(None),
         }
@@ -422,7 +422,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             key_store.merchant_id.clone().into(),
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
+        .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
 
     pub async fn update_resource<D, R, M>(
@@ -488,7 +488,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             key_store.merchant_id.clone().into(),
         )
         .await
-        .change_context(errors::StorageError::DecryptionError)
+        .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
     }
     pub async fn filter_resources<D, R, M>(
         &self,
@@ -540,7 +540,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| error_stack::report!(errors::StorageError::from(error)))
             })
             .collect::<Vec<_>>();
         futures::future::try_join_all(resource_futures).await

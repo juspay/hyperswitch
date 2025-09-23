@@ -74,7 +74,7 @@ impl MerchantKeyStoreInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(state, key, merchant_id.into())
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -101,7 +101,7 @@ impl MerchantKeyStoreInterface for Store {
                 .await?
                 .convert(state, key, merchant_id.clone().into())
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -117,7 +117,7 @@ impl MerchantKeyStoreInterface for Store {
             .await?
             .convert(state, key, merchant_id.clone().into())
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 
@@ -178,7 +178,7 @@ impl MerchantKeyStoreInterface for Store {
             key_store
                 .convert(state, key, merchant_id.into())
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }))
         .await
     }
@@ -202,7 +202,7 @@ impl MerchantKeyStoreInterface for Store {
             key_store
                 .convert(state, key, merchant_id.into())
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }))
         .await
     }
@@ -236,7 +236,7 @@ impl MerchantKeyStoreInterface for MockDb {
         merchant_key
             .convert(state, key, merchant_id.into())
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn get_merchant_key_store_by_merchant_id(
@@ -256,7 +256,7 @@ impl MerchantKeyStoreInterface for MockDb {
             )))?
             .convert(state, key, merchant_id.clone().into())
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn delete_merchant_key_store_by_merchant_id(
@@ -291,7 +291,7 @@ impl MerchantKeyStoreInterface for MockDb {
                         .to_owned()
                         .convert(state, key, merchant_key.merchant_id.clone().into())
                         .await
-                        .change_context(errors::StorageError::DecryptionError)
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                 }),
         )
         .await
@@ -310,7 +310,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 .to_owned()
                 .convert(state, key, merchant_key.merchant_id.clone().into())
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }))
         .await
     }

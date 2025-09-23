@@ -882,6 +882,33 @@ impl super::behaviour::Conversion for Profile {
         })
     }
 
+    fn validate(
+        item: &Self::DstType,
+        key_manager_identifier: &keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if &item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Profile ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            keymanager::Identifier::User(_) | keymanager::Identifier::UserAuth(_) => {
+                Err(ValidationError::InvalidValue {
+                    message: "Key manager identifier is not a merchant".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
@@ -983,8 +1010,8 @@ impl super::behaviour::Conversion for Profile {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting business profile data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "business profile data".to_string(),
         })
     }
 
@@ -2137,6 +2164,28 @@ impl super::behaviour::Conversion for Profile {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Profile ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         item: Self::DstType,
@@ -2233,8 +2282,8 @@ impl super::behaviour::Conversion for Profile {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting business profile data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "business profile data".to_string(),
         })
     }
 

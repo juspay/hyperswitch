@@ -62,7 +62,7 @@ impl UserKeyStoreInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(state, key, keymanager::Identifier::User(user_id))
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -79,7 +79,7 @@ impl UserKeyStoreInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(state, key, keymanager::Identifier::User(user_id.to_owned()))
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn get_all_user_key_store(
@@ -101,7 +101,7 @@ impl UserKeyStoreInterface for Store {
             key_store
                 .convert(state, key, keymanager::Identifier::User(user_id))
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }))
         .await
     }
@@ -136,7 +136,7 @@ impl UserKeyStoreInterface for MockDb {
         user_key_store
             .convert(state, key, keymanager::Identifier::User(user_id))
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn get_all_user_key_store(
@@ -154,7 +154,7 @@ impl UserKeyStoreInterface for MockDb {
                 .to_owned()
                 .convert(state, key, keymanager::Identifier::User(user_id))
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }))
         .await
     }
@@ -177,6 +177,6 @@ impl UserKeyStoreInterface for MockDb {
             )))?
             .convert(state, key, keymanager::Identifier::User(user_id.to_owned()))
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
