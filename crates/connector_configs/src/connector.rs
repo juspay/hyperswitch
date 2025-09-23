@@ -172,6 +172,11 @@ pub struct ConfigMetadata {
     pub shop_name: Option<InputData>,
     pub merchant_funding_source: Option<InputData>,
     pub account_id: Option<AccountIDSupportedMethods>,
+    pub name: Option<InputData>,
+    pub client_merchant_reference_id: Option<InputData>,
+    pub route: Option<InputData>,
+    pub mid: Option<InputData>,
+    pub tid: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -268,6 +273,7 @@ pub struct ConnectorConfig {
     pub flexiti: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
+    pub gigadat: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
@@ -324,6 +330,7 @@ pub struct ConnectorConfig {
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
+    pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub trustpayments: Option<ConnectorTomlConfig>,
@@ -528,6 +535,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),

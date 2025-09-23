@@ -743,7 +743,8 @@ impl Payments {
                 .service(
                     web::resource("/check-gift-card-balance")
                         .route(web::post().to(payments::payment_check_gift_card_balance)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
@@ -889,7 +890,9 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(payments::post_3ds_payments_authorize)),
+                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
+                        .route(web::post().to(payments::post_3ds_payments_authorize))
+                        .route(web::get().to(payments::post_3ds_payments_authorize))
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),

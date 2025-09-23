@@ -257,6 +257,8 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1274,6 +1276,10 @@ diesel::table! {
         #[max_length = 64]
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
+        #[max_length = 64]
+        vault_type -> Nullable<Varchar>,
     }
 }
 
