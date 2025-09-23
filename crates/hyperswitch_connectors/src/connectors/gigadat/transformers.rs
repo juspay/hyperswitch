@@ -87,34 +87,32 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
                     config: "merchant_connector_account.metadata",
                 })?;
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankRedirect(ref bank_redirect) => match bank_redirect {
-                BankRedirectData::Interac { .. } => {
-                    let router_data = item.router_data;
-                    let name = router_data.get_billing_full_name()?;
-                    let email = router_data.get_billing_email()?;
-                    let mobile = router_data.get_billing_phone_number()?;
-                    let currency = item.router_data.request.currency;
+            PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => {
+                let router_data = item.router_data;
+                let name = router_data.get_billing_full_name()?;
+                let email = router_data.get_billing_email()?;
+                let mobile = router_data.get_billing_phone_number()?;
+                let currency = item.router_data.request.currency;
 
-                    let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
+                let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
 
-                    Ok(Self {
-                        user_id: router_data.get_customer_id()?,
-                        site: metadata.site,
-                        user_ip,
-                        currency,
-                        amount: item.amount,
-                        transaction_id: router_data.connector_request_reference_id.clone(),
-                        transaction_type: GidadatTransactionType::Cpi,
-                        name,
-                        email,
-                        mobile,
-                    })
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gigadat"),
-                )
-                .into()),
-            },
+                Ok(Self {
+                    user_id: router_data.get_customer_id()?,
+                    site: metadata.site,
+                    user_ip,
+                    currency,
+                    amount: item.amount,
+                    transaction_id: router_data.connector_request_reference_id.clone(),
+                    transaction_type: GidadatTransactionType::Cpi,
+                    name,
+                    email,
+                    mobile,
+                })
+            }
+            PaymentMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gigadat"),
+            ))?,
+
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Gigadat"),
             )
@@ -305,4 +303,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GigadatErrorResponse {
     pub err: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct GigadatRefundErrorResponse {
+    pub error: Vec<Error>,
+    pub message: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Error {
+    pub code: Option<String>,
+    pub detail: String,
 }

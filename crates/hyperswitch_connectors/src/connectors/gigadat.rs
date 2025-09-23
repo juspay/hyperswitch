@@ -39,7 +39,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts as api_consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -126,20 +126,10 @@ impl ConnectorCommon for Gigadat {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
         let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-        Ok(vec![
-            (
-                headers::AUTHORIZATION.to_string(),
-                auth_header.into_masked(),
-            ),
-            (
-                headers::X_ACCESS_TOKEN.to_string(),
-                "1234".to_string().into_masked(),
-            ),
-            (
-                headers::X_SECURITY_TOKEN.to_string(),
-                "123234214".to_string().into_masked(),
-            ),
-        ])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth_header.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -543,7 +533,36 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        let response: gigadat::GigadatRefundErrorResponse = res
+            .response
+            .parse_struct("GigadatRefundErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        let code = response
+            .error
+            .first()
+            .and_then(|e| e.code.clone())
+            .unwrap_or(api_consts::NO_ERROR_CODE.to_string());
+        let message = response
+            .error
+            .first()
+            .map(|e| e.detail.clone())
+            .unwrap_or(api_consts::NO_ERROR_MESSAGE.to_string());
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code,
+            message,
+            reason: Some(response.message).clone(),
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
     }
 }
 
