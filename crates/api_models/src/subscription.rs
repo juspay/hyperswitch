@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 ///
 /// This struct captures details required to create a subscription,
 /// including plan, profile, merchant connector, and optional customer info.
+//
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// Merchant specific Unique identifier.
@@ -107,3 +108,6 @@ impl CreateSubscriptionResponse {
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+
+// Type conversions between API models and domain models are implemented
+// in the domain model crate to avoid circular dependencies

@@ -4,6 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
+//
 
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = subscription)]

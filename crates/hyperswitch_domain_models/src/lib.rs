@@ -43,6 +43,7 @@ pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;
+//mod subscriptions;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
