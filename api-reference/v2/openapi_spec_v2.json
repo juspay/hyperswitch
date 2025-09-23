@@ -8733,6 +8733,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
           "trustpayments",
@@ -13421,6 +13422,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -18963,14 +18968,6 @@
           "cancellation_reason": {
             "type": "string",
             "description": "The reason for the payment cancel",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
             "nullable": true
           }
         }
