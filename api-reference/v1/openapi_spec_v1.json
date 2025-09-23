@@ -15238,6 +15238,31 @@
           }
         }
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ExternalVaultEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
@@ -28616,6 +28641,22 @@
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28951,6 +28992,22 @@
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -32698,6 +32755,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
       },
       "Venmo": {
         "type": "object",
