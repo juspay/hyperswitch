@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use cards::CardNumber;
-use common_enums::{enums, CountryAlpha2, Currency};
+use common_enums::{enums, Currency};
 use common_types::payments::{ApplePayPaymentData, ApplePayPredecryptData};
 use common_utils::{
     id_type,
@@ -275,7 +275,7 @@ pub struct PaysafeApplePayBillingContact {
     pub administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    pub country_code: CountryAlpha2,
+    pub country_code: api_models::enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub family_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
