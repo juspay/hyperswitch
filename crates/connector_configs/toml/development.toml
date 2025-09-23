@@ -7090,3 +7090,7 @@ type="Text"
 [tokenex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "TokenEx ID"
+
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"
