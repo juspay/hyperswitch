@@ -265,7 +265,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Gigadat => {
                 gigadat::transformers::GigadatAuthType::try_from(self.auth_type)?;
-                gigadat::transformers::GigadatConnectorMetadataObject::try_from(self.connector_meta_data)?;
+                gigadat::transformers::GigadatConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Globalpay => {

@@ -20,10 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        self, BrowserInformationData, PaymentsAuthorizeRequestData,
-         RouterData as _,
-    },
+    utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub struct GigadatRouterData<T> {
