@@ -5604,7 +5604,7 @@ api_key = "API Key"
 key1 = "API Secret"
 
 
-[[trustpayments]]
+[trustpayments]
 [[trustpayments.credit]]
   payment_method_type = "Mastercard"
 [[trustpayments.credit]]

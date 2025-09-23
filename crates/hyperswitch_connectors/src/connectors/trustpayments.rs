@@ -582,7 +582,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
             http_code: res.status_code,
         })
     }
-    
+
     fn get_error_response(
         &self,
         res: Response,
@@ -1030,6 +1030,17 @@ static TRUSTPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
         trustpayments_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::Paysera,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        trustpayments_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Sepa,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::NotSupported,
