@@ -6,7 +6,7 @@ use url::Url;
 
 use super::requests::*;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)] // Remove Deserialize here
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
     pub outcome: PaymentOutcome,
@@ -14,6 +14,150 @@ pub struct WorldpayPaymentsResponse {
     #[serde(flatten)]
     pub other_fields: Option<WorldpayPaymentResponseFields>,
 }
+
+// Implement a custom deserializer for WorldpayPaymentsResponse
+impl<'de> Deserialize<'de> for WorldpayPaymentsResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        use serde::de::MapAccess;
+        use serde::de::Visitor;
+        use std::fmt;
+
+        enum Field {
+            Outcome,
+            TransactionReference,
+            OtherFields,
+        }
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("`outcome`, `transactionReference`, or other payment response fields")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "outcome" => Ok(Field::Outcome),
+                            "transactionReference" => Ok(Field::TransactionReference),
+                            "outcome" | "transactionReference" | "paymentInstrument" | "issuer" | "scheme" | "_links" | "_actions" | "description" | "riskFactors" | "fraud" | "token" | "schemeReference" | "refusalDescription" | "refusalCode" | "threeDS" | "advice" | "authentication" | "challenge" | "deviceDataCollection" => Ok(Field::OtherFields),
+                            _ => Err(E::unknown_field(value, &[])),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct WorldpayPaymentsResponseVisitor;
+
+        impl<'de> Visitor<'de> for WorldpayPaymentsResponseVisitor {
+            type Value = WorldpayPaymentsResponse;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct WorldpayPaymentsResponse")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<WorldpayPaymentsResponse, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut outcome = None;
+                let mut transaction_reference = None;
+                let mut other_fields_map: serde_json::Map<String, serde_json::Value> =
+                    serde_json::Map::new();
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "outcome" => {
+                            if outcome.is_some() {
+                                return Err(V::Error::duplicate_field("outcome"));
+                            }
+                            outcome = Some(map.next_value()?);
+                        }
+                        "transactionReference" => {
+                            if transaction_reference.is_some() {
+                                return Err(V::Error::duplicate_field("transactionReference"));
+                            }
+                            transaction_reference = Some(map.next_value()?);
+                        }
+                        _ => {
+                            // Collect all other fields into a map
+                            let value = map.next_value()?;
+                            other_fields_map.insert(key, value);
+                        }
+                    }
+                }
+
+                let outcome: PaymentOutcome =
+                    outcome.ok_or_else(|| V::Error::missing_field("outcome"))?;
+
+                let other_fields = match outcome {
+                    PaymentOutcome::Authorized => {
+                        let auth_res: AuthorizedResponse =
+                            serde_json::from_value(serde_json::Value::Object(other_fields_map))
+                                .map_err(V::Error::custom)?;
+                        Some(WorldpayPaymentResponseFields::AuthorizedResponse(Box::new(
+                            auth_res,
+                        )))
+                    }
+                    PaymentOutcome::Refused => {
+                        let refused_res: RefusedResponse =
+                            serde_json::from_value(serde_json::Value::Object(other_fields_map))
+                                .map_err(V::Error::custom)?;
+                        Some(WorldpayPaymentResponseFields::RefusedResponse(refused_res))
+                    }
+                    PaymentOutcome::ThreeDsDeviceDataRequired => {
+                        let ddc_res: DDCResponse =
+                            serde_json::from_value(serde_json::Value::Object(other_fields_map))
+                                .map_err(V::Error::custom)?;
+                        Some(WorldpayPaymentResponseFields::DDCResponse(ddc_res))
+                    }
+                    PaymentOutcome::ThreeDsChallenged => {
+                        let three_ds_challenged_res: ThreeDsChallengedResponse =
+                            serde_json::from_value(serde_json::Value::Object(other_fields_map))
+                                .map_err(V::Error::custom)?;
+                        Some(WorldpayPaymentResponseFields::ThreeDsChallenged(
+                            three_ds_challenged_res,
+                        ))
+                    }
+                    PaymentOutcome::FraudHighRisk => {
+                        let fraud_high_risk_res: FraudHighRiskResponse =
+                            serde_json::from_value(serde_json::Value::Object(other_fields_map))
+                                .map_err(V::Error::custom)?;
+                        Some(WorldpayPaymentResponseFields::FraudHighRisk(
+                            fraud_high_risk_res,
+                        ))
+                    }
+                    _ => None, // For other outcomes, there might not be specific `other_fields` or they are not currently handled.
+                };
+
+                Ok(WorldpayPaymentsResponse {
+                    outcome,
+                    transaction_reference,
+                    other_fields,
+                })
+            }
+        }
+
+        deserializer.deserialize_map(WorldpayPaymentsResponseVisitor)
+    }
+}
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -64,8 +208,12 @@ pub struct FraudHighRiskResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefusedResponse {
+    // These fields should remain non-optional for the untagged enum to work correctly
+    // IF we keep the custom deserializer in WorldpayPaymentsResponse
+    // Otherwise, if we rely solely on `untagged`, they would need to be optional
+    // for RefusedResponse to be a fallback, which is the problem Kashif-m highlighted.
+    // With the custom deserializer, we explicitly parse based on 'outcome'.
     pub refusal_description: String,
-    // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
     pub refusal_code: String,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
@@ -73,6 +221,7 @@ pub struct RefusedResponse {
     pub three_ds: Option<ThreeDsResponse>,
     pub advice: Option<Advice>,
 }
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Advice {
@@ -278,25 +427,55 @@ where
             WorldpayPaymentResponseFields::AuthorizedResponse(res) => res
                 .links
                 .as_ref()
-                .and_then(|link| link.self_link.href.rsplit_once('/').map(|(_, h)| h)),
-            WorldpayPaymentResponseFields::DDCResponse(res) => {
-                res.actions.supply_ddc_data.href.split('/').nth_back(1)
-            }
+                .and_then(|link| {
+                    link.self_link
+                        .href
+                        .rsplit_once('/')
+                        .map(|(_, h)| h.to_string())
+                }),
+            WorldpayPaymentResponseFields::DDCResponse(res) => res
+                .actions
+                .supply_ddc_data
+                .href
+                .split('/')
+                .nth_back(1)
+                .map(|s| s.to_string()),
             WorldpayPaymentResponseFields::ThreeDsChallenged(res) => res
                 .actions
                 .complete_three_ds_challenge
                 .href
                 .split('/')
-                .nth_back(1),
-            WorldpayPaymentResponseFields::FraudHighRisk(_)
-            | WorldpayPaymentResponseFields::RefusedResponse(_) => None,
+                .nth_back(1)
+                .map(|s| s.to_string()),
+            WorldpayPaymentResponseFields::FraudHighRisk(_) => None,
+            WorldpayPaymentResponseFields::RefusedResponse(res) => {
+                let refusal_code = res
+                    .refusal_code
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(crate::utils::NO_ERROR_CODE); // Assuming crate::utils::NO_ERROR_CODE exists
+
+                let refusal_description = res
+                    .refusal_description
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(crate::utils::NO_ERROR_MESSAGE); // Assuming crate::utils::NO_ERROR_MESSAGE exists
+
+                tracing::warn!(
+                    error_code = refusal_code,
+                    error_message = refusal_description,
+                    "Received a refused response with possibly missing error fields"
+                );
+                None
+            }
         })
         .map(|href| {
-            urlencoding::decode(href)
+            urlencoding::decode(&href)
                 .map(|s| transform_fn(s.into_owned()))
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
         })
         .transpose()?;
+
     optional_reference_id
         .or_else(|| connector_transaction_id.map(transform_fn))
         .ok_or_else(|| {
@@ -470,4 +649,7 @@ pub enum WorldpayWebhookStatus {
 }
 
 /// Worldpay's unique reference ID for a request
-pub(super) const WP_CORRELATION_ID: &str = "WP-CorrelationId";
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
+
+
+
