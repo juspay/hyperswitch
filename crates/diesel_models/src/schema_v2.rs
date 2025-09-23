@@ -142,6 +142,8 @@ diesel::table! {
         challenge_cancel -> Nullable<Varchar>,
         challenge_code_reason -> Nullable<Varchar>,
         message_extension -> Nullable<Jsonb>,
+        #[max_length = 255]
+        challenge_request_key -> Nullable<Varchar>,
     }
 }
 
@@ -724,6 +726,40 @@ diesel::table! {
         #[max_length = 64]
         connector_authorization_id -> Nullable<Varchar>,
         previously_authorized_amount -> Int8,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    invoice (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
+        #[max_length = 64]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        amount -> Int8,
+        #[max_length = 3]
+        currency -> Varchar,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 128]
+        provider_name -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -1465,9 +1501,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    subscription (subscription_id, merchant_id) {
+    subscription (id) {
         #[max_length = 128]
-        subscription_id -> Varchar,
+        id -> Varchar,
         #[max_length = 128]
         status -> Varchar,
         #[max_length = 128]
@@ -1489,6 +1525,8 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1681,6 +1719,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     hyperswitch_ai_interaction,
     hyperswitch_ai_interaction_default,
     incremental_authorization,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,

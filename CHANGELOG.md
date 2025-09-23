@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.18.0
+
+### Features
+
+- **router:**
+  - Add gift card balance check endpoint (v2) ([#9102](https://github.com/juspay/hyperswitch/pull/9102)) ([`2131659`](https://github.com/juspay/hyperswitch/commit/213165968462168a59d5c56423a7c10aa04fc186))
+  - Handle incoming webhooks adyen ([#9372](https://github.com/juspay/hyperswitch/pull/9372)) ([`0e30fb6`](https://github.com/juspay/hyperswitch/commit/0e30fb6b5562bd641df6f0229d09e4311df8900e))
+
+### Bug Fixes
+
+- **connector:**
+  - [ADYEN] field type fixed for required fields ([#8997](https://github.com/juspay/hyperswitch/pull/8997)) ([`b69ed06`](https://github.com/juspay/hyperswitch/commit/b69ed06959c9d9d2bb139465aa75e5d2a66b5a16))
+  - [ACI] 3DS, connector mandate id, error handling fixed ([#9367](https://github.com/juspay/hyperswitch/pull/9367)) ([`eccc722`](https://github.com/juspay/hyperswitch/commit/eccc72217ba1a1ea1a6e17768b468234206fcff7))
+  - [nuvei] pass state field in the request, network handling for proxy flow ([#9351](https://github.com/juspay/hyperswitch/pull/9351)) ([`1b8cd9d`](https://github.com/juspay/hyperswitch/commit/1b8cd9dbb7b0b5d49cca70fbcb50d39b637b5f07))
+- **gitattributes:** Enforce LF for `.patch` files to avoid CRLF parsing errors on Windows ([#9333](https://github.com/juspay/hyperswitch/pull/9333)) ([`fde51e1`](https://github.com/juspay/hyperswitch/commit/fde51e17d44e9feea3cc5866e0692a5c9adb1975))
+
+### Miscellaneous Tasks
+
+- **git:** Add code owner for payout modules ([#9411](https://github.com/juspay/hyperswitch/pull/9411)) ([`108a66c`](https://github.com/juspay/hyperswitch/commit/108a66cc712c05de5fd6a6f94e05bc12ee59fe4b))
+
+**Full Changelog:** [`2025.09.17.0...2025.09.18.0`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0...2025.09.18.0)
+
+- - -
+
 ## 2025.09.17.0
 
 ### Features
