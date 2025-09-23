@@ -49,20 +49,6 @@ pub struct Card {
     pub brand_reference: Option<Secret<String>>,
 }
 
-/// A string used to identify the payment method provider being used to execute this
-/// transaction.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[allow(dead_code)]
-pub enum ApmProvider {
-    Giropay,
-    Ideal,
-    Paypal,
-    Sofort,
-    Eps,
-    Testpay,
-}
-
 /// Indicates where a transaction is in its lifecycle.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
