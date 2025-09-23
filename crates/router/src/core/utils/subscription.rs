@@ -279,4 +279,3 @@ impl BillingHandler {
         })
     }
 }
-
