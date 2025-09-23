@@ -235,7 +235,7 @@ pub struct PaysafeApplePayDecryptedDataWrapper {
 pub struct PaysafeApplePayDecryptedData {
     pub application_primary_account_number: CardNumber,
     pub application_expiration_date: Secret<String>,
-    pub currency_code: Option<Currency>,
+    pub currency_code: String,
     pub transaction_amount: Option<MinorUnit>,
     pub cardholder_name: Option<Secret<String>>,
     pub device_manufacturer_identifier: Option<String>,
@@ -824,7 +824,14 @@ fn get_apple_pay_decrypt_data(
             .change_context(errors::ConnectorError::InvalidDataFormat {
                 field_name: "application_expiration_date",
             })?,
-        currency_code: item.router_data.request.currency,
+        currency_code: Currency::iso_4217(
+            item.router_data
+                .request
+                .currency
+                .ok_or_else(missing_field_err("currency"))?,
+        )
+        .to_string(),
+
         transaction_amount: Some(item.amount),
         cardholder_name: None,
         device_manufacturer_identifier: Some("Apple".to_string()),
