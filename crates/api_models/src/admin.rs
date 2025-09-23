@@ -2203,6 +2203,13 @@ pub struct ProfileCreate {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[nutype::nutype(
@@ -2553,6 +2560,13 @@ pub struct ProfileResponse {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2906,6 +2920,13 @@ pub struct ProfileUpdate {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

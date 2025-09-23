@@ -10,11 +10,14 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
-        flow_common_types::{GetSubscriptionPlansData, InvoiceRecordBackData},
+        flow_common_types::{
+            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, InvoiceRecordBackData,
+            SubscriptionCreateData,
+        },
         UasFlowData,
     },
     router_flow_types::{
-        subscriptions::GetSubscriptionPlans,
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -22,7 +25,10 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
-        subscriptions::GetSubscriptionPlansRequest,
+        subscriptions::{
+            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
+            SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -30,7 +36,11 @@ use hyperswitch_domain_models::{
         },
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse, subscriptions::GetSubscriptionPlansResponse,
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{
+            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
+            SubscriptionCreateResponse,
+        },
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -166,6 +176,28 @@ impl
         InvoiceRecordBackData,
         InvoiceRecordBackRequest,
         InvoiceRecordBackResponse,
+    > for Recurly
+{
+}
+
+impl api::subscriptions_v2::GetSubscriptionPlanPricesV2 for Recurly {}
+
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionPlanPrices,
+        GetSubscriptionPlanPricesData,
+        GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlanPricesResponse,
+    > for Recurly
+{
+}
+impl api::subscriptions_v2::SubscriptionsCreateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        SubscriptionCreate,
+        SubscriptionCreateData,
+        SubscriptionCreateRequest,
+        SubscriptionCreateResponse,
     > for Recurly
 {
 }
