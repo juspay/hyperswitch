@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
@@ -388,7 +388,7 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     ) -> Result<Self, Self::Error> {
         let card_expiry_year = card_data.get_expiry_year_4_digit();
 
-        let payment_brand = get_aci_payment_brand(card_data.card_network, false)?;
+        let payment_brand = get_aci_payment_brand(card_data.card_network.clone(), false)?;
 
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
@@ -711,7 +711,22 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let (item, card_data) = value;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let txn_details = get_transaction_details(item)?;
-        let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
+        let mut card_data = card_data.clone();
+        let additional_card_network = item
+            .router_data
+            .request
+            .get_card_network_from_additional_payment_method_data()
+            .map_err(|err| {
+                router_env::logger::info!(
+                    "Error while getting card network from additional payment method data: {}",
+                    err
+                );
+            })
+            .ok();
+        if additional_card_network.is_some() {
+            card_data.card_network = additional_card_network;
+        }
+        let payment_method = PaymentDetails::try_from((card_data, card_holder_name))?;
         let instruction = get_instruction_details(item);
 
         Ok(Self {
@@ -1080,13 +1095,13 @@ pub struct AciCaptureResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: AciCaptureResultDetails,
+    result_details: Option<AciCaptureResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
-    source: Secret<String>,
-    payment_method: String,
-    short_id: String,
+    source: Option<Secret<String>>,
+    payment_method: Option<String>,
+    short_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1101,11 +1116,11 @@ pub struct AciCaptureResult {
 pub struct AciCaptureResultDetails {
     extended_description: String,
     #[serde(rename = "clearingInstituteName")]
-    clearing_institute_name: String,
-    connector_tx_i_d1: String,
-    connector_tx_i_d3: String,
-    connector_tx_i_d2: String,
-    acquirer_response: String,
+    clearing_institute_name: Option<String>,
+    connector_tx_i_d1: Option<String>,
+    connector_tx_i_d3: Option<String>,
+    connector_tx_i_d2: Option<String>,
+    acquirer_response: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -1161,6 +1176,62 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciVoidResponse {
+    id: String,
+    referenced_id: String,
+    payment_type: AciPaymentType,
+    amount: StringMajorUnit,
+    currency: String,
+    descriptor: String,
+    result: AciCaptureResult,
+    result_details: Option<AciCaptureResultDetails>,
+    build_number: String,
+    timestamp: String,
+    ndc: Secret<String>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status =
+            map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?);
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                ..Default::default()
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.referenced_id.clone()),
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        };
+        Ok(Self {
+            status: enums::AttemptStatus::Voided,
+            response,
+            reference_id: Some(item.response.referenced_id),
             ..item.data
         })
     }
