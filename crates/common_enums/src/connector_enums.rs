@@ -336,7 +336,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
-    // Tokenex, added as template code for future usage
+    Tokenex,
     Tokenio,
     Trustpay,
     Trustpayments,
@@ -548,6 +548,7 @@ impl Connector {
             | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenex
             | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans
@@ -870,7 +871,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
-            | Connector::Cardinal => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Cardinal
+            | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }
