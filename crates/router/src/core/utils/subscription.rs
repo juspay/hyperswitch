@@ -143,45 +143,6 @@ pub struct BillingHandler {
 
 #[allow(clippy::todo)]
 impl BillingHandler {
-    pub async fn get_subscription_plans(
-        &self,
-        state: &SessionState,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
-    >{
-        let get_plans_request =
-            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest::default();
-
-        let router_data = self.build_router_data::<
-            hyperswitch_domain_models::router_flow_types::subscriptions::GetSubscriptionPlans,
-            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
-        >(state, get_plans_request)?;
-
-        let connector_integration = self.connector_data.connector.get_connector_integration();
-
-        let response = self
-            .call_connector(
-                state,
-                router_data,
-                "get subscription plans",
-                connector_integration,
-            )
-            .await?;
-
-        match response {
-            Ok(resp) => Ok(resp),
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.clone(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
-    }
-
     async fn call_connector<F, ResourceCommonData, Req, Resp>(
         &self,
         state: &SessionState,
@@ -277,5 +238,82 @@ impl BillingHandler {
             l2_l3_data: None,
             minor_amount_capturable: None,
         })
+    }
+    pub async fn get_subscription_plans(
+        &self,
+        state: &SessionState,
+    ) -> errors::RouterResult<
+        hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
+    >{
+        let get_plans_request =
+            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest::default();
+
+        let router_data = self.build_router_data::<
+            hyperswitch_domain_models::router_flow_types::subscriptions::GetSubscriptionPlans,
+            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest,
+            hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
+        >(state, get_plans_request)?;
+
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "get subscription plans",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(resp) => Ok(resp),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_name.clone(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+  pub async fn get_plan_prices(
+        &self,
+        state: &SessionState,
+    ) -> errors::RouterResult<
+        hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlanPricesResponse,
+    >{
+        let get_plan_prices_request =
+            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlanPricesRequest {
+                plan_price_id: self.subscription.id.get_string_repr().to_string(),
+            };
+
+        let router_data = self.build_router_data::<
+            hyperswitch_domain_models::router_flow_types::subscriptions::GetSubscriptionPlanPrices,
+            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlanPricesRequest, hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlanPricesResponse, >(state, get_plan_prices_request)?;
+
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "get subscription plan prices",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(resp) => Ok(resp),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_name.clone(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
     }
 }
