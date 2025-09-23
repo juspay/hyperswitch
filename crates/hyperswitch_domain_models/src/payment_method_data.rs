@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
+use crate::errors::api_error_response;
 use api_models::{
     mandates,
     payment_methods::{self},
@@ -18,6 +19,7 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
+use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
@@ -2327,6 +2329,13 @@ impl PaymentMethodsData {
             Self::BankDetails(_) | Self::WalletDetails(_) | Self::NetworkToken(_) => None,
         }
     }
+    pub fn get_card(&self) -> Option<CardDetailsPaymentMethod> {
+        if let Self::Card(card) = self {
+            Some(card.clone())
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2624,5 +2633,83 @@ impl
             nick_name,
             co_badged_card_data,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    TryFrom<(
+        cards::CardNumber,
+        Option<&CardToken>,
+        Option<payment_methods::CoBadgedCardData>,
+        Option<PaymentMethodsData>,
+    )> for Card
+{
+    type Error = error_stack::Report<api_error_response::ApiErrorResponse>;
+    fn try_from(
+        value: (
+            cards::CardNumber,
+            Option<&CardToken>,
+            Option<payment_methods::CoBadgedCardData>,
+            Option<PaymentMethodsData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+
+        let (card_number, card_token_data, co_badged_card_data, payment_methods_data) = value;
+        let payment_methods_data = payment_methods_data
+            .get_required_value("PaymentMethodsData")
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Payment methods data not present")?;
+
+        let card = payment_methods_data
+            .get_card()
+            .get_required_value("CardDetails")
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Card details not present")?;
+
+        // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+        let name_on_card = if let Some(name) = card.card_holder_name.clone() {
+            use masking::ExposeInterface;
+
+            if name.clone().expose().is_empty() {
+                card_token_data
+                    .and_then(|token_data| token_data.card_holder_name.clone())
+                    .or(Some(name))
+            } else {
+                Some(name)
+            }
+        } else {
+            card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+        };
+
+        Ok(Self {
+            card_number,
+            card_exp_month: card
+                .expiry_month
+                .get_required_value("expiry_month")
+                .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Expiry month not present")?
+                .clone(),
+            card_exp_year: card
+                .expiry_year
+                .get_required_value("expiry_year")
+                .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Expiry year not present")?
+                .clone(),
+            card_holder_name: name_on_card,
+            card_cvc: card_token_data
+                .cloned()
+                .unwrap_or_default()
+                .card_cvc
+                .unwrap_or_default(),
+            card_issuer: card.card_issuer,
+            card_network: card.card_network,
+            card_type: card.card_type,
+            card_issuing_country: card.issuer_country,
+            bank_code: None,
+            nick_name: card.nick_name,
+            co_badged_card_data,
+        })
     }
 }

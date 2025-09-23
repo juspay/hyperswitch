@@ -2512,10 +2512,15 @@ pub async fn fetch_card_details_from_external_vault(
     )
     .await?;
 
+    let payment_methods_data = payment_method_info.get_payment_methods_data();
+
     match vault_resp {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
             domain::Card::from((card, card_token_data, co_badged_card_data)),
         ),
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(card_number) => Ok(
+            domain::Card::try_from((card_number, card_token_data, co_badged_card_data, payment_methods_data))?,
+        )
     }
 }
 #[cfg(feature = "v1")]
