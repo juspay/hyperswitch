@@ -4596,7 +4596,6 @@ where
         merchant_context.get_merchant_key_store(),
         customer,
         business_profile,
-        should_retry_with_pan,
     )
     .await?;
     *payment_data = pd;
@@ -6934,7 +6933,6 @@ fn is_payment_method_tokenization_enabled_for_connector(
     connector_name: &str,
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
-    payment_method_token: Option<&PaymentMethodToken>,
     mandate_flow_enabled: storage_enums::FutureUsage,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
@@ -6948,11 +6946,6 @@ fn is_payment_method_tokenization_enabled_for_connector(
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
                     connector_filter.payment_method_type.clone(),
-                )
-                && is_apple_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
-                    payment_method_token,
-                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
                 )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
@@ -7208,6 +7201,28 @@ fn is_payment_method_type_allowed_for_connector(
     }
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+async fn decide_payment_method_tokenize_action(
+    state: &SessionState,
+    payment_intent_data: payments::PaymentIntent,
+    is_connector_tokenization_enabled: bool,
+) -> RouterResult<TokenizationAction> {
+    if matches!(
+        payment_intent_data.split_payments,
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+    ) {
+        Ok(TokenizationAction::TokenizeInConnector)
+    } else {
+        Ok(if is_connector_tokenization_enabled {
+            TokenizationAction::TokenizeInConnector
+        } else {
+            TokenizationAction::SkipConnectorTokenization
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn decide_payment_method_tokenize_action(
     state: &SessionState,
@@ -7277,13 +7292,20 @@ pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_root_signing_keys: Secret<String>,
     pub google_pay_recipient_id: Secret<String>,
 }
-
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
     TokenizeInConnectorAndRouter,
     ConnectorToken(String),
+    SkipConnectorTokenization,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub enum TokenizationAction {
+    TokenizeInConnector,
     SkipConnectorTokenization,
 }
 
@@ -7296,7 +7318,6 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     business_profile: &domain::Profile,
-    should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -7335,37 +7356,16 @@ where
                     &connector,
                     payment_method,
                     payment_method_type,
-                    payment_data.get_payment_method_token(),
                     mandate_flow_enabled,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
-                &connector,
-                payment_method,
                 payment_data.get_payment_intent().clone(),
-                payment_data.get_token(),
                 is_connector_tokenization_enabled,
             )
             .await?;
-
-            let connector_tokenization_action = match payment_method_action {
-                TokenizationAction::TokenizeInRouter => {
-                    TokenizationAction::SkipConnectorTokenization
-                }
-                TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
-                TokenizationAction::TokenizeInConnectorAndRouter => {
-                    TokenizationAction::TokenizeInConnector
-                }
-                TokenizationAction::ConnectorToken(token) => {
-                    payment_data.set_pm_token(token);
-                    TokenizationAction::SkipConnectorTokenization
-                }
-                TokenizationAction::SkipConnectorTokenization => {
-                    TokenizationAction::SkipConnectorTokenization
-                }
-            };
-            (payment_data.to_owned(), connector_tokenization_action)
+            (payment_data.to_owned(), payment_method_action)
         }
         _ => (
             payment_data.to_owned(),
@@ -11478,11 +11478,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod> {
-        self.payment_method.as_ref()
+        todo!()
     }
 
     fn get_payment_method_token(&self) -> Option<&PaymentMethodToken> {
-        None
+        todo!()
     }
 
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
@@ -11498,7 +11498,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_token(&self) -> Option<&str> {
-        None
+        todo!()
     }
 
     fn get_multiple_capture_data(&self) -> Option<&types::MultipleCaptureData> {
