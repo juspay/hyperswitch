@@ -25,7 +25,7 @@ describe("Manual Retry Tests", () => {
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
-      let updateBusinessProfileBody = {
+      const updateBusinessProfileBody = {
         is_manual_retry_enabled: false,
       };
       cy.UpdateBusinessProfileTest(
@@ -84,7 +84,7 @@ describe("Manual Retry Tests", () => {
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
-      let updateBusinessProfileBody = {
+      const updateBusinessProfileBody = {
         is_manual_retry_enabled: true,
       };
       cy.UpdateBusinessProfileTest(
@@ -143,7 +143,7 @@ describe("Manual Retry Tests", () => {
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
-      let updateBusinessProfileBody = {
+      const updateBusinessProfileBody = {
         is_manual_retry_enabled: true,
         session_expiry: 60,
       };
@@ -205,7 +205,7 @@ describe("Manual Retry Tests", () => {
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
-      let updateBusinessProfileBody = {
+      const updateBusinessProfileBody = {
         is_manual_retry_enabled: true,
         session_expiry: 60,
       };
