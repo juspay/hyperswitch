@@ -334,9 +334,7 @@ where
                     Ok(self.status)
                 }
             }
-            _ => {
-                Ok(self.status)
-            }
+            _ => Ok(self.status),
         }
     }
 }
