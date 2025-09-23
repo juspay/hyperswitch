@@ -80,7 +80,7 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
-        // Use access token from router_data (populated by Hyperswitch access token flow)
+        // Use access token from router_data 
         let access_token = router_data
             .access_token
             .as_ref()
@@ -139,7 +139,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
-        // Use access token from router_data (populated by Hyperswitch access token flow)
+        // Use access token from router_data
         let access_token = router_data
             .access_token
             .as_ref()
