@@ -79,6 +79,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub billing_started_at: Option<PrimitiveDateTime>,
     /// metadata of the merchant
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[derive(Clone, Debug)]
@@ -166,6 +168,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             request_external_three_ds_authentication: None,
             force_3ds_challenge: None,
             merchant_connector_details: None,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }
@@ -181,6 +184,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,
             metadata: None,
+            enable_partial_authorization: None,
         }
     }
 }

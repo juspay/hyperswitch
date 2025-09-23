@@ -294,6 +294,7 @@ where
     where
         F: Clone,
     {
+        print!("get_attempt_Statis");
         match self.status {
             enums::AttemptStatus::Voided => {
                 if payment_data.payment_intent.amount_captured > Some(MinorUnit::new(0)) {
@@ -303,6 +304,7 @@ where
                 }
             }
             enums::AttemptStatus::Charged => {
+                print!("get_attempt_Statis charged");
                 let captured_amount = types::Capturable::get_captured_amount(
                     &self.request,
                     amount_captured,
@@ -310,10 +312,13 @@ where
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new) {
+                    println!("1tada!");
                     Ok(enums::AttemptStatus::Charged)
                 } else if captured_amount.is_some() {
+                    println!("tada!");
                     Ok(enums::AttemptStatus::PartialCharged)
                 } else {
+                    println!("2tada!");
                     Ok(self.status)
                 }
             }
@@ -334,7 +339,10 @@ where
                     Ok(self.status)
                 }
             }
-            _ => Ok(self.status),
+            _ => {
+                print!("get_attempt_Statis apart");
+                Ok(self.status)
+            }
         }
     }
 }

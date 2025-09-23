@@ -542,6 +542,8 @@ pub struct PaymentIntent {
     /// Indicates whether the payment_id was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+    /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
+    pub enable_partial_authorization: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -732,6 +734,7 @@ impl PaymentIntent {
             created_by: None,
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
+            enable_partial_authorization: request.enable_partial_authorization,
         })
     }
 
