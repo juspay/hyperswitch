@@ -2,12 +2,16 @@
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
-    router_flow_types::subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans},
+    router_flow_types::subscriptions::{
+        GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+    },
     router_request_types::subscriptions::{
-        GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 
@@ -37,7 +41,6 @@ pub trait GetSubscriptionPlanPricesFlow:
 >
 {
 }
-
 
 #[cfg(feature = "v1")]
 /// trait SubscriptionCreate

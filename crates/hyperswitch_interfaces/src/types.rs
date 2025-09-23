@@ -16,7 +16,10 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
-        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -33,8 +36,8 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
-            SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -61,8 +64,8 @@ use hyperswitch_domain_models::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,

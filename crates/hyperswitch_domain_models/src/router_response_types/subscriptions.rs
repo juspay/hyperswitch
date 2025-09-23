@@ -2,7 +2,6 @@ use common_enums::Currency;
 use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
 
-
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateResponse {
     pub subscription_id: id_type::SubscriptionId,
