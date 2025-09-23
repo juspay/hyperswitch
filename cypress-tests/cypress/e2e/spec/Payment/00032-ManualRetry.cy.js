@@ -22,6 +22,19 @@ describe("Manual Retry Tests", () => {
       if (!shouldContinue) {
         this.skip();
       }
+
+      const connectorId = globalState.get("connectorId");
+      if (
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
+        )
+      ) {
+        cy.log(
+          `Skipping Manul Retry - connector not supported: ${connectorId}`
+        );
+        this.skip();
+      }
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
@@ -81,6 +94,19 @@ describe("Manual Retry Tests", () => {
       if (!shouldContinue) {
         this.skip();
       }
+
+      const connectorId = globalState.get("connectorId");
+      if (
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
+        )
+      ) {
+        cy.log(
+          `Skipping Manul Retry - connector not supported: ${connectorId}`
+        );
+        this.skip();
+      }
     });
 
     it("Update Profile with is_manual_retry_enabled", () => {
@@ -138,6 +164,19 @@ describe("Manual Retry Tests", () => {
 
     beforeEach(function () {
       if (!shouldContinue) {
+        this.skip();
+      }
+
+      const connectorId = globalState.get("connectorId");
+      if (
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
+        )
+      ) {
+        cy.log(
+          `Skipping Manul Retry - connector not supported: ${connectorId}`
+        );
         this.skip();
       }
     });
@@ -200,6 +239,19 @@ describe("Manual Retry Tests", () => {
 
     beforeEach(function () {
       if (!shouldContinue) {
+        this.skip();
+      }
+
+      const connectorId = globalState.get("connectorId");
+      if (
+        utils.shouldIncludeConnector(
+          connectorId,
+          utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
+        )
+      ) {
+        cy.log(
+          `Skipping Manul Retry - connector not supported: ${connectorId}`
+        );
         this.skip();
       }
     });

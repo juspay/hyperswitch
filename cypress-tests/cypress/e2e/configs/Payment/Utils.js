@@ -416,6 +416,7 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
+    MANUAL_RETRY: ["cybersource"],
     // Add more inclusion lists
   },
 };
