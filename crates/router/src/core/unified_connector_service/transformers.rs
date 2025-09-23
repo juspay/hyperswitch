@@ -80,7 +80,7 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
-        // Use access token from router_data 
+        // Use access token from router_data
         let access_token = router_data
             .access_token
             .as_ref()
