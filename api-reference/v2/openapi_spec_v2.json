@@ -19286,6 +19286,11 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20115,6 +20120,11 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
             "nullable": true
           }
         },
