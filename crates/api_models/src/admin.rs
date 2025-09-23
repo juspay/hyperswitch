@@ -2207,6 +2207,12 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[nutype::nutype(
@@ -2565,6 +2571,13 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -2926,6 +2939,12 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

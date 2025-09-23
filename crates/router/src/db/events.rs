@@ -1292,6 +1292,7 @@ mod tests {
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: None,
+            external_vault_details: domain::ExternalVaultDetails::Skip,
         });
 
         let business_profile = state
