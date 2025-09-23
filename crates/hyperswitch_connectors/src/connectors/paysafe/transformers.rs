@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -378,6 +378,7 @@ pub struct PaysafePaymentHandleResponse {
     pub payment_handle_token: Secret<String>,
     pub status: PaysafePaymentHandleStatus,
     pub links: Option<Vec<PaymentLink>>,
+    pub error: Option<Error>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -896,12 +897,13 @@ pub struct PaysafePaymentHandlesSyncResponse {
 }
 
 // Paysafe Payments Response Structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsResponse {
     pub id: String,
     pub merchant_ref_num: Option<String>,
     pub status: PaysafePaymentStatus,
+    pub error: Option<Error>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -938,9 +940,71 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 common_enums::AttemptStatus::try_from(payment_handle_response.status)?
             }
         };
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
+
+        let response = if utils::is_payment_failure(status) {
+            let (code, message, reason, connector_transaction_id) = match &item.response {
+                PaysafeSyncResponse::Payments(sync_response) => {
+                    let payment_response = sync_response
+                        .payments
+                        .first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    match &payment_response.error {
+                        Some(err) => (
+                            err.code.clone(),
+                            err.message.clone(),
+                            err.details
+                                .as_ref()
+                                .and_then(|d| d.first().cloned())
+                                .or_else(|| Some(err.message.clone())),
+                            payment_response.id.clone(),
+                        ),
+                        None => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            consts::NO_ERROR_MESSAGE.to_string(),
+                            None,
+                            payment_response.id.clone(),
+                        ),
+                    }
+                }
+                PaysafeSyncResponse::PaymentHandles(sync_response) => {
+                    let payment_handle_response = sync_response
+                        .payment_handles
+                        .first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    match &payment_handle_response.error {
+                        Some(err) => (
+                            err.code.clone(),
+                            err.message.clone(),
+                            err.details
+                                .as_ref()
+                                .and_then(|d| d.first().cloned())
+                                .or_else(|| Some(err.message.clone())),
+                            payment_handle_response.id.clone(),
+                        ),
+                        None => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            consts::NO_ERROR_MESSAGE.to_string(),
+                            None,
+                            payment_handle_response.id.clone(),
+                        ),
+                    }
+                }
+            };
+
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code,
+                message,
+                reason,
+                attempt_status: None,
+                connector_transaction_id: Some(connector_transaction_id),
+                status_code: item.http_code,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -949,7 +1013,12 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -1178,7 +1247,7 @@ pub struct PaysafeErrorResponse {
     pub error: Error,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Error {
     pub code: String,
     pub message: String,
@@ -1187,7 +1256,7 @@ pub struct Error {
     pub field_errors: Option<Vec<FieldError>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldError {
     pub field: Option<String>,
     pub error: String,
