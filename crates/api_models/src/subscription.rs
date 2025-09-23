@@ -112,6 +112,19 @@ pub struct GetPlansResponse {
     pub description: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GetPlanPricesResponse {
+    pub price_id: String,
+    pub plan_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: common_enums::Currency,
+    pub interval: String, // Day, Week, Month, Year
+    pub interval_count: i64,
+    pub trial_period: Option<i64>,
+    pub trial_period_unit: Option<String>, // Day or Month
+}
+
 impl ApiEventMetric for CreateSubscriptionResponse {}
+impl ApiEventMetric for GetPlanPricesResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 impl ApiEventMetric for GetPlansResponse {}

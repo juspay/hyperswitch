@@ -99,3 +99,39 @@ pub async fn get_subscription_plans(
 
     Ok(ApplicationResponse::Json(plans))
 }
+
+pub async fn get_subscription_plan_prices(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    client_secret: ClientSecret,
+) -> RouterResponse<Vec<subscription_types::GetPlanPricesResponse>> {
+    let subscription_handler = SubscriptionHandler::new(state.clone(), merchant_context.clone());
+
+    let subscription = subscription_handler
+        .find_and_validate_subscription(&client_secret)
+        .await?;
+
+    let billing_handler = subscription_handler
+        .get_billing_handler(&subscription)
+        .await?;
+
+    let plan_prices_response = billing_handler.get_plan_prices(&state).await?;
+
+    let prices: Vec<subscription_types::GetPlanPricesResponse> = plan_prices_response
+        .list
+        .into_iter()
+        .map(|p| subscription_types::GetPlanPricesResponse {
+            price_id: p.price_id,
+            plan_id: p.plan_id,
+            amount: p.amount,
+            currency: p.currency,
+            interval: format!("{:?}", p.interval),
+            interval_count: p.interval_count,
+            trial_period: p.trial_period,
+            trial_period_unit: p.trial_period_unit.map(|u| format!("{:?}", u)),
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(prices))
+}

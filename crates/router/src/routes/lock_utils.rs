@@ -90,7 +90,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
 
-            Flow::CreateSubscription | Flow::GetPlansForSubscription => Self::Subscription,
+            Flow::CreateSubscription
+            | Flow::GetPlansForSubscription
+            | Flow::GetPlanPricesForSubscription => Self::Subscription,
 
             Flow::RetrieveForexFlow => Self::Forex,
 

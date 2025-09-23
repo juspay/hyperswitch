@@ -267,6 +267,8 @@ pub enum Flow {
     CreateSubscription,
     /// Subscription get plans flow,
     GetPlansForSubscription,
+    /// Subscription get plan prices flow,
+    GetPlanPricesForSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
