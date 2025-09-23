@@ -684,8 +684,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "100.390.112",
-          error_message:
-            "Technical Error in 3D system",
+          error_message: "Technical Error in 3D system",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
