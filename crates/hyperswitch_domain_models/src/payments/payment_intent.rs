@@ -279,6 +279,7 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
         updated_by: String,
+        is_stored_credential: Option<bool>,
     },
     MerchantStatusUpdate {
         status: common_enums::IntentStatus,
@@ -866,6 +867,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
                 customer_details,
                 updated_by,
+                is_stored_credential,
             } => Self {
                 return_url,
                 status,
@@ -875,6 +877,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_details,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                is_stored_credential,
                 ..Default::default()
             },
             PaymentIntentUpdate::PGStatusUpdate {
@@ -1113,6 +1116,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 billing_address_id,
                 customer_details,
                 updated_by,
+                is_stored_credential,
             } => Self::PaymentCreateUpdate {
                 return_url,
                 status,
@@ -1121,6 +1125,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 billing_address_id,
                 customer_details: customer_details.map(Encryption::from),
                 updated_by,
+                is_stored_credential,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,

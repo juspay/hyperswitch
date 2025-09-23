@@ -884,10 +884,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
         let routing_approach = payment_data.payment_attempt.routing_approach.clone();
-        let is_stored_credentials = helpers::is_stored_credentials(
+        let is_stored_credential = helpers::update_is_stored_credential(
             &payment_data.recurring_details,
             &payment_data.pm_token,
             payment_data.mandate_id.is_some(),
+            payment_data.payment_attempt.is_stored_credential,
         );
         payment_data.payment_attempt = state
             .store
@@ -906,7 +907,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                     routing_approach,
-                    is_stored_credentials,
+                    is_stored_credential,
                 },
                 storage_scheme,
             )
@@ -930,7 +931,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt customer details")?;
-
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+            payment_data.payment_intent.is_stored_credential,
+        );
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -944,6 +950,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     billing_address_id: None,
                     customer_details,
                     updated_by: storage_scheme.to_string(),
+                    is_stored_credential,
                 },
                 key_store,
                 storage_scheme,

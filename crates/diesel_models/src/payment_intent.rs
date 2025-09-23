@@ -516,6 +516,7 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         customer_details: Option<Encryption>,
         updated_by: String,
+        is_stored_credential: Option<bool>,
     },
     MerchantStatusUpdate {
         status: storage_enums::IntentStatus,
@@ -1110,6 +1111,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
                 customer_details,
                 updated_by,
+                is_stored_credential,
             } => Self {
                 return_url: None, // deprecated
                 status,
@@ -1159,7 +1161,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 duty_amount: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
-                is_stored_credential: None,
+                is_stored_credential,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,

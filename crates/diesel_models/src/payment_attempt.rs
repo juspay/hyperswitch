@@ -486,6 +486,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
+        is_stored_credential: Option<bool>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -3464,6 +3465,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 merchant_connector_id,
                 routing_approach,
+                is_stored_credential,
             } => Self {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
@@ -3527,7 +3529,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
-                is_stored_credential: None,
+                is_stored_credential,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

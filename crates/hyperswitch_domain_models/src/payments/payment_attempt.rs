@@ -1365,7 +1365,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
-        is_stored_credentials: Option<bool>,
+        is_stored_credential: Option<bool>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -1596,7 +1596,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 merchant_connector_id,
                 routing_approach,
-                is_stored_credentials,
+                is_stored_credential,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -1614,6 +1614,7 @@ impl PaymentAttemptUpdate {
                     }
                     _ => approach,
                 }),
+                is_stored_credential,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
