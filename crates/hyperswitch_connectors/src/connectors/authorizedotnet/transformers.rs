@@ -117,13 +117,6 @@ struct CreditCardDetails {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-struct BankAccountDetails {
-    account_number: Secret<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 enum PaymentDetails {
     CreditCard(CreditCardDetails),
     OpaqueData(WalletDetails),

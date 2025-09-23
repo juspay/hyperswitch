@@ -114,19 +114,6 @@ pub enum GlobalpayWebhookStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[allow(dead_code)]
-pub enum GlobalpayPaymentMethodStatus {
-    /// The entity is ACTIVE and can be used.
-    Active,
-    /// The entity is INACTIVE and cannot be used.
-    Inactive,
-    /// The status is DELETED. Once returned in an action response for a resource.
-    /// The resource has been removed from the platform.
-    Delete,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalpayPaymentMethodsResponse {
     #[serde(rename = "id")]
     pub payment_method_token_id: Option<Secret<String>>,

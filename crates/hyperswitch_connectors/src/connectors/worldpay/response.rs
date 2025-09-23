@@ -258,12 +258,6 @@ pub struct EventLinks {
     pub events: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[allow(dead_code)]
-pub struct PaymentLink {
-    pub href: String,
-}
-
 pub fn get_resource_id<T, F>(
     response: WorldpayPaymentsResponse,
     connector_transaction_id: Option<String>,
@@ -454,21 +448,6 @@ pub struct WorldpayWebhookEventType {
     pub event_id: String,
     pub event_timestamp: String,
     pub event_details: EventDetails,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-pub enum WorldpayWebhookStatus {
-    SentForSettlement,
-    Authorized,
-    SentForAuthorization,
-    Cancelled,
-    Error,
-    Expired,
-    Refused,
-    SentForRefund,
-    RefundFailed,
 }
 
 /// Worldpay's unique reference ID for a request

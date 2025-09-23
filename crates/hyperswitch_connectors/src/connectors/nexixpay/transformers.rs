@@ -415,13 +415,6 @@ pub struct NexixpayCard {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-struct Recurrence {
-    action: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentsResponse {
     operation: Operation,
     three_d_s_auth_request: String,

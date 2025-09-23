@@ -161,17 +161,6 @@ pub struct BillingAddress {
     pub country_code: common_enums::CountryAlpha2,
 }
 
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
-pub enum Channel {
-    #[default]
-    Ecom,
-    Moto,
-}
-
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Customer {
