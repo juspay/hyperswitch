@@ -15264,6 +15264,31 @@
           "skip"
         ]
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ExternalVaultEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [

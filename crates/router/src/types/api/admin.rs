@@ -174,6 +174,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .or(Some(CardTestingGuardConfig::default()));
         let (is_external_vault_enabled, external_vault_connector_details) =
             item.external_vault_details.into();
+        let (is_external_vault_enabled, external_vault_connector_details) =
+            item.external_vault_details.into();
 
         Ok(Self {
             merchant_id: item.merchant_id,

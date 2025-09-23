@@ -478,6 +478,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     None => Some(false),
                 };
 
+                let is_external_vault_enabled = match is_external_vault_enabled {
+                    Some(external_vault_mode) => match external_vault_mode {
+                        common_enums::ExternalVaultEnabled::Enable => Some(true),
+                        common_enums::ExternalVaultEnabled::Skip => Some(false),
+                    },
+                    None => Some(false),
+                };
+
                 Self {
                     profile_name,
                     modified_at: now,
