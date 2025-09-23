@@ -2281,6 +2281,7 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
             utils::CardIssuer::CartesBancaires => Ok(Self::Cartebancaire),
+            utils::CardIssuer::UnionPay => Ok(Self::Cup),
         }
     }
 }
@@ -4022,6 +4023,27 @@ pub fn get_adyen_response(
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
     {
+        let (network_decline_code, network_error_message) = response
+            .additional_data
+            .as_ref()
+            .map(|data| {
+                match (
+                    data.refusal_code_raw.clone(),
+                    data.refusal_reason_raw
+                        .clone()
+                        .or(data.merchant_advice_code.clone()),
+                ) {
+                    (None, Some(reason_raw)) => match reason_raw.split_once(':') {
+                        Some((code, msg)) => {
+                            (Some(code.trim().to_string()), Some(msg.trim().to_string()))
+                        }
+                        None => (None, Some(reason_raw.trim().to_string())),
+                    },
+                    (code, reason) => (code, reason),
+                }
+            })
+            .unwrap_or((None, None));
+
         Some(ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -4038,15 +4060,8 @@ pub fn get_adyen_response(
                 .additional_data
                 .as_ref()
                 .and_then(|data| data.extract_network_advice_code()),
-            network_decline_code: response
-                .additional_data
-                .as_ref()
-                .and_then(|data| data.refusal_code_raw.clone()),
-            network_error_message: response.additional_data.as_ref().and_then(|data| {
-                data.refusal_reason_raw
-                    .clone()
-                    .or(data.merchant_advice_code.clone())
-            }),
+            network_decline_code,
+            network_error_message,
             connector_metadata: None,
         })
     } else {
@@ -4111,6 +4126,17 @@ pub fn get_webhook_response(
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
     {
+        let (network_decline_code, network_error_message) = match (
+            response.refusal_code_raw.clone(),
+            response.refusal_reason_raw.clone(),
+        ) {
+            (None, Some(reason_raw)) => match reason_raw.split_once(':') {
+                Some((code, msg)) => (Some(code.trim().to_string()), Some(msg.trim().to_string())),
+                None => (None, Some(reason_raw.trim().to_string())),
+            },
+            (code, reason) => (code, reason),
+        };
+
         Some(ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -4125,8 +4151,8 @@ pub fn get_webhook_response(
             attempt_status: None,
             connector_transaction_id: Some(response.transaction_id.clone()),
             network_advice_code: None,
-            network_decline_code: response.refusal_code_raw.clone(),
-            network_error_message: response.refusal_reason_raw.clone(),
+            network_decline_code,
+            network_error_message,
             connector_metadata: None,
         })
     } else {
@@ -4137,7 +4163,7 @@ pub fn get_webhook_response(
 
     if is_multiple_capture_psync_flow {
         let capture_sync_response_list =
-            utils::construct_captures_response_hashmap(vec![response])?;
+            utils::construct_captures_response_hashmap(vec![response.clone()])?;
         Ok((
             status,
             error,
@@ -4194,6 +4220,25 @@ pub fn get_redirection_response(
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
     {
+        let (network_decline_code, network_error_message) = response
+            .additional_data
+            .as_ref()
+            .map(|data| {
+                match (
+                    data.refusal_code_raw.clone(),
+                    data.refusal_reason_raw.clone(),
+                ) {
+                    (None, Some(reason_raw)) => match reason_raw.split_once(':') {
+                        Some((code, msg)) => {
+                            (Some(code.trim().to_string()), Some(msg.trim().to_string()))
+                        }
+                        None => (None, Some(reason_raw.trim().to_string())),
+                    },
+                    (code, reason) => (code, reason),
+                }
+            })
+            .unwrap_or((None, None));
+
         Some(ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -4208,14 +4253,8 @@ pub fn get_redirection_response(
             attempt_status: None,
             connector_transaction_id: response.psp_reference.clone(),
             network_advice_code: None,
-            network_decline_code: response
-                .additional_data
-                .as_ref()
-                .and_then(|data| data.refusal_code_raw.clone()),
-            network_error_message: response
-                .additional_data
-                .as_ref()
-                .and_then(|data| data.refusal_reason_raw.clone()),
+            network_decline_code,
+            network_error_message,
             connector_metadata: None,
         })
     } else {
@@ -4424,30 +4463,46 @@ pub fn get_redirection_error_response(
     errors::ConnectorError,
 > {
     let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
-    let error = Some(ErrorResponse {
-        code: status.to_string(),
-        message: response
-            .refusal_reason
-            .clone()
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-        reason: response.refusal_reason,
-        status_code,
-        attempt_status: None,
-        connector_transaction_id: response.psp_reference.clone(),
-        network_advice_code: response
+    let error = {
+        let (network_decline_code, network_error_message) = response
             .additional_data
             .as_ref()
-            .and_then(|data| data.extract_network_advice_code()),
-        network_decline_code: response
-            .additional_data
-            .as_ref()
-            .and_then(|data| data.refusal_code_raw.clone()),
-        network_error_message: response
-            .additional_data
-            .as_ref()
-            .and_then(|data| data.refusal_reason_raw.clone()),
-        connector_metadata: None,
-    });
+            .map(|data| {
+                match (
+                    data.refusal_code_raw.clone(),
+                    data.refusal_reason_raw.clone(),
+                ) {
+                    (None, Some(reason_raw)) => match reason_raw.split_once(':') {
+                        Some((code, msg)) => {
+                            (Some(code.trim().to_string()), Some(msg.trim().to_string()))
+                        }
+                        None => (None, Some(reason_raw.trim().to_string())),
+                    },
+                    (code, reason) => (code, reason),
+                }
+            })
+            .unwrap_or((None, None));
+
+        Some(ErrorResponse {
+            code: status.to_string(),
+            message: response
+                .refusal_reason
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.refusal_reason,
+            status_code,
+            attempt_status: None,
+            connector_transaction_id: response.psp_reference.clone(),
+            network_advice_code: response
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.extract_network_advice_code()),
+            network_decline_code,
+            network_error_message,
+
+            connector_metadata: None,
+        })
+    };
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,

@@ -573,7 +573,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
@@ -1117,6 +1117,8 @@ impl Default for CustomerType {
             split_payments: None,
             customer_acceptance: None,
             setup_future_usage: None,
+            customer_id: None,
+            billing_address: None,
         };
         Self(data)
     }
@@ -1151,7 +1153,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,

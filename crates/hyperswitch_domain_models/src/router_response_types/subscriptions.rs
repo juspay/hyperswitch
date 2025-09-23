@@ -1,5 +1,30 @@
-use common_utils::types::MinorUnit;
+use common_enums::Currency;
+use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
+
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCreateResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub customer_id: id_type::CustomerId,
+    pub currency_code: Currency,
+    pub total_amount: MinorUnit,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    pub created_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SubscriptionStatus {
+    Pending,
+    Trial,
+    Active,
+    Paused,
+    Unpaid,
+    Onetime,
+    Cancelled,
+    Failed,
+}
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansResponse {
@@ -14,13 +39,38 @@ pub struct SubscriptionPlans {
 }
 
 #[derive(Debug, Clone)]
+pub struct GetSubscriptionPlanPricesResponse {
+    pub list: Vec<SubscriptionPlanPrices>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionPlanPrices {
+    pub price_id: String,
+    pub plan_id: Option<String>,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub interval: PeriodUnit,
+    pub interval_count: i64,
+    pub trial_period: Option<i64>,
+    pub trial_period_unit: Option<PeriodUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PeriodUnit {
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+#[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimateResponse {
     pub sub_total: MinorUnit,
     pub total: MinorUnit,
     pub credits_applied: Option<MinorUnit>,
     pub amount_paid: Option<MinorUnit>,
     pub amount_due: Option<MinorUnit>,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub line_items: Vec<SubscriptionLineItem>,
 }
@@ -31,7 +81,7 @@ pub struct SubscriptionLineItem {
     pub item_type: String,
     pub description: String,
     pub amount: MinorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub unit_amount: Option<MinorUnit>,
     pub quantity: i64,
     pub pricing_model: Option<String>,

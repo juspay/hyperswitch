@@ -151,7 +151,13 @@ pub struct FilesFlowData {
 pub struct InvoiceRecordBackData;
 
 #[derive(Debug, Clone)]
+pub struct SubscriptionCreateData;
+
+#[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansData;
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionPlanPricesData;
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimateData;
