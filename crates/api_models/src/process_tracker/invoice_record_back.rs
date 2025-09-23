@@ -1,9 +1,9 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceRecordBackTrackingData {
     pub payment_id: common_utils::id_type::PaymentId,
-    pub subscription_id: String,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
     pub billing_processor_mca_id: common_utils::id_type::MerchantConnectorAccountId,
-    pub invoice_id: String,
+    pub invoice_id: common_utils::id_type::InvoiceId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub customer_id: common_utils::id_type::CustomerId,
@@ -16,9 +16,9 @@ pub struct InvoiceRecordBackTrackingData {
 impl InvoiceRecordBackTrackingData {
     pub fn new(
         payment_id: common_utils::id_type::PaymentId,
-        subscription_id: String,
+        subscription_id: common_utils::id_type::SubscriptionId,
         billing_processor_mca_id: common_utils::id_type::MerchantConnectorAccountId,
-        invoice_id: String,
+        invoice_id: common_utils::id_type::InvoiceId,
         merchant_id: common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
         customer_id: common_utils::id_type::CustomerId,

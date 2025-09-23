@@ -244,6 +244,7 @@ pub struct InvoiceRecordBackHandler<'a> {
         hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
         hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
         hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse>,
+    pub invoice: diesel_models::invoice::Invoice,
     // To have an invoice object as well 
 }
 
