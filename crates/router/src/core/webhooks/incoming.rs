@@ -816,6 +816,9 @@ async fn process_webhook_business_logic(
             ))
             .await
             .attach_printable("Incoming webhook flow for subscription failed"),
+
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
         }
     };
 
@@ -2602,12 +2605,7 @@ async fn subscription_incoming_webhook_flow(
         .store
         .find_by_merchant_id_subscription_id(
             merchant_context.get_merchant_account().get_id(),
-            mit_payment_data
-                .subscription_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing subscription_id in MIT payment data")?
-                .clone(),
+            mit_payment_data.subscription_id.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

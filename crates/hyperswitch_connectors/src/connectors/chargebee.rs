@@ -1211,11 +1211,7 @@ impl webhooks::IncomingWebhook for Chargebee {
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        let subscription_id = webhook
-            .content
-            .invoice
-            .subscription_id
-            .unwrap_or_else(|| webhook.content.invoice.id.clone());
+        let subscription_id = webhook.content.invoice.subscription_id;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::PaymentIntentId(
                 common_utils::id_type::PaymentId::wrap(subscription_id)
