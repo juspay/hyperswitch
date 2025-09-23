@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use cards::CardNumber;
-use common_enums::{enums, Currency};
+use common_enums::{enums, CountryAlpha2, Currency};
 use common_types::payments::{ApplePayPaymentData, ApplePayPredecryptData};
 use common_utils::{
     id_type,
@@ -270,14 +270,12 @@ pub struct PaysafeApplePayPaymentMethod {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayBillingContact {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub address_lines: Option<Vec<Secret<String>>>,
+    pub address_lines: Vec<Option<Secret<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country_code: Option<String>,
+    pub country_code: CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub family_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -288,8 +286,7 @@ pub struct PaysafeApplePayBillingContact {
     pub phonetic_family_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phonetic_given_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sub_administrative_area: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -921,7 +918,23 @@ impl
                 },
                 transaction_identifier: wallet_data.transaction_identifier.clone(),
             },
-            billing_contact: None,
+            billing_contact: Some(PaysafeApplePayBillingContact {
+                address_lines: vec![
+                    item.router_data.get_optional_billing_line1(),
+                    item.router_data.get_optional_billing_line2(),
+                ],
+                postal_code: item.router_data.get_billing_zip()?,
+                country_code: item.router_data.get_billing_country()?,
+                country: None,
+                family_name: None,
+                given_name: None,
+                locality: None,
+                phonetic_family_name: None,
+                phonetic_given_name: None,
+                sub_administrative_area: None,
+                administrative_area: None,
+                sub_locality: None,
+            }),
         };
 
         Ok(Self {
