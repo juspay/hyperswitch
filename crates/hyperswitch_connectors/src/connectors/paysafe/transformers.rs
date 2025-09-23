@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
-use common_types::payments::ApplePayPaymentData;
+use common_types::payments::{ApplePayPaymentData, ApplePayPredecryptData};
 use common_utils::{
     id_type,
     pii::{Email, IpAddress, SecretSerdeValue},
@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, GiftCardData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, PaymentsSyncData,
@@ -811,6 +811,40 @@ struct DecryptedApplePayTokenHeader {
     transaction_id: String,
 }
 
+fn get_apple_pay_decrypt_data(
+    apple_pay_predecrypt_data: &ApplePayPredecryptData,
+    item: &PaysafeRouterData<&PaymentsPreProcessingRouterData>,
+) -> Result<PaysafeApplePayDecryptedData, error_stack::Report<errors::ConnectorError>> {
+    Ok(PaysafeApplePayDecryptedData {
+        application_primary_account_number: apple_pay_predecrypt_data
+            .application_primary_account_number
+            .clone(),
+        application_expiration_date: apple_pay_predecrypt_data
+            .get_expiry_date_as_yymm()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "application_expiration_date",
+            })?,
+        currency_code: item.router_data.request.currency,
+        transaction_amount: Some(item.amount),
+        cardholder_name: None,
+        device_manufacturer_identifier: Some("Apple".to_string()),
+        payment_data_type: Some("3DSecure".to_string()),
+        payment_data: PaysafeApplePayDecryptedPaymentData {
+            online_payment_cryptogram: apple_pay_predecrypt_data
+                .payment_data
+                .online_payment_cryptogram
+                .clone(),
+            eci_indicator: apple_pay_predecrypt_data
+                .payment_data
+                .eci_indicator
+                .clone()
+                .ok_or_else(missing_field_err(
+                    "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
+                ))?,
+        },
+    })
+}
+
 impl
     TryFrom<(
         &ApplePayWalletData,
@@ -826,53 +860,56 @@ impl
     ) -> Result<Self, Self::Error> {
         let apple_pay_payment_token = PaysafeApplePayPaymentToken {
             token: PaysafeApplePayToken {
-                payment_data: match &wallet_data.payment_data {
-                    ApplePayPaymentData::Decrypted(applepay_predecrypt_data) => {
-                        PaysafeApplePayPaymentData::Decrypted(PaysafeApplePayDecryptedDataWrapper {
-                            decrypted_data: PaysafeApplePayDecryptedData {
-                                application_primary_account_number: applepay_predecrypt_data.application_primary_account_number.clone(),
-                                application_expiration_date: applepay_predecrypt_data.get_expiry_date_as_yymm().change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "application_expiration_date",
-                                })?,
-                                currency_code: item.router_data.request.currency,
-                                transaction_amount: Some(item.amount),
-                                cardholder_name: None,
-                                device_manufacturer_identifier: Some("Apple".to_string()),
-                                payment_data_type: Some("3DSecure".to_string()),
-                                payment_data: PaysafeApplePayDecryptedPaymentData {
-                                    online_payment_cryptogram: applepay_predecrypt_data.payment_data.online_payment_cryptogram.clone(),
-                                    eci_indicator: applepay_predecrypt_data.payment_data.eci_indicator.clone()
-                                        .ok_or_else(missing_field_err("payment_method_data.wallet.apple_pay.payment_data.eci_indicator"))?,
-                                }
-                            }
-                        })
-                    }
-                    ApplePayPaymentData::Encrypted(applepay_encrypt_data) => {
-                                let decoded_data = base64::prelude::BASE64_STANDARD.decode(applepay_encrypt_data)
-                                    .change_context(errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_encrypted_data",
-                                    })?;
+                payment_data: if let Ok(PaymentMethodToken::ApplePayDecrypt(ref token)) =
+                    item.router_data.get_payment_method_token()
+                {
+                    PaysafeApplePayPaymentData::Decrypted(PaysafeApplePayDecryptedDataWrapper {
+                        decrypted_data: get_apple_pay_decrypt_data(token, item)?,
+                    })
+                } else {
+                    match &wallet_data.payment_data {
+                        ApplePayPaymentData::Decrypted(applepay_predecrypt_data) => {
+                            PaysafeApplePayPaymentData::Decrypted(
+                                PaysafeApplePayDecryptedDataWrapper {
+                                    decrypted_data: get_apple_pay_decrypt_data(
+                                        applepay_predecrypt_data,
+                                        item,
+                                    )?,
+                                },
+                            )
+                        }
+                        ApplePayPaymentData::Encrypted(applepay_encrypt_data) => {
+                            let decoded_data = base64::prelude::BASE64_STANDARD
+                                .decode(applepay_encrypt_data)
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "apple_pay_encrypted_data",
+                                })?;
 
-                                let apple_pay_token: DecryptedApplePayTokenData = serde_json::from_slice(&decoded_data)
-                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                            let apple_pay_token: DecryptedApplePayTokenData =
+                                serde_json::from_slice(&decoded_data).change_context(
+                                    errors::ConnectorError::InvalidDataFormat {
                                         field_name: "apple_pay_token_json",
-                                    })?;
-
-                                PaysafeApplePayPaymentData::Encrypted(PaysafeApplePayEncryptedData {
-                                    data: apple_pay_token.data,
-                                    signature: apple_pay_token.signature,
-                                    header: PaysafeApplePayHeader {
-                                        public_key_hash: apple_pay_token.header.public_key_hash,
-                                        ephemeral_public_key: apple_pay_token.header.ephemeral_public_key,
-                                        transaction_id: apple_pay_token.header.transaction_id,
                                     },
-                                    version: apple_pay_token.version,
-                                })
+                                )?;
+
+                            PaysafeApplePayPaymentData::Encrypted(PaysafeApplePayEncryptedData {
+                                data: apple_pay_token.data,
+                                signature: apple_pay_token.signature,
+                                header: PaysafeApplePayHeader {
+                                    public_key_hash: apple_pay_token.header.public_key_hash,
+                                    ephemeral_public_key: apple_pay_token
+                                        .header
+                                        .ephemeral_public_key,
+                                    transaction_id: apple_pay_token.header.transaction_id,
+                                },
+                                version: apple_pay_token.version,
+                            })
+                        }
                     }
                 },
                 payment_method: PaysafeApplePayPaymentMethod {
                     display_name: Secret::new(wallet_data.payment_method.display_name.clone()),
-                        network: Secret::new(wallet_data.payment_method.network.clone()),
+                    network: Secret::new(wallet_data.payment_method.network.clone()),
                     method_type: Secret::new(wallet_data.payment_method.pm_type.clone()),
                 },
                 transaction_identifier: wallet_data.transaction_identifier.clone(),
