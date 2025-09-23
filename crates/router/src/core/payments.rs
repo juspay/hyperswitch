@@ -220,7 +220,7 @@ where
     let mut connector_http_status_code = None;
     let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, updated_customer, router_data, tokenization_action) =
                 call_connector_service_prerequisites(
                     state,
                     req_state.clone(),
@@ -260,6 +260,7 @@ where
                 mca_type_details,
                 router_data,
                 updated_customer,
+                tokenization_action,
             )
             .await?;
 
@@ -300,7 +301,7 @@ where
             let mut connectors = connectors.clone().into_iter();
             let connector_data = get_connector_data(&mut connectors)?;
 
-            let (mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, updated_customer, router_data, tokenization_action) =
                 call_connector_service_prerequisites(
                     state,
                     req_state.clone(),
@@ -340,6 +341,7 @@ where
                 mca_type_details,
                 router_data,
                 updated_customer,
+                tokenization_action,
             )
             .await?;
 
@@ -4387,6 +4389,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
+    tokenization_action: TokenizationAction,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4416,7 +4419,20 @@ where
         &mut router_data,
         &call_connector_action,
     );
-
+    let payment_method_token_response = router_data
+        .add_payment_method_token(
+            state,
+            &connector,
+            &tokenization_action,
+            should_continue_further,
+        )
+        .await?;
+    let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
+        payment_method_token_response,
+        &mut router_data,
+        is_retry_payment,
+        should_continue_further,
+    );
     let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?
@@ -4517,6 +4533,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     domain::MerchantConnectorAccountTypeDetails,
     Option<storage::CustomerUpdate>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    TokenizationAction,
 )>
 where
     F: Send + Clone + Sync,
@@ -4572,10 +4589,23 @@ where
         )
         .await?;
 
+    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
+        state,
+        operation,
+        payment_data,
+        merchant_context.get_merchant_key_store(),
+        customer,
+        business_profile,
+        should_retry_with_pan,
+    )
+    .await?;
+    *payment_data = pd;
+
     Ok((
         merchant_connector_account_type_details,
         updated_customer,
         router_data,
+        tokenization_action,
     ))
 }
 
@@ -4640,25 +4670,29 @@ where
             .await?,
         ));
 
-    let (merchant_connector_account_type_details, updated_customer, router_data) =
-        call_connector_service_prerequisites(
-            state,
-            req_state,
-            merchant_context,
-            connector,
-            operation,
-            payment_data,
-            customer,
-            call_connector_action,
-            schedule_time,
-            header_payload,
-            frm_suggestion,
-            business_profile,
-            is_retry_payment,
-            should_retry_with_pan,
-            all_keys_required,
-        )
-        .await?;
+    let (
+        merchant_connector_account_type_details,
+        updated_customer,
+        router_data,
+        _tokenization_action,
+    ) = call_connector_service_prerequisites(
+        state,
+        req_state,
+        merchant_context,
+        connector,
+        operation,
+        payment_data,
+        customer,
+        call_connector_action,
+        schedule_time,
+        header_payload,
+        frm_suggestion,
+        business_profile,
+        is_retry_payment,
+        should_retry_with_pan,
+        all_keys_required,
+    )
+    .await?;
     Ok((
         merchant_connector_account_type_details,
         external_vault_merchant_connector_account_type_details,
@@ -4884,6 +4918,7 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
+    tokenization_action: TokenizationAction,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4975,6 +5010,7 @@ where
                 merchant_connector_account_type_details,
                 router_data,
                 updated_customer,
+                tokenization_action,
             )
             .await
         }
@@ -6892,6 +6928,53 @@ where
     Ok(merchant_connector_account)
 }
 
+#[cfg(feature = "v2")]
+fn is_payment_method_tokenization_enabled_for_connector(
+    state: &SessionState,
+    connector_name: &str,
+    payment_method: storage::enums::PaymentMethod,
+    payment_method_type: Option<storage::enums::PaymentMethodType>,
+    payment_method_token: Option<&PaymentMethodToken>,
+    mandate_flow_enabled: storage_enums::FutureUsage,
+) -> RouterResult<bool> {
+    let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
+
+    Ok(connector_tokenization_filter
+        .map(|connector_filter| {
+            connector_filter
+                .payment_method
+                .clone()
+                .contains(&payment_method)
+                && is_payment_method_type_allowed_for_connector(
+                    payment_method_type,
+                    connector_filter.payment_method_type.clone(),
+                )
+                && is_apple_pay_pre_decrypt_type_connector_tokenization(
+                    payment_method_type,
+                    payment_method_token,
+                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
+                )
+                && is_payment_flow_allowed_for_connector(
+                    mandate_flow_enabled,
+                    connector_filter.flow.clone(),
+                )
+        })
+        .unwrap_or(false))
+}
+#[cfg(feature = "v2")]
+fn is_payment_flow_allowed_for_connector(
+    mandate_flow_enabled: storage_enums::FutureUsage,
+    payment_flow: Option<PaymentFlow>,
+) -> bool {
+    if payment_flow.is_none() {
+        true
+    } else {
+        matches!(payment_flow, Some(PaymentFlow::Mandates))
+            && matches!(mandate_flow_enabled, storage_enums::FutureUsage::OffSession)
+    }
+}
+
+#[cfg(feature = "v1")]
 fn is_payment_method_tokenization_enabled_for_connector(
     state: &SessionState,
     connector_name: &str,
@@ -6924,7 +7007,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
         })
         .unwrap_or(false))
 }
-
+#[cfg(feature = "v1")]
 fn is_payment_flow_allowed_for_connector(
     mandate_flow_enabled: Option<storage_enums::FutureUsage>,
     payment_flow: Option<PaymentFlow>,
@@ -7207,21 +7290,90 @@ pub enum TokenizationAction {
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
-    _state: &SessionState,
-    _operation: &BoxedOperation<'_, F, Req, D>,
+    state: &SessionState,
+    operation: &BoxedOperation<'_, F, Req, D>,
     payment_data: &mut D,
-    _validate_result: &operations::ValidateResult,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _customer: &Option<domain::Customer>,
-    _business_profile: &domain::Profile,
+    merchant_key_store: &domain::MerchantKeyStore,
+    customer: &Option<domain::Customer>,
+    business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    // TODO: Implement this function
-    let payment_data = payment_data.to_owned();
-    Ok((payment_data, TokenizationAction::SkipConnectorTokenization))
+    let connector = payment_data.get_payment_attempt().connector.to_owned();
+
+    let is_mandate = payment_data
+        .get_mandate_id()
+        .as_ref()
+        .and_then(|inner| inner.mandate_reference_id.as_ref())
+        .map(|mandate_reference| match mandate_reference {
+            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+            api_models::payments::MandateReferenceId::NetworkMandateId(_)
+            | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+        })
+        .unwrap_or(false);
+
+    let payment_data_and_tokenization_action = match connector {
+        Some(_) if is_mandate => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
+        Some(connector) if is_operation_confirm(&operation) => {
+            let payment_method = payment_data
+                .get_payment_attempt()
+                .get_payment_method()
+                .get_required_value("payment_method")?;
+            let payment_method_type = payment_data.get_payment_attempt().get_payment_method_type();
+
+            let mandate_flow_enabled = payment_data.get_payment_intent().setup_future_usage;
+
+            let is_connector_tokenization_enabled =
+                is_payment_method_tokenization_enabled_for_connector(
+                    state,
+                    &connector,
+                    payment_method,
+                    payment_method_type,
+                    payment_data.get_payment_method_token(),
+                    mandate_flow_enabled,
+                )?;
+
+            let payment_method_action = decide_payment_method_tokenize_action(
+                state,
+                &connector,
+                payment_method,
+                payment_data.get_payment_intent().clone(),
+                payment_data.get_token(),
+                is_connector_tokenization_enabled,
+            )
+            .await?;
+
+            let connector_tokenization_action = match payment_method_action {
+                TokenizationAction::TokenizeInRouter => {
+                    TokenizationAction::SkipConnectorTokenization
+                }
+                TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
+                TokenizationAction::TokenizeInConnectorAndRouter => {
+                    TokenizationAction::TokenizeInConnector
+                }
+                TokenizationAction::ConnectorToken(token) => {
+                    payment_data.set_pm_token(token);
+                    TokenizationAction::SkipConnectorTokenization
+                }
+                TokenizationAction::SkipConnectorTokenization => {
+                    TokenizationAction::SkipConnectorTokenization
+                }
+            };
+            (payment_data.to_owned(), connector_tokenization_action)
+        }
+        _ => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
+    };
+
+    Ok(payment_data_and_tokenization_action)
 }
 
 #[cfg(feature = "v1")]
@@ -7658,8 +7810,14 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+}
+
+#[cfg(feature = "v2")]
+pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "PaymentIntentConfirm")
 }
 
 pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
@@ -11320,15 +11478,15 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod> {
-        todo!()
+        self.payment_method.as_ref()
     }
 
     fn get_payment_method_token(&self) -> Option<&PaymentMethodToken> {
-        todo!()
+        None
     }
 
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
-        todo!()
+        self.mandate_data.as_ref()
     }
 
     fn get_address(&self) -> &PaymentAddress {
@@ -11340,7 +11498,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_token(&self) -> Option<&str> {
-        todo!()
+        None
     }
 
     fn get_multiple_capture_data(&self) -> Option<&types::MultipleCaptureData> {
@@ -11484,8 +11642,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt = payment_attempt;
     }
 
-    fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
-        todo!()
+    fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
+        self.payment_method_data = payment_method_data;
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
