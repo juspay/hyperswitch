@@ -19036,7 +19036,7 @@
           "split_payment_method_data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SplitPaymentMethodData"
+              "$ref": "#/components/schemas/SplitPaymentMethodDataRequest"
             },
             "description": "The payment instrument data to be used for the payment in case of split payments",
             "nullable": true
@@ -24974,7 +24974,7 @@
           "created"
         ]
       },
-      "SplitPaymentMethodData": {
+      "SplitPaymentMethodDataRequest": {
         "type": "object",
         "required": [
           "payment_method_data",

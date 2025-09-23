@@ -2661,7 +2661,7 @@ pub struct PaymentMethodDataRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct SplitPaymentMethodData {
+pub struct SplitPaymentMethodDataRequest {
     pub payment_method_data: PaymentMethodData,
     #[schema(value_type = PaymentMethod)]
     pub payment_method_type: api_enums::PaymentMethod,
@@ -5773,7 +5773,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_data: PaymentMethodDataRequest,
 
     /// The payment instrument data to be used for the payment in case of split payments
-    pub split_payment_method_data: Option<Vec<SplitPaymentMethodData>>,
+    pub split_payment_method_data: Option<Vec<SplitPaymentMethodDataRequest>>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
