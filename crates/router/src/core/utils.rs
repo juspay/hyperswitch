@@ -2613,7 +2613,10 @@ pub fn should_proceed_with_accept_dispute(
 ) -> bool {
     matches!(
         dispute_stage,
-        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration | DisputeStage::Arbitration
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
     ) && matches!(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
