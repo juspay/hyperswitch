@@ -1188,14 +1188,14 @@ pub struct AciCaptureResultDetails {
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
-pub enum AciCaptureStatus {
+pub enum AciStatus {
     Succeeded,
     Failed,
     #[default]
     Pending,
 }
 
-impl FromStr for AciCaptureStatus {
+impl FromStr for AciStatus {
     type Err = error_stack::Report<errors::ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if FAILURE_CODES.contains(&s) {
@@ -1212,11 +1212,11 @@ impl FromStr for AciCaptureStatus {
     }
 }
 
-fn map_aci_capture_status(item: AciCaptureStatus) -> enums::AttemptStatus {
+fn map_aci_capture_status(item: AciStatus) -> enums::AttemptStatus {
     match item {
-        AciCaptureStatus::Succeeded => enums::AttemptStatus::Charged,
-        AciCaptureStatus::Failed => enums::AttemptStatus::Failure,
-        AciCaptureStatus::Pending => enums::AttemptStatus::Pending,
+        AciStatus::Succeeded => enums::AttemptStatus::Charged,
+        AciStatus::Failed => enums::AttemptStatus::Failure,
+        AciStatus::Pending => enums::AttemptStatus::Pending,
     }
 }
 
@@ -1227,8 +1227,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
     fn try_from(
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status =
-            map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?);
+        let status = map_aci_capture_status(AciStatus::from_str(&item.response.result.code)?);
         let response = if status == enums::AttemptStatus::Failure {
             Err(ErrorResponse {
                 code: item.response.result.code.clone(),
@@ -1279,11 +1278,11 @@ pub struct AciVoidResponse {
     ndc: Secret<String>,
 }
 
-fn map_aci_void_status(item: AciCaptureStatus) -> enums::AttemptStatus {
+fn map_aci_void_status(item: AciStatus) -> enums::AttemptStatus {
     match item {
-        AciCaptureStatus::Succeeded => enums::AttemptStatus::Voided,
-        AciCaptureStatus::Failed => enums::AttemptStatus::VoidFailed,
-        AciCaptureStatus::Pending => enums::AttemptStatus::VoidInitiated,
+        AciStatus::Succeeded => enums::AttemptStatus::Voided,
+        AciStatus::Failed => enums::AttemptStatus::VoidFailed,
+        AciStatus::Pending => enums::AttemptStatus::VoidInitiated,
     }
 }
 
@@ -1294,7 +1293,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
     fn try_from(
         item: ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = map_aci_void_status(AciCaptureStatus::from_str(&item.response.result.code)?);
+        let status = map_aci_void_status(AciStatus::from_str(&item.response.result.code)?);
         let response = if status == enums::AttemptStatus::Failure {
             Err(ErrorResponse {
                 code: item.response.result.code.clone(),
