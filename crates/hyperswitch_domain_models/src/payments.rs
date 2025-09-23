@@ -191,9 +191,12 @@ impl PaymentIntent {
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
 
         let is_extended_authorization_requested = intent_request_extended_authorization_optional
-        .map(|should_request_extended_authorization| *should_request_extended_authorization)
-        .or(always_request_extended_authorization_optional.map(|should_always_request_extended_authorization| *should_always_request_extended_authorization));
-
+            .map(|should_request_extended_authorization| *should_request_extended_authorization)
+            .or(always_request_extended_authorization_optional.map(
+                |should_always_request_extended_authorization| {
+                    *should_always_request_extended_authorization
+                },
+            ));
 
         is_extended_authorization_requested
             .map(|requested| {
