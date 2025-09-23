@@ -50,6 +50,14 @@ pub struct Invoice {
     pub modified_at: time::PrimitiveDateTime,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
+#[diesel(table_name = invoice)]
+pub struct InvoiceUpdate {
+    pub status: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub modified_at: time::PrimitiveDateTime,
+}
+
 impl InvoiceNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
