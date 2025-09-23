@@ -435,6 +435,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PhoneDetails,
         api_models::payments::PaymentMethodData,
         api_models::payments::PaymentMethodDataRequest,
+        api_models::payments::SplitPaymentMethodData,
         api_models::payments::MandateType,
         api_models::payments::MandateAmountData,
         api_models::payments::Card,
