@@ -124,7 +124,7 @@ async fn perform_subscription_invoice_record_back(
     } else if status == common_enums::IntentStatus::Processing {
         let db = &*state.store;
         let connector = billing_processor_mca.connector_name.clone();
-        let is_last_retry = workflows::payment_sync::retry_sync_task(
+        let is_last_retry = workflows::payment_sync::retry_subscription_psync_task(
             db,
             connector,
             merchant_account.get_id().to_owned(),
