@@ -1656,29 +1656,35 @@ pub async fn create_payout(
     )
     .await?;
 
-    // 3. Fetch connector integration details
-    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
-        api::PoCreate,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > = connector_data.connector.get_connector_integration();
+    // 3. Execute pretasks
+    if helpers::should_continue_payout(&router_data) {
+        complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
+    };
 
-    // 4. Execute pretasks
-    complete_payout_quote_steps_if_required(state, connector_data, &mut router_data).await?;
+    // 4. Call connector service
+    let router_data_resp = match helpers::should_continue_payout(&router_data) {
+        true => {
+            let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
+                api::PoCreate,
+                types::PayoutsData,
+                types::PayoutsResponseData,
+            > = connector_data.connector.get_connector_integration();
 
-    // 5. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_payout_failed_response()?;
+            services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payout_failed_response()?
+        }
+        false => router_data,
+    };
 
-    // 6. Process data returned by the connector
+    // 5. Process data returned by the connector
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
@@ -1880,26 +1886,30 @@ pub async fn create_payout_retrieve(
     )
     .await?;
 
-    // 3. Fetch connector integration details
-    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
-        api::PoSync,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > = connector_data.connector.get_connector_integration();
+    // 3. Call connector service
+    let router_data_resp = match helpers::should_continue_payout(&router_data) {
+        true => {
+            let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
+                api::PoSync,
+                types::PayoutsData,
+                types::PayoutsResponseData,
+            > = connector_data.connector.get_connector_integration();
 
-    // 4. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_payout_failed_response()?;
+            services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payout_failed_response()?
+        }
+        false => router_data,
+    };
 
-    // 5. Process data returned by the connector
+    // 4. Process data returned by the connector
     update_retrieve_payout_tracker(state, merchant_context, payout_data, &router_data_resp).await?;
 
     Ok(())
@@ -2383,26 +2393,30 @@ pub async fn fulfill_payout(
     )
     .await?;
 
-    // 3. Fetch connector integration details
-    let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
-        api::PoFulfill,
-        types::PayoutsData,
-        types::PayoutsResponseData,
-    > = connector_data.connector.get_connector_integration();
+    // 3. Call connector service
+    let router_data_resp = match helpers::should_continue_payout(&router_data) {
+        true => {
+            let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
+                api::PoFulfill,
+                types::PayoutsData,
+                types::PayoutsResponseData,
+            > = connector_data.connector.get_connector_integration();
 
-    // 4. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_payout_failed_response()?;
+            services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_payout_failed_response()?
+        }
+        false => router_data,
+    };
 
-    // 5. Process data returned by the connector
+    // 4. Process data returned by the connector
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
