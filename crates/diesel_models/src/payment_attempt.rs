@@ -529,6 +529,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        is_stored_credential: Option<bool>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -2793,6 +2794,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2856,7 +2858,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
-                is_stored_credential: None,
+                is_stored_credential,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
