@@ -90,14 +90,6 @@ async fn perform_subscription_invoice_record_back(
         )
         .await?;
 
-    let profile = state
-        .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            &tracking_data.profile_id,
-        )
-        .await?;
 
     // Call Payemnt Sync API
     // If payment is successful, record back to billing processor
@@ -169,7 +161,7 @@ pub async fn perform_billing_processor_record_back(
         .await?;
 
     handler.record_back_to_billing_processor().await?;
-    handler.update_invoice_status().await?;
+    let _handler = handler.update_invoice_status().await?;
 
     Ok(())
 }
@@ -178,9 +170,9 @@ pub async fn create_invoice_record_back_job(
     state: &SessionState,
     _key_store: &domain::MerchantKeyStore,
     payment_id: common_utils::id_type::PaymentId,
-    subscription_id: String,
+    subscription_id: common_utils::id_type::SubscriptionId,
     billing_processor_mca_id: common_utils::id_type::MerchantConnectorAccountId,
-    invoice_id: String,
+    invoice_id: common_utils::id_type::InvoiceId,
     merchant_id: common_utils::id_type::MerchantId,
     profile_id: common_utils::id_type::ProfileId,
     customer_id: common_utils::id_type::CustomerId,
@@ -240,10 +232,6 @@ pub struct InvoiceRecordBackHandler<'a> {
         &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub customer_id: &'a common_utils::id_type::CustomerId,
-    pub router_data: hyperswitch_domain_models::router_data::RouterData<
-        hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
-        hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
-        hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse>,
     pub invoice: diesel_models::invoice::Invoice,
     // To have an invoice object as well 
 }
@@ -255,14 +243,43 @@ impl<'a> InvoiceRecordBackHandler<'a> {
         tracking_data: &'a api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
         billing_processor_mca: &'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
     ) -> CustomResult<Self, crate::errors::ApiErrorResponse> {
-        let auth_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
-            billing_processor_mca.clone(),
+       
+        let invoice = state
+            .store
+            .find_invoice_by_invoice_id(tracking_data.invoice_id.get_string_repr().to_string())
+            .await
+            .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch invoice from DB")?;
+
+        Ok(Self {
+            state,
+            key_store,
+            tracking_data,
+            billing_processor_mca,
+            merchant_id: &tracking_data.merchant_id,
+            customer_id: &tracking_data.customer_id,
+            invoice,
+        })
+    }
+
+    pub fn create_router_data(
+        &self,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_data::RouterData<
+            hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
+            hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
+            hyperswitch_domain_models::router_response_types::revenue_recovery::InvoiceRecordBackResponse,
+        >,
+        crate::errors::ApiErrorResponse,
+    > { 
+          let auth_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            self.billing_processor_mca.clone(),
         ))
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(crate::errors::ApiErrorResponse::InternalServerError)?;
 
-        let connector = billing_processor_mca.connector_name.clone();
+        let connector = self.billing_processor_mca.connector_name.clone();
 
         let connector_enum = common_enums::connector_enums::Connector::from_str(connector.as_str())
             .change_context(crate::errors::ApiErrorResponse::InternalServerError)
@@ -270,7 +287,7 @@ impl<'a> InvoiceRecordBackHandler<'a> {
 
         let connector_params =
             hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
-                &state.conf.connectors,
+                &self.state.conf.connectors,
                 connector_enum,
             )
             .change_context(crate::errors::ApiErrorResponse::InternalServerError)
@@ -278,26 +295,26 @@ impl<'a> InvoiceRecordBackHandler<'a> {
                 "cannot find connector params for this connector {connector} in this flow",
             ))?;
 
-        let request = hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest {
-            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&tracking_data.invoice_id)
+         let request = hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest {
+            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(self.tracking_data.invoice_id.get_string_repr())
             .change_context(crate::errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse invoice id")?,
-            amount:tracking_data.amount, 
-            currency: tracking_data.currency, 
-            payment_method_type: tracking_data.payment_method_type, 
+            amount:self.tracking_data.amount, 
+            currency: self.tracking_data.currency, 
+            payment_method_type: self.tracking_data.payment_method_type, 
             attempt_status: common_enums::AttemptStatus::Charged, 
             connector_transaction_id: None, 
             connector_params,
         };
 
-        let router_data = hyperswitch_domain_models::router_data::RouterData {
+        Ok(hyperswitch_domain_models::router_data::RouterData {
             flow: std::marker::PhantomData,
-            merchant_id: tracking_data.merchant_id.to_owned(),
-            customer_id: Some(tracking_data.customer_id.to_owned()),
+            merchant_id: self.tracking_data.merchant_id.to_owned(),
+            customer_id: Some(self.tracking_data.customer_id.to_owned()),
             connector_customer: None,
             connector,
             payment_id: "DefaultPaymentId".to_string(),
-            tenant_id: state.tenant.tenant_id.clone(),
+            tenant_id: self.state.tenant.tenant_id.clone(),
             attempt_id: "Subscriptions attempt".to_owned(),
             status: common_enums::AttemptStatus::default(),
             payment_method: common_enums::PaymentMethod::default(),
@@ -343,16 +360,6 @@ impl<'a> InvoiceRecordBackHandler<'a> {
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
-        };
-
-        Ok(Self {
-            state,
-            key_store,
-            tracking_data,
-            billing_processor_mca,
-            merchant_id: &tracking_data.merchant_id,
-            customer_id: &tracking_data.customer_id,
-            router_data,
         })
     }
 
@@ -370,6 +377,8 @@ impl<'a> InvoiceRecordBackHandler<'a> {
             "invalid connector name received in billing merchant connector account",
         )?;
 
+        let router_data = self.create_router_data()?;
+
         let connector_integration: services::BoxedRevenueRecoveryRecordBackInterface<
         hyperswitch_domain_models::router_flow_types::InvoiceRecordBack,
         hyperswitch_domain_models::router_request_types::revenue_recovery::InvoiceRecordBackRequest,
@@ -379,7 +388,7 @@ impl<'a> InvoiceRecordBackHandler<'a> {
         services::execute_connector_processing_step(
             self.state,
             connector_integration,
-            &self.router_data,
+            &router_data,
             common_enums::CallConnectorAction::Trigger,
             None,
             None,
@@ -399,8 +408,25 @@ impl<'a> InvoiceRecordBackHandler<'a> {
 
     pub async fn update_invoice_status(
         &self,
-    ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
+    ) -> CustomResult<Self, crate::errors::ApiErrorResponse> {
         // Update the invoice status in DB
-        Ok(())
+        let invoice_update = diesel_models::invoice::InvoiceUpdate::new(None, Some(common_enums::connector_enums::InvoiceStatus::InvoicePaid));
+        let updated_invoice = self.state
+            .store
+            .update_invoice_entry(self.invoice.id.get_string_repr().to_string(), invoice_update)
+            .await
+            .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update invoice status in DB")?;
+
+       Ok(Self {
+            state: self.state,
+            key_store: self.key_store,
+            tracking_data: self.tracking_data,
+            billing_processor_mca: self.billing_processor_mca,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            invoice: updated_invoice,
+        })
+   
     }
 }
