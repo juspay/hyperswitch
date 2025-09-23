@@ -36,11 +36,9 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::Card(req_card)) => {
-                Ok(Self {
-                    data: req_card.card_number.clone(),
-                })
-            }
+            Some(PaymentMethodVaultingData::Card(req_card)) => Ok(Self {
+                data: req_card.card_number.clone(),
+            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method apart from card".to_string(),
             )
@@ -107,9 +105,8 @@ impl
                     }),
                     ..item.data
                 })
-            },
+            }
             false => {
-
                 let (code, message) = resp.error.split_once(':').unwrap_or(("", ""));
 
                 let response = Err(ErrorResponse {
@@ -129,7 +126,6 @@ impl
                     response,
                     ..item.data
                 })
-
             }
         }
     }
