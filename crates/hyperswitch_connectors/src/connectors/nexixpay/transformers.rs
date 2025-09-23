@@ -415,6 +415,7 @@ pub struct NexixpayCard {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct Recurrence {
     action: String,
 }

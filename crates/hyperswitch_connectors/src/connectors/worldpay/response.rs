@@ -259,6 +259,7 @@ pub struct EventLinks {
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct PaymentLink {
     pub href: String,
 }
@@ -457,6 +458,7 @@ pub struct WorldpayWebhookEventType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub enum WorldpayWebhookStatus {
     SentForSettlement,
     Authorized,

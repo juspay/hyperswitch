@@ -117,6 +117,7 @@ struct CreditCardDetails {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct BankAccountDetails {
     account_number: Secret<String>,
 }

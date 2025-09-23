@@ -50,6 +50,7 @@ pub struct PayloadCardsResponseData {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
 pub struct PayloadCardResponse {
     pub card_brand: String,
     pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"

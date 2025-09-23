@@ -53,6 +53,7 @@ pub struct Card {
 /// transaction.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum ApmProvider {
     Giropay,
     Ideal,
@@ -114,6 +115,7 @@ pub enum GlobalpayWebhookStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(dead_code)]
 pub enum GlobalpayPaymentMethodStatus {
     /// The entity is ACTIVE and can be used.
     Active,

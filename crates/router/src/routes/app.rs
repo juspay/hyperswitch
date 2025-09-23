@@ -233,7 +233,7 @@ impl SessionStateInfo for SessionState {
     fn session_state(&self) -> SessionState {
         self.clone()
     }
-    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
     }
 }
