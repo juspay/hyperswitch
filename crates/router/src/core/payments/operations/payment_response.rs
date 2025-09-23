@@ -5,10 +5,8 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
-    ext_traits::{AsyncExt, Encode},
+    ext_traits::{AsyncExt, Encode, ValueExt},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
 use error_stack::{report, ResultExt};
@@ -1409,45 +1407,42 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     // This is for details like whether 3ds was upgraded and which version of 3ds was used
     // also some connectors might send card network details in the response, which is captured and stored
 
+    let additional_payment_data: Option<api_models::payments::AdditionalPaymentData> = payment_data
+        .payment_attempt
+        .payment_method_data
+        .clone()
+        .and_then(|data| match data {
+            serde_json::Value::Null => None,
+            _ => Some(
+                data.parse_value::<api_models::payments::AdditionalPaymentData>(
+                    "AdditionalPaymentData",
+                ),
+            ),
+        })
+        .transpose()
+        .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
+        .ok()
+        .flatten();
+
+    // Helper closure for updating the additional_payment_data with connector response
+    let update_pm_data = || {
+        update_additional_payment_data_with_connector_response_pm_data(
+            payment_data.payment_attempt.payment_method_data.clone(),
+            router_data
+                .connector_response
+                .as_ref()
+                .and_then(|cr| cr.additional_payment_method_data.clone()),
+        )
+        .ok()
+        .flatten()
+    };
+
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
-        Some(payment_method_data) => match payment_method_data {
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(
-                _,
-            )
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_) => {
-                update_additional_payment_data_with_connector_response_pm_data(
-                    payment_data.payment_attempt.payment_method_data.clone(),
-                    router_data
-                        .connector_response
-                        .as_ref()
-                        .and_then(|connector_response| {
-                            connector_response.additional_payment_method_data.clone()
-                        }),
-                )?
-            }
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_) => {
-                payment_data.payment_attempt.payment_method_data.clone()
-            }
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                payment_data.payment_attempt.payment_method_data.clone()
-            }
-        },
-        None => None,
+        Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => {
+            payment_data.payment_attempt.payment_method_data.clone()
+        }
+        _ => additional_payment_data.and_then(|_| update_pm_data()),
     };
 
     router_data.payment_method_status.and_then(|status| {
