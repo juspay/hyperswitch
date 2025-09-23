@@ -37,7 +37,6 @@ pub struct Invoice {
     pub id: common_utils::id_type::InvoiceId,
     pub subscription_id: common_utils::id_type::SubscriptionId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub payment_method_id: Option<String>,
@@ -48,14 +47,6 @@ pub struct Invoice {
     pub provider_name: Connector,
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
-#[diesel(table_name = invoice)]
-pub struct InvoiceUpdate {
-    pub status: Option<String>,
-    pub payment_method_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
 }
 
