@@ -336,6 +336,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tokenex,
     Tokenio,
     Trustpay,
     Trustpayments,
@@ -496,7 +497,6 @@ impl Connector {
             | Self::Nomupay
             | Self::Nordea
             | Self::Novalnet
-            | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
             | Self::Payload
@@ -548,12 +548,13 @@ impl Connector {
             | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenex
             | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
     }
 
@@ -870,7 +871,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
-            | Connector::Cardinal => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Cardinal
+            | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
         }
     }
 }

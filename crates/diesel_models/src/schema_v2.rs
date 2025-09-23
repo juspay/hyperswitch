@@ -252,6 +252,8 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -265,8 +267,6 @@ diesel::table! {
         should_collect_cvv_during_payment -> Nullable<Bool>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
-        is_external_vault_enabled -> Nullable<Bool>,
-        external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
     }
@@ -1172,6 +1172,10 @@ diesel::table! {
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
+        #[max_length = 64]
+        vault_type -> Nullable<Varchar>,
+        #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
@@ -1179,8 +1183,6 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
-        #[max_length = 64]
-        external_vault_source -> Nullable<Varchar>,
         external_vault_token_data -> Nullable<Bytea>,
     }
 }
