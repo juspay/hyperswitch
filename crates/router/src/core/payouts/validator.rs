@@ -84,7 +84,7 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
-    if req.payout_method_id.is_some() && req.confirm != Some(false) {
+    if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Confirm must be true for recurring payouts".to_string(),
         }));
