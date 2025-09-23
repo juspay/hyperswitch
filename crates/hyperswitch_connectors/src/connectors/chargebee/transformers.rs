@@ -778,6 +778,8 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
             metadata: None,
+            // TODO! This field should be handled for billing connnector integrations
+            enable_partial_authorization: None,
         })
     }
 }

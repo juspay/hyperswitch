@@ -293,7 +293,6 @@ pub trait Capturable {
     }
 }
 
-#[cfg(feature = "v1")]
 impl Capturable for PaymentsAuthorizeData {
     fn get_captured_amount<F>(
         &self,
@@ -310,7 +309,7 @@ impl Capturable for PaymentsAuthorizeData {
                 .get_amount_as_i64(),
         ))
     }
-
+    #[cfg(feature = "v1")]
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
@@ -321,6 +320,54 @@ impl Capturable for PaymentsAuthorizeData {
         F: Clone,
     {
         let amount_capturable_from_intent_status = match payment_data.get_capture_method().unwrap_or_default()
+        {
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::SequentialAutomatic => {
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                match intent_status {
+                    common_enums::IntentStatus::Succeeded
+                    | common_enums::IntentStatus::Failed
+                    | common_enums::IntentStatus::Conflicted
+                    | common_enums::IntentStatus::Expired => Some(0),
+                    common_enums::IntentStatus::Cancelled
+                    | common_enums::IntentStatus::CancelledPostCapture
+                    | common_enums::IntentStatus::PartiallyCaptured
+                    | common_enums::IntentStatus::RequiresCustomerAction
+                    | common_enums::IntentStatus::RequiresMerchantAction
+                    | common_enums::IntentStatus::RequiresPaymentMethod
+                    | common_enums::IntentStatus::RequiresConfirmation
+                    | common_enums::IntentStatus::RequiresCapture
+                    | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+                    | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+                    | common_enums::IntentStatus::Processing => None,
+                }
+            },
+            common_enums::CaptureMethod::Manual => Some(payment_data.payment_attempt.get_total_amount().get_amount_as_i64()),
+            // In case of manual multiple, amount capturable must be inferred from all captures.
+            common_enums::CaptureMethod::ManualMultiple |
+            // Scheduled capture is not supported as of now
+            common_enums::CaptureMethod::Scheduled => None,
+        };
+        amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(
+                payment_data
+                    .payment_attempt
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ))
+    }
+    #[cfg(feature = "v2")]
+    fn get_amount_capturable<F>(
+        &self,
+        payment_data: &PaymentData<F>,
+        amount_capturable: Option<i64>,
+        attempt_status: common_enums::AttemptStatus,
+    ) -> Option<i64>
+    where
+        F: Clone,
+    {
+        let amount_capturable_from_intent_status = match payment_data.payment_intent.capture_method
         {
             common_enums::CaptureMethod::Automatic
             | common_enums::CaptureMethod::SequentialAutomatic => {

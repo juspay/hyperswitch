@@ -57,6 +57,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             next_billing_at: None,
             billing_started_at: data.billing_started_at,
             metadata: data.metadata,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }
