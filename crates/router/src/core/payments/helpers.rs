@@ -7740,3 +7740,29 @@ pub async fn get_merchant_connector_account_v2(
         .attach_printable("merchant_connector_id is not provided"),
     }
 }
+
+pub fn is_stored_credentials(
+    recurring_details: &Option<RecurringDetails>,
+    payment_token: &Option<String>,
+    is_mandate: bool,
+) -> bool {
+    recurring_details.is_some() || payment_token.is_some() || mandate_id.is_some()
+}
+pub fn validate_stored_credential(
+    is_stored_credential: Option<bool>,
+    recurring_details: &Option<RecurringDetails>,
+    payment_token: &Option<String>,
+    mandate_id: &Option<String>,
+) -> RouterResult<()> {
+    if is_stored_credential == Some(false)
+        && is_stored_credentials(recurring_details, payment_token, mandate_id.is_some())
+    {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "is_stored_credential should be true when reusing stored payment method data"
+                .to_string(),
+        }
+        .into())
+    } else {
+        Ok(())
+    }
+}

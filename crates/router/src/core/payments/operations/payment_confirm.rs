@@ -2198,7 +2198,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
+        helpers::validate_stored_credential(
+            request.is_stored_credential,
+            &request.recurring_details,
+            &request.payment_token,
+            &request.mandate_id,
+        )?;
         let payment_id = request
             .payment_id
             .clone()

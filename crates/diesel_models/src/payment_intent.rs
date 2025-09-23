@@ -987,7 +987,6 @@ impl PaymentIntentUpdate {
                 .or(source.enable_partial_authorization),
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
             is_stored_credential: is_stored_credential.or(source.is_stored_credential),
-
             ..source
         }
     }

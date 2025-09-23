@@ -884,7 +884,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
         let routing_approach = payment_data.payment_attempt.routing_approach.clone();
-
+        let is_stored_credentials = helpers::is_stored_credentials(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+        );
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -902,6 +906,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                     routing_approach,
+                    is_stored_credentials,
                 },
                 storage_scheme,
             )
@@ -1022,7 +1027,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
+        helpers::validate_stored_credential(
+            request.is_stored_credential,
+            &request.recurring_details,
+            &request.payment_token,
+            &request.mandate_id,
+        )?;
         helpers::validate_overcapture_request(
             &request.enable_overcapture,
             &request.capture_method,
