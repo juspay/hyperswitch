@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.23.0
+
+### Features
+
+- **connector:**
+  - [Tokenex] add template code ([#9416](https://github.com/juspay/hyperswitch/pull/9416)) ([`40357ae`](https://github.com/juspay/hyperswitch/commit/40357ae298ac8327b08f6b5c7b1d4f8cfe7c9acb))
+  - [Nuvei] Add Support for External 3DS Auth ([#9468](https://github.com/juspay/hyperswitch/pull/9468)) ([`ba74587`](https://github.com/juspay/hyperswitch/commit/ba74587e1d7e45fdacfc8ba28d5e8b8e5f3ff3fe))
+  - [Gigadat] Connector Template code ([#9450](https://github.com/juspay/hyperswitch/pull/9450)) ([`1ae6c20`](https://github.com/juspay/hyperswitch/commit/1ae6c20933f9300bbbe43621a0905494d60779f8))
+- **core:**
+  - Add webhook setup event handler ([#9420](https://github.com/juspay/hyperswitch/pull/9420)) ([`740f3af`](https://github.com/juspay/hyperswitch/commit/740f3af64304469f9a6d781de349cf762a311c6f))
+  - Add client_auth auth type for list_blocked_payment_methods ([#9475](https://github.com/juspay/hyperswitch/pull/9475)) ([`4005a74`](https://github.com/juspay/hyperswitch/commit/4005a749edad8008d80441371d602315ea9f8a6d))
+- **router:** Add v2 payment cancellation flow ([#9083](https://github.com/juspay/hyperswitch/pull/9083)) ([`617b3fa`](https://github.com/juspay/hyperswitch/commit/617b3faa1312e34c82549bcfced5e0e53b934518))
+
+### Bug Fixes
+
+- **user_role:** Filter out internal roles in list roles API ([#9402](https://github.com/juspay/hyperswitch/pull/9402)) ([`d7e468f`](https://github.com/juspay/hyperswitch/commit/d7e468f9be4f8110df9979d7ebf98c7fc61b5d00))
+- **webhooks:** Add idempotent_event_id generation using URL-safe Base64 (no padding) and SHA256 digest ([#9405](https://github.com/juspay/hyperswitch/pull/9405)) ([`0c38bc3`](https://github.com/juspay/hyperswitch/commit/0c38bc3d0ca06149b195f1e7212d04152468c646))
+
+**Full Changelog:** [`2025.09.22.0...2025.09.23.0`](https://github.com/juspay/hyperswitch/compare/2025.09.22.0...2025.09.23.0)
+
+- - -
+
 ## 2025.09.22.0
 
 ### Features

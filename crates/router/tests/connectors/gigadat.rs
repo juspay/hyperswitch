@@ -6,14 +6,14 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct TokenexTest;
-impl ConnectorActions for TokenexTest {}
-impl utils::Connector for TokenexTest {
+struct GigadatTest;
+impl ConnectorActions for GigadatTest {}
+impl utils::Connector for GigadatTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Tokenex;
+        use router::connector::Gigadat;
         utils::construct_connector_data_old(
-            Box::new(&Tokenex),
-            types::Connector::Tokenex,
+            Box::new(Gigadat::new()),
+            types::Connector::Plaid,
             api::GetToken::Connector,
             None,
         )
@@ -22,18 +22,18 @@ impl utils::Connector for TokenexTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .tokenex
+                .gigadat
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "tokenex".to_string()
+        "gigadat".to_string()
     }
 }
 
-static CONNECTOR: TokenexTest = TokenexTest {};
+static CONNECTOR: GigadatTest = GigadatTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

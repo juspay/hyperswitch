@@ -559,7 +559,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault => None,
+        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
