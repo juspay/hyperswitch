@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, RefundStatus};
+use common_enums::{
+    AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, Currency, RefundStatus,
+};
 use common_utils::{
     errors::CustomResult, ext_traits::ValueExt, request::Method, types::StringMinorUnit,
 };
@@ -57,7 +59,7 @@ trait AddressConstructor {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self;
 }
 
@@ -67,7 +69,7 @@ impl AddressConstructor for BillingAddress {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self {
         Self {
             name,
@@ -85,7 +87,7 @@ impl AddressConstructor for ShippingAddress {
         street: Option<Secret<String>>,
         city: Option<String>,
         post_code: Option<Secret<String>>,
-        country: Option<enums::CountryAlpha2>,
+        country: Option<CountryAlpha3>,
     ) -> Self {
         Self {
             name,
@@ -126,7 +128,8 @@ where
             data.get_optional_billing_full_name(),
             data.get_optional_billing_city(),
             data.get_optional_billing_zip(),
-            data.get_optional_billing_country(),
+            data.get_optional_billing_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
             data.get_optional_billing().is_some(),
             "billing",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -141,7 +144,8 @@ where
             data.get_optional_shipping_full_name(),
             data.get_optional_shipping_city(),
             data.get_optional_shipping_zip(),
-            data.get_optional_shipping_country(),
+            data.get_optional_shipping_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
             data.get_optional_shipping().is_some(),
             "shipping",
             MAX_BILLING_ADDRESS_NAME_LENGTH,
@@ -292,15 +296,15 @@ pub enum ContractType {
 #[serde(rename_all = "camelCase")]
 pub struct RecurrenceRequest {
     action: NexixpayRecurringAction,
-    contract_id: Secret<String>,
-    contract_type: ContractType,
+    contract_id: Option<Secret<String>>,
+    contract_type: Option<ContractType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayNonMandatePaymentRequest {
     card: NexixpayCard,
-    recurrence: Option<RecurrenceRequest>,
+    recurrence: RecurrenceRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,7 +345,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
     operation_id: String,
     capture_type: Option<NexixpayCaptureType>,
     three_d_s_auth_data: ThreeDSAuthData,
-    recurrence: Option<RecurrenceRequest>,
+    recurrence: RecurrenceRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -392,7 +396,7 @@ pub struct BillingAddress {
     street: Option<Secret<String>>,
     city: Option<String>,
     post_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    country: Option<CountryAlpha3>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -402,7 +406,7 @@ pub struct ShippingAddress {
     street: Option<Secret<String>>,
     city: Option<String>,
     post_code: Option<Secret<String>>,
-    country: Option<enums::CountryAlpha2>,
+    country: Option<CountryAlpha3>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -410,6 +414,7 @@ pub struct ShippingAddress {
 pub struct NexixpayCard {
     pan: CardNumber,
     expiry_date: Secret<String>,
+    cvv: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -560,8 +565,9 @@ pub struct NexixpayPreProcessingResponse {
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     additional_data: AdditionalData,
+    channel: Option<Channel>,
     customer_info: CustomerInfo,
-    operation_amount: String,
+    operation_amount: StringMinorUnit,
     operation_currency: Currency,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
@@ -569,7 +575,22 @@ pub struct Operation {
     operation_type: NexixpayOperationType,
     order_id: String,
     payment_method: String,
-    warnings: Option<Vec<String>>,
+    warnings: Option<Vec<DetailedWarnings>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Channel {
+    Ecommerce,
+    Pos,
+    Backoffice,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetailedWarnings {
+    code: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -777,13 +798,17 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                         .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                             field_name: "connector_mandate_request_reference_id",
                         })?;
-                    Some(RecurrenceRequest {
+                    RecurrenceRequest {
                         action: NexixpayRecurringAction::ContractCreation,
-                        contract_id: Secret::new(contract_id),
-                        contract_type: ContractType::MitUnscheduled,
-                    })
+                        contract_id: Some(Secret::new(contract_id)),
+                        contract_type: Some(ContractType::MitUnscheduled),
+                    }
                 } else {
-                    None
+                    RecurrenceRequest {
+                        action: NexixpayRecurringAction::NoRecurring,
+                        contract_id: None,
+                        contract_type: None,
+                    }
                 };
 
                 match item.router_data.request.payment_method_data {
@@ -794,6 +819,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                                     card: NexixpayCard {
                                         pan: req_card.card_number.clone(),
                                         expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                                        cvv: req_card.card_cvc.clone(),
                                     },
                                     recurrence: recurrence_request_obj,
                                 },
@@ -1353,6 +1379,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 PaymentMethodData::Card(req_card) => Ok(NexixpayCard {
                     pan: req_card.card_number.clone(),
                     expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                    cvv: req_card.card_cvc.clone(),
                 }),
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::Wallet(_)
@@ -1388,13 +1415,17 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                         field_name: "connector_mandate_request_reference_id",
                     })?,
             );
-            Some(RecurrenceRequest {
+            RecurrenceRequest {
                 action: NexixpayRecurringAction::ContractCreation,
-                contract_id,
-                contract_type: ContractType::MitUnscheduled,
-            })
+                contract_id: Some(contract_id),
+                contract_type: Some(ContractType::MitUnscheduled),
+            }
         } else {
-            None
+            RecurrenceRequest {
+                action: NexixpayRecurringAction::NoRecurring,
+                contract_id: None,
+                contract_type: None,
+            }
         };
 
         Ok(Self {

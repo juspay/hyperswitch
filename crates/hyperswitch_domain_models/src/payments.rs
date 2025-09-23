@@ -844,6 +844,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -874,6 +875,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 impl HeaderPayload {
@@ -964,7 +966,7 @@ impl<F: Clone> PaymentConfirmData<F> {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentStatusData<F>
 where
     F: Clone,
@@ -983,6 +985,17 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCancelData<F>
 where
     F: Clone,
 {

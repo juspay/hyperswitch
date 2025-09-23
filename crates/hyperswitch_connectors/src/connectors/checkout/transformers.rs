@@ -1,14 +1,21 @@
-use common_enums::enums::{self, AttemptStatus, PaymentChannel};
+use common_enums::{
+    enums::{self, AttemptStatus, PaymentChannel},
+    CountryAlpha2,
+};
 use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
+    id_type::CustomerId,
     request::Method,
     types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{Execute, RSync, SetupMandate},
     router_request_types::{ResponseId, SetupMandateRequestData},
     router_response_types::{
@@ -22,6 +29,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{consts, errors, webhooks};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use time::PrimitiveDateTime;
 use url::Url;
 
@@ -266,6 +274,54 @@ pub struct ReturnUrl {
     pub failure_url: Option<String>,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutCustomer {
+    pub name: Option<CustomerId>,
+    pub tax_number: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutProcessing {
+    pub order_id: Option<String>,
+    pub tax_amount: Option<MinorUnit>,
+    pub discount_amount: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_tax_amount: Option<MinorUnit>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutShippingAddress {
+    pub country: Option<CountryAlpha2>,
+    pub zip: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutShipping {
+    pub address: Option<CheckoutShippingAddress>,
+    pub from_address_zip: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutLineItem {
+    pub commodity_code: Option<String>,
+    pub discount_amount: Option<MinorUnit>,
+    pub name: Option<String>,
+    pub quantity: Option<u16>,
+    pub reference: Option<String>,
+    pub tax_exempt: Option<bool>,
+    pub tax_amount: Option<MinorUnit>,
+    pub total_amount: Option<MinorUnit>,
+    pub unit_of_measure: Option<String>,
+    pub unit_price: Option<MinorUnit>,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
@@ -282,6 +338,12 @@ pub struct PaymentsRequest {
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
     pub previous_payment_id: Option<String>,
+
+    // Level 2/3 data fields
+    pub customer: Option<CheckoutCustomer>,
+    pub processing: Option<CheckoutProcessing>,
+    pub shipping: Option<CheckoutShipping>,
+    pub items: Option<Vec<CheckoutLineItem>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -509,8 +571,51 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = item.router_data.request.metadata.clone().map(Into::into);
+        let (customer, processing, shipping, items) =
+            if let Some(l2l3_data) = &item.router_data.l2_l3_data {
+                (
+                    Some(CheckoutCustomer {
+                        name: l2l3_data.customer_id.clone(),
+                        tax_number: l2l3_data.customer_tax_registration_id.clone(),
+                    }),
+                    Some(CheckoutProcessing {
+                        order_id: l2l3_data.merchant_order_reference_id.clone(),
+                        tax_amount: l2l3_data.order_tax_amount,
+                        discount_amount: l2l3_data.discount_amount,
+                        duty_amount: l2l3_data.duty_amount,
+                        shipping_amount: l2l3_data.shipping_cost,
+                        shipping_tax_amount: l2l3_data.shipping_amount_tax,
+                    }),
+                    Some(CheckoutShipping {
+                        address: Some(CheckoutShippingAddress {
+                            country: l2l3_data.shipping_country,
+                            zip: l2l3_data.shipping_destination_zip.clone(),
+                        }),
+                        from_address_zip: l2l3_data.shipping_origin_zip.clone().map(|z| z.expose()),
+                    }),
+                    l2l3_data.order_details.as_ref().map(|details| {
+                        details
+                            .iter()
+                            .map(|item| CheckoutLineItem {
+                                commodity_code: item.commodity_code.clone(),
+                                discount_amount: item.unit_discount_amount,
+                                name: Some(item.product_name.clone()),
+                                quantity: Some(item.quantity),
+                                reference: item.product_id.clone(),
+                                tax_exempt: None,
+                                tax_amount: item.total_tax_amount,
+                                total_amount: item.total_amount,
+                                unit_of_measure: item.unit_of_measure.clone(),
+                                unit_price: Some(item.amount),
+                            })
+                            .collect()
+                    }),
+                )
+            } else {
+                (None, None, None, None)
+            };
 
-        Ok(Self {
+        let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
             currency: item.router_data.request.currency.to_string(),
@@ -523,7 +628,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             payment_type,
             merchant_initiated,
             previous_payment_id,
-        })
+            customer,
+            processing,
+            shipping,
+            items,
+        };
+
+        Ok(request)
     }
 }
 
@@ -680,6 +791,8 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Source {
     id: Option<String>,
+    avs_check: Option<String>,
+    cvv_check: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -687,6 +800,8 @@ pub struct PaymentsResponse {
     id: String,
     amount: Option<MinorUnit>,
     currency: Option<String>,
+    scheme_id: Option<String>,
+    processing: Option<PaymentProcessingDetails>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
@@ -700,6 +815,13 @@ pub struct PaymentsResponse {
     source: Option<Source>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct PaymentProcessingDetails {
+    /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
+    pub partner_merchant_advice_code: Option<String>,
+    /// The original authorization response code sent by the scheme.
+    pub partner_response_code: Option<String>,
+}
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PaymentsResponseEnum {
@@ -790,12 +912,16 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             None
         };
 
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -805,6 +931,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
         Ok(Self {
             status,
             response: Ok(payments_response_data),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -838,7 +965,17 @@ impl
             .map(|href| RedirectForm::from((href.redirection_url, Method::Get)));
         let status =
             get_attempt_status_cap((item.response.status, item.data.request.capture_method));
-
+        let network_advice_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| {
+                processing
+                    .partner_merchant_advice_code
+                    .as_ref()
+                    .or(processing.partner_response_code.as_ref())
+            })
+            .cloned();
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
                 status_code: item.http_code,
@@ -854,7 +991,7 @@ impl
                 reason: item.response.response_summary,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
-                network_advice_code: None,
+                network_advice_code,
                 network_decline_code: None,
                 network_error_message: None,
                 connector_metadata: None,
@@ -880,7 +1017,7 @@ impl
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -947,12 +1084,16 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
+        let additional_information =
+            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: item.response.scheme_id.clone(),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -962,6 +1103,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         Ok(Self {
             status,
             response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            connector_response: additional_information,
             ..item.data
         })
     }
@@ -1002,6 +1144,7 @@ pub struct PaymentVoidResponse {
     pub(super) status: u16,
     action_id: String,
     reference: String,
+    scheme_id: Option<String>,
 }
 
 impl From<&PaymentVoidResponse> for AttemptStatus {
@@ -1026,7 +1169,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1092,6 +1235,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsCaptureRouterData>> for PaymentCapture
 pub struct PaymentCaptureResponse {
     pub action_id: String,
     pub reference: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -1127,7 +1271,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_id.clone(),
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -1606,8 +1750,12 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             processed_on: data.processed_on,
             approved: data.approved,
             source: Some(Source {
-                id: details.source.and_then(|src| src.id),
+                id: details.source.clone().and_then(|src| src.id),
+                avs_check: details.source.clone().and_then(|src| src.avs_check),
+                cvv_check: details.source.clone().and_then(|src| src.cvv_check),
             }),
+            scheme_id: None,
+            processing: None,
         };
 
         Ok(psync_struct)
@@ -1667,4 +1815,21 @@ impl From<String> for utils::ErrorCodeAndMessage {
             error_message: error,
         }
     }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    source: Option<&Source>,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    source.map(|code| {
+        let payment_checks = serde_json::json!({
+            "avs_result": code.avs_check,
+            "card_validation_result": code.cvv_check,
+        });
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: Some(payment_checks),
+            card_network: None,
+            domestic_network: None,
+        }
+    })
 }

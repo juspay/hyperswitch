@@ -6,7 +6,6 @@ const successfulNo3DSCardDetails = {
   card_exp_year: "2045",
   card_holder_name: "morino",
   card_cvc: "737",
-  card_network: "Visa",
 };
 
 const successfulThreeDSTestCardDetails = {
@@ -15,16 +14,15 @@ const successfulThreeDSTestCardDetails = {
   card_exp_year: "2045",
   card_holder_name: "morino",
   card_cvc: "737",
-  card_network: "Mastercard",
 };
 
 // This card details will fail because of card expiryYear
 const failedNo3DSCardDetails = {
-  card_number: "4242424242424242",
+  card_number: "4012001037461114",
   card_exp_month: "01",
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "737",
 };
 
 const singleUseMandateData = {
@@ -685,9 +683,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "200.300.404",
+          error_code: "100.390.112",
           error_message:
-            "Field is card.expiryYear and the message is must match ^[0-9]{4}$",
+            "Technical Error in 3D system",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
