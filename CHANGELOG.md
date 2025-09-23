@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.10.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] Pass transaction type for only wallet MITs ([#9513](https://github.com/juspay/hyperswitch/pull/9513)) ([`670b984`](https://github.com/juspay/hyperswitch/commit/670b98477ba214030152a42bbd3712e32300b6b2))
+
+**Full Changelog:** [`2025.09.10.0-hotfix1...2025.09.10.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.09.10.0-hotfix1...2025.09.10.0-hotfix2)
+
+- - -
+
 ## 2025.09.10.0-hotfix1
 
 ### Features
