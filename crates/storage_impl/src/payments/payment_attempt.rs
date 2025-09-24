@@ -695,7 +695,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     network_transaction_id: payment_attempt.network_transaction_id.clone(),
                     is_overcapture_enabled: None,
                     network_details: payment_attempt.network_details.clone(),
-                    is_stored_credential: payment_attempt.is_stored_credential.clone(),
+                    is_stored_credential: payment_attempt.is_stored_credential,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
