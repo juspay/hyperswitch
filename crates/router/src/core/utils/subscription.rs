@@ -4,10 +4,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::subscriptions as subscription_flow,
+    router_request_types::subscriptions as subscription_request,
+    router_response_types::subscriptions as subscription_response,
     subscription::ClientSecret,
 };
 
-use crate::{consts, core::payments as payments_core, db::errors, routes::SessionState};
+use crate::{consts, core::payments as payments_core, db::errors, routes::SessionState, services};
 
 pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
 pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
@@ -53,11 +56,13 @@ impl SubscriptionHandler {
         &self,
         subscription: &Subscription,
     ) -> errors::RouterResult<BillingHandler> {
-        let mca_id = subscription.get_merchant_connector_id().change_context(
-            errors::ApiErrorResponse::GenericNotFoundError {
+        let mca_id = subscription
+            .merchant_connector_id
+            .as_ref()
+            .ok_or(errors::DatabaseError::NotFound)
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "merchant_connector_id not found".to_string(),
-            },
-        )?;
+            })?;
 
         let billing_processor_mca = self
             .state
@@ -79,7 +84,11 @@ impl SubscriptionHandler {
             ))
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: billing_processor_mca.get_id().get_string_repr().to_string(),
+                },
+            )?;
 
         let connector_data = crate::types::api::ConnectorData::get_connector_by_name(
             &self.state.conf.connectors,
@@ -87,7 +96,7 @@ impl SubscriptionHandler {
             crate::types::api::GetToken::Connector,
             Some(billing_processor_mca.get_id()),
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable(
             "Invalid connector name received in billing merchant connector account",
         )?;
@@ -146,16 +155,13 @@ impl BillingHandler {
     pub async fn get_subscription_plans(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
-    >{
-        let get_plans_request =
-            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest::default();
+    ) -> errors::RouterResult<subscription_response::GetSubscriptionPlansResponse> {
+        let get_plans_request = subscription_request::GetSubscriptionPlansRequest::default();
 
         let router_data = self.build_router_data::<
-            hyperswitch_domain_models::router_flow_types::subscriptions::GetSubscriptionPlans,
-            hyperswitch_domain_models::router_request_types::subscriptions::GetSubscriptionPlansRequest,
-            hyperswitch_domain_models::router_response_types::subscriptions::GetSubscriptionPlansResponse,
+            subscription_flow::GetSubscriptionPlans,
+            subscription_request::GetSubscriptionPlansRequest,
+            subscription_response::GetSubscriptionPlansResponse,
         >(state, get_plans_request)?;
 
         let connector_integration = self.connector_data.connector.get_connector_integration();
@@ -201,7 +207,7 @@ impl BillingHandler {
                 > + Clone
                 + 'static,
     {
-        let router_resp = crate::services::execute_connector_processing_step(
+        let router_resp = services::execute_connector_processing_step(
             state,
             connector_integration,
             &router_data,

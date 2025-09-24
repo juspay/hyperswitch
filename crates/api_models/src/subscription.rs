@@ -109,7 +109,7 @@ impl CreateSubscriptionResponse {
 pub struct GetPlansResponse {
     pub plan_id: String,
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 impl ApiEventMetric for CreateSubscriptionResponse {}

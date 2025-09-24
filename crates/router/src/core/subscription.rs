@@ -93,7 +93,7 @@ pub async fn get_subscription_plans(
         .map(|plan| subscription_types::GetPlansResponse {
             plan_id: plan.subscription_provider_plan_id,
             name: plan.name,
-            description: plan.description.unwrap_or_default(),
+            description: plan.description,
         })
         .collect();
 
