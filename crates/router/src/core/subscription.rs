@@ -4,17 +4,14 @@ use api_models::{
     enums as api_enums,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
-use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
+use common_utils::pii;
+use common_utils::{ext_traits::ValueExt, id_type::GenerateId};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
-    merchant_context::MerchantContext,
-    router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
-    router_response_types::{
-        subscriptions as subscription_response_types, ConnectorCustomerResponseData,
-        PaymentsResponseData,
-    },
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    router_request_types::subscriptions as subscription_request_types,
+    router_response_types::subscriptions as subscription_response_types,
 };
 use masking::Secret;
 
@@ -90,7 +87,18 @@ pub async fn confirm_subscription(
             field_name: "X-Profile-Id",
         },
     )?;
-    let handler = SubscriptionHandler::new(state, merchant_context, request, profile_id);
+
+    let key_manager_state = &(&state).into();
+    let merchant_key_store = merchant_context.get_merchant_key_store();
+
+    let profile = state
+        .store
+        .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, &profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_string(),
+        })?;
+    let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
 
     let mut subscription_entry = handler
         .find_subscription(subscription_id.get_string_repr().to_string())
@@ -99,7 +107,7 @@ pub async fn confirm_subscription(
     let billing_handler = subscription_entry.get_billing_handler().await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
-    let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
+    // let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
     let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
 
@@ -113,7 +121,7 @@ pub async fn confirm_subscription(
             billing_handler.request.amount,
             billing_handler.request.currency.to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
-            billing_handler.connector_name.clone(),
+            billing_handler.connector_data.connector_name,
             None,
         )
         .await?;
@@ -129,7 +137,7 @@ pub async fn confirm_subscription(
         .await?;
 
     let response = subscription_entry
-        .generate_response(&invoice_entry.invoice, subscription_create_response.status)?;
+        .generate_response(&invoice_entry, subscription_create_response.status)?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -138,7 +146,7 @@ pub struct SubscriptionHandler {
     state: SessionState,
     merchant_context: MerchantContext,
     request: subscription_types::ConfirmSubscriptionRequest,
-    profile_id: common_utils::id_type::ProfileId,
+    profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 impl SubscriptionHandler {
@@ -146,13 +154,13 @@ impl SubscriptionHandler {
         state: SessionState,
         merchant_context: MerchantContext,
         request: subscription_types::ConfirmSubscriptionRequest,
-        profile_id: common_utils::id_type::ProfileId,
+        profile: hyperswitch_domain_models::business_profile::Profile,
     ) -> Self {
         Self {
             state,
             merchant_context,
             request,
-            profile_id,
+            profile,
         }
     }
     pub async fn find_subscription(
@@ -171,26 +179,10 @@ impl SubscriptionHandler {
                 message: format!("subscription not found for id: {subscription_id}"),
             })?;
 
-        let key_manager_state = &(&self.state).into();
-        let merchant_key_store = self.merchant_context.get_merchant_key_store();
-
-        let profile = self
-            .state
-            .store
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                merchant_key_store,
-                &self.profile_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: self.profile_id.get_string_repr().to_string(),
-            })?;
-
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription,
-            profile,
+            profile: self.profile.clone(),
         })
     }
 }
@@ -228,7 +220,9 @@ impl<'a> SubscriptionWithHandler<'a> {
                 customer_id: invoice.customer_id.clone(),
                 amount: invoice.amount,
                 currency: api_enums::Currency::from_str(invoice.currency.as_str())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "currency",
+                    })
                     .attach_printable(format!(
                         "unable to parse currency name {currency:?}",
                         currency = invoice.currency
@@ -250,7 +244,9 @@ impl<'a> SubscriptionWithHandler<'a> {
                 diesel_models::subscription::SubscriptionUpdate::new(None, Some(status)),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Update".to_string(),
+            })
             .attach_printable("subscriptions: unable to update subscription entry in database")?;
 
         self.subscription = updated_subscription;
@@ -320,12 +316,12 @@ impl<'a> SubscriptionWithHandler<'a> {
 
         Ok(BillingHandler {
             subscription: self.subscription.clone(),
-            connector_name,
             auth_type,
             connector_data,
             connector_params,
             request: self.handler.request.clone(),
             connector_metadata: billing_processor_mca.metadata.clone(),
+            customer_id: self.subscription.customer_id.to_owned(),
         })
     }
 
@@ -338,20 +334,16 @@ impl<'a> SubscriptionWithHandler<'a> {
 
 pub struct BillingHandler {
     subscription: diesel_models::subscription::Subscription,
-    connector_name: String,
     auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
     connector_data: api_types::ConnectorData,
     connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
     connector_metadata: Option<pii::SecretSerdeValue>,
+    customer_id: common_utils::id_type::CustomerId,
     request: subscription_types::ConfirmSubscriptionRequest,
 }
 
 pub struct InvoiceHandler {
     subscription: diesel_models::subscription::Subscription,
-}
-
-pub struct InvoiceWithHandler {
-    invoice: diesel_models::invoice::Invoice,
 }
 
 #[allow(clippy::todo)]
@@ -365,17 +357,9 @@ impl InvoiceHandler {
         amount: common_utils::types::MinorUnit,
         currency: String,
         status: common_enums::connector_enums::InvoiceStatus,
-        provider_name: String,
+        provider_name: common_enums::connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
-    ) -> errors::RouterResult<InvoiceWithHandler> {
-        // create a new inoivce entry
-
-        let connector = common_enums::connector_enums::Connector::from_str(&provider_name)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "provider_name",
-            })
-            .attach_printable(format!("unable to parse connector name {provider_name:?}"))?;
-
+    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
             self.subscription.id.to_owned(),
             self.subscription.merchant_id.to_owned(),
@@ -387,7 +371,7 @@ impl InvoiceHandler {
             amount,
             currency,
             status,
-            connector,
+            provider_name,
             metadata,
         );
 
@@ -395,10 +379,12 @@ impl InvoiceHandler {
             .store
             .insert_invoice_entry(invoice_new)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Subscription Confirm".to_string(),
+            })
             .attach_printable("invoices: unable to insert invoice entry to database")?;
 
-        Ok(InvoiceWithHandler { invoice })
+        Ok(invoice)
     }
 
     pub async fn create_cit_payment(
@@ -407,10 +393,7 @@ impl InvoiceHandler {
         // Create a CIT payment for the invoice
         todo!("Create a CIT payment for the invoice")
     }
-}
 
-#[allow(clippy::todo)]
-impl InvoiceWithHandler {
     pub async fn create_invoice_record_back_job(
         &self,
         // _invoice: &subscription_types::Invoice,
@@ -423,73 +406,14 @@ impl InvoiceWithHandler {
 
 #[allow(clippy::todo)]
 impl BillingHandler {
-    pub async fn create_customer(
-        &self,
-        state: &SessionState,
-    ) -> errors::RouterResult<ConnectorCustomerResponseData> {
-        let customer_req = ConnectorCustomerData {
-            email: self.request.customer.as_ref().and_then(|c| c.email.clone()),
-            payment_method_data: self
-                .request
-                .payment_data
-                .payment_method_data
-                .payment_method_data
-                .clone()
-                .map(|pmd| pmd.into()),
-            description: None,
-            phone: None,
-            name: None,
-            preprocessing_id: None,
-            split_payments: None,
-            setup_future_usage: None,
-            customer_acceptance: None,
-            customer_id: Some(self.subscription.customer_id.to_owned()),
-            billing_address: self
-                .request
-                .billing_address
-                .as_ref()
-                .and_then(|add| add.address.clone())
-                .and_then(|addr| addr.into()),
-        };
-        let router_data = self.build_router_data(state, customer_req)?;
-        let connector_integration = self.connector_data.connector.get_connector_integration();
-
-        let response = Box::pin(self.call_connector(
-            state,
-            router_data,
-            "create customer",
-            connector_integration,
-        ))
-        .await?;
-
-        match response {
-            Ok(response_data) => match response_data {
-                PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
-                    Ok(customer_response)
-                }
-                _ => Err(errors::ApiErrorResponse::SubscriptionError {
-                    operation: "Subscription Customer Create".to_string(),
-                }
-                .into()),
-            },
-            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
-                code: err.code,
-                message: err.message,
-                connector: self.connector_name.to_string(),
-                status_code: err.status_code,
-                reason: err.reason,
-            }
-            .into()),
-        }
-    }
     pub async fn create_subscription(
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
-            item_price_id: self.request.item_price_id.clone().ok_or(
-                errors::ApiErrorResponse::InvalidRequestData {
-                    message: "item_price_id is required".to_string(),
+            item_price_id: self.request.get_item_price_id().change_context(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "item_price_id",
                 },
             )?,
             quantity: Some(1),
@@ -498,7 +422,7 @@ impl BillingHandler {
             subscription_id: self.subscription.id.to_owned(),
             customer_id: self.subscription.customer_id.to_owned(),
             subscription_items: vec![subscription_item],
-            billing_address: self.request.billing_address.clone().ok_or(
+            billing_address: self.request.get_billing_address().change_context(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "billing_address",
                 },
@@ -524,7 +448,7 @@ impl BillingHandler {
             Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
                 code: err.code,
                 message: err.message,
-                connector: self.connector_name.to_string(),
+                connector: self.connector_data.connector_name.to_string(),
                 status_code: err.status_code,
                 reason: err.reason,
             }
@@ -560,7 +484,9 @@ impl BillingHandler {
             None,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::SubscriptionError {
+            operation: operation_name.to_string(),
+        })
         .attach_printable(format!(
             "Failed while calling {operation_name} at billing processor"
         ))?;
@@ -577,9 +503,9 @@ impl BillingHandler {
         Ok(hyperswitch_domain_models::router_data::RouterData {
             flow: std::marker::PhantomData,
             merchant_id: self.subscription.merchant_id.to_owned(),
-            customer_id: Some(self.subscription.customer_id.to_owned()),
+            customer_id: Some(self.customer_id.to_owned()),
             connector_customer: None,
-            connector: self.connector_name.clone(),
+            connector: self.connector_data.connector_name.to_string().clone(),
             payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
             tenant_id: state.tenant.tenant_id.clone(),
             attempt_id: SUBSCRIPTION_PAYMENT_ID.to_owned(),

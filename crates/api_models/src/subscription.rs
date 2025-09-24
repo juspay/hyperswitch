@@ -1,11 +1,11 @@
 use common_types::payments::CustomerAcceptance;
-use common_utils::{events::ApiEventMetric, types::MinorUnit};
+use common_utils::{errors::ValidationError, events::ApiEventMetric, types::MinorUnit};
 use masking::Secret;
 use utoipa::ToSchema;
 
 use crate::{
     enums as api_enums,
-    payments::{Address, CustomerDetails, PaymentMethodDataRequest},
+    payments::{Address, PaymentMethodDataRequest},
 };
 
 // use crate::{
@@ -134,7 +134,7 @@ impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaymentData {
+pub struct PaymentDetails {
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -170,14 +170,32 @@ pub struct ConfirmSubscriptionRequest {
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
 
-    /// Customer details for the subscription.
-    pub customer: Option<CustomerDetails>,
+    /// Identifier for customer.
+    pub customer: common_utils::id_type::CustomerId,
 
     /// Billing address for the subscription.
     pub billing_address: Option<Address>,
 
-    /// Payment data for the invoice.
-    pub payment_data: PaymentData,
+    /// Payment details for the invoice.
+    pub payment_details: PaymentDetails,
+}
+
+impl ConfirmSubscriptionRequest {
+    pub fn get_item_price_id(&self) -> Result<String, error_stack::Report<ValidationError>> {
+        self.item_price_id.clone().ok_or(error_stack::report!(
+            ValidationError::MissingRequiredField {
+                field_name: "item_price_id".to_string()
+            }
+        ))
+    }
+
+    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
+        self.billing_address.clone().ok_or(error_stack::report!(
+            ValidationError::MissingRequiredField {
+                field_name: "billing_address".to_string()
+            }
+        ))
+    }
 }
 
 impl ApiEventMetric for ConfirmSubscriptionRequest {}
