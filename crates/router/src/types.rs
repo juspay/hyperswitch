@@ -292,6 +292,7 @@ pub trait Capturable {
         None
     }
 }
+
 #[cfg(feature = "v1")]
 impl Capturable for PaymentsAuthorizeData {
     fn get_captured_amount<F>(
