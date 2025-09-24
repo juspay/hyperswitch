@@ -2319,7 +2319,7 @@ where
 }
 
 /// InternalMerchantIdProfileIdAuth authentication which first tries to authenticate using `X-Internal-API-Key`,
-/// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing or invalid,
+/// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing,
 /// it falls back to the provided authentication mechanism.
 #[cfg(feature = "v1")]
 pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
