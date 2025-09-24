@@ -28647,11 +28647,6 @@
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
           },
-          "billing_processor_id": {
-            "type": "string",
-            "description": "Merchant Connector id to be stored for billing_processor connector",
-            "nullable": true
-          },
           "is_external_vault_enabled": {
             "allOf": [
               {
@@ -29007,11 +29002,6 @@
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
-            "nullable": true
-          },
-          "billing_processor_id": {
-            "type": "string",
-            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
           "is_external_vault_enabled": {
