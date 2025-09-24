@@ -6625,10 +6625,11 @@ options = []
   payment_method_type = "boleto"
 [[santander.bank_transfer]]
   payment_method_type = "pix"  
-
-[santander.connector_auth.BodyKey]
-api_key = "Client ID"
-key1 = "Client Secret"
+[santander.connector_auth.MultiAuthKey]
+api_key="Client ID"
+key1="Client Secret"
+api_secret="Certificates"   #To generate a cert.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./  GDPP-BR-Cert.pfx -nocerts -out key.pem -nodes -legacy
+key2="Certificate Key"      #To generate a key.pem from a .pfx with a prompted password, command: openssl pkcs12 -in ./Cert.pfx -clcerts -nokeys -out cert.pem -legacy
 
 [santander.metadata.pix_key]
 name = "pix_key"

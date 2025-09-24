@@ -32,7 +32,7 @@ use time::OffsetDateTime;
 use url::Url;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self as connector_utils, QrImage, RouterData as _},
 };
 const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
@@ -145,14 +145,30 @@ pub fn generate_emv_string(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SantanderAuthUpdateResponse {
-    #[serde(rename = "camelCase")]
+#[serde(untagged)]
+pub enum SanatanderAccessTokenResponse {
+    Response(SanatanderTokenResponse),
+    Error(SantanderTokenErrorResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanatanderTokenResponse {
+    #[serde(rename = "refreshUrl")]
     pub refresh_url: String,
     pub token_type: String,
-    pub client_id: String,
+    pub client_id: Secret<String>,
     pub access_token: Secret<String>,
     pub scopes: String,
-    pub expires_in: i64,
+    pub expires_in: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SantanderTokenErrorResponse {
+    #[serde(rename = "type")]
+    pub error_type: String,
+    pub title: String,
+    pub status: u16,
+    pub detail: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -170,38 +186,94 @@ pub struct SantanderPSyncBoletoRequest {
     payer_document_number: Secret<i64>,
 }
 
+#[derive(Debug, Serialize)]
 pub struct SantanderAuthType {
-    pub(super) _api_key: Secret<String>,
-    pub(super) _key1: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    pub(super) certificate: Secret<String>,
+    pub(super) certificate_key: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SantanderAuthRequest {
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    grant_type: SantanderGrantType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderGrantType {
+    ClientCredentials,
 }
 
 impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                _api_key: api_key.to_owned(),
-                _key1: key1.to_owned(),
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                client_id: api_key.to_owned(),
+                client_secret: key1.to_owned(),
+                certificate: api_secret.to_owned(),
+                certificate_key: key2.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, SantanderAuthUpdateResponse, T, AccessToken>>
+impl TryFrom<&RefreshTokenRouterData> for SantanderAuthRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth_details = SantanderAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            client_id: auth_details.client_id,
+            client_secret: auth_details.client_secret,
+            grant_type: SantanderGrantType::ClientCredentials,
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, SanatanderAccessTokenResponse, T, AccessToken>>
     for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, SantanderAuthUpdateResponse, T, AccessToken>,
+        item: ResponseRouterData<F, SanatanderAccessTokenResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(AccessToken {
-                token: item.response.access_token,
-                expires: item.response.expires_in,
+        match item.response {
+            SanatanderAccessTokenResponse::Response(res) => Ok(Self {
+                response: Ok(AccessToken {
+                    token: res.access_token,
+                    expires: res
+                        .expires_in
+                        .parse::<i64>()
+                        .change_context(errors::ConnectorError::ParsingFailed)?,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            SanatanderAccessTokenResponse::Error(error) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: error.error_type,
+                    message: error.title,
+                    reason: Some(error.detail),
+                    status_code: error.status,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -386,16 +458,12 @@ impl
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
         let debtor = Some(SantanderDebtor {
-            cpf: santander_mca_metadata.cpf.clone(),
+            cnpj: santander_mca_metadata.cpf.clone(),
             name: value.0.router_data.get_billing_full_name()?,
         });
 
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calender: SantanderCalendar {
-                creation: OffsetDateTime::now_utc()
-                    .date()
-                    .format(&time::macros::format_description!("[year]-[month]-[day]"))
-                    .change_context(errors::ConnectorError::DateFormattingFailed)?,
                 expiration: santander_mca_metadata.expiration_time,
             },
             debtor,
@@ -410,6 +478,7 @@ impl
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum SantanderPaymentRequest {
     PixQR(Box<SantanderPixQRPaymentRequest>),
     Boleto(Box<SantanderBoletoPaymentRequest>),
@@ -626,19 +695,17 @@ pub struct SantanderPixQRPaymentRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderDebtor {
-    pub cpf: Secret<String>,
+    pub cnpj: Secret<String>,
     #[serde(rename = "nome")]
     pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct SantanderValue {
     pub original: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct SantanderAdditionalInfo {
     #[serde(rename = "nome")]
     pub name: String,
@@ -647,11 +714,14 @@ pub struct SantanderAdditionalInfo {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderPaymentStatus {
+    #[serde(rename = "ATIVA")]
     Active,
+    #[serde(rename = "CONCLUIDA")]
     Completed,
+    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
     RemovedByReceivingUser,
+    #[serde(rename = "REMOVIDA_PELO_PSP")]
     RemovedByPSP,
 }
 
@@ -682,6 +752,7 @@ impl From<router_env::env::Env> for Environment {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SantanderPaymentsResponse {
     PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderBoletoPaymentsResponse>),
@@ -729,9 +800,8 @@ pub struct SantanderBoletoPaymentsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixQRCodePaymentsResponse {
-    pub status: SantanderPaymentStatus,
     #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendar,
+    pub calendar: SantanderCalendarResponse,
     #[serde(rename = "txid")]
     pub transaction_id: String,
     #[serde(rename = "revisao")]
@@ -739,6 +809,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     pub location: Option<String>,
+    pub status: SantanderPaymentStatus,
     #[serde(rename = "valor")]
     pub value: SantanderValue,
     #[serde(rename = "chave")]
@@ -774,10 +845,16 @@ pub struct SantanderPixVoidResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderCalendar {
-    #[serde(rename = "calendario")]
-    pub creation: String,
     #[serde(rename = "expiracao")]
     pub expiration: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SantanderCalendarResponse {
+    #[serde(rename = "criacao")]
+    pub creation: String,
+    #[serde(rename = "expiracao")]
+    pub expiration: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1059,7 +1136,9 @@ fn get_qr_code_data<F, T>(
     let response = pix_data.clone();
     let expiration_time = response.calendar.expiration;
 
-    let expiration_i64 = i64::from(expiration_time);
+    let expiration_i64 = expiration_time
+        .parse::<i64>()
+        .change_context(errors::ConnectorError::ParsingFailed)?;
 
     let rfc3339_expiry = (OffsetDateTime::now_utc() + time::Duration::seconds(expiration_i64))
         .format(&time::format_description::well_known::Rfc3339)

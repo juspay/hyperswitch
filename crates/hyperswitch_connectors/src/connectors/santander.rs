@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     crypto,
@@ -45,7 +44,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use masking::{Mask, Maskable, PeekInterface, Secret};
+use masking::{Maskable, PeekInterface, Secret};
 use transformers as santander;
 
 use crate::{
@@ -99,12 +98,32 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let access_token =
+            req.access_token
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "access_token",
+                })?;
+
+        let header = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.peek()).into(),
+            ),
+            // (
+            //     headers::ACCEPT.to_string(),
+            //     ACCEPT_HEADER.to_string().into(),
+            // ),
+            // (
+            //     headers::USER_AGENT.to_string(),
+            //     USER_AGENT.to_string().into(),
+            // ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+        ];
+
         Ok(header)
     }
 }
@@ -194,31 +213,10 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Santander {
     fn get_headers(
         &self,
-        req: &RefreshTokenRouterData,
+        _req: &RefreshTokenRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let client_id = req.request.app_id.clone();
-
-        let client_secret = req.request.id.clone();
-
-        let creds = format!(
-            "{}:{}",
-            client_id.peek(),
-            client_secret.unwrap_or_default().peek()
-        );
-        let encoded_creds = common_utils::consts::BASE64_ENGINE.encode(creds);
-
-        let auth_string = format!("Basic {encoded_creds}");
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                RefreshTokenType::get_content_type(self).to_string().into(),
-            ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                auth_string.into_masked(),
-            ),
-        ])
+        Ok(vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -230,10 +228,21 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        println!("control entered this fn");
         Ok(format!(
-            "{}/oauth/token?grant_type=client_credentials",
+            "{}oauth/token?grant_type=client_credentials",
             connectors.santander.base_url
         ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = santander::SantanderAuthRequest::try_from(req)?;
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -241,12 +250,16 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = santander::SantanderAuthType::try_from(&req.connector_auth_type)?;
         let req = Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .attach_default_headers()
                 .headers(RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&RefreshTokenType::get_url(self, req, connectors)?)
+                .add_certificate(Some(auth_details.certificate))
+                .add_certificate_key(Some(auth_details.certificate_key))
+                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
                 .build(),
         );
         Ok(req)
@@ -258,9 +271,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
-        let response: santander::SantanderAuthUpdateResponse = res
+        let response: santander::SanatanderAccessTokenResponse = res
             .response
-            .parse_struct("santander SantanderAuthUpdateResponse")
+            .parse_struct("santander SanatanderAccessTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -313,7 +326,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Pix) => Ok(format!(
-                    "{}cob/{}",
+                    "{}api/v1/cob/{}",
                     self.base_url(connectors),
                     req.payment_id
                 )),
@@ -365,12 +378,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = santander::SantanderAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Put)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .add_certificate(Some(auth_details.certificate))
+                .add_certificate_key(Some(auth_details.certificate_key))
                 .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
