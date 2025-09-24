@@ -1,7 +1,7 @@
 # Migration Runner Dockerfile for Hyperswitch
 # This image contains migration files and diesel CLI for offline migration execution
 
-FROM debian:bookworm
+FROM debian:trixie-slim
 
 # Install necessary packages
 RUN apt-get update && apt-get install -y \
@@ -12,18 +12,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install diesel CLI (support multi-arch)
-ENV DIESEL_VERSION=2.3.0
-RUN ARCH=$(uname -m) && \
-    case "${ARCH}" in \
-      x86_64) DIESEL_ARCH="x86_64-unknown-linux-gnu" ;; \
-      aarch64) DIESEL_ARCH="aarch64-unknown-linux-gnu" ;; \
-      *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    curl -L "https://github.com/diesel-rs/diesel/releases/download/v${DIESEL_VERSION}/diesel_cli-${DIESEL_ARCH}.tar.xz" | tar -xJ -C /tmp/ && \
-    mv "/tmp/diesel_cli-${DIESEL_ARCH}/diesel" /usr/local/bin/diesel && \
-    rm -rf "/tmp/diesel_cli-${DIESEL_ARCH}" && \
-    chmod +x /usr/local/bin/diesel
+# Install diesel CLI
+RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | sh
+
+# Add cargo bin to PATH
+ENV PATH="/root/.cargo/bin:$PATH"
 
 # Set working directory
 WORKDIR /hyperswitch
@@ -31,9 +24,10 @@ WORKDIR /hyperswitch
 # Copy migration files and diesel config from the workspace
 COPY ./migrations/ ./migrations/
 COPY ./diesel.toml ./diesel.toml
+COPY ./crates/diesel_models/src/schema.rs ./crates/diesel_models/src/schema.rs
 COPY ./crates/diesel_models/drop_id.patch ./crates/diesel_models/drop_id.patch
 
-# Create the 'app' user and group (following hyperswitch pattern)
+# Create the 'app' user and group
 RUN useradd --user-group --system --no-create-home --no-log-init app
 
 # Change ownership of working directory to app user
