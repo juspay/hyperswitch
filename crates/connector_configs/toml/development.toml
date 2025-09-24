@@ -6872,6 +6872,12 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[paysafe.debit]]
 payment_method_type = "UnionPay"
+[[paysafe.bank_redirect]]
+payment_method_type = "interac"
+[[paysafe.wallet]]
+payment_method_type = "skrill"
+[[paysafe.gift_card]]
+payment_method_type = "pay_safe_card"
 [paysafe.connector_auth.BodyKey]
 api_key = "Username"
 key1 = "Password"
@@ -7079,3 +7085,12 @@ label="mastercard Payment Facilitator Id"
 placeholder="Enter mastercard Payment Facilitator Id"
 required=false
 type="Text"
+
+[tokenex]
+[tokenex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "TokenEx ID"
+
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"

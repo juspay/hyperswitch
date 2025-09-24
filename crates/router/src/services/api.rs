@@ -211,6 +211,9 @@ where
     Ok(())
 }
 
+pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
+
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed

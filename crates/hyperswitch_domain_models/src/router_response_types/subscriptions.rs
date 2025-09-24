@@ -1,4 +1,29 @@
 use common_enums::Currency;
+use common_utils::{id_type, types::MinorUnit};
+use time::PrimitiveDateTime;
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionCreateResponse {
+    pub subscription_id: id_type::SubscriptionId,
+    pub status: SubscriptionStatus,
+    pub customer_id: id_type::CustomerId,
+    pub currency_code: Currency,
+    pub total_amount: MinorUnit,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    pub created_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SubscriptionStatus {
+    Pending,
+    Trial,
+    Active,
+    Paused,
+    Unpaid,
+    Onetime,
+    Cancelled,
+    Failed,
+}
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansResponse {
@@ -21,7 +46,7 @@ pub struct GetSubscriptionPlanPricesResponse {
 pub struct SubscriptionPlanPrices {
     pub price_id: String,
     pub plan_id: Option<String>,
-    pub amount: common_utils::types::MinorUnit,
+    pub amount: MinorUnit,
     pub currency: Currency,
     pub interval: PeriodUnit,
     pub interval_count: i64,
