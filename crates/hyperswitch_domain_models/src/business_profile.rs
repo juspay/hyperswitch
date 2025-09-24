@@ -86,6 +86,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub external_vault_details: ExternalVaultDetails,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -243,6 +244,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub external_vault_details: ExternalVaultDetails,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -310,6 +312,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             billing_processor_id: value.billing_processor_id,
             external_vault_details: value.external_vault_details,
+            billing_processor_id: value.billing_processor_id,
         }
     }
 }
@@ -380,6 +383,7 @@ pub struct ProfileGeneralUpdate {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -468,6 +472,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     billing_processor_id,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    billing_processor_id,
                 } = *update;
 
                 let is_external_vault_enabled = match is_external_vault_enabled {
@@ -534,6 +539,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     billing_processor_id,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    billing_processor_id,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -595,6 +601,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -653,6 +660,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -711,6 +719,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -769,6 +778,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -827,6 +837,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -885,6 +896,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -943,6 +955,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
         }
     }
@@ -1024,6 +1037,7 @@ impl super::behaviour::Conversion for Profile {
             billing_processor_id: self.billing_processor_id,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 
@@ -1148,6 +1162,7 @@ impl super::behaviour::Conversion for Profile {
             billing_processor_id: item.billing_processor_id,
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
+            billing_processor_id: item.billing_processor_id,
         })
     }
 
@@ -1216,6 +1231,7 @@ impl super::behaviour::Conversion for Profile {
             billing_processor_id: self.billing_processor_id,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 }

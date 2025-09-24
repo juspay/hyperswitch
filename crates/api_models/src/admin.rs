@@ -2213,6 +2213,10 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[nutype::nutype(
@@ -2578,6 +2582,10 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2945,6 +2953,10 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]

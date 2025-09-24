@@ -268,6 +268,7 @@ impl ProfileUpdateInternal {
             billing_processor_id,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -362,6 +363,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
+            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
 }
