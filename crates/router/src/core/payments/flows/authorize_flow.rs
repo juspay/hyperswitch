@@ -888,14 +888,17 @@ async fn call_unified_connector_service_authorize(
 
             let payment_authorize_response = response.into_inner();
 
-            let (status, router_data_response, status_code) =
+            let (router_data_response, status_code) =
                 handle_unified_connector_service_response_for_payment_authorize(
                     payment_authorize_response.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            router_data.status = status;
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_authorize_response
                 .raw_connector_response
@@ -972,14 +975,17 @@ async fn call_unified_connector_service_repeat_payment(
 
             let payment_repeat_response = response.into_inner();
 
-            let (status, router_data_response, status_code) =
+            let (router_data_response, status_code) =
                 handle_unified_connector_service_response_for_payment_repeat(
                     payment_repeat_response.clone(),
                 )
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            router_data.status = status;
+            let router_data_response = router_data_response.map(|(response, status)| {
+                router_data.status = status;
+                response
+            });
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_repeat_response
                 .raw_connector_response

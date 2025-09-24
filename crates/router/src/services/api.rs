@@ -170,7 +170,7 @@ where
         }
     }?;
 
-    let (status, router_data_response, status_code) =
+    let (router_data_response, status_code) =
         unified_connector_service::handle_unified_connector_service_response_for_payment_get(
             payment_get_response.clone(),
         )
@@ -178,7 +178,10 @@ where
         .attach_printable("Failed to process UCS webhook response using PSync handler")?;
 
     let mut updated_router_data = router_data;
-    updated_router_data.status = status;
+    let router_data_response = router_data_response.map(|(response, status)| {
+        updated_router_data.status = status;
+        response
+    });
 
     let _ = router_data_response.map_err(|error_response| {
         updated_router_data.response = Err(error_response);
