@@ -284,6 +284,7 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
