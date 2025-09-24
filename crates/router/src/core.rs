@@ -47,6 +47,8 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
+#[cfg(feature = "superposition")]
+pub mod superposition_keys;
 
 #[cfg(feature = "v1")]
 pub mod debit_routing;

@@ -1378,8 +1378,8 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [superposition]
-enabled = true # Enable Superposition integration
-endpoint = "http://superposition:8080" # Superposition service endpoint
+enabled = false # Enable Superposition integration
+endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition

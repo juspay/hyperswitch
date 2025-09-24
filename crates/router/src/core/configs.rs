@@ -1,5 +1,7 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+#[cfg(feature = "superposition")]
+use external_services::superposition::ConfigContext;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
@@ -7,6 +9,34 @@ use crate::{
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
 };
+
+/// Context for configuration retrieval - defines the strategy and parameters
+#[derive(Debug, Clone)]
+pub enum ConfigRetrieveContext {
+    /// Retrieve configuration from database only
+    DatabaseOnly {
+        /// Database key to retrieve
+        key: String,
+    },
+    /// Retrieve from Superposition with database fallback
+    #[cfg(feature = "superposition")]
+    SuperpositionWithDatabaseFallback {
+        /// Superposition configuration key
+        superposition_key: String,
+        /// Context for Superposition evaluation
+        superposition_context: Option<ConfigContext>,
+        /// Database fallback key
+        database_key: String,
+    },
+    /// Retrieve from Superposition only (no fallback)
+    #[cfg(feature = "superposition")]
+    SuperpositionOnly {
+        /// Superposition configuration key
+        key: String,
+        /// Context for Superposition evaluation
+        context: Option<ConfigContext>,
+    },
+}
 
 pub async fn set_config(state: SessionState, config: api::Config) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
@@ -52,162 +82,292 @@ pub async fn config_delete(state: SessionState, key: String) -> RouterResponse<a
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
-/// Get a boolean configuration value with Superposition -> Database fallback
+/// Get a boolean configuration value based on the specified context
 pub async fn get_config_bool(
     state: &SessionState,
-    #[cfg(feature = "superposition")] superposition_key: &str,
-    #[cfg(not(feature = "superposition"))] _superposition_key: &str,
-    db_key: &str,
-    #[cfg(feature = "superposition")] context: Option<std::collections::HashMap<String, String>>,
-    #[cfg(not(feature = "superposition"))] _context: Option<
-        std::collections::HashMap<String, String>,
-    >,
+    context: ConfigRetrieveContext,
     default_value: bool,
 ) -> CustomResult<bool, errors::StorageError> {
-    #[cfg(feature = "superposition")]
-    if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client
-            .get_bool_value(superposition_key, context.as_ref())
-            .await
-        {
-            return Ok(value);
+    match context {
+        ConfigRetrieveContext::DatabaseOnly { key } => {
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<bool>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key,
+            superposition_context,
+            database_key,
+        } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                if let Ok(value) = superposition_client
+                    .get_bool_value(&superposition_key, superposition_context.as_ref())
+                    .await
+                {
+                    return Ok(value);
+                }
+            }
+
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&database_key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<bool>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionOnly { key, context } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                superposition_client
+                    .get_bool_value(&key, context.as_ref())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            } else {
+                Err(errors::StorageError::ValueNotFound(
+                    "Superposition client not available".to_string(),
+                )
+                .into())
+            }
         }
     }
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-        .await?;
-
-    config
-        .config
-        .parse::<bool>()
-        .change_context(errors::StorageError::DeserializationFailed)
 }
 
-/// Get a string configuration value with Superposition -> Database fallback
+/// Get a string configuration value based on the specified context
 pub async fn get_config_string(
     state: &SessionState,
-    #[cfg(feature = "superposition")] superposition_key: &str,
-    #[cfg(not(feature = "superposition"))] _superposition_key: &str,
-    db_key: &str,
-    #[cfg(feature = "superposition")] context: Option<std::collections::HashMap<String, String>>,
-    #[cfg(not(feature = "superposition"))] _context: Option<
-        std::collections::HashMap<String, String>,
-    >,
+    context: ConfigRetrieveContext,
     default_value: String,
 ) -> CustomResult<String, errors::StorageError> {
-    #[cfg(feature = "superposition")]
-    if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client
-            .get_string_value(superposition_key, context.as_ref())
-            .await
-        {
-            return Ok(value);
+    match context {
+        ConfigRetrieveContext::DatabaseOnly { key } => {
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&key, Some(default_value))
+                .await?;
+
+            Ok(config.config)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key,
+            superposition_context,
+            database_key,
+        } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                if let Ok(value) = superposition_client
+                    .get_string_value(&superposition_key, superposition_context.as_ref())
+                    .await
+                {
+                    return Ok(value);
+                }
+            }
+
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&database_key, Some(default_value))
+                .await?;
+
+            Ok(config.config)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionOnly { key, context } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                superposition_client
+                    .get_string_value(&key, context.as_ref())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            } else {
+                Err(errors::StorageError::ValueNotFound(
+                    "Superposition client not available".to_string(),
+                )
+                .into())
+            }
         }
     }
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(db_key, Some(default_value))
-        .await?;
-
-    Ok(config.config)
 }
 
-/// Get an integer configuration value with Superposition -> Database fallback
+/// Get an integer configuration value based on the specified context
 pub async fn get_config_int(
     state: &SessionState,
-    #[cfg(feature = "superposition")] superposition_key: &str,
-    #[cfg(not(feature = "superposition"))] _superposition_key: &str,
-    db_key: &str,
-    #[cfg(feature = "superposition")] context: Option<std::collections::HashMap<String, String>>,
-    #[cfg(not(feature = "superposition"))] _context: Option<
-        std::collections::HashMap<String, String>,
-    >,
+    context: ConfigRetrieveContext,
     default_value: i64,
 ) -> CustomResult<i64, errors::StorageError> {
-    #[cfg(feature = "superposition")]
-    if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client
-            .get_int_value(superposition_key, context.as_ref())
-            .await
-        {
-            return Ok(value);
+    match context {
+        ConfigRetrieveContext::DatabaseOnly { key } => {
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<i64>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key,
+            superposition_context,
+            database_key,
+        } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                if let Ok(value) = superposition_client
+                    .get_int_value(&superposition_key, superposition_context.as_ref())
+                    .await
+                {
+                    return Ok(value);
+                }
+            }
+
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&database_key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<i64>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionOnly { key, context } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                superposition_client
+                    .get_int_value(&key, context.as_ref())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            } else {
+                Err(errors::StorageError::ValueNotFound(
+                    "Superposition client not available".to_string(),
+                )
+                .into())
+            }
         }
     }
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-        .await?;
-
-    config
-        .config
-        .parse::<i64>()
-        .change_context(errors::StorageError::DeserializationFailed)
 }
 
-/// Get a float configuration value with Superposition -> Database fallback
+/// Get a float configuration value based on the specified context
 pub async fn get_config_float(
     state: &SessionState,
-    #[cfg(feature = "superposition")] superposition_key: &str,
-    #[cfg(not(feature = "superposition"))] _superposition_key: &str,
-    db_key: &str,
-    #[cfg(feature = "superposition")] context: Option<std::collections::HashMap<String, String>>,
-    #[cfg(not(feature = "superposition"))] _context: Option<
-        std::collections::HashMap<String, String>,
-    >,
+    context: ConfigRetrieveContext,
     default_value: f64,
 ) -> CustomResult<f64, errors::StorageError> {
-    #[cfg(feature = "superposition")]
-    if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(value) = superposition_client
-            .get_float_value(superposition_key, context.as_ref())
-            .await
-        {
-            return Ok(value);
+    match context {
+        ConfigRetrieveContext::DatabaseOnly { key } => {
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<f64>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key,
+            superposition_context,
+            database_key,
+        } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                if let Ok(value) = superposition_client
+                    .get_float_value(&superposition_key, superposition_context.as_ref())
+                    .await
+                {
+                    return Ok(value);
+                }
+            }
+
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&database_key, Some(default_value.to_string()))
+                .await?;
+
+            config
+                .config
+                .parse::<f64>()
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionOnly { key, context } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                superposition_client
+                    .get_float_value(&key, context.as_ref())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            } else {
+                Err(errors::StorageError::ValueNotFound(
+                    "Superposition client not available".to_string(),
+                )
+                .into())
+            }
         }
     }
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-        .await?;
-
-    config
-        .config
-        .parse::<f64>()
-        .change_context(errors::StorageError::DeserializationFailed)
 }
 
-/// Get an object configuration value with Superposition -> Database fallback
+/// Get an object configuration value based on the specified context
 pub async fn get_config_object(
     state: &SessionState,
-    #[cfg(feature = "superposition")] superposition_key: &str,
-    #[cfg(not(feature = "superposition"))] _superposition_key: &str,
-    db_key: &str,
-    #[cfg(feature = "superposition")] context: Option<std::collections::HashMap<String, String>>,
-    #[cfg(not(feature = "superposition"))] _context: Option<
-        std::collections::HashMap<String, String>,
-    >,
+    context: ConfigRetrieveContext,
     default_value: serde_json::Value,
 ) -> CustomResult<serde_json::Value, errors::StorageError> {
-    #[cfg(feature = "superposition")]
-    if let Some(ref superposition_client) = state.superposition_service {
-        if let Ok(json_value) = superposition_client
-            .get_object_value(superposition_key, context.as_ref())
-            .await
-        {
-            return Ok(json_value);
+    match context {
+        ConfigRetrieveContext::DatabaseOnly { key } => {
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&key, Some(default_value.to_string()))
+                .await?;
+
+            serde_json::from_str::<serde_json::Value>(&config.config)
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key,
+            superposition_context,
+            database_key,
+        } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                if let Ok(json_value) = superposition_client
+                    .get_object_value(&superposition_key, superposition_context.as_ref())
+                    .await
+                {
+                    return Ok(json_value);
+                }
+            }
+
+            let config = state
+                .store
+                .find_config_by_key_unwrap_or(&database_key, Some(default_value.to_string()))
+                .await?;
+
+            serde_json::from_str::<serde_json::Value>(&config.config)
+                .change_context(errors::StorageError::DeserializationFailed)
+        }
+        #[cfg(feature = "superposition")]
+        ConfigRetrieveContext::SuperpositionOnly { key, context } => {
+            if let Some(ref superposition_client) = state.superposition_service {
+                superposition_client
+                    .get_object_value(&key, context.as_ref())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            } else {
+                Err(errors::StorageError::ValueNotFound(
+                    "Superposition client not available".to_string(),
+                )
+                .into())
+            }
         }
     }
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-        .await?;
-
-    serde_json::from_str::<serde_json::Value>(&config.config)
-        .change_context(errors::StorageError::DeserializationFailed)
 }

@@ -4,12 +4,6 @@ use std::{
     str::FromStr,
 };
 
-/// Configuration key constants
-mod config_keys {
-    /// CVV requirement configuration key
-    pub const REQUIRES_CVV: &str = "requires_cvv";
-}
-
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
         get_billing_required_fields, get_shipping_required_fields,
@@ -75,9 +69,11 @@ use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
+#[cfg(feature = "payouts")]
+#[cfg(feature = "superposition")]
+use crate::core::superposition_keys;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
-#[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
     configs::settings,
@@ -4133,19 +4129,30 @@ pub async fn list_customer_payment_method(
 
     let requires_cvv = configs::get_config_bool(
         state,
-        config_keys::REQUIRES_CVV, // superposition key
-        &merchant_context
-            .get_merchant_account()
-            .get_id()
-            .get_requires_cvv_key(), // database key
-        Some(HashMap::from([(
-            "merchant_id".to_string(),
-            merchant_context
+        #[cfg(feature = "superposition")]
+        configs::ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
+            superposition_key: superposition_keys::REQUIRES_CVV.to_string(),
+            superposition_context: Some(
+                external_services::superposition::ConfigContext::new().with(
+                    "merchant_id",
+                    merchant_context
+                        .get_merchant_account()
+                        .get_id()
+                        .get_string_repr(),
+                ),
+            ),
+            database_key: merchant_context
                 .get_merchant_account()
                 .get_id()
-                .get_string_repr()
-                .to_string(),
-        )])),
+                .get_requires_cvv_key(),
+        },
+        #[cfg(not(feature = "superposition"))]
+        configs::ConfigRetrieveContext::DatabaseOnly {
+            key: merchant_context
+                .get_merchant_account()
+                .get_id()
+                .get_requires_cvv_key(),
+        },
         true, // default value
     )
     .await
