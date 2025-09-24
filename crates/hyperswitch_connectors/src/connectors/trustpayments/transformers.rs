@@ -490,10 +490,7 @@ impl TrustpaymentsPaymentsRequest {
                     .router_data
                     .get_optional_billing_country()
                     .map(|country| country.to_string()),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
-
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for cards
                 applicationtype: None,
@@ -535,9 +532,7 @@ impl TrustpaymentsPaymentsRequest {
                     .router_data
                     .get_optional_billing_country()
                     .map(|country| country.to_string()),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for EPS
                 pan: None,
@@ -584,9 +579,7 @@ impl TrustpaymentsPaymentsRequest {
                     .router_data
                     .get_optional_billing_country()
                     .map(|country| country.to_string()),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for Trustly
                 pan: None,
@@ -628,9 +621,7 @@ impl TrustpaymentsPaymentsRequest {
                     .get_optional_billing_country()
                     .map(|country| country.to_string())
                     .or_else(|| Some("CN".to_string())),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for Alipay
                 pan: None,
@@ -677,9 +668,7 @@ impl TrustpaymentsPaymentsRequest {
                     .router_data
                     .get_optional_billing_country()
                     .map(|country| country.to_string()),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for Paysera
                 pan: None,
@@ -726,9 +715,7 @@ impl TrustpaymentsPaymentsRequest {
                     .router_data
                     .get_optional_billing_country()
                     .map(|country| country.to_string()),
-                billingemail: item
-                    .router_data
-                    .get_optional_billing_email(),
+                billingemail: item.router_data.get_optional_billing_email(),
 
                 // Not used for SEPA
                 pan: None,
