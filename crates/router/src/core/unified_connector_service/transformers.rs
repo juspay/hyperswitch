@@ -8,7 +8,7 @@ use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
-    router_data::{ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, PSync, SetupMandate},
         ExternalVaultProxy,
@@ -31,6 +31,13 @@ use crate::{
     core::{errors, unified_connector_service},
     types::transformers::ForeignTryFrom,
 };
+
+pub fn convert_grpc_access_token_to_domain(grpc_token: &payments_grpc::AccessToken) -> AccessToken {
+    AccessToken {
+        token: masking::Secret::new(grpc_token.token.clone()),
+        expires: grpc_token.expires_in_seconds.unwrap_or_default(),
+    }
+}
 impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceGetRequest
 {
@@ -73,9 +80,16 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        // Use access token from router_data
+        let access_token = router_data
+            .access_token
+            .as_ref()
+            .map(|token| token.token.peek().to_string());
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            access_token,
         })
     }
 }
@@ -125,6 +139,12 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        // Use access token from router_data
+        let access_token = router_data
+            .access_token
+            .as_ref()
+            .map(|token| token.token.peek().to_string());
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
@@ -143,7 +163,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
-            access_token: None,
+            access_token,
             session_token: None,
             order_tax_amount: router_data
                 .request
@@ -410,7 +430,10 @@ impl ForeignTryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsR
             return_url: router_data.request.router_return_url.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
-            access_token: None,
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(|token| token.token.peek().to_string()),
             session_token: None,
             order_tax_amount: None,
             order_category: None,
@@ -505,6 +528,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().expose().into()),
             browser_info,
+            access_token: router_data
+                .access_token
+                .as_ref()
+                .map(|token| token.token.peek().to_string()),
             test_mode: None,
             payment_method_type: None,
         })
@@ -1281,6 +1308,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
+        access_token: None, // Webhooks typically don't need access tokens
     })
 }
 

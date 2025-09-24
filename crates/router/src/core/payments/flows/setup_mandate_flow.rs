@@ -16,8 +16,9 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_register, ucs_logging_wrapper,
+            build_unified_connector_service_auth_metadata, get_access_token_from_ucs_response,
+            handle_unified_connector_service_response_for_payment_register,
+            set_access_token_for_ucs, ucs_logging_wrapper,
         },
     },
     routes::SessionState,
@@ -267,6 +268,19 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        if let Ok(Some(cached_access_token)) = state
+            .store
+            .get_access_token(merchant_id, &self.connector)
+            .await
+        {
+            self.access_token = Some(cached_access_token);
+            logger::debug!(
+                "Using cached access token for UCS call to connector: {}",
+                self.connector
+            );
+        }
+
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -299,6 +313,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .get_grpc_headers_ucs()
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id);
+        let connector_name = self.connector.clone();
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
@@ -323,6 +338,52 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
+
+                // Extract and store access token if present
+                if let Some(access_token) =
+                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+                {
+                    if let Err(error) = set_access_token_for_ucs(
+                        state,
+                        merchant_context,
+                        &connector_name,
+                        access_token,
+                    )
+                    .await
+                    {
+                        logger::error!(
+                            ?error,
+                            "Failed to store UCS access token from setup mandate response"
+                        );
+                    } else {
+                        logger::debug!(
+                            "Successfully stored access token from UCS setup mandate response"
+                        );
+                    }
+                }
+
+                // Extract and store access token if present
+                if let Some(access_token) =
+                    get_access_token_from_ucs_response(payment_register_response.state.as_ref())
+                {
+                    if let Err(error) = set_access_token_for_ucs(
+                        state,
+                        merchant_context,
+                        &connector_name,
+                        access_token,
+                    )
+                    .await
+                    {
+                        logger::error!(
+                            ?error,
+                            "Failed to store UCS access token from setup mandate response"
+                        );
+                    } else {
+                        logger::debug!(
+                            "Successfully stored access token from UCS setup mandate response"
+                        );
+                    }
+                }
 
                 router_data.status = status;
                 router_data.response = router_data_response;
