@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use common_enums::connector_enums::InvoiceStatus;
 use common_utils::ext_traits::ValueExt;
-use diesel_models::invoice::InvoiceNew;
+use diesel_models::{invoice::InvoiceNew, process_tracker::business_status};
+use error_stack::ResultExt;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 
 use crate::{
+    core::errors::RecoveryError::ProcessTrackerFailure,
     routes::SessionState,
     types::{domain, storage},
 };
@@ -40,7 +42,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecuteSubscriptionWorkflow {
 
 async fn perform_subscription_mit_payment(
     state: &SessionState,
-    _process: &storage::ProcessTracker,
+    process: &storage::ProcessTracker,
     tracking_data: &api_models::process_tracker::subscription::SubscriptionWorkflowTrackingData,
 ) -> Result<(), errors::ProcessTrackerError> {
     // Extract merchant context
@@ -72,11 +74,7 @@ async fn perform_subscription_mit_payment(
         modified_at: common_utils::date_time::now(),
     };
 
-    let _invoice = state
-        .store
-        .insert_invoice_entry(invoice_new)
-        .await
-        .expect("Failed to create invoice entry");
+    let _invoice = state.store.insert_invoice_entry(invoice_new).await?;
 
     let merchant_account = state
         .store
@@ -110,6 +108,23 @@ async fn perform_subscription_mit_payment(
     //update invoice table
 
     //and mark the process tracker as complete
+
+    let updated_process = storage::ProcessTracker {
+        id: process.id.clone(),
+        status: common_enums::ProcessTrackerStatus::Finish,
+        ..process.clone()
+    };
+
+    state
+        .store
+        .as_scheduler()
+        .finish_process_with_business_status(
+            updated_process.clone(),
+            business_status::EXECUTE_WORKFLOW_COMPLETE,
+        )
+        .await
+        .change_context(ProcessTrackerFailure)
+        .attach_printable("Failed to update the process tracker")?;
 
     Ok(())
 }

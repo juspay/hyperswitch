@@ -334,7 +334,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &webhook_processing_result.transform_data,
                 &final_request_details,
                 is_relay_webhook,
-                merchant_connector_account.unwrap().merchant_connector_id,
+                merchant_connector_account
+                    .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: connector_name_or_mca_id.to_string(),
+                    })?
+                    .merchant_connector_id,
             )
             .await;
 
@@ -815,8 +819,8 @@ async fn process_webhook_business_logic(
                 business_profile,
                 webhook_details,
                 source_verified,
-                &connector,
-                &request_details,
+                connector,
+                request_details,
                 event_type,
                 billing_connector_mca_id,
             ))
@@ -2569,9 +2573,15 @@ async fn subscription_incoming_webhook_flow(
         ));
     }
 
-    // Parse the webhook body to extract MIT payment data
-    let mit_payment_data = match connector.id() {
-        "chargebee" => {
+    let connector_name = connector.id().to_string();
+
+    let connector = Connector::from_str(&connector_name)
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name}"))?;
+
+    let mit_payment_data = match connector {
+        Connector::Chargebee => {
             let webhook_body = ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(
                 &webhook_details.resource_object,
             )
@@ -2587,16 +2597,6 @@ async fn subscription_incoming_webhook_flow(
                 .attach_printable("Subscription webhook flow not supported for this connector");
         }
     };
-
-    logger::info!(
-        invoice_id = %mit_payment_data.invoice_id,
-        amount_due = %mit_payment_data.amount_due.get_amount_as_i64(),
-        currency = %mit_payment_data.currency_code,
-        status = %mit_payment_data.status,
-        subscription_id = ?mit_payment_data.subscription_id,
-        first_invoice = %mit_payment_data.first_invoice,
-        "Received invoice_generated webhook for MIT payment"
-    );
 
     if mit_payment_data.first_invoice {
         return Ok(WebhookResponseTracker::NoEffect);
@@ -2622,13 +2622,6 @@ async fn subscription_incoming_webhook_flow(
         .attach_printable("No payment method found for subscription")?;
 
     logger::info!("Payment method ID found: {}", payment_method_id);
-
-    let connector_name = connector.id().to_string();
-
-    let connector = Connector::from_str(&connector_name)
-        .change_context(errors::ConnectorError::InvalidConnectorName)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name}"))?;
 
     // Create tracking data for subscription MIT payment
     let tracking_data =
