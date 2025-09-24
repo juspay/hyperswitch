@@ -3911,6 +3911,8 @@ client_id="Client ID"
 [paypal_payout.connector_auth.BodyKey]
 api_key="Client Secret"
 key1="Client ID"
+[paypal_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [paystack]
 [[paystack.bank_redirect]]
@@ -5473,6 +5475,8 @@ type="Text"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+[wise_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -7085,3 +7089,12 @@ label="mastercard Payment Facilitator Id"
 placeholder="Enter mastercard Payment Facilitator Id"
 required=false
 type="Text"
+
+[tokenex]
+[tokenex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "TokenEx ID"
+
+[gigadat]
+[gigadat.connector_auth.HeaderKey]
+api_key = "API Key"
