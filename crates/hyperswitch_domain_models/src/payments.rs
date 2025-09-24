@@ -469,6 +469,10 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
+    /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    /// The ID of the active attempt group for the payment intent
+    pub active_attempts_group_id: Option<String>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -669,6 +673,8 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
+            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
+            active_attempts_group_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,

@@ -129,6 +129,8 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// A string indicating the group of the payment attempt. Used in split payments flow
+    pub attempts_group_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -300,6 +302,7 @@ pub struct PaymentListFilters {
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::GlobalPaymentId,
     pub merchant_id: id_type::MerchantId,
+    pub attempts_group_id: Option<String>,
     pub status: storage_enums::AttemptStatus,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -1013,6 +1016,7 @@ impl PaymentAttemptUpdateInternal {
                 .or(source.connector_request_reference_id),
             is_overcapture_enabled: source.is_overcapture_enabled,
             network_details: source.network_details,
+            attempts_group_id: source.attempts_group_id,
         }
     }
 }
