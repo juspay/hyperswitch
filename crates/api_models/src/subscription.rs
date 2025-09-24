@@ -166,7 +166,7 @@ pub struct ConfirmSubscriptionRequest {
 
     /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: Option<String>,
-    
+
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
 
@@ -207,7 +207,7 @@ pub struct ConfirmSubscriptionResponse {
 
     /// Payment details for the invoice.
     pub payment: Option<PaymentResponseData>,
-    
+
     /// Customer ID associated with this subscription.
     pub customer_id: Option<common_utils::id_type::CustomerId>,
 
