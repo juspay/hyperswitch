@@ -329,3 +329,10 @@ pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
 
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
+
+/// Superposition configuration keys
+#[cfg(feature = "superposition")]
+pub mod superposition {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+}

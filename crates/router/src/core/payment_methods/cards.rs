@@ -71,7 +71,6 @@ use crate::core::payment_methods::{
 };
 #[cfg(feature = "payouts")]
 #[cfg(feature = "superposition")]
-use crate::core::superposition_keys;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 use crate::{
@@ -4130,7 +4129,7 @@ pub async fn list_customer_payment_method(
         state,
         #[cfg(feature = "superposition")]
         configs::ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
-            superposition_key: superposition_keys::REQUIRES_CVV.to_string(),
+            superposition_key: router_consts::superposition::REQUIRES_CVV.to_string(),
             superposition_context: Some(
                 external_services::superposition::ConfigContext::new().with(
                     "merchant_id",

@@ -107,11 +107,17 @@ pub async fn get_config_bool(
             database_key,
         } => {
             if let Some(ref superposition_client) = state.superposition_service {
-                if let Ok(value) = superposition_client
+                match superposition_client
                     .get_bool_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    return Ok(value);
+                    Ok(value) => return Ok(value),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to retrieve config from superposition, falling back to database: {:?}",
+                            err
+                        );
+                    }
                 }
             }
 
@@ -164,11 +170,17 @@ pub async fn get_config_string(
             database_key,
         } => {
             if let Some(ref superposition_client) = state.superposition_service {
-                if let Ok(value) = superposition_client
+                match superposition_client
                     .get_string_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    return Ok(value);
+                    Ok(value) => return Ok(value),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to retrieve config from superposition, falling back to database: {:?}",
+                            err
+                        );
+                    }
                 }
             }
 
@@ -221,11 +233,17 @@ pub async fn get_config_int(
             database_key,
         } => {
             if let Some(ref superposition_client) = state.superposition_service {
-                if let Ok(value) = superposition_client
+                match superposition_client
                     .get_int_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    return Ok(value);
+                    Ok(value) => return Ok(value),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to retrieve config from superposition, falling back to database: {:?}",
+                            err
+                        );
+                    }
                 }
             }
 
@@ -281,11 +299,17 @@ pub async fn get_config_float(
             database_key,
         } => {
             if let Some(ref superposition_client) = state.superposition_service {
-                if let Ok(value) = superposition_client
+                match superposition_client
                     .get_float_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    return Ok(value);
+                    Ok(value) => return Ok(value),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to retrieve config from superposition, falling back to database: {:?}",
+                            err
+                        );
+                    }
                 }
             }
 
@@ -339,11 +363,17 @@ pub async fn get_config_object(
             database_key,
         } => {
             if let Some(ref superposition_client) = state.superposition_service {
-                if let Ok(json_value) = superposition_client
+                match superposition_client
                     .get_object_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    return Ok(json_value);
+                    Ok(json_value) => return Ok(json_value),
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to retrieve config from superposition, falling back to database: {:?}",
+                            err
+                        );
+                    }
                 }
             }
 

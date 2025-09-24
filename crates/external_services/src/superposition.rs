@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use open_feature;
 use serde_json;
@@ -144,19 +144,9 @@ impl ConfigContext {
 }
 
 /// Superposition client wrapper
+#[allow(missing_debug_implementations)]
 pub struct SuperpositionClient {
     client: open_feature::Client,
-    org_id: String,
-    workspace_id: String,
-}
-
-impl std::fmt::Debug for SuperpositionClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SuperpositionClient")
-            .field("org_id", &self.org_id)
-            .field("workspace_id", &self.workspace_id)
-            .finish_non_exhaustive()
-    }
 }
 
 impl SuperpositionClient {
@@ -203,11 +193,7 @@ impl SuperpositionClient {
 
         router_env::logger::info!("Superposition client initialized successfully");
 
-        Ok(Self {
-            client,
-            org_id: config.org_id,
-            workspace_id: config.workspace_id,
-        })
+        Ok(Self { client })
     }
 
     /// Build evaluation context for Superposition requests
@@ -242,12 +228,11 @@ impl SuperpositionClient {
         self.client
             .get_bool_value(key, Some(&evaluation_context), None)
             .await
-            .map_err(|e| SuperpositionError::ClientError(format!("OpenFeature error: {e:?}")))
-            .change_context_lazy(|| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to retrieve bool config for key: {}",
-                    key
-                ))
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to get bool value for key '{}': {:?}",
+                    key, e
+                )))
             })
     }
 
@@ -262,12 +247,11 @@ impl SuperpositionClient {
         self.client
             .get_string_value(key, Some(&evaluation_context), None)
             .await
-            .map_err(|e| SuperpositionError::ClientError(format!("OpenFeature error: {e:?}")))
-            .change_context_lazy(|| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to retrieve string config for key: {}",
-                    key
-                ))
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to get string value for key '{}': {:?}",
+                    key, e
+                )))
             })
     }
 
@@ -282,12 +266,11 @@ impl SuperpositionClient {
         self.client
             .get_int_value(key, Some(&evaluation_context), None)
             .await
-            .map_err(|e| SuperpositionError::ClientError(format!("OpenFeature error: {e:?}")))
-            .change_context_lazy(|| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to retrieve int config for key: {}",
-                    key
-                ))
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to get int value for key '{}': {:?}",
+                    key, e
+                )))
             })
     }
 
@@ -302,12 +285,11 @@ impl SuperpositionClient {
         self.client
             .get_float_value(key, Some(&evaluation_context), None)
             .await
-            .map_err(|e| SuperpositionError::ClientError(format!("OpenFeature error: {e:?}")))
-            .change_context_lazy(|| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to retrieve float config for key: {}",
-                    key
-                ))
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to get float value for key '{}': {:?}",
+                    key, e
+                )))
             })
     }
 
@@ -323,12 +305,11 @@ impl SuperpositionClient {
             .client
             .get_struct_value::<JsonValue>(key, Some(&evaluation_context), None)
             .await
-            .map_err(|e| SuperpositionError::ClientError(format!("OpenFeature error: {e:?}")))
-            .change_context_lazy(|| {
-                SuperpositionError::ClientError(format!(
-                    "Failed to retrieve object config for key: {}",
-                    key
-                ))
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to get object value for key '{}': {:?}",
+                    key, e
+                )))
             })?;
 
         Ok(json_result.0)

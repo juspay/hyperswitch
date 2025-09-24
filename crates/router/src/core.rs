@@ -17,6 +17,8 @@ pub mod connector_validation;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
 pub mod customers;
+#[cfg(feature = "v1")]
+pub mod debit_routing;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
@@ -47,11 +49,6 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod refunds_v2;
-#[cfg(feature = "superposition")]
-pub mod superposition_keys;
-
-#[cfg(feature = "v1")]
-pub mod debit_routing;
 pub mod routing;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
