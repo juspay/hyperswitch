@@ -224,7 +224,7 @@ impl SessionSurchargeDetails {
                 .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
                     payment_method,
                     payment_method_type,
-                    card_network.cloned(),
+                    card_network.copied(),
                 ))
                 .cloned(),
             Self::PreDetermined(surcharge_details) => Some(surcharge_details.clone()),

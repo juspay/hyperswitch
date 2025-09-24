@@ -18,7 +18,8 @@ use diesel_models::{
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
-    business_profile, merchant_connector_account,
+    business_profile,
+    merchant_connector_account::MerchantConnectorAccount,
     merchant_context::{Context, MerchantContext},
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt, PaymentConfirmData,
@@ -128,7 +129,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
 
         let recovery_payment_attempt =
             hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
-                &payment_attempt,
+                payment_attempt,
             );
 
         let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
@@ -151,7 +152,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 // finish psync task as the payment was a success
                 db.as_scheduler()
                     .finish_process_with_business_status(
-                        process_tracker,
+                        process_tracker.clone(),
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
@@ -214,7 +215,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 record_back_to_billing_connector(
                     state,
-                    &payment_attempt,
+                    payment_attempt,
                     payment_intent,
                     &revenue_recovery_payment_data.billing_mca,
                 )
@@ -294,7 +295,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 Box::pin(action.psync_response_handler(
                     state,
                     payment_intent,
-                    &process_tracker,
+                    process_tracker,
                     revenue_recovery_metadata,
                     revenue_recovery_payment_data,
                 ))
@@ -322,7 +323,7 @@ impl Decision {
         intent_status: enums::IntentStatus,
         called_connector: enums::PaymentConnectorTransmission,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
-        revenue_recovery_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_data: &RevenueRecoveryPaymentData,
         payment_id: &id_type::GlobalPaymentId,
     ) -> RecoveryResult<Self> {
         logger::info!("Entering get_decision_based_on_params");
@@ -688,7 +689,7 @@ impl Action {
         state: &SessionState,
         payment_intent: &PaymentIntent,
         execute_task_process: &storage::ProcessTracker,
-        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_payment_data: &RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering execute_payment_task_response_handler");
@@ -822,7 +823,7 @@ impl Action {
 
     pub async fn payment_sync_call(
         state: &SessionState,
-        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_payment_data: &RevenueRecoveryPaymentData,
         payment_intent: &PaymentIntent,
         process: &storage::ProcessTracker,
         profile: &domain::Profile,
@@ -914,7 +915,7 @@ impl Action {
                 }
 
                 RevenueRecoveryPaymentsAttemptStatus::Processing => {
-                    Ok(Self::SyncPayment(payment_attempt))
+                    Ok(Self::SyncPayment(payment_attempt.clone()))
                 }
                 RevenueRecoveryPaymentsAttemptStatus::InvalidStatus(action) => {
                     logger::info!(?action, "Invalid Payment Status For PCR PSync Payment");
@@ -935,7 +936,7 @@ impl Action {
         payment_intent: &PaymentIntent,
         psync_task_process: &storage::ProcessTracker,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
-        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        revenue_recovery_payment_data: &RevenueRecoveryPaymentData,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering psync_response_handler");
 
@@ -1071,8 +1072,8 @@ impl Action {
     pub(crate) async fn decide_retry_failure_action(
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        pt: storage::ProcessTracker,
-        revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        pt: &storage::ProcessTracker,
+        revenue_recovery_payment_data: &RevenueRecoveryPaymentData,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
@@ -1305,7 +1306,7 @@ async fn record_back_to_billing_connector(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
-    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
+    billing_mca: &MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
     logger::info!("Entering record_back_to_billing_connector");
 
@@ -1357,7 +1358,7 @@ async fn record_back_to_billing_connector(
 
 pub fn construct_invoice_record_back_router_data(
     state: &SessionState,
-    billing_mca: &merchant_connector_account::MerchantConnectorAccount,
+    billing_mca: &MerchantConnectorAccount,
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
 ) -> RecoveryResult<hyperswitch_domain_models::types::InvoiceRecordBackRouterData> {
