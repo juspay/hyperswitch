@@ -288,11 +288,6 @@ export const connectorDetails = {
       },
     },
     No3DSFailPayment: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -332,11 +327,6 @@ export const connectorDetails = {
       },
     },
     ManualRetryPaymentDisabled: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -376,11 +366,6 @@ export const connectorDetails = {
       },
     },
     ManualRetryPaymentEnabled: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -419,11 +404,6 @@ export const connectorDetails = {
       },
     },
     ManualRetryPaymentCutoffExpired: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {

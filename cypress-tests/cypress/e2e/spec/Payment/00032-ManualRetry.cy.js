@@ -2,6 +2,8 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
+const MANUAL_RETRY_EXPIRATION = 35000;
+
 describe("Manual Retry Tests", () => {
   let globalState;
 
@@ -223,7 +225,7 @@ describe("Manual Retry Tests", () => {
 
     it("Retry Confirm after cutoff is expired (Should Throw Error)", () => {
       // wait for 35 seconds
-      cy.wait(35000);
+      cy.wait(MANUAL_RETRY_EXPIRATION);
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ManualRetryPaymentCutoffExpired"];
@@ -290,7 +292,7 @@ describe("Manual Retry Tests", () => {
 
     it("First Confirm after Manual Retry Cutoff (Should Succeed)", () => {
       // wait for 35 seconds
-      cy.wait(35000);
+      cy.wait(MANUAL_RETRY_EXPIRATION);
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
