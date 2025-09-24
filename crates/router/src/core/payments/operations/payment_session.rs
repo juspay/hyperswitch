@@ -4,7 +4,6 @@ use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -463,9 +462,10 @@ where
         for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
-            if let Ok(connector_data) = get_connector_data_with_token(
+            if let Ok(connector_data) = helpers::get_connector_data_with_token(
                 state,
-                merchant_connector_account,
+                merchant_connector_account.connector_name.to_string(),
+                Some(merchant_connector_account.get_id()),
                 payment_method_type,
             ) {
                 #[cfg(feature = "v1")]
@@ -500,63 +500,5 @@ where
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
-    }
-}
-
-fn get_connector_data_with_token(
-    state: &SessionState,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
-    payment_method_type: api_models::enums::PaymentMethodType,
-) -> RouterResult<api::ConnectorData> {
-    let connector_data_result = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &merchant_connector_account.connector_name.to_string(),
-        api::GetToken::Connector,
-        Some(merchant_connector_account.get_id()),
-    );
-    let connector_type =
-        decide_session_token_flow(&connector_data_result?.connector, payment_method_type);
-
-    api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &merchant_connector_account.connector_name.to_string(),
-        connector_type,
-        Some(merchant_connector_account.get_id()),
-    )
-    .inspect_err(|err| {
-        logger::error!(session_token_error=?err);
-    })
-}
-
-/// Decides the session token flow based on payment method type
-fn decide_session_token_flow(
-    connector: &hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
-    payment_method_type: api_models::enums::PaymentMethodType,
-) -> api::GetToken {
-    if connector.validate_sdk_session_token_for_payment_method(&payment_method_type) {
-        return api::GetToken::Connector;
-    }
-
-    match payment_method_type {
-        api_models::enums::PaymentMethodType::ApplePay => api::GetToken::ApplePayMetadata,
-        api_models::enums::PaymentMethodType::GooglePay => api::GetToken::GpayMetadata,
-        api_models::enums::PaymentMethodType::Paypal => api::GetToken::PaypalSdkMetadata,
-        api_models::enums::PaymentMethodType::SamsungPay => api::GetToken::SamsungPayMetadata,
-        api_models::enums::PaymentMethodType::Paze => api::GetToken::PazeMetadata,
-        _ => api::GetToken::Connector,
-    }
-}
-
-impl From<api_models::enums::PaymentMethodType> for api::GetToken {
-    fn from(value: api_models::enums::PaymentMethodType) -> Self {
-        match value {
-            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
-            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
-            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
-            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
-            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
-            api_models::enums::PaymentMethodType::AmazonPay => Self::AmazonPayMetadata,
-            _ => Self::Connector,
-        }
     }
 }

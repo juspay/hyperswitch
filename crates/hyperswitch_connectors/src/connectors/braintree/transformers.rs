@@ -1569,36 +1569,29 @@ impl
             BraintreeSessionResponse::SessionTokenResponse(res) => {
                 let session_token = match data.payment_method_type {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
-                        let apple_pay_metadata: payment_types::ApplePayCombinedMetadata =
+                        let payment_request_data: payment_types::PaymentRequestMetadata =
                             if let Some(connector_meta) = data.connector_meta_data.clone() {
                                 let meta_value: serde_json::Value = connector_meta.expose();
                                 meta_value
                                     .get("apple_pay_combined")
                                     .ok_or(errors::ConnectorError::NoConnectorMetaData)
                                     .attach_printable("Missing apple_pay_combined metadata")?
+                                    .get("manual")
+                                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("Missing manual metadata")?
+                                    .get("payment_request_data")
+                                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
+                                    .attach_printable("Missing payment_request_data metadata")?
                                     .clone()
-                                    .parse_value("ApplePayCombinedMetadata")
+                                    .parse_value("PaymentRequestMetadata")
                                     .change_context(errors::ConnectorError::ParsingFailed)
                                     .attach_printable(
-                                        "Failed to parse apple_pay_combined metadata",
+                                        "Failed to parse apple_pay_combined.manual.payment_request_data metadata",
                                     )?
                             } else {
                                 return Err(errors::ConnectorError::NoConnectorMetaData)
                                     .attach_printable("connector_meta_data is None");
                             };
-                        let payment_request_data = match apple_pay_metadata {
-                            payment_types::ApplePayCombinedMetadata::Simplified {
-                                payment_request_data,
-                                ..
-                            } => payment_request_data,
-
-                            payment_types::ApplePayCombinedMetadata::Manual { .. } => {
-                                return Err(errors::ConnectorError::RequestEncodingFailed)
-                                    .attach_printable(
-                                        "Manual Apple Pay combined metadata is not supported",
-                                    );
-                            }
-                        };
 
                         let session_token_data = Some(ApplePaySessionResponse::ThirdPartySdk(
                             payment_types::ThirdPartySdkSessionResponse {
@@ -1672,7 +1665,7 @@ impl
                                 api_models::payments::GooglePaySessionResponse {
                                     merchant_info: payment_types::GpayMerchantInfo {
                                         merchant_name: gpay_data.data.merchant_info.merchant_name,
-                                        merchant_id: None,
+                                        merchant_id: gpay_data.data.merchant_info.merchant_id,
                                     },
                                     shipping_address_required: false,
                                     email_required: false,
@@ -1680,7 +1673,7 @@ impl
                                         payment_types::GpayShippingAddressParameters {
                                             phone_number_required: false,
                                         },
-                                    allowed_payment_methods: vec![],
+                                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
                                     transaction_info: payment_types::GpayTransactionInfo {
                                         country_code: data.request.country.ok_or(
                                             errors::ConnectorError::MissingRequiredField {
