@@ -1,12 +1,21 @@
 use std::str::FromStr;
 
-use api_models::subscription::{
-    self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
+use api_models::{
+    enums as api_enums,
+    subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
 use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse,
+    merchant_context::MerchantContext,
+    router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
+    router_response_types::{
+        subscriptions as subscription_response_types, ConnectorCustomerResponseData,
+        PaymentsResponseData,
+    },
+};
 use masking::Secret;
 
 use super::errors::{self, RouterResponse};
@@ -196,7 +205,7 @@ impl<'a> SubscriptionWithHandler<'a> {
         &self,
         invoice: &diesel_models::invoice::Invoice,
         // _payment_response: &subscription_types::PaymentResponseData,
-        status: hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionStatus,
+        status: subscription_response_types::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
             id: self.subscription.id.clone(),
@@ -218,7 +227,12 @@ impl<'a> SubscriptionWithHandler<'a> {
                 payment_method_id: invoice.payment_method_id.clone(),
                 customer_id: invoice.customer_id.clone(),
                 amount: invoice.amount,
-                currency: invoice.currency.clone(),
+                currency: api_enums::Currency::from_str(invoice.currency.as_str())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(format!(
+                        "unable to parse currency name {currency:?}",
+                        currency = invoice.currency
+                    ))?,
                 status: invoice.status.clone(),
             }),
         })
@@ -348,7 +362,7 @@ impl InvoiceHandler {
         state: &SessionState,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
-        amount: i64,
+        amount: common_utils::types::MinorUnit,
         currency: String,
         status: common_enums::connector_enums::InvoiceStatus,
         provider_name: String,
@@ -357,7 +371,9 @@ impl InvoiceHandler {
         // create a new inoivce entry
 
         let connector = common_enums::connector_enums::Connector::from_str(&provider_name)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "provider_name",
+            })
             .attach_printable(format!("unable to parse connector name {provider_name:?}"))?;
 
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
@@ -368,7 +384,7 @@ impl InvoiceHandler {
             payment_intent_id,
             self.subscription.payment_method_id.clone(),
             self.subscription.customer_id.to_owned(),
-            common_utils::types::MinorUnit::new(amount),
+            amount,
             currency,
             status,
             connector,
@@ -410,10 +426,8 @@ impl BillingHandler {
     pub async fn create_customer(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_response_types::ConnectorCustomerResponseData,
-    > {
-        let customer_req = hyperswitch_domain_models::router_request_types::ConnectorCustomerData {
+    ) -> errors::RouterResult<ConnectorCustomerResponseData> {
+        let customer_req = ConnectorCustomerData {
             email: self.request.customer.as_ref().and_then(|c| c.email.clone()),
             payment_method_data: self
                 .request
@@ -450,10 +464,13 @@ impl BillingHandler {
 
         match response {
             Ok(response_data) => match response_data {
-                hyperswitch_domain_models::router_response_types::PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
+                PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
                     Ok(customer_response)
                 }
-                _ => Err(errors::ApiErrorResponse::InternalServerError.into()),
+                _ => Err(errors::ApiErrorResponse::SubscriptionError {
+                    operation: "Subscription Customer Create".to_string(),
+                }
+                .into()),
             },
             Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
                 code: err.code,
@@ -468,28 +485,27 @@ impl BillingHandler {
     pub async fn create_subscription(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<
-        hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCreateResponse,
-    > {
-        let subscription_item =
-            hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionItem {
-                item_price_id: self.request.item_price_id.clone().ok_or(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: "item_price_id is required".to_string(),
-                    },
-                )?,
-                quantity: Some(1),
-            };
-        let subscription_req = hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCreateRequest {
+    ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
+        let subscription_item = subscription_request_types::SubscriptionItem {
+            item_price_id: self.request.item_price_id.clone().ok_or(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "item_price_id is required".to_string(),
+                },
+            )?,
+            quantity: Some(1),
+        };
+        let subscription_req = subscription_request_types::SubscriptionCreateRequest {
             subscription_id: self.subscription.id.to_owned(),
             customer_id: self.subscription.customer_id.to_owned(),
             subscription_items: vec![subscription_item],
-            billing_address: self.request.billing_address.clone().ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "billing_address",
-            })?,
-            auto_collection: hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionAutoCollection::Off,
+            billing_address: self.request.billing_address.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_address",
+                },
+            )?,
+            auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
             connector_params: self.connector_params.clone(),
-         };
+        };
 
         let router_data = self.build_router_data(state, subscription_req)?;
         let connector_integration = self.connector_data.connector.get_connector_integration();

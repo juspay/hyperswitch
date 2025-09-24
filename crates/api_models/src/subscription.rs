@@ -133,7 +133,7 @@ impl CreateSubscriptionResponse {
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentData {
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
@@ -142,7 +142,7 @@ pub struct PaymentData {
     pub customer_acceptance: Option<CustomerAcceptance>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentResponseData {
     pub payment_id: common_utils::id_type::PaymentId,
     pub status: api_enums::IntentStatus,
@@ -150,22 +150,39 @@ pub struct PaymentResponseData {
     pub currency: api_enums::Currency,
     pub connector: Option<String>,
 }
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {
+    /// Client secret for SDK based interaction.
     pub client_secret: Option<String>,
-    pub amount: i64,
+
+    /// Amount to be charged for the invoice.
+    pub amount: MinorUnit,
+
+    /// Currency for the amount.
     pub currency: api_enums::Currency,
+
+    /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
+
+    /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: Option<String>,
+    
+    /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
+
+    /// Customer details for the subscription.
     pub customer: Option<CustomerDetails>,
+
+    /// Billing address for the subscription.
     pub billing_address: Option<Address>,
+
+    /// Payment data for the invoice.
     pub payment_data: PaymentData,
 }
 
 impl ApiEventMetric for ConfirmSubscriptionRequest {}
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ConfirmSubscriptionResponse {
     /// Unique identifier for the subscription.
     pub id: common_utils::id_type::SubscriptionId,
@@ -179,18 +196,26 @@ pub struct ConfirmSubscriptionResponse {
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
 
+    /// Identifier for the associated item_price_id for the subscription.
     pub price_id: Option<String>,
 
+    /// Optional coupon code applied to this subscription.
     pub coupon: Option<String>,
 
     /// Associated profile ID.
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Payment details for the invoice.
     pub payment: Option<PaymentResponseData>,
+    
+    /// Customer ID associated with this subscription.
     pub customer_id: Option<common_utils::id_type::CustomerId>,
+
+    /// Invoice Details for the subscription.
     pub invoice: Option<Invoice>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct Invoice {
     pub id: common_utils::id_type::InvoiceId,
     pub subscription_id: common_utils::id_type::SubscriptionId,
@@ -201,7 +226,7 @@ pub struct Invoice {
     pub payment_method_id: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: api_enums::Currency,
     pub status: String,
 }
 
