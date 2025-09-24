@@ -78,6 +78,7 @@ pub async fn list_payment_methods(
                 &req,
                 &payment_intent,
             ).await?
+            .store_gift_card_mca_in_redis(&payment_id, db, &profile).await
             .merge_and_transform()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone(), payment_intent.setup_future_usage))
             .perform_surcharge_calculation()
@@ -188,6 +189,50 @@ impl FilteredPaymentMethodsEnabled {
             )
             .collect();
         MergedEnabledPaymentMethodTypes(values)
+    }
+    async fn store_gift_card_mca_in_redis(
+        self,
+        payment_id: &id_type::GlobalPaymentId,
+        db: &dyn crate::db::StorageInterface,
+        profile: &domain::Profile,
+    ) -> Self {
+        let gift_card_connector_id = self
+            .0
+            .iter()
+            .find(|item| item.payment_method == common_enums::PaymentMethod::GiftCard)
+            .map(|item| &item.merchant_connector_id);
+
+        if let Some(gift_card_mca) = gift_card_connector_id {
+            let gc_key = payment_id.get_gift_card_connector_key();
+            let redis_expiry = profile
+                .get_order_fulfillment_time()
+                .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+            let redis_conn = db
+                .get_redis_conn()
+                .map_err(|redis_error| logger::error!(?redis_error))
+                .ok();
+
+            if let Some(rc) = redis_conn {
+                rc.set_key_with_expiry(
+                    &gc_key.as_str().into(),
+                    gift_card_mca.get_string_repr().to_string(),
+                    redis_expiry,
+                )
+                .await
+                .attach_printable("Failed to store gift card mca_id in redis")
+                .unwrap_or_else(|error| {
+                    logger::error!(?error);
+                })
+            };
+        } else {
+            logger::error!(
+                "Could not find any configured MCA supporting gift card for payment_id -> {}",
+                payment_id.get_string_repr()
+            );
+        }
+
+        self
     }
 }
 
@@ -547,9 +592,9 @@ fn filter_country_based(
     address: Option<&hyperswitch_domain_models::address::AddressDetails>,
     pm: &common_types::payment_methods::RequestPaymentMethodTypes,
 ) -> bool {
-    address.map_or(true, |address| {
-        address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+    address.is_none_or(|address| {
+        address.country.as_ref().is_none_or(|country| {
+            pm.accepted_countries.as_ref().is_none_or(|ac| match ac {
                 common_types::payment_methods::AcceptedCountries::EnableOnly(acc) => {
                     acc.contains(country)
                 }
@@ -568,7 +613,7 @@ fn filter_currency_based(
     currency: common_enums::Currency,
     pm: &common_types::payment_methods::RequestPaymentMethodTypes,
 ) -> bool {
-    pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+    pm.accepted_currencies.as_ref().is_none_or(|ac| match ac {
         common_types::payment_methods::AcceptedCurrencies::EnableOnly(acc) => {
             acc.contains(&currency)
         }
@@ -641,9 +686,7 @@ fn filter_recurring_based(
     payment_method: &common_types::payment_methods::RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
-    recurring_enabled.map_or(true, |enabled| {
-        payment_method.recurring_enabled == Some(enabled)
-    })
+    recurring_enabled.is_none_or(|enabled| payment_method.recurring_enabled == Some(enabled))
 }
 
 // filter based on valid amount range of payment method type
@@ -704,7 +747,7 @@ fn filter_allowed_payment_method_types_based(
     allowed_types: Option<&Vec<api_models::enums::PaymentMethodType>>,
     payment_method_type: api_models::enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
+    allowed_types.is_none_or(|pm| pm.contains(&payment_method_type))
 }
 
 // filter based on card networks

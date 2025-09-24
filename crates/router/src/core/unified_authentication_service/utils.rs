@@ -223,6 +223,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_request: authentication_details
                             .authn_flow_type
                             .get_challenge_request(),
+                        challenge_request_key: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request_key(),
                         acs_reference_number: authentication_details
                             .authn_flow_type
                             .get_acs_reference_number(),
@@ -317,12 +320,12 @@ pub fn get_checkout_event_status_and_reason(
 ) -> (Option<String>, Option<String>) {
     match attempt_status {
         common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized => (
-            Some("02".to_string()),
-            Some("Approval Code received".to_string()),
+            Some("01".to_string()),
+            Some("The payment was successful".to_string()),
         ),
         _ => (
             Some("03".to_string()),
-            Some("No Approval Code received".to_string()),
+            Some("The payment was not successful".to_string()),
         ),
     }
 }

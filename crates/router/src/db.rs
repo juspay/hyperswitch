@@ -20,6 +20,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
+pub mod hyperswitch_ai_interaction;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -34,6 +35,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
@@ -136,6 +138,7 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
+    + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
     + authentication::AuthenticationInterface
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
@@ -143,6 +146,7 @@ pub trait StorageInterface:
     + payment_method_session::PaymentMethodsSessionInterface
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
+    + subscription::SubscriptionInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

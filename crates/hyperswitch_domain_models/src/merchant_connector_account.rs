@@ -313,6 +313,12 @@ pub struct RevenueRecoveryMetadata {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ExternalVaultConnectorMetadata {
+    pub proxy_url: common_utils::types::Url,
+    pub certificate: Secret<String>,
+}
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
 pub struct AccountReferenceMap {
     pub recovery_to_billing: HashMap<id_type::MerchantConnectorAccountId, String>,
@@ -386,14 +392,16 @@ impl FlattenedPaymentMethodsEnabled {
                             let request_payment_methods_enabled =
                                 payment_method.payment_method_subtypes.unwrap_or_default();
                             let length = request_payment_methods_enabled.len();
-                            request_payment_methods_enabled.into_iter().zip(
-                                std::iter::repeat((
-                                    connector,
-                                    merchant_connector_id.clone(),
-                                    payment_method.payment_method_type,
+                            request_payment_methods_enabled
+                                .into_iter()
+                                .zip(std::iter::repeat_n(
+                                    (
+                                        connector,
+                                        merchant_connector_id.clone(),
+                                        payment_method.payment_method_type,
+                                    ),
+                                    length,
                                 ))
-                                .take(length),
-                            )
                         })
                 },
             )

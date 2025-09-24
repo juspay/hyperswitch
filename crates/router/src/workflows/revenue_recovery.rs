@@ -232,6 +232,7 @@ pub(crate) async fn extract_data_and_perform_action(
         retry_algorithm: profile
             .revenue_recovery_retry_algorithm_type
             .unwrap_or(tracking_data.revenue_recovery_retry),
+        psync_data: None,
     };
     Ok(pcr_payment_data)
 }
@@ -324,9 +325,9 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let start_time_primitive = payment_intent.created_at;
     let recovery_timestamp_config = &state.conf.revenue_recovery.recovery_timestamp;
 
-    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(
-        recovery_timestamp_config.initial_timestamp_in_hours,
-    ));
+    let modified_start_time_primitive = start_time_primitive.saturating_add(
+        time::Duration::seconds(recovery_timestamp_config.initial_timestamp_in_seconds),
+    );
 
     let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
 
@@ -371,10 +372,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network: card_network_str,
         card_issuer: card_issuer_str,
         invoice_start_time: Some(start_time_proto),
-        retry_count: Some(
-            (total_retry_count_within_network.max_retry_count_for_thirty_day - retry_count_left)
-                .into(),
-        ),
+        retry_count: Some(token_with_retry_info.total_30_day_retries.into()),
         merchant_id,
         invoice_amount,
         invoice_currency,
@@ -514,6 +512,47 @@ pub struct ScheduledToken {
 }
 
 #[cfg(feature = "v2")]
+pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
+    let now_utc = time::OffsetDateTime::now_utc();
+
+    let scheduled_offset_dt = scheduled_time.assume_utc();
+    let difference = scheduled_offset_dt - now_utc;
+
+    difference.whole_seconds()
+}
+
+#[cfg(feature = "v2")]
+pub async fn update_token_expiry_based_on_schedule_time(
+    state: &SessionState,
+    connector_customer_id: &str,
+    delayed_schedule_time: Option<time::PrimitiveDateTime>,
+) -> CustomResult<(), errors::ProcessTrackerError> {
+    let expiry_buffer = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .redis_ttl_buffer_in_seconds;
+
+    delayed_schedule_time
+        .async_map(|t| async move {
+            let expiry_time = calculate_difference_in_seconds(t) + expiry_buffer;
+            RedisTokenManager::update_connector_customer_lock_ttl(
+                state,
+                connector_customer_id,
+                expiry_time,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::ERedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))
+        })
+        .await
+        .transpose()?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
@@ -550,7 +589,15 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time = scheduled_time.map(add_random_delay_to_schedule_time);
+    let delayed_schedule_time =
+        scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
+
+    let _ = update_token_expiry_based_on_schedule_time(
+        state,
+        connector_customer_id,
+        delayed_schedule_time,
+    )
+    .await;
 
     Ok(delayed_schedule_time)
 }
@@ -776,10 +823,16 @@ pub async fn check_hard_decline(
 
 #[cfg(feature = "v2")]
 pub fn add_random_delay_to_schedule_time(
+    state: &SessionState,
     schedule_time: time::PrimitiveDateTime,
 ) -> time::PrimitiveDateTime {
     let mut rng = rand::thread_rng();
-    let random_secs = rng.gen_range(1..=3600);
+    let delay_limit = state
+        .conf
+        .revenue_recovery
+        .recovery_timestamp
+        .max_random_schedule_delay_in_seconds;
+    let random_secs = rng.gen_range(1..=delay_limit);
     logger::info!("Adding random delay of {random_secs} seconds to schedule time");
     schedule_time + time::Duration::seconds(random_secs)
 }

@@ -91,6 +91,15 @@ pub mod consts {
 
     /// Header key for sending the AUTH KEY MAP in currency-based authentication.
     pub(crate) const UCS_HEADER_AUTH_KEY_MAP: &str = "x-auth-key-map";
+
+    /// Header key for sending the EXTERNAL VAULT METADATA in proxy payments
+    pub(crate) const UCS_HEADER_EXTERNAL_VAULT_METADATA: &str = "x-external-vault-metadata";
+
+    /// Header key for sending the list of lineage ids
+    pub(crate) const UCS_LINEAGE_IDS: &str = "x-lineage-ids";
+
+    /// Header key for sending the merchant reference id to UCS
+    pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
 }
 
 /// Metrics for interactions with external systems.

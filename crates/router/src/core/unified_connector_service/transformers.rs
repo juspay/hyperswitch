@@ -291,7 +291,13 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_reference_id: router_data
+                .request
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|merchant_order_reference_id| {
+                    merchant_order_reference_id.get_string_repr().to_string()
+                }),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -874,8 +880,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.clone().expose().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.clone().expose().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.clone().expose().into())),
@@ -908,8 +916,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
             payments_grpc::Address {
                 first_name: details
-                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
@@ -940,9 +949,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
                 payments_grpc::Address {
                     first_name: details
-                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
                     last_name: details
-                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                     line1: details
                         .and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                     line2: details
@@ -967,8 +976,8 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 }
             });
         Ok(Self {
-            shipping_address: shipping.or(unified_payment_method_billing.clone()),
-            billing_address: billing.or(unified_payment_method_billing),
+            shipping_address: shipping,
+            billing_address: unified_payment_method_billing.or(billing),
         })
     }
 }
@@ -1220,6 +1229,7 @@ impl ForeignTryFrom<&hyperswitch_interfaces::webhooks::IncomingWebhookRequestDet
 }
 
 /// Webhook transform data structure containing UCS response information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,
@@ -1231,16 +1241,8 @@ pub struct WebhookTransformData {
 pub fn transform_ucs_webhook_response(
     response: PaymentServiceTransformResponse,
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type = match response.event_type {
-        0 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
-        1 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
-        2 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
-        3 => api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
-        4 => api_models::webhooks::IncomingWebhookEvent::RefundSuccess,
-        5 => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
-        6 => api_models::webhooks::IncomingWebhookEvent::MandateRevoked,
-        _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
-    };
+    let event_type =
+        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
     Ok(WebhookTransformData {
         event_type,

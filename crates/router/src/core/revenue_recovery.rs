@@ -1,19 +1,25 @@
 pub mod api;
 pub mod transformers;
 pub mod types;
+use std::marker::PhantomData;
+
 use api_models::{
-    enums, payments::PaymentsGetIntentRequest, process_tracker::revenue_recovery, webhooks,
+    enums,
+    payments::{self as api_payments, PaymentsGetIntentRequest, PaymentsResponse},
+    process_tracker::revenue_recovery,
+    webhooks,
 };
 use common_utils::{
     self,
     errors::CustomResult,
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{AsyncExt, OptionExt, ValueExt},
     id_type,
 };
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::{PaymentIntent, PaymentIntentData},
+    merchant_context,
+    payments::{PaymentIntent, PaymentIntentData, PaymentStatusData},
     revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
@@ -21,15 +27,19 @@ use scheduler::errors as sch_errors;
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payments::{self, operations},
+        payments::{
+            self,
+            operations::{GetTrackerResponse, Operation},
+            transformers::GenerateResponse,
+        },
+        revenue_recovery::types::RevenueRecoveryOutgoingWebhook,
     },
     db::StorageInterface,
     logger,
     routes::{app::ReqState, metrics, SessionState},
     services::ApplicationResponse,
     types::{
-        api::{self as api_types},
-        domain,
+        api as router_api_types, domain,
         storage::{self, revenue_recovery as pcr},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -61,8 +71,9 @@ pub async fn upsert_calculate_pcr_task(
     // Create process tracker ID in the format: CALCULATE_WORKFLOW_{payment_intent_id}
     let process_tracker_id = format!("{runner}_{task}_{}", payment_id.get_string_repr());
 
-    // Set scheduled time to 1 hour from now
-    let schedule_time = common_utils::date_time::now() + time::Duration::hours(1);
+    // Scheduled time is now because this will be the first entry in
+    // process tracker and we dont want to wait
+    let schedule_time = common_utils::date_time::now();
 
     let payment_attempt_id = payment_attempt_id
         .ok_or(error_stack::report!(
@@ -224,7 +235,7 @@ pub async fn perform_execute_payment(
             .await;
 
             match record_attempt {
-                Ok(_) => {
+                Ok(record_attempt_response) => {
                     let action = Box::pin(types::Action::execute_payment(
                         state,
                         revenue_recovery_payment_data.merchant_account.get_id(),
@@ -234,6 +245,7 @@ pub async fn perform_execute_payment(
                         merchant_context,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
+                        &record_attempt_response.id,
                     ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
@@ -418,10 +430,12 @@ pub async fn perform_payments_sync(
         state,
         &tracking_data.global_payment_id,
         revenue_recovery_payment_data,
+        true,
+        true,
     )
     .await?;
 
-    let payment_attempt = psync_data.payment_attempt;
+    let payment_attempt = psync_data.payment_attempt.clone();
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()
@@ -430,6 +444,12 @@ pub async fn perform_payments_sync(
         .convert_back();
     let pcr_status: types::RevenueRecoveryPaymentsAttemptStatus =
         payment_attempt.status.foreign_into();
+
+    let new_revenue_recovery_payment_data = &pcr::RevenueRecoveryPaymentData {
+        psync_data: Some(psync_data),
+        ..revenue_recovery_payment_data.clone()
+    };
+
     Box::pin(
         pcr_status.update_pt_status_based_on_attempt_status_for_payments_sync(
             state,
@@ -437,7 +457,7 @@ pub async fn perform_payments_sync(
             process.clone(),
             profile,
             merchant_context,
-            revenue_recovery_payment_data,
+            new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
         ),
@@ -460,6 +480,8 @@ pub async fn perform_calculate_workflow(
     let merchant_id = revenue_recovery_payment_data.merchant_account.get_id();
     let profile_id = revenue_recovery_payment_data.profile.get_id();
     let billing_mca_id = revenue_recovery_payment_data.billing_mca.get_id();
+
+    let mut event_type: Option<common_enums::EventType> = None;
 
     logger::info!(
         process_id = %process.id,
@@ -492,6 +514,20 @@ pub async fn perform_calculate_workflow(
         }
     };
 
+    // External Payments which enter the calculate workflow for the first time will have active attempt id as None
+    // Then we dont need to send an webhook to the merchant as its not a failure from our side.
+    // Thus we dont need to a payment get call for such payments.
+    let active_payment_attempt_id = payment_intent.active_attempt_id.as_ref();
+
+    let payments_response = get_payment_response_using_payment_get_operation(
+        state,
+        &tracking_data.global_payment_id,
+        revenue_recovery_payment_data,
+        &merchant_context_from_revenue_recovery_payment_data,
+        active_payment_attempt_id,
+    )
+    .await?;
+
     // 2. Get best available token
     let best_time_to_schedule =
         match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -521,6 +557,14 @@ pub async fn perform_calculate_workflow(
                 connector_customer_id = %connector_customer_id,
                 "Found best available token, creating EXECUTE_WORKFLOW task"
             );
+
+            // reset active attmept id and payment connector transmission before going to execute workflow
+            let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
+                state,
+                payment_intent,
+                revenue_recovery_payment_data,
+                active_payment_attempt_id
+            )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
             insert_execute_pcr_task_to_pt(
@@ -586,7 +630,13 @@ pub async fn perform_calculate_workflow(
                     update_calculate_job_schedule_time(
                         db,
                         process,
-                        time::Duration::minutes(15),
+                        time::Duration::seconds(
+                            state
+                                .conf
+                                .revenue_recovery
+                                .recovery_timestamp
+                                .job_schedule_buffer_time_in_seconds,
+                        ),
                         scheduled_token.scheduled_at,
                         &connector_customer_id,
                     )
@@ -613,7 +663,13 @@ pub async fn perform_calculate_workflow(
                             update_calculate_job_schedule_time(
                                 db,
                                 process,
-                                time::Duration::minutes(15),
+                                time::Duration::seconds(
+                                    state
+                                        .conf
+                                        .revenue_recovery
+                                        .recovery_timestamp
+                                        .job_schedule_buffer_time_in_seconds,
+                                ),
                                 Some(common_utils::date_time::now()),
                                 &connector_customer_id,
                             )
@@ -642,6 +698,8 @@ pub async fn perform_calculate_workflow(
                                     sch_errors::ProcessTrackerError::ProcessUpdateFailed
                                 })?;
 
+                            event_type = Some(common_enums::EventType::PaymentFailed);
+
                             logger::info!(
                                 process_id = %process.id,
                                 connector_customer_id = %connector_customer_id,
@@ -653,6 +711,34 @@ pub async fn perform_calculate_workflow(
             }
         }
     }
+
+    let _outgoing_webhook = event_type.and_then(|event_kind| {
+        payments_response.map(|resp| Some((event_kind, resp)))
+    })
+    .flatten()
+    .async_map(|(event_kind, response)| async move {
+        let _ = RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+            state,
+            common_enums::EventClass::Payments,
+            event_kind,
+            payment_intent,
+            &merchant_context,
+            profile,
+            tracking_data.payment_attempt_id.get_string_repr().to_string(),
+            response
+        )
+        .await
+        .map_err(|e| {
+            logger::error!(
+                error = ?e,
+                "Failed to send outgoing webhook"
+            );
+            e
+        })
+        .ok();
+    }
+    ).await;
+
     Ok(())
 }
 
@@ -664,8 +750,9 @@ async fn update_calculate_job_schedule_time(
     base_time: Option<time::PrimitiveDateTime>,
     connector_customer_id: &str,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
-    let new_schedule_time =
-        base_time.unwrap_or_else(common_utils::date_time::now) + additional_time;
+    let now = common_utils::date_time::now();
+
+    let new_schedule_time = base_time.filter(|&t| t > now).unwrap_or(now) + additional_time;
     logger::info!(
         new_schedule_time = %new_schedule_time,
         process_id = %process.id,
@@ -971,10 +1058,10 @@ pub async fn resume_revenue_recovery_process_tracker(
             revenue_recovery_payment_data.key_store.clone(),
         )));
     let (payment_data, _, _) = payments::payments_intent_operation_core::<
-        api_types::PaymentGetIntent,
+        router_api_types::PaymentGetIntent,
         _,
         _,
-        PaymentIntentData<api_types::PaymentGetIntent>,
+        PaymentIntentData<router_api_types::PaymentGetIntent>,
     >(
         &state,
         state.get_req_state(),
@@ -1032,5 +1119,89 @@ pub async fn resume_revenue_recovery_process_tracker(
         | enums::IntentStatus::Expired => Err(report!(errors::ApiErrorResponse::NotSupported {
             message: "Invalid Payment Status ".to_owned(),
         })),
+    }
+}
+pub async fn get_payment_response_using_payment_get_operation(
+    state: &SessionState,
+    payment_intent_id: &id_type::GlobalPaymentId,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    merchant_context: &domain::MerchantContext,
+    active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
+) -> Result<Option<ApplicationResponse<PaymentsResponse>>, sch_errors::ProcessTrackerError> {
+    match active_payment_attempt_id {
+        Some(_) => {
+            let payment_response = api::call_psync_api(
+                state,
+                payment_intent_id,
+                revenue_recovery_payment_data,
+                false,
+                false,
+            )
+            .await?;
+            let payments_response = payment_response.generate_response(
+                state,
+                None,
+                None,
+                None,
+                merchant_context,
+                &revenue_recovery_payment_data.profile,
+                None,
+            )?;
+
+            Ok(Some(payments_response))
+        }
+        None => Ok(None),
+    }
+}
+
+// This function can be implemented to reset the connector transmission and active attempt ID
+// before pushing to the execute workflow.
+pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
+    state: &SessionState,
+    payment_intent: &PaymentIntent,
+    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
+) -> Result<Option<()>, sch_errors::ProcessTrackerError> {
+    let mut revenue_recovery_metadata = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+        .get_required_value("Payment Revenue Recovery Metadata")?
+        .convert_back();
+    match active_payment_attempt_id {
+        Some(_) => {
+            // update the connector payment transmission field to Unsuccessful and unset active attempt id
+            revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
+                enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
+            );
+
+            let payment_update_req =
+        api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+            payment_intent
+                .feature_metadata
+                .clone()
+                .unwrap_or_default()
+                .convert_back()
+                .set_payment_revenue_recovery_metadata_using_api(
+                    revenue_recovery_metadata.clone(),
+                ),
+            enums::UpdateActiveAttempt::Unset,
+        );
+            logger::info!(
+                "Call made to payments update intent api , with the request body {:?}",
+                payment_update_req
+            );
+            api::update_payment_intent_api(
+                state,
+                payment_intent.id.clone(),
+                revenue_recovery_payment_data,
+                payment_update_req,
+            )
+            .await
+            .change_context(errors::RecoveryError::PaymentCallFailed)?;
+
+            Ok(Some(()))
+        }
+        None => Ok(None),
     }
 }
