@@ -756,6 +756,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Wise {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wise {}
 
+#[cfg(feature = "payouts")]
+fn is_setup_webhook_event(request: &IncomingWebhookRequestDetails<'_>) -> bool {
+    let test_webhook_header = request
+        .headers
+        .get("X-Test-Notification")
+        .and_then(|header_value| String::from_utf8(header_value.as_bytes().to_vec()).ok());
+
+    test_webhook_header == Some("true".to_string())
+}
+
 #[async_trait::async_trait]
 impl IncomingWebhook for Wise {
     fn get_webhook_source_verification_algorithm(
@@ -833,6 +843,10 @@ impl IncomingWebhook for Wise {
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
+            if is_setup_webhook_event(request) {
+                return Ok(IncomingWebhookEvent::SetupWebhook);
+            }
+
             let payload: wise::WisePayoutsWebhookBody = request
                 .body
                 .parse_struct("WisePayoutsWebhookBody")
