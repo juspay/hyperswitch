@@ -74,7 +74,6 @@ use crate::core::payment_methods::{
 use crate::core::superposition_keys;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
-use crate::types::domain::types::AsyncLift;
 use crate::{
     configs::settings,
     consts as router_consts,
@@ -94,7 +93,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{self, Profile},
+        domain::{self, types::AsyncLift, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
