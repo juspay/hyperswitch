@@ -23114,6 +23114,12 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -23591,6 +23597,12 @@
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
             "example": true,
             "nullable": true
           }
@@ -24216,6 +24228,12 @@
                 "$ref": "#/components/schemas/NetworkDetails"
               }
             ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "example": true,
             "nullable": true
           }
         }
@@ -24991,6 +25009,12 @@
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25641,6 +25665,12 @@
               }
             ],
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -26251,6 +26281,12 @@
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
             "example": true,
             "nullable": true
           }
