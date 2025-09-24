@@ -985,11 +985,8 @@ impl TrustpaymentsPaymentResponseData {
     }
 
     pub fn get_payment_status_for_sync(&self) -> common_enums::AttemptStatus {
-        
-
         let status = match self.errorcode {
             TrustpaymentsErrorCode::Success => {
-
                 if self.requesttypedescription == "TRANSACTIONQUERY"
                     && self.authcode.is_none()
                     && self.records.is_none()
@@ -997,7 +994,6 @@ impl TrustpaymentsPaymentResponseData {
                 {
                     common_enums::AttemptStatus::Charged
                 } else if self.authcode.is_some() {
-
                     let settle_status = match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
                             common_enums::AttemptStatus::Authorized
@@ -1017,9 +1013,7 @@ impl TrustpaymentsPaymentResponseData {
                         Some(TrustpaymentsSettleStatus::SettledRedirect) => {
                             common_enums::AttemptStatus::Charged
                         }
-                        None => {
-                            common_enums::AttemptStatus::Authorized
-                        }
+                        None => common_enums::AttemptStatus::Authorized,
                     };
                     settle_status
                 } else if self.requesttypedescription == "TRANSACTIONQUERY"
@@ -1050,9 +1044,7 @@ impl TrustpaymentsPaymentResponseData {
                         Some(TrustpaymentsSettleStatus::SettledRedirect) => {
                             common_enums::AttemptStatus::Charged
                         }
-                        None => {
-                            common_enums::AttemptStatus::Authorized
-                        }
+                        None => common_enums::AttemptStatus::Authorized,
                     };
 
                     settle_status
@@ -1197,14 +1189,11 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        
-
         let response_data = item
             .response
             .responses
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-
 
         let status = response_data.get_payment_status_for_sync();
 
@@ -1215,10 +1204,7 @@ impl
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        
-
         if !response_data.errorcode.is_success() {
-
             return Ok(Self {
                 status,
                 response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
@@ -1236,7 +1222,6 @@ impl
                 ..item.data
             });
         }
-
 
         Ok(Self {
             status,
