@@ -8733,6 +8733,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
           "trustpayments",
@@ -13421,6 +13422,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -18964,14 +18969,6 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -22278,6 +22275,11 @@
             ],
             "default": "skip",
             "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22579,6 +22581,11 @@
                 "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
               }
             ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
