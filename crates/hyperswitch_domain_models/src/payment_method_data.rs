@@ -2327,7 +2327,7 @@ impl PaymentMethodsData {
             Self::BankDetails(_) | Self::WalletDetails(_) | Self::NetworkToken(_) => None,
         }
     }
-    pub fn get_card(&self) -> Option<CardDetailsPaymentMethod> {
+    pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
         if let Self::Card(card) = self {
             Some(card.clone())
         } else {

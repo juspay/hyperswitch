@@ -2525,17 +2525,16 @@ pub async fn fetch_card_details_from_external_vault(
                 .attach_printable("Payment methods data not present")?;
 
             let card = payment_methods_data
-                .get_card()
+                .get_card_details()
                 .get_required_value("CardDetails")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Card details not present")?;
 
-            Ok(domain::Card::try_from((
-                card_number,
-                card_token_data,
-                co_badged_card_data,
-                card,
-            )).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to fetch Card data from external vault")?)
+            Ok(
+                domain::Card::try_from((card_number, card_token_data, co_badged_card_data, card))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to generate card data")?,
+            )
         }
     }
 }
