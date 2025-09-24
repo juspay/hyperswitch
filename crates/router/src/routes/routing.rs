@@ -1251,8 +1251,8 @@ pub async fn create_success_based_routing(
 ) -> impl Responder {
     let flow = Flow::CreateDynamicRoutingConfig;
     let payload = success_based_config.map(|config| {
-    api_models::routing::DynamicRoutingPayload::SuccessBasedRoutingPayload(config.into_inner())
-});
+        api_models::routing::DynamicRoutingPayload::SuccessBasedRoutingPayload(config.into_inner())
+    });
 
     let wrapper = routing_types::CreateDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
