@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.22.0-hotfix1
+
+### Bug Fixes
+
+- **webhooks:** Move webhook acknowledge config to cover early deserialization errors ([#9533](https://github.com/juspay/hyperswitch/pull/9533)) ([`1761e87`](https://github.com/juspay/hyperswitch/commit/1761e87b17ec211b09a63ec3313fe53542a2c926))
+
+**Full Changelog:** [`2025.09.22.0...2025.09.22.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.09.22.0...2025.09.22.0-hotfix1)
+
+- - -
+
 ## 2025.09.22.0
 
 ### Features
