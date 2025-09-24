@@ -1045,14 +1045,11 @@ impl TrustpaymentsPaymentResponseData {
                         }
                         None => common_enums::AttemptStatus::Authorized,
                     }
-
                 } else {
                     common_enums::AttemptStatus::Pending
                 }
             }
-            _ => {
-                self.errorcode.get_attempt_status()
-            }
+            _ => self.errorcode.get_attempt_status(),
         };
 
         status
