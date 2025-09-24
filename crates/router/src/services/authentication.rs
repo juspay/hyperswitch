@@ -155,6 +155,10 @@ pub enum AuthenticationType {
     WebhookAuth {
         merchant_id: id_type::MerchantId,
     },
+    InternalMerchantIdProfileId {
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+    },
     NoAuth,
 }
 
@@ -184,7 +188,8 @@ impl AuthenticationType {
                 user_id: _,
             }
             | Self::MerchantJwtWithProfileId { merchant_id, .. }
-            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
+            | Self::WebhookAuth { merchant_id }
+            | Self::InternalMerchantIdProfileId { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
             | Self::OrganizationJwt { .. }
             | Self::UserJwt { .. }
@@ -1958,6 +1963,10 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    pub fn get_header_value_by_key(&self, key: &str) -> Option<&str> {
+        self.headers.get(key).and_then(|value| value.to_str().ok())
+    }
+
     pub fn get_auth_string_from_header(&self) -> RouterResult<&str> {
         self.headers
             .get(headers::AUTHORIZATION)
@@ -2306,6 +2315,93 @@ where
                 merchant_id: auth.merchant_account.get_id().clone(),
             },
         ))
+    }
+}
+
+/// InternalMerchantIdProfileIdAuth authentication which first tries to authenticate using `X-Internal-API-Key`,
+/// `X-Merchant-Id` and `X-Profile-Id` headers. If any of these headers are missing or invalid,
+/// it falls back to the provided authentication mechanism.
+#[cfg(feature = "v1")]
+pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<AuthenticationData, A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
+            .ok();
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
+            .ok();
+        if let (Some(internal_api_key), Some(merchant_id), Some(profile_id)) =
+            (internal_api_key, merchant_id, profile_id)
+        {
+            let config = state.conf();
+            if internal_api_key
+                != *config
+                    .internal_merchant_id_profile_id_auth
+                    .internal_api_key
+                    .peek()
+            {
+                return Err(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Internal API key authentication failed");
+            }
+            let key_manager_state = &(&state.session_state()).into();
+            let key_store = state
+                .store()
+                .get_merchant_key_store_by_merchant_id(
+                    key_manager_state,
+                    &merchant_id,
+                    &state.store().get_master_key().to_vec().into(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let _profile = state
+                .store()
+                .find_business_profile_by_merchant_id_profile_id(
+                    key_manager_state,
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let merchant = state
+                .store()
+                .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+            let auth = AuthenticationData {
+                merchant_account: merchant,
+                key_store,
+                profile_id: Some(profile_id.clone()),
+                platform_merchant_account: None,
+            };
+            Ok((
+                auth.clone(),
+                AuthenticationType::InternalMerchantIdProfileId {
+                    merchant_id: merchant_id.clone(),
+                    profile_id: Some(profile_id.clone()),
+                },
+            ))
+        } else {
+            Ok(self
+                .0
+                .authenticate_and_fetch(request_headers, state)
+                .await?)
+        }
     }
 }
 

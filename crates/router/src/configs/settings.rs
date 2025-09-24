@@ -163,6 +163,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
@@ -847,6 +848,13 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct MerchantIdAuthSettings {
     pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct InternalMerchantIdProfileIdAuthSettings {
+    pub enabled: bool,
+    pub internal_api_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
