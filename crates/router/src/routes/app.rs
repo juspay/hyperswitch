@@ -435,12 +435,19 @@ impl AppState {
             let enhancement = conf.enhancement.clone();
             #[cfg(feature = "superposition")]
             let superposition_service = if conf.superposition.get_inner().enabled {
-                Some(Arc::new(
-                    #[allow(clippy::expect_used)]
-                    SuperpositionClient::new(conf.superposition.get_inner().clone())
-                        .await
-                        .expect("Failed to create superposition client"),
-                ))
+                match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
+                    Ok(client) => {
+                        router_env::logger::info!("Superposition client initialized successfully");
+                        Some(Arc::new(client))
+                    }
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to initialize superposition client: {:?}. Continuing without superposition support.",
+                            err
+                        );
+                        None
+                    }
+                }
             } else {
                 None
             };

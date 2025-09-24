@@ -341,19 +341,28 @@ pub async fn get_config_float(
 }
 
 /// Get an object configuration value based on the specified context
-pub async fn get_config_object(
+pub async fn get_config_object<T>(
     state: &SessionState,
     context: ConfigRetrieveContext,
-    default_value: serde_json::Value,
-) -> CustomResult<serde_json::Value, errors::StorageError> {
+    default_value: T,
+) -> CustomResult<T, errors::StorageError>
+where
+    T: serde::de::DeserializeOwned + serde::Serialize,
+{
     match context {
         ConfigRetrieveContext::DatabaseOnly { key } => {
             let config = state
                 .store
-                .find_config_by_key_unwrap_or(&key, Some(default_value.to_string()))
+                .find_config_by_key_unwrap_or(
+                    &key,
+                    Some(
+                        serde_json::to_string(&default_value)
+                            .change_context(errors::StorageError::SerializationFailed)?,
+                    ),
+                )
                 .await?;
 
-            serde_json::from_str::<serde_json::Value>(&config.config)
+            serde_json::from_str::<T>(&config.config)
                 .change_context(errors::StorageError::DeserializationFailed)
         }
         #[cfg(feature = "superposition")]
@@ -367,7 +376,10 @@ pub async fn get_config_object(
                     .get_object_value(&superposition_key, superposition_context.as_ref())
                     .await
                 {
-                    Ok(json_value) => return Ok(json_value),
+                    Ok(json_value) => {
+                        return serde_json::from_value::<T>(json_value)
+                            .change_context(errors::StorageError::DeserializationFailed);
+                    }
                     Err(err) => {
                         router_env::logger::warn!(
                             "Failed to retrieve config from superposition, falling back to database: {:?}",
@@ -379,10 +391,16 @@ pub async fn get_config_object(
 
             let config = state
                 .store
-                .find_config_by_key_unwrap_or(&database_key, Some(default_value.to_string()))
+                .find_config_by_key_unwrap_or(
+                    &database_key,
+                    Some(
+                        serde_json::to_string(&default_value)
+                            .change_context(errors::StorageError::SerializationFailed)?,
+                    ),
+                )
                 .await?;
 
-            serde_json::from_str::<serde_json::Value>(&config.config)
+            serde_json::from_str::<T>(&config.config)
                 .change_context(errors::StorageError::DeserializationFailed)
         }
         #[cfg(feature = "superposition")]
@@ -392,6 +410,10 @@ pub async fn get_config_object(
                     .get_object_value(&key, context.as_ref())
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
+                    .and_then(|json_value| {
+                        serde_json::from_value::<T>(json_value)
+                            .change_context(errors::StorageError::DeserializationFailed)
+                    })
             } else {
                 Err(errors::StorageError::ValueNotFound(
                     "Superposition client not available".to_string(),
