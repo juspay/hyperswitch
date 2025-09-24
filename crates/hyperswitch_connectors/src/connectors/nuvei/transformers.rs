@@ -28,8 +28,8 @@ use hyperswitch_domain_models::{
         Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, SetupMandate, Void,
     },
     router_request_types::{
-        authentication::MessageExtensionAttribute, BrowserInformation, PaymentsAuthorizeData,
-        PaymentsPreProcessingData, ResponseId, SetupMandateRequestData,
+        authentication::MessageExtensionAttribute, AuthenticationData, BrowserInformation,
+        PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -98,6 +98,11 @@ trait NuveiAuthorizePreprocessingCommon {
     ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>>;
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag>;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
+    fn get_auth_data(
+        &self,
+    ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
+    }
     fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
 }
 
@@ -202,7 +207,11 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
             _ => None,
         }
     }
-
+    fn get_auth_data(
+        &self,
+    ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.authentication_data.clone())
+    }
     fn get_customer_id_required(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
@@ -836,6 +845,18 @@ pub enum ExternalTokenProvider {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExternalMpi {
+    pub eci: Option<String>,
+    pub cavv: Secret<String>,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
+    pub challenge_preference: Option<String>,
+    pub exemption_request_reason: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ThreeD {
     pub method_completion_ind: Option<MethodCompletion>,
     pub browser_details: Option<BrowserDetails>,
@@ -848,6 +869,7 @@ pub struct ThreeD {
     pub acs_challenge_mandate: Option<String>,
     pub c_req: Option<Secret<String>>,
     pub three_d_flow: Option<String>,
+    pub external_mpi: Option<ExternalMpi>,
     pub external_transaction_id: Option<String>,
     pub transaction_id: Option<String>,
     pub three_d_reason_id: Option<String>,
@@ -1973,7 +1995,18 @@ where
                 None,
             ),
         };
-    let three_d = if item.is_three_ds() {
+    let three_d = if let Some(auth_data) = item.request.get_auth_data()? {
+        Some(ThreeD {
+            external_mpi: Some(ExternalMpi {
+                eci: auth_data.eci,
+                cavv: auth_data.cavv,
+                ds_trans_id: auth_data.ds_trans_id,
+                challenge_preference: None,
+                exemption_request_reason: None,
+            }),
+            ..Default::default()
+        })
+    } else if item.is_three_ds() {
         let browser_details = match &browser_information {
             Some(browser_info) => Some(BrowserDetails {
                 accept_header: browser_info.get_accept_header()?,

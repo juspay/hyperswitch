@@ -253,6 +253,10 @@ diesel::table! {
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
+        billing_processor_id -> Nullable<Varchar>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
+        #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -265,8 +269,6 @@ diesel::table! {
         should_collect_cvv_during_payment -> Nullable<Bool>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
-        is_external_vault_enabled -> Nullable<Bool>,
-        external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
     }
@@ -733,6 +735,40 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    invoice (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
+        #[max_length = 64]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        amount -> Int8,
+        #[max_length = 3]
+        currency -> Varchar,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 128]
+        provider_name -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -1174,6 +1210,10 @@ diesel::table! {
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
+        #[max_length = 64]
+        vault_type -> Nullable<Varchar>,
+        #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
@@ -1181,8 +1221,6 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
-        #[max_length = 64]
-        external_vault_source -> Nullable<Varchar>,
         external_vault_token_data -> Nullable<Bytea>,
     }
 }
@@ -1687,6 +1725,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     hyperswitch_ai_interaction,
     hyperswitch_ai_interaction_default,
     incremental_authorization,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,

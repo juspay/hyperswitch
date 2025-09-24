@@ -177,6 +177,7 @@ pub enum BillingConnectors {
 pub enum VaultConnectors {
     Vgs,
     HyperswitchVault,
+    Tokenex,
 }
 
 impl From<VaultConnectors> for Connector {
@@ -184,6 +185,7 @@ impl From<VaultConnectors> for Connector {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
+            VaultConnectors::Tokenex => Self::Tokenex,
         }
     }
 }

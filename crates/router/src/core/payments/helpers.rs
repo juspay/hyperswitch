@@ -2196,7 +2196,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
-    _merchant_key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: domain::PaymentMethod,
@@ -2250,14 +2250,16 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 .and_then(|vault_data| vault_data.get_card_vault_data())
                 .map(Ok)
                 .async_unwrap_or_else(|| async {
-                    fetch_card_details_from_locker(
+                    Box::pin(fetch_card_details_from_locker(
                         state,
                         customer_id,
                         &payment_intent.merchant_id,
                         locker_id,
                         card_token_data,
                         co_badged_card_data,
-                    )
+                        payment_method_info,
+                        merchant_key_store,
+                    ))
                     .await
                 })
                 .await?;
@@ -2301,14 +2303,16 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                             .and_then(|vault_data| vault_data.get_card_vault_data())
                             .map(Ok)
                             .async_unwrap_or_else(|| async {
-                                fetch_card_details_from_locker(
+                                Box::pin(fetch_card_details_from_locker(
                                     state,
                                     customer_id,
                                     &payment_intent.merchant_id,
                                     locker_id,
                                     card_token_data,
                                     co_badged_card_data,
-                                )
+                                    payment_method_info,
+                                    merchant_key_store,
+                                ))
                                 .await
                             })
                             .await?,
@@ -2363,7 +2367,7 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
             message: "no customer id provided for the payment".to_string(),
         })?;
     Ok(domain::PaymentMethodData::Card(
-        fetch_card_details_from_locker(
+        fetch_card_details_from_internal_locker(
             state,
             customer_id,
             &payment_intent.merchant_id,
@@ -2378,7 +2382,48 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn fetch_card_details_from_locker(
+    state: &SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    locker_id: &str,
+    card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    payment_method_info: domain::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<domain::Card> {
+    match &payment_method_info.vault_source_details.clone() {
+        domain::PaymentMethodVaultSourceDetails::ExternalVault {
+            ref external_vault_source,
+        } => {
+            fetch_card_details_from_external_vault(
+                state,
+                merchant_id,
+                card_token_data,
+                co_badged_card_data,
+                payment_method_info,
+                merchant_key_store,
+                external_vault_source,
+            )
+            .await
+        }
+        domain::PaymentMethodVaultSourceDetails::InternalVault => {
+            fetch_card_details_from_internal_locker(
+                state,
+                customer_id,
+                merchant_id,
+                locker_id,
+                card_token_data,
+                co_badged_card_data,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn fetch_card_details_from_internal_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
@@ -2434,6 +2479,45 @@ pub async fn fetch_card_details_from_locker(
     Ok(domain::Card::from((api_card, co_badged_card_data)))
 }
 
+#[cfg(feature = "v1")]
+pub async fn fetch_card_details_from_external_vault(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    payment_method_info: domain::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+    external_vault_mca_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<domain::Card> {
+    let key_manager_state = &state.into();
+
+    let merchant_connector_account_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            external_vault_mca_id,
+            merchant_key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: external_vault_mca_id.get_string_repr().to_string(),
+        })?;
+
+    let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
+        state,
+        merchant_id,
+        &payment_method_info,
+        merchant_connector_account_details,
+    )
+    .await?;
+
+    match vault_resp {
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
+            domain::Card::from((card, card_token_data, co_badged_card_data)),
+        ),
+    }
+}
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
