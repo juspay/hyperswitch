@@ -542,8 +542,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     async fn get_connector_tokenization_action<'a>(
         &'a self,
         state: &SessionState,
-        payment_data: &mut PaymentConfirmData<F>,
-    ) -> RouterResult<(PaymentConfirmData<F>, payments::TokenizationAction)> {
+        payment_data: &PaymentConfirmData<F>,
+    ) -> RouterResult<(payments::TokenizationAction)> {
         let connector = payment_data.payment_attempt.connector.to_owned();
 
         let is_mandate = payment_data
@@ -588,7 +588,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             _ => payments::TokenizationAction::SkipConnectorTokenization,
         };
 
-        Ok((payment_data.clone(), tokenization_action))
+        Ok(tokenization_action)
     }
 }
 

@@ -4589,11 +4589,10 @@ where
         )
         .await?;
 
-    let (pd, tokenization_action) = operation
+    let (tokenization_action) = operation
         .to_domain()?
         .get_connector_tokenization_action(state, payment_data)
         .await?;
-    *payment_data = pd;
 
     Ok((
         merchant_connector_account_type_details,

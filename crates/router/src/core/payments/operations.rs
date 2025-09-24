@@ -91,6 +91,8 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
+#[cfg(feature = "v2")]
+use crate::core::payments;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -428,11 +430,9 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn get_connector_tokenization_action<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_data: &mut D,
-    ) -> RouterResult<(D, crate::core::payments::TokenizationAction)> {
-        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable(
-            "get_connector_tokenization_action not implemented for this operation",
-        )
+        payment_data: &D,
+    ) -> RouterResult<(payments::TokenizationAction)> {
+        Ok(payments::TokenizationAction::SkipConnectorTokenization)
     }
 
     // #[cfg(feature = "v2")]
