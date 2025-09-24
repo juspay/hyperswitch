@@ -2394,6 +2394,17 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                     fields(vec![], vec![], vec![RequiredField::BillingEmail]),
                 ),
                 (
+                    Connector::Paysafe,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                        ]),
+                    },
+                ),
+                (
                     Connector::Wellsfargo,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),

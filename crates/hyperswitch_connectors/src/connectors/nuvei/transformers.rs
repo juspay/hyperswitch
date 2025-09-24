@@ -1221,15 +1221,7 @@ fn get_apple_pay_decrypt_data(
                             .online_payment_cryptogram
                             .clone(),
                     ),
-                    eci_provider: Some(
-                        apple_pay_predecrypt_data
-                            .payment_data
-                            .eci_indicator
-                            .clone()
-                            .ok_or_else(missing_field_err(
-                                "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
-                            ))?,
-                    ),
+                    eci_provider: apple_pay_predecrypt_data.payment_data.eci_indicator.clone(),
                 }),
                 ..Default::default()
             }),

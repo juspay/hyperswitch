@@ -123,11 +123,20 @@ pub struct AccountIdConfigForRedirect {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+
+pub struct AccountIdConfigForApplePay {
+    pub encrypt: Option<Vec<InputData>>,
+    pub decrypt: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AccountIDSupportedMethods {
+    apple_pay: HashMap<String, AccountIdConfigForApplePay>,
     card: HashMap<String, AccountIdConfigForCard>,
-    skrill: HashMap<String, AccountIdConfigForRedirect>,
     interac: HashMap<String, AccountIdConfigForRedirect>,
     pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
+    skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
 #[serde_with::skip_serializing_none]

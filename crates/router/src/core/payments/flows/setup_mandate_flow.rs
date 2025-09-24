@@ -317,14 +317,17 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
 
                 let payment_register_response = response.into_inner();
 
-                let (status, router_data_response, status_code) =
+                let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_register(
                         payment_register_response.clone(),
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                router_data.status = status;
+                let router_data_response = router_data_response.map(|(response, status)| {
+                    router_data.status = status;
+                    response
+                });
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 

@@ -28,12 +28,16 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            self, GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse, SubscriptionStatus,
+            self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionLineItem,
+            SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    types::{InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
@@ -960,6 +964,50 @@ pub struct ChargebeeItem {
 }
 
 impl<F, T>
+    TryFrom<ResponseRouterData<F, SubscriptionEstimateResponse, T, GetSubscriptionEstimateResponse>>
+    for RouterData<F, T, GetSubscriptionEstimateResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            SubscriptionEstimateResponse,
+            T,
+            GetSubscriptionEstimateResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let estimate = item.response.estimate;
+        Ok(Self {
+            response: Ok(GetSubscriptionEstimateResponse {
+                sub_total: estimate.invoice_estimate.sub_total,
+                total: estimate.invoice_estimate.total,
+                amount_paid: Some(estimate.invoice_estimate.amount_paid),
+                amount_due: Some(estimate.invoice_estimate.amount_due),
+                currency: estimate.subscription_estimate.currency_code,
+                next_billing_at: estimate.subscription_estimate.next_billing_at,
+                credits_applied: Some(estimate.invoice_estimate.credits_applied),
+                line_items: estimate
+                    .invoice_estimate
+                    .line_items
+                    .into_iter()
+                    .map(|line_item| SubscriptionLineItem {
+                        item_id: line_item.entity_id,
+                        item_type: line_item.entity_type,
+                        description: line_item.description,
+                        amount: line_item.amount,
+                        currency: estimate.invoice_estimate.currency_code,
+                        unit_amount: Some(line_item.unit_amount),
+                        quantity: line_item.quantity,
+                        pricing_model: Some(line_item.pricing_model),
+                    })
+                    .collect(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
     TryFrom<ResponseRouterData<F, ChargebeeListPlansResponse, T, GetSubscriptionPlansResponse>>
     for RouterData<F, T, GetSubscriptionPlansResponse>
 {
@@ -1076,6 +1124,18 @@ impl
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeSubscriptionEstimateRequest {
+    pub price_id: String,
+}
+
+impl TryFrom<&GetSubscriptionEstimateRouterData> for ChargebeeSubscriptionEstimateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &GetSubscriptionEstimateRouterData) -> Result<Self, Self::Error> {
+        let price_id = item.request.price_id.to_owned();
+        Ok(Self { price_id })
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeGetPlanPricesResponse {
     pub list: Vec<ChargebeeGetPlanPriceList>,
 }
@@ -1168,4 +1228,70 @@ impl<F, T>
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionEstimateResponse {
+    pub estimate: ChargebeeEstimate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChargebeeEstimate {
+    pub created_at: i64,
+    /// type of the object will be `estimate`
+    pub object: String,
+    pub subscription_estimate: SubscriptionEstimate,
+    pub invoice_estimate: InvoiceEstimate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionEstimate {
+    pub status: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    /// type of the object will be `subscription_estimate`
+    pub object: String,
+    pub currency_code: enums::Currency,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InvoiceEstimate {
+    pub recurring: bool,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date: PrimitiveDateTime,
+    pub price_type: String,
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: MinorUnit,
+    pub amount_paid: MinorUnit,
+    pub amount_due: MinorUnit,
+    /// type of the object will be `invoice_estimate`
+    pub object: String,
+    pub customer_id: String,
+    pub line_items: Vec<LineItem>,
+    pub currency_code: enums::Currency,
+    pub round_off_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineItem {
+    pub id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date_from: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub date_to: PrimitiveDateTime,
+    pub unit_amount: MinorUnit,
+    pub quantity: i64,
+    pub amount: MinorUnit,
+    pub pricing_model: String,
+    pub is_taxed: bool,
+    pub tax_amount: MinorUnit,
+    /// type of the object will be `line_item`
+    pub object: String,
+    pub customer_id: String,
+    pub description: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub discount_amount: MinorUnit,
+    pub item_level_discount_amount: MinorUnit,
 }

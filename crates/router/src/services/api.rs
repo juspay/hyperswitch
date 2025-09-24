@@ -110,6 +110,8 @@ pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
 pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -164,13 +166,16 @@ where
         Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
             Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
         },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete transformation but payment processing was expected".to_string().into())).into())
+        },
         None => {
             Err(errors::ConnectorError::ResponseDeserializationFailed)
                 .attach_printable("UCS webhook content missing payments_response")
         }
     }?;
 
-    let (status, router_data_response, status_code) =
+    let (router_data_response, status_code) =
         unified_connector_service::handle_unified_connector_service_response_for_payment_get(
             payment_get_response.clone(),
         )
@@ -178,7 +183,10 @@ where
         .attach_printable("Failed to process UCS webhook response using PSync handler")?;
 
     let mut updated_router_data = router_data;
-    updated_router_data.status = status;
+    let router_data_response = router_data_response.map(|(response, status)| {
+        updated_router_data.status = status;
+        response
+    });
 
     let _ = router_data_response.map_err(|error_response| {
         updated_router_data.response = Err(error_response);

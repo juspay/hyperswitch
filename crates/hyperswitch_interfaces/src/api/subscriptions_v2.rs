@@ -1,17 +1,28 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types::{
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+        InvoiceRecordBackData, SubscriptionCreateData,
+    },
     router_flow_types::{
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
     },
-    router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        },
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
         },
     },
 };
@@ -26,6 +37,7 @@ pub trait SubscriptionsV2:
     + ConnectorCustomerV2
     + GetSubscriptionPlanPricesV2
     + SubscriptionRecordBackV2
+    + GetSubscriptionEstimateV2
 {
 }
 
@@ -67,6 +79,17 @@ pub trait SubscriptionsCreateV2:
     SubscriptionCreateData,
     SubscriptionCreateRequest,
     SubscriptionCreateResponse,
+>
+{
+}
+
+/// trait GetSubscriptionEstimate for V2
+pub trait GetSubscriptionEstimateV2:
+    ConnectorIntegrationV2<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateData,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
 >
 {
 }

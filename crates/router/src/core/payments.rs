@@ -3771,6 +3771,7 @@ where
     if is_operation_confirm(operation)
         && payment_data.get_payment_attempt().payment_method
             == Some(storage_enums::PaymentMethod::Wallet)
+        && payment_data.get_payment_method_data().is_some()
     {
         let wallet_type = payment_data
             .get_payment_attempt()
@@ -6567,6 +6568,12 @@ where
                     router_data.preprocessing_steps(state, connector).await?,
                     false,
                 )
+            } else if connector.connector_name == router_types::Connector::Paysafe {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -6743,7 +6750,7 @@ where
     let should_do_uas_confirmation_call = service_details
         .as_ref()
         .map(|details| details.is_network_confirmation_call_required())
-        .unwrap_or(true);
+        .unwrap_or(false);
     if should_do_uas_confirmation_call
         && (payment_intent.status == storage_enums::IntentStatus::Succeeded
             || payment_intent.status == storage_enums::IntentStatus::Failed)
