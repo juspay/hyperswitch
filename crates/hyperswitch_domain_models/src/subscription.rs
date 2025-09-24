@@ -5,7 +5,7 @@ use crate::errors::api_error_response::ApiErrorResponse;
 
 const SECRET_SPLIT: &str = "_secret";
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClientSecret(String);
 
 impl ClientSecret {
@@ -34,3 +34,15 @@ impl std::fmt::Display for ClientSecret {
 }
 
 impl ApiEventMetric for ClientSecret {}
+
+impl From<api_models::subscription::ClientSecret> for ClientSecret {
+    fn from(api_secret: api_models::subscription::ClientSecret) -> Self {
+        Self::new(api_secret.as_str().to_string())
+    }
+}
+
+impl From<ClientSecret> for api_models::subscription::ClientSecret {
+    fn from(domain_secret: ClientSecret) -> Self {
+        Self::new(domain_secret.to_string())
+    }
+}

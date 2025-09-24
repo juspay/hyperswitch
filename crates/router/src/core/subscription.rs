@@ -6,9 +6,7 @@ use api_models::subscription::{
 use common_utils::id_type::GenerateId;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse, merchant_context::MerchantContext, subscription::ClientSecret,
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use masking::Secret;
 
 use super::{
@@ -73,18 +71,36 @@ pub async fn get_subscription_plans(
     state: SessionState,
     merchant_context: MerchantContext,
     _authentication_profile_id: Option<common_utils::id_type::ProfileId>,
-    client_secret: ClientSecret,
+    query: subscription_types::GetPlansQuery,
 ) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
     let subscription_handler = SubscriptionHandler::new(state.clone(), merchant_context.clone());
 
-    let subscription = subscription_handler
-        .find_and_validate_subscription(&client_secret)
-        .await?;
+    let subscription = if let Some(client_secret) = query.client_secret {
+        subscription_handler
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    } else if let Some(sub_id) = query.subscription_id {
+        state
+            .store
+            .as_ref()
+            .find_by_merchant_id_subscription_id(
+                merchant_context.get_merchant_account().get_id(),
+                sub_id.clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!("Subscription not found: {sub_id}"),
+            })?
+    } else {
+        return Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret or subscription_id",
+        }
+        .into());
+    };
 
     let billing_handler = subscription_handler
         .get_billing_handler(&subscription)
         .await?;
-
     let get_plans_response = billing_handler.get_subscription_plans(&state).await?;
 
     let plans: Vec<subscription_types::GetPlansResponse> = get_plans_response

@@ -1181,8 +1181,7 @@ impl Subscription {
                 }),
             ))
             .service(
-                web::resource("/plans/{client_secret}")
-                    .route(web::get().to(subscription::get_subscription_plans)),
+                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
             )
     }
 }
