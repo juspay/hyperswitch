@@ -69,10 +69,10 @@ use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
-#[cfg(feature = "payouts")]
-#[cfg(feature = "superposition")]
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
+#[cfg(feature = "payouts")]
+use crate::types::domain::types::AsyncLift;
 use crate::{
     configs::settings,
     consts as router_consts,
@@ -92,7 +92,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{self, types::AsyncLift, Profile},
+        domain::{self, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
