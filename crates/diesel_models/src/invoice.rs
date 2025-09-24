@@ -1,5 +1,5 @@
 use common_enums::connector_enums::{Connector, InvoiceStatus};
-use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
+use common_utils::{id_type::GenerateId, pii::SecretSerdeValue, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
@@ -8,8 +8,8 @@ use crate::schema::invoice;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = invoice, check_for_backend(diesel::pg::Pg))]
 pub struct InvoiceNew {
-    pub id: String,
-    pub subscription_id: String,
+    pub id: common_utils::id_type::InvoiceId,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -34,8 +34,8 @@ pub struct InvoiceNew {
     check_for_backend(diesel::pg::Pg)
 )]
 pub struct Invoice {
-    id: String,
-    subscription_id: String,
+    id: common_utils::id_type::InvoiceId,
+    subscription_id: common_utils::id_type::SubscriptionId,
     merchant_id: common_utils::id_type::MerchantId,
     profile_id: common_utils::id_type::ProfileId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -62,8 +62,7 @@ pub struct InvoiceUpdate {
 impl InvoiceNew {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        id: String,
-        subscription_id: String,
+        subscription_id: common_utils::id_type::SubscriptionId,
         merchant_id: common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
@@ -76,6 +75,7 @@ impl InvoiceNew {
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
     ) -> Self {
+        let id = common_utils::id_type::InvoiceId::generate();
         let now = common_utils::date_time::now();
         Self {
             id,
