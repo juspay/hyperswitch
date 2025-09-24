@@ -7522,6 +7522,11 @@
             "type": "string",
             "description": "Accept-language of the browser",
             "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },

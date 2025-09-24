@@ -164,6 +164,9 @@ where
         Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
             Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
         },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete transformation but payment processing was expected".to_string().into())).into())
+        },
         None => {
             Err(errors::ConnectorError::ResponseDeserializationFailed)
                 .attach_printable("UCS webhook content missing payments_response")
