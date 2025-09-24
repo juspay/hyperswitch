@@ -23117,7 +23117,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -23602,7 +23602,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -24232,7 +24232,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -25012,7 +25012,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -25668,7 +25668,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -26286,7 +26286,7 @@
           },
           "is_stored_credential": {
             "type": "boolean",
-            "description": "Boolean indicating whether this payment method is stored and was previously used in payments",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
