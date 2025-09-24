@@ -3478,7 +3478,6 @@ impl ProfileCreateBridge for api::ProfileCreate {
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             always_enable_overcapture: self.always_enable_overcapture,
-            billing_processor_id: self.billing_processor_id,
             external_vault_details: domain::ExternalVaultDetails::try_from((
                 self.is_external_vault_enabled,
                 self.external_vault_connector_details
@@ -3986,7 +3985,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 dispute_polling_interval: self.dispute_polling_interval,
                 is_manual_retry_enabled: self.is_manual_retry_enabled,
                 always_enable_overcapture: self.always_enable_overcapture,
-                billing_processor_id: self.billing_processor_id,
                 is_external_vault_enabled: self.is_external_vault_enabled,
                 external_vault_connector_details: self
                     .external_vault_connector_details

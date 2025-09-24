@@ -2204,9 +2204,6 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
-    /// Merchant Connector id to be stored for billing_processor connector
-    #[schema(value_type = Option<String>)]
-    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
     /// Indicates if external vault is enabled or not.
     #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
@@ -2571,10 +2568,6 @@ pub struct ProfileResponse {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
-
-    /// Merchant Connector id to be stored for billing_processor connector
-    #[schema(value_type = Option<String>)]
-    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Indicates if external vault is enabled or not.
     #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
@@ -2944,9 +2937,6 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
 
-    /// Merchant Connector id to be stored for billing_processor connector
-    #[schema(value_type = Option<String>)]
-    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
     /// Indicates if external vault is enabled or not.
     #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,

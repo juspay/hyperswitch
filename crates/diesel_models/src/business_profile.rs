@@ -265,7 +265,6 @@ impl ProfileUpdateInternal {
             dispute_polling_interval,
             is_manual_retry_enabled,
             always_enable_overcapture,
-            billing_processor_id,
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
@@ -358,7 +357,6 @@ impl ProfileUpdateInternal {
             is_manual_retry_enabled: is_manual_retry_enabled.or(source.is_manual_retry_enabled),
             always_enable_overcapture: always_enable_overcapture
                 .or(source.always_enable_overcapture),
-            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
             is_external_vault_enabled: is_external_vault_enabled
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
