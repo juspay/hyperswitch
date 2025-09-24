@@ -85,6 +85,7 @@ pub struct Profile {
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -241,6 +242,7 @@ pub struct ProfileSetter {
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -307,6 +309,7 @@ impl From<ProfileSetter> for Profile {
             is_manual_retry_enabled: value.is_manual_retry_enabled,
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
+            billing_processor_id: value.billing_processor_id,
         }
     }
 }
@@ -376,6 +379,7 @@ pub struct ProfileGeneralUpdate {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -463,6 +467,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     always_enable_overcapture,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    billing_processor_id,
                 } = *update;
 
                 let is_external_vault_enabled = match is_external_vault_enabled {
@@ -528,6 +533,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     always_enable_overcapture,
                     is_external_vault_enabled,
                     external_vault_connector_details,
+                    billing_processor_id,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -588,6 +594,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -645,6 +652,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -702,6 +710,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -759,6 +768,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -816,6 +826,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -873,6 +884,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -930,6 +942,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
+                billing_processor_id: None,
             },
         }
     }
@@ -1010,6 +1023,7 @@ impl super::behaviour::Conversion for Profile {
             always_enable_overcapture: self.always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 
@@ -1133,6 +1147,7 @@ impl super::behaviour::Conversion for Profile {
             is_manual_retry_enabled: item.is_manual_retry_enabled,
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
+            billing_processor_id: item.billing_processor_id,
         })
     }
 
@@ -1200,6 +1215,7 @@ impl super::behaviour::Conversion for Profile {
             is_manual_retry_enabled: self.is_manual_retry_enabled,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 }
@@ -1262,6 +1278,7 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1320,6 +1337,7 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1383,6 +1401,7 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
+            billing_processor_id: value.billing_processor_id,
         }
     }
 }
@@ -1571,6 +1590,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1653,6 +1673,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
+                    billing_processor_id,
                 } = *update;
                 Self {
                     profile_name,
@@ -1707,6 +1728,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     split_txns_enabled,
+                    billing_processor_id,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1764,6 +1786,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1819,6 +1842,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1874,6 +1898,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1929,6 +1954,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1984,6 +2010,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2039,6 +2066,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2094,6 +2122,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2149,6 +2178,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2205,6 +2235,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                billing_processor_id: None,
             },
         }
     }
@@ -2287,6 +2318,7 @@ impl super::behaviour::Conversion for Profile {
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            billing_processor_id: self.billing_processor_id,
         })
     }
 
@@ -2383,6 +2415,7 @@ impl super::behaviour::Conversion for Profile {
                 merchant_category_code: item.merchant_category_code,
                 merchant_country_code: item.merchant_country_code,
                 split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                billing_processor_id: item.billing_processor_id,
             })
         }
         .await
@@ -2454,6 +2487,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
+            billing_processor_id: self.billing_processor_id,
         })
     }
 }

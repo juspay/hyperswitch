@@ -226,7 +226,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     // Determine webhook processing path (UCS vs non-UCS) and handle event type extraction
     let webhook_processing_result =
-        if unified_connector_service::should_call_unified_connector_service_for_webhooks(
+        match if unified_connector_service::should_call_unified_connector_service_for_webhooks(
             &state,
             &merchant_context,
             &connector_name,
@@ -245,7 +245,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &request_details,
                 merchant_connector_account.as_ref(),
             )
-            .await?
+            .await
         } else {
             // NON-UCS PATH: Need to decode body first
             let decoded_body = connector
@@ -268,7 +268,23 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 decoded_body.into(),
                 &request_details,
             )
-            .await?
+            .await
+        } {
+            Ok(result) => result,
+            Err(error) => {
+                let error_result = handle_incoming_webhook_error(
+                    error,
+                    &connector,
+                    connector_name.as_str(),
+                    &request_details,
+                );
+                match error_result {
+                    Ok((response, webhook_tracker, serialized_request)) => {
+                        return Ok((response, webhook_tracker, serialized_request));
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
         };
 
     // if it is a setup webhook event, return ok status
