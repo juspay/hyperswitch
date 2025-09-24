@@ -171,7 +171,7 @@ pub struct ConfirmSubscriptionRequest {
     pub coupon_code: Option<String>,
 
     /// Identifier for customer.
-    pub customer: common_utils::id_type::CustomerId,
+    pub customer_id: common_utils::id_type::CustomerId,
 
     /// Billing address for the subscription.
     pub billing_address: Option<Address>,

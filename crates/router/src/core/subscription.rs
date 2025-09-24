@@ -9,9 +9,13 @@ use common_utils::{ext_traits::ValueExt, id_type::GenerateId};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, merchant_context::MerchantContext,
-    router_request_types::subscriptions as subscription_request_types,
-    router_response_types::subscriptions as subscription_response_types,
+    api::ApplicationResponse,
+    merchant_context::MerchantContext,
+    router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
+    router_response_types::{
+        subscriptions as subscription_response_types, ConnectorCustomerResponseData,
+        PaymentsResponseData,
+    },
 };
 use masking::Secret;
 
@@ -98,16 +102,30 @@ pub async fn confirm_subscription(
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_string(),
         })?;
+
+    let customer = state
+        .store
+        .find_customer_by_customer_id_merchant_id(
+            key_manager_state,
+            &request.customer_id,
+            merchant_context.get_merchant_account().get_id(),
+            merchant_key_store,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("subscriptions: unable to fetch customer from database")?;
+
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
 
     let mut subscription_entry = handler
         .find_subscription(subscription_id.get_string_repr().to_string())
         .await?;
 
-    let billing_handler = subscription_entry.get_billing_handler().await?;
+    let billing_handler = subscription_entry.get_billing_handler(customer).await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
-    // let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
+    let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
 
     let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
 
@@ -254,7 +272,10 @@ impl<'a> SubscriptionWithHandler<'a> {
         Ok(())
     }
 
-    pub async fn get_billing_handler(&self) -> errors::RouterResult<BillingHandler> {
+    pub async fn get_billing_handler(
+        &self,
+        customer: hyperswitch_domain_models::customer::Customer,
+    ) -> errors::RouterResult<BillingHandler> {
         let mca_id = self.profile.get_billing_processor_id()?;
 
         let billing_processor_mca = self
@@ -321,7 +342,7 @@ impl<'a> SubscriptionWithHandler<'a> {
             connector_params,
             request: self.handler.request.clone(),
             connector_metadata: billing_processor_mca.metadata.clone(),
-            customer_id: self.subscription.customer_id.to_owned(),
+            customer,
         })
     }
 
@@ -338,7 +359,7 @@ pub struct BillingHandler {
     connector_data: api_types::ConnectorData,
     connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
     connector_metadata: Option<pii::SecretSerdeValue>,
-    customer_id: common_utils::id_type::CustomerId,
+    customer: hyperswitch_domain_models::customer::Customer,
     request: subscription_types::ConfirmSubscriptionRequest,
 }
 
@@ -406,6 +427,65 @@ impl InvoiceHandler {
 
 #[allow(clippy::todo)]
 impl BillingHandler {
+    pub async fn create_customer(
+        &self,
+        state: &SessionState,
+    ) -> errors::RouterResult<ConnectorCustomerResponseData> {
+        let customer_req = ConnectorCustomerData {
+            email: self.customer.email.clone().map(pii::Email::from),
+            payment_method_data: self
+                .request
+                .payment_details
+                .payment_method_data
+                .payment_method_data
+                .clone()
+                .map(|pmd| pmd.into()),
+            description: None,
+            phone: None,
+            name: None,
+            preprocessing_id: None,
+            split_payments: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            customer_id: Some(self.subscription.customer_id.to_owned()),
+            billing_address: self
+                .request
+                .billing_address
+                .as_ref()
+                .and_then(|add| add.address.clone())
+                .and_then(|addr| addr.into()),
+        };
+        let router_data = self.build_router_data(state, customer_req)?;
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = Box::pin(self.call_connector(
+            state,
+            router_data,
+            "create customer",
+            connector_integration,
+        ))
+        .await?;
+
+        match response {
+            Ok(response_data) => match response_data {
+                PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
+                    Ok(customer_response)
+                }
+                _ => Err(errors::ApiErrorResponse::SubscriptionError {
+                    operation: "Subscription Customer Create".to_string(),
+                }
+                .into()),
+            },
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
     pub async fn create_subscription(
         &self,
         state: &SessionState,
@@ -488,7 +568,7 @@ impl BillingHandler {
             operation: operation_name.to_string(),
         })
         .attach_printable(format!(
-            "Failed while calling {operation_name} at billing processor"
+            "Failed while in subscription operation: {operation_name}"
         ))?;
 
         Ok(router_resp.response)
@@ -503,7 +583,7 @@ impl BillingHandler {
         Ok(hyperswitch_domain_models::router_data::RouterData {
             flow: std::marker::PhantomData,
             merchant_id: self.subscription.merchant_id.to_owned(),
-            customer_id: Some(self.customer_id.to_owned()),
+            customer_id: Some(self.customer.get_id().to_owned()),
             connector_customer: None,
             connector: self.connector_data.connector_name.to_string().clone(),
             payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
