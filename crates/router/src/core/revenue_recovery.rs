@@ -1057,13 +1057,14 @@ pub async fn resume_revenue_recovery_process_tracker(
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
         )));
-    let (payment_data, _, _) = payments::payments_intent_operation_core::<
+    let create_intent_response = payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
+        router_api_types::payments::PaymentsIntentResponse,
         _,
         _,
         PaymentIntentData<router_api_types::PaymentGetIntent>,
     >(
-        &state,
+        state.clone(),
         state.get_req_state(),
         merchant_context_from_revenue_recovery_payment_data,
         revenue_recovery_payment_data.profile.clone(),
@@ -1074,7 +1075,12 @@ pub async fn resume_revenue_recovery_process_tracker(
     )
     .await?;
 
-    match payment_data.payment_intent.status {
+    let response = create_intent_response
+        .get_json_body()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unexpected response from payments core")?;
+
+    match response.status {
         enums::IntentStatus::Failed => {
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: process_tracker.name.clone(),
