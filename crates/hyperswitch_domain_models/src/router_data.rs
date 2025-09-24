@@ -890,7 +890,7 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
         self.minor_amount_captured
             .or(amount_captured_from_intent_status)
             .or(Some(payment_data.payment_attempt.get_total_amount()))
