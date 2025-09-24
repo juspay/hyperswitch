@@ -4,8 +4,7 @@ use api_models::{
     enums as api_enums,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
-use common_utils::pii;
-use common_utils::{ext_traits::ValueExt, id_type::GenerateId};
+use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
