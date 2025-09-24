@@ -37,6 +37,8 @@ impl<T> From<(FloatMajorUnit, T)> for GigadatRouterData<T> {
     }
 }
 
+const CONNECTOR_BASE_URL: &str = "https://interac.express-connect.com/";
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GigadatConnectorMetadataObject {
     pub site: String,
@@ -199,7 +201,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let base_url = "http://localhost:3000".to_string(); // to be fetched from MCA
+        let base_url = CONNECTOR_BASE_URL;
 
         let redirect_url = format!(
             "{}/webflow?transaction={}&token={}",
