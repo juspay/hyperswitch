@@ -1215,7 +1215,7 @@ impl webhooks::IncomingWebhook for Chargebee {
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::PaymentIntentId(
                 common_utils::id_type::PaymentId::wrap(
-                    subscription_id.get_string_repr().to_string()
+                    subscription_id.get_string_repr().to_string(),
                 )
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?,
             ),

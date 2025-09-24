@@ -2607,7 +2607,10 @@ async fn subscription_incoming_webhook_flow(
         .store
         .find_by_merchant_id_subscription_id(
             merchant_context.get_merchant_account().get_id(),
-            mit_payment_data.subscription_id.get_string_repr().to_string(),
+            mit_payment_data
+                .subscription_id
+                .get_string_repr()
+                .to_string(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
