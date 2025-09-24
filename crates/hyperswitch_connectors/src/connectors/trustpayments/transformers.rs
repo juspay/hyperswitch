@@ -994,7 +994,7 @@ impl TrustpaymentsPaymentResponseData {
                 {
                     common_enums::AttemptStatus::Charged
                 } else if self.authcode.is_some() {
-                    let settle_status = match &self.settlestatus {
+                    match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
                             common_enums::AttemptStatus::Authorized
                         }
@@ -1015,12 +1015,11 @@ impl TrustpaymentsPaymentResponseData {
                         }
                         None => common_enums::AttemptStatus::Authorized,
                     };
-                    settle_status
                 } else if self.requesttypedescription == "TRANSACTIONQUERY"
                     && self.authcode.is_none()
                     && self.records.is_some()
                 {
-                    let settle_status = match self
+                    match self
                         .records
                         .as_ref()
                         .and_then(|records| records.first())
@@ -1047,14 +1046,12 @@ impl TrustpaymentsPaymentResponseData {
                         None => common_enums::AttemptStatus::Authorized,
                     };
 
-                    settle_status
                 } else {
                     common_enums::AttemptStatus::Pending
                 }
             }
             _ => {
-                let error_status = self.errorcode.get_attempt_status();
-                error_status
+                self.errorcode.get_attempt_status();
             }
         };
 
