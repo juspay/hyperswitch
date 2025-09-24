@@ -431,6 +431,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_channel: None,
         enable_partial_authorization: None,
         enable_overcapture: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
