@@ -858,6 +858,9 @@ billwerk = {long_lived_token = false, payment_method = "card"}
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
+[l2_l3_data_config]  
+enabled = "true"
+
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180

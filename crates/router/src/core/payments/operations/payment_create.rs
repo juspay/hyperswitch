@@ -884,7 +884,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
         let routing_approach = payment_data.payment_attempt.routing_approach.clone();
-
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+            payment_data.payment_attempt.is_stored_credential,
+        );
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -902,6 +907,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                     routing_approach,
+                    is_stored_credential,
                 },
                 storage_scheme,
             )
@@ -925,7 +931,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt customer details")?;
-
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+            payment_data.payment_intent.is_stored_credential,
+        );
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -939,6 +950,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     billing_address_id: None,
                     customer_details,
                     updated_by: storage_scheme.to_string(),
+                    is_stored_credential,
                 },
                 key_store,
                 storage_scheme,
@@ -1022,7 +1034,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
+        helpers::validate_stored_credential(
+            request.is_stored_credential,
+            &request.recurring_details,
+            &request.payment_token,
+            &request.mandate_id,
+        )?;
         helpers::validate_overcapture_request(
             &request.enable_overcapture,
             &request.capture_method,
@@ -1313,6 +1330,12 @@ impl PaymentCreate {
             address_id => address_id,
         };
 
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &request.recurring_details,
+            &request.payment_token,
+            request.mandate_id.is_some(),
+            request.is_stored_credential,
+        );
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
@@ -1395,6 +1418,7 @@ impl PaymentCreate {
                 connector_request_reference_id: None,
                 network_transaction_id:None,
                 network_details:None,
+                is_stored_credential
             },
             additional_pm_data,
 
@@ -1559,6 +1583,12 @@ impl PaymentCreate {
             .force_3ds_challenge
             .unwrap_or(business_profile.force_3ds_challenge);
 
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &request.recurring_details,
+            &request.payment_token,
+            request.mandate_id.is_some(),
+            request.is_stored_credential,
+        );
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
@@ -1639,6 +1669,7 @@ impl PaymentCreate {
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
+            is_stored_credential,
         })
     }
 

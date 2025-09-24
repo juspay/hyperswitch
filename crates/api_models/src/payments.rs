@@ -1277,6 +1277,10 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5661,6 +5665,10 @@ pub struct PaymentsResponse {
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
     pub network_details: Option<NetworkDetails>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
