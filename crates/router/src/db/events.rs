@@ -1411,6 +1411,7 @@ mod tests {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
