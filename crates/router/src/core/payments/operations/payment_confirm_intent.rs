@@ -538,6 +538,58 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
         Ok(connector_data)
     }
+
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> RouterResult<(PaymentConfirmData<F>, payments::TokenizationAction)> {
+        let connector = payment_data.payment_attempt.connector.to_owned();
+
+        let is_mandate = payment_data
+            .mandate_data
+            .as_ref()
+            .and_then(|mandate_details| mandate_details.mandate_reference_id.as_ref())
+            .map(|mandate_reference| match mandate_reference {
+                api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+                api_models::payments::MandateReferenceId::NetworkMandateId(_)
+                | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            })
+            .unwrap_or(false);
+
+        let tokenization_action = match connector {
+            Some(_) if is_mandate => payments::TokenizationAction::SkipConnectorTokenization,
+            Some(connector) => {
+                let payment_method = payment_data
+                    .payment_attempt
+                    .get_payment_method()
+                    .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method not found")?;
+                let payment_method_type = payment_data.payment_attempt.get_payment_method_type();
+
+                let mandate_flow_enabled = payment_data.payment_intent.setup_future_usage;
+
+                let is_connector_tokenization_enabled =
+                    payments::is_payment_method_tokenization_enabled_for_connector(
+                        state,
+                        &connector,
+                        payment_method,
+                        payment_method_type,
+                        mandate_flow_enabled,
+                    )?;
+
+                payments::decide_payment_method_tokenize_action(
+                    state,
+                    payment_data.payment_intent.clone(),
+                    is_connector_tokenization_enabled,
+                )
+                .await?
+            }
+            _ => payments::TokenizationAction::SkipConnectorTokenization,
+        };
+
+        Ok((payment_data.clone(), tokenization_action))
+    }
 }
 
 #[async_trait]

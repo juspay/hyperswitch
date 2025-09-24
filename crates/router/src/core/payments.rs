@@ -4589,15 +4589,10 @@ where
         )
         .await?;
 
-    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
-        state,
-        operation,
-        payment_data,
-        merchant_context.get_merchant_key_store(),
-        customer,
-        business_profile,
-    )
-    .await?;
+    let (pd, tokenization_action) = operation
+        .to_domain()?
+        .get_connector_tokenization_action(state, payment_data)
+        .await?;
     *payment_data = pd;
 
     Ok((
@@ -7309,73 +7304,6 @@ pub enum TokenizationAction {
     SkipConnectorTokenization,
 }
 
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
-    state: &SessionState,
-    operation: &BoxedOperation<'_, F, Req, D>,
-    payment_data: &mut D,
-    merchant_key_store: &domain::MerchantKeyStore,
-    customer: &Option<domain::Customer>,
-    business_profile: &domain::Profile,
-) -> RouterResult<(D, TokenizationAction)>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    let connector = payment_data.get_payment_attempt().connector.to_owned();
-
-    let is_mandate = payment_data
-        .get_mandate_id()
-        .as_ref()
-        .and_then(|inner| inner.mandate_reference_id.as_ref())
-        .map(|mandate_reference| match mandate_reference {
-            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
-            api_models::payments::MandateReferenceId::NetworkMandateId(_)
-            | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
-        })
-        .unwrap_or(false);
-
-    let payment_data_and_tokenization_action = match connector {
-        Some(_) if is_mandate => (
-            payment_data.to_owned(),
-            TokenizationAction::SkipConnectorTokenization,
-        ),
-        Some(connector) if is_operation_confirm(&operation) => {
-            let payment_method = payment_data
-                .get_payment_attempt()
-                .get_payment_method()
-                .get_required_value("payment_method")?;
-            let payment_method_type = payment_data.get_payment_attempt().get_payment_method_type();
-
-            let mandate_flow_enabled = payment_data.get_payment_intent().setup_future_usage;
-
-            let is_connector_tokenization_enabled =
-                is_payment_method_tokenization_enabled_for_connector(
-                    state,
-                    &connector,
-                    payment_method,
-                    payment_method_type,
-                    mandate_flow_enabled,
-                )?;
-
-            let payment_method_action = decide_payment_method_tokenize_action(
-                state,
-                payment_data.get_payment_intent().clone(),
-                is_connector_tokenization_enabled,
-            )
-            .await?;
-            (payment_data.to_owned(), payment_method_action)
-        }
-        _ => (
-            payment_data.to_owned(),
-            TokenizationAction::SkipConnectorTokenization,
-        ),
-    };
-
-    Ok(payment_data_and_tokenization_action)
-}
-
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
@@ -7810,14 +7738,8 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
-}
-
-#[cfg(feature = "v2")]
-pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
-    matches!(format!("{operation:?}").as_str(), "PaymentIntentConfirm")
 }
 
 pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
@@ -11486,7 +11408,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
-        self.mandate_data.as_ref()
+        todo!()
     }
 
     fn get_address(&self) -> &PaymentAddress {
@@ -11643,7 +11565,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
-        self.payment_method_data = payment_method_data;
+        todo!()
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {

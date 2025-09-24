@@ -423,6 +423,18 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    /// Get connector tokenization action
+    #[cfg(feature = "v2")]
+    async fn get_connector_tokenization_action<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+    ) -> RouterResult<(D, crate::core::payments::TokenizationAction)> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable(
+            "get_connector_tokenization_action not implemented for this operation",
+        )
+    }
+
     // #[cfg(feature = "v2")]
     // async fn call_connector<'a, RouterDataReq>(
     //     &'a self,
