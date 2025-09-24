@@ -28663,6 +28663,11 @@
               }
             ],
             "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -29014,6 +29019,11 @@
                 "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
               }
             ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
