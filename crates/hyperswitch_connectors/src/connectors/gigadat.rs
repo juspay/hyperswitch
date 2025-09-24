@@ -215,7 +215,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
-            "{}api/paymenttoken/{}",
+            "{}api/payment-token/{}",
             self.base_url(connectors),
             auth.campaign_id.peek()
         ))
