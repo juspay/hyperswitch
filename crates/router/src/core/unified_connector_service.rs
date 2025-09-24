@@ -550,7 +550,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault => None,
+        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
@@ -775,6 +775,7 @@ pub async fn call_unified_connector_service_for_webhook(
             merchant_context.get_merchant_account().get_id().clone(),
         ))
         .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None)
         .build();
 
     // Make UCS call - client availability already verified

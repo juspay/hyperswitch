@@ -2203,6 +2203,17 @@ pub struct ProfileCreate {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[nutype::nutype(
@@ -2360,6 +2371,10 @@ pub struct ProfileCreate {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -2553,6 +2568,17 @@ pub struct ProfileResponse {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2718,6 +2744,15 @@ pub struct ProfileResponse {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -2901,6 +2936,17 @@ pub struct ProfileUpdate {
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -3053,6 +3099,10 @@ pub struct ProfileUpdate {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

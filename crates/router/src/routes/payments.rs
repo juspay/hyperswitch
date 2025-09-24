@@ -11,6 +11,8 @@ use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
 #[cfg(feature = "v2")]
+use crate::core::gift_card;
+#[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 use crate::{
     self as app,
@@ -1527,6 +1529,84 @@ pub async fn payments_cancel(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
+pub async fn payments_cancel(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsCancelRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCancel;
+    let global_payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: global_payment_id.clone(),
+        payload: json_payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let operation = payments::operations::payment_cancel_v2::PaymentsCancel;
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+
+            Box::pin(payments::payments_core::<
+                hyperswitch_domain_models::router_flow_types::Void,
+                api_models::payments::PaymentsCancelResponse,
+                _,
+                _,
+                _,
+                hyperswitch_domain_models::payments::PaymentCancelData<
+                    hyperswitch_domain_models::router_flow_types::Void,
+                >,
+            >(
+                state,
+                req_state,
+                merchant_context,
+                auth.profile,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            ))
+            .await
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+            },
+            req.headers(),
+        ),
+        locking_action,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancelPostCapture, payment_id))]
 pub async fn payments_cancel_post_capture(
@@ -2980,6 +3060,69 @@ pub async fn payment_confirm_intent(
             req.headers(),
         ),
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::GiftCardBalanceCheck, payment_id))]
+pub async fn payment_check_gift_card_balance(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::PaymentsGiftCardBalanceCheckRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::GiftCardBalanceCheck;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: global_payment_id.clone(),
+        payload: json_payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            Box::pin(gift_card::payments_check_gift_card_balance_core(
+                state,
+                merchant_context,
+                auth.profile,
+                req_state,
+                request,
+                header_payload.clone(),
+                payment_id,
+            ))
+            .await
+        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

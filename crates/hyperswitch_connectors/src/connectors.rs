@@ -46,6 +46,7 @@ pub mod fiuu;
 pub mod flexiti;
 pub mod forte;
 pub mod getnet;
+pub mod gigadat;
 pub mod globalpay;
 pub mod globepay;
 pub mod gocardless;
@@ -87,6 +88,7 @@ pub mod paysafe;
 pub mod paystack;
 pub mod paytm;
 pub mod payu;
+pub mod peachpayments;
 pub mod phonepe;
 pub mod placetopay;
 pub mod plaid;
@@ -109,6 +111,7 @@ pub mod stripebilling;
 pub mod taxjar;
 pub mod threedsecureio;
 pub mod thunes;
+pub mod tokenex;
 pub mod tokenio;
 pub mod trustpay;
 pub mod trustpayments;
@@ -140,22 +143,23 @@ pub use self::{
     custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
     ebanx::Ebanx, elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea,
-    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, globalpay::Globalpay,
-    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
-    hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
-    inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat,
+    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
+    helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet,
+    iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
     noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     paybox::Paybox, payeezy::Payeezy, payload::Payload, payme::Payme, payone::Payone,
     paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
-    phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
-    riskified::Riskified, santander::Santander, shift4::Shift4, sift::Sift, signifyd::Signifyd,
-    silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
-    stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes,
-    tokenio::Tokenio, trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
+    peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
+    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    recurly::Recurly, redsys::Redsys, riskified::Riskified, santander::Santander, shift4::Shift4,
+    sift::Sift, signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax,
+    stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio,
+    thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, trustpay::Trustpay,
+    trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,

@@ -666,6 +666,23 @@ pub struct PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct GiftCardBalanceCheckResponse {
+    /// Global Payment Id for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
+    /// The balance of the gift card
+    pub balance: MinorUnit,
+    /// The currency of the Gift Card
+    #[schema(value_type = Currency)]
+    pub currency: common_enums::Currency,
+    /// Whether the gift card balance is enough for the transaction (Used for split payments case)
+    pub needs_additional_pm_data: bool,
+    /// Transaction amount left after subtracting gift card balance (Used for split payments)
+    pub remaining_amount: MinorUnit,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetails {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = u64, example = 6540)]
@@ -4856,6 +4873,56 @@ pub struct PaymentsCaptureResponse {
     pub amount: PaymentAmountDetailsResponse,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelRequest {
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsCancelResponse {
+    /// The unique identifier for the payment
+    pub id: id_type::GlobalPaymentId,
+
+    /// Status of the payment
+    #[schema(value_type = IntentStatus, example = "cancelled")]
+    pub status: common_enums::IntentStatus,
+
+    /// Cancellation reason for the payment cancellation
+    #[schema(example = "Requested by merchant")]
+    pub cancellation_reason: Option<String>,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
+
+    /// The unique identifier for the customer associated with the payment
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The connector used for the payment
+    #[schema(example = "stripe")]
+    pub connector: Option<api_enums::Connector>,
+
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+
+    /// The payment method type for this payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+
+    /// List of payment attempts associated with payment intent
+    pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// The url to which user must be redirected to after completion of the purchase
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+}
+
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct UrlDetails {
     pub url: String,
@@ -4985,9 +5052,8 @@ pub struct ThreeDsData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(tag = "three_ds_method_key")]
+#[serde(untagged)]
 pub enum ThreeDsMethodData {
-    #[serde(rename = "threeDSMethodData")]
     AcsThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
         three_ds_method_data_submission: bool,
@@ -4995,7 +5061,19 @@ pub enum ThreeDsMethodData {
         three_ds_method_data: Option<String>,
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
+        /// Three DS Method Key
+        three_ds_method_key: Option<ThreeDsMethodKey>,
+        /// Indicates whethere to wait for Post message after 3DS method data submission
+        consume_post_message_for_three_ds_method_completion: bool,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub enum ThreeDsMethodKey {
+    #[serde(rename = "threeDSMethodData")]
+    ThreeDsMethodData,
+    #[serde(rename = "JWT")]
+    JWT,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -5768,6 +5846,17 @@ pub struct PaymentsConfirmIntentRequest {
     pub return_raw_connector_response: Option<bool>,
 }
 
+// Serialize is implemented because, this will be serialized in the api events.
+// Usually request types should not have serialize implemented.
+//
+/// Request for Gift Card balance check
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentsGiftCardBalanceCheckRequest {
+    pub gift_card_data: GiftCardData,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -6170,6 +6259,11 @@ pub struct PaymentsResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
 
+    /// Time when the payment was last modified
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
@@ -6252,6 +6346,10 @@ pub struct PaymentsResponse {
 
     /// Additional data that might be required by hyperswitch based on the additional features.
     pub feature_metadata: Option<FeatureMetadata>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -8173,6 +8271,7 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
@@ -8411,6 +8510,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
+    /// Challenge request key which should be set as form field name for creq
+    pub challenge_request_key: Option<String>,
     /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
     pub acs_reference_number: Option<String>,
     /// Unique identifier assigned by the ACS to identify a single transaction
@@ -9662,6 +9763,10 @@ pub struct RecoveryPaymentsCreate {
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 /// Error details for the payment
