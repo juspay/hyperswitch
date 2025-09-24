@@ -7857,11 +7857,11 @@ pub fn update_is_stored_credential(
     is_mandate: bool,
     is_stored_credential_prev: Option<bool>,
 ) -> Option<bool> {
-if is_stored_credential_prev == Some(true)
-    || get_is_stored_credential(recurring_details, payment_token, is_mandate)
-{
-    Some(true)
-} else {
-    is_stored_credential_prev
-}
+    if is_stored_credential_prev == Some(true)
+        || get_is_stored_credential(recurring_details, payment_token, is_mandate)
+    {
+        Some(true)
+    } else {
+        is_stored_credential_prev
+    }
 }
