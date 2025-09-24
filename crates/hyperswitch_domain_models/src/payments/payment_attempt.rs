@@ -398,6 +398,8 @@ pub struct PaymentAttempt {
     pub payment_id: id_type::GlobalPaymentId,
     /// Merchant id for the payment attempt
     pub merchant_id: id_type::MerchantId,
+    /// Group id for the payment attempt
+    pub attempts_group_id: Option<String>,
     /// Amount details for the payment attempt
     pub amount_details: AttemptAmountDetails,
     /// Status of the payment attempt. This is the status that is updated by the connector.
@@ -575,6 +577,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             // This will be decided by the routing algorithm and updated in update trackers
@@ -665,6 +668,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             connector: Some(request.connector.clone()),
@@ -761,6 +765,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             connector: None,
@@ -879,6 +884,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector,
@@ -2399,6 +2405,7 @@ impl behaviour::Conversion for PaymentAttempt {
         let Self {
             payment_id,
             merchant_id,
+            attempts_group_id,
             status,
             error,
             amount_details,
@@ -2544,6 +2551,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_id,
             is_overcapture_enabled: None,
             network_details: None,
+            attempts_group_id,
             is_stored_credential: None,
         })
     }
@@ -2617,6 +2625,7 @@ impl behaviour::Conversion for PaymentAttempt {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id.clone(),
+                attempts_group_id: storage_model.attempts_group_id,
                 id: storage_model.id,
                 status: storage_model.status,
                 amount_details,
@@ -2682,6 +2691,7 @@ impl behaviour::Conversion for PaymentAttempt {
         let Self {
             payment_id,
             merchant_id,
+            attempts_group_id,
             status,
             error,
             amount_details,
@@ -2823,6 +2833,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
             network_details: None,
+            attempts_group_id,
             is_stored_credential: None,
         })
     }

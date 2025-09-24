@@ -1048,6 +1048,8 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
+        #[max_length = 64]
+        attempts_group_id -> Nullable<Varchar>,
     }
 }
 
@@ -1144,6 +1146,10 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        #[max_length = 64]
+        active_attempts_group_id -> Nullable<Varchar>,
+        #[max_length = 16]
+        active_attempt_id_type -> Nullable<Varchar>,
     }
 }
 

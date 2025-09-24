@@ -1713,6 +1713,8 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage,
             active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1768,6 +1770,8 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage: Some(setup_future_usage),
             active_attempt_id,
+            active_attempt_id_type: Some(active_attempt_id_type),
+            active_attempts_group_id,
             order_details: order_details.map(|order_details| {
                 order_details
                     .into_iter()
@@ -1932,6 +1936,8 @@ impl behaviour::Conversion for PaymentIntent {
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 active_attempt_id: storage_model.active_attempt_id,
+                active_attempt_id_type: storage_model.active_attempt_id_type.unwrap_or_default(),
+                active_attempts_group_id: storage_model.active_attempts_group_id,
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
                         .into_iter()
