@@ -309,7 +309,7 @@ impl Capturable for PaymentsAuthorizeData {
                 .get_amount_as_i64(),
         ))
     }
-    
+
     fn get_amount_capturable<F>(
         &self,
         payment_data: &PaymentData<F>,
