@@ -50,6 +50,7 @@ impl PaymentMethodVaultingData {
                     card_network: None,
                     card_type: None,
                     saved_to_locker: false,
+                    #[cfg(feature = "v1")]
                     co_badged_card_data: None,
                 },
             ),
