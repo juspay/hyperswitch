@@ -235,16 +235,37 @@ pub struct ConfirmSubscriptionResponse {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct Invoice {
+    /// Unique identifier for the invoice.
     pub id: common_utils::id_type::InvoiceId,
+
+    /// Unique identifier for the subscription.
     pub subscription_id: common_utils::id_type::SubscriptionId,
+
+    /// Identifier for the merchant.
     pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Identifier for the profile.
     pub profile_id: common_utils::id_type::ProfileId,
+
+    /// Identifier for the merchant connector account.
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+
+    /// Identifier for the Payment.
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+
+    /// Identifier for the Payment method.
     pub payment_method_id: Option<String>,
+
+    /// Identifier for the Customer.
     pub customer_id: common_utils::id_type::CustomerId,
+
+    /// Invoice amount.
     pub amount: MinorUnit,
+
+    /// Currency for the invoice payment.
     pub currency: api_enums::Currency,
+
+    /// Status of the invoice.
     pub status: String,
 }
 

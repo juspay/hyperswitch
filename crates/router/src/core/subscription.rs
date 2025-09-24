@@ -10,6 +10,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
     merchant_context::MerchantContext,
+    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
     router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
     router_response_types::{
         subscriptions as subscription_response_types, ConnectorCustomerResponseData,
@@ -124,9 +125,13 @@ pub async fn confirm_subscription(
     let billing_handler = subscription_entry.get_billing_handler(customer).await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
-    let _customer_create_response = billing_handler.create_customer(&handler.state).await?;
+    let _customer_create_response = billing_handler
+        .create_customer_on_connector(&handler.state)
+        .await?;
 
-    let subscription_create_response = billing_handler.create_subscription(&handler.state).await?;
+    let subscription_create_response = billing_handler
+        .create_subscription_on_connector(&handler.state)
+        .await?;
 
     // let payment_response = invoice_handler.create_cit_payment().await?;
 
@@ -426,7 +431,7 @@ impl InvoiceHandler {
 
 #[allow(clippy::todo)]
 impl BillingHandler {
-    pub async fn create_customer(
+    pub async fn create_customer_on_connector(
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<ConnectorCustomerResponseData> {
@@ -454,13 +459,19 @@ impl BillingHandler {
                 .and_then(|add| add.address.clone())
                 .and_then(|addr| addr.into()),
         };
-        let router_data = self.build_router_data(state, customer_req)?;
+        let router_data = self.build_router_data(
+            state,
+            customer_req,
+            SubscriptionCustomerData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
         let connector_integration = self.connector_data.connector.get_connector_integration();
 
         let response = Box::pin(self.call_connector(
             state,
             router_data,
-            "create customer",
+            "create customer on connector",
             connector_integration,
         ))
         .await?;
@@ -485,7 +496,7 @@ impl BillingHandler {
             .into()),
         }
     }
-    pub async fn create_subscription(
+    pub async fn create_subscription_on_connector(
         &self,
         state: &SessionState,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
@@ -510,14 +521,20 @@ impl BillingHandler {
             connector_params: self.connector_params.clone(),
         };
 
-        let router_data = self.build_router_data(state, subscription_req)?;
+        let router_data = self.build_router_data(
+            state,
+            subscription_req,
+            SubscriptionCreateData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
         let connector_integration = self.connector_data.connector.get_connector_integration();
 
         let response = self
             .call_connector(
                 state,
                 router_data,
-                "create subscription",
+                "create subscription on connector",
                 connector_integration,
             )
             .await?;
@@ -538,7 +555,12 @@ impl BillingHandler {
     async fn call_connector<F, ResourceCommonData, Req, Resp>(
         &self,
         state: &SessionState,
-        router_data: hyperswitch_domain_models::router_data::RouterData<F, Req, Resp>,
+        router_data: hyperswitch_domain_models::router_data_v2::RouterDataV2<
+            F,
+            ResourceCommonData,
+            Req,
+            Resp,
+        >,
         operation_name: &str,
         connector_integration: hyperswitch_interfaces::connector_integration_interface::BoxedConnectorIntegrationInterface<F, ResourceCommonData, Req, Resp>,
     ) -> errors::RouterResult<Result<Resp, hyperswitch_domain_models::router_data::ErrorResponse>>
@@ -554,10 +576,16 @@ impl BillingHandler {
                 > + Clone
                 + 'static,
     {
+        let old_router_data = ResourceCommonData::to_old_router_data(router_data).change_context(
+            errors::ApiErrorResponse::SubscriptionError {
+                operation: { operation_name.to_string() },
+            },
+        )?;
+
         let router_resp = services::execute_connector_processing_step(
             state,
             connector_integration,
-            &router_data,
+            &old_router_data,
             payments_core::CallConnectorAction::Trigger,
             None,
             None,
@@ -573,65 +601,69 @@ impl BillingHandler {
         Ok(router_resp.response)
     }
 
-    fn build_router_data<F, Req, Resp>(
+    fn build_router_data<F, ResourceCommonData, Req, Resp>(
         &self,
         state: &SessionState,
         req: Req,
-    ) -> errors::RouterResult<hyperswitch_domain_models::router_data::RouterData<F, Req, Resp>>
-    {
-        Ok(hyperswitch_domain_models::router_data::RouterData {
+        resource_common_data: ResourceCommonData,
+    ) -> errors::RouterResult<
+        hyperswitch_domain_models::router_data_v2::RouterDataV2<F, ResourceCommonData, Req, Resp>,
+    > {
+        Ok(hyperswitch_domain_models::router_data_v2::RouterDataV2 {
             flow: std::marker::PhantomData,
-            merchant_id: self.subscription.merchant_id.to_owned(),
-            customer_id: Some(self.customer.get_id().to_owned()),
-            connector_customer: None,
-            connector: self.connector_data.connector_name.to_string().clone(),
-            payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
-            tenant_id: state.tenant.tenant_id.clone(),
-            attempt_id: SUBSCRIPTION_PAYMENT_ID.to_owned(),
-            status: common_enums::AttemptStatus::default(),
-            payment_method: common_enums::PaymentMethod::default(),
+            // merchant_id: self.subscription.merchant_id.to_owned(),
+            // customer_id: Some(self.customer.get_id().to_owned()),
+            // connector_customer: None,
+            // connector: self.connector_data.connector_name.to_string().clone(),
+            // payment_id: SUBSCRIPTION_PAYMENT_ID.to_string(),
+            // tenant_id: state.tenant.tenant_id.clone(),
+            // attempt_id: SUBSCRIPTION_PAYMENT_ID.to_owned(),
+            // status: common_enums::AttemptStatus::default(),
+            // payment_method: common_enums::PaymentMethod::default(),
             connector_auth_type: self.auth_type.clone(),
-            description: None,
-            address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-            auth_type: common_enums::AuthenticationType::default(),
-            connector_meta_data: self.connector_metadata.clone(),
-            connector_wallets_details: None,
-            amount_captured: None,
-            minor_amount_captured: None,
-            access_token: None,
-            session_token: None,
-            reference_id: None,
-            payment_method_token: None,
-            recurring_mandate_payment_data: None,
-            preprocessing_id: None,
-            payment_method_balance: None,
-            connector_api_version: None,
+            resource_common_data,
+            tenant_id: state.tenant.tenant_id.clone(),
+            // description: None,
+            // address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+            // auth_type: common_enums::AuthenticationType::default(),
+            // connector_meta_data: self.connector_metadata.clone(),
+            // connector_wallets_details: None,
+            // amount_captured: None,
+            // minor_amount_captured: None,
+            // access_token: None,
+            // session_token: None,
+            // reference_id: None,
+            // payment_method_token: None,
+            // recurring_mandate_payment_data: None,
+            // preprocessing_id: None,
+            // payment_method_balance: None,
+            // connector_api_version: None,
             request: req,
             response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-            connector_request_reference_id: SUBSCRIPTION_CONNECTOR_ID.to_owned(),
-            #[cfg(feature = "payouts")]
-            payout_method_data: None,
-            #[cfg(feature = "payouts")]
-            quote_id: None,
-            test_mode: None,
-            connector_http_status_code: None,
-            external_latency: None,
-            apple_pay_flow: None,
-            frm_metadata: None,
-            dispute_id: None,
-            refund_id: None,
-            payment_method_status: None,
-            connector_response: None,
-            integrity_check: Ok(()),
-            additional_merchant_data: None,
-            header_payload: None,
-            connector_mandate_request_reference_id: None,
-            authentication_id: None,
-            psd2_sca_exemption_type: None,
-            raw_connector_response: None,
-            is_payment_id_from_merchant: None,
-            l2_l3_data: None,
-            minor_amount_capturable: None,
+            // connector_request_reference_id: SUBSCRIPTION_CONNECTOR_ID.to_owned(),
+            // #[cfg(feature = "payouts")]
+            // payout_method_data: None,
+            // #[cfg(feature = "payouts")]
+            // quote_id: None,
+            // test_mode: None,
+            // connector_http_status_code: None,
+            // external_latency: None,
+            // apple_pay_flow: None,
+            // frm_metadata: None,
+            // dispute_id: None,
+            // refund_id: None,
+            // payment_method_status: None,
+            // connector_response: None,
+            // integrity_check: Ok(()),
+            // additional_merchant_data: None,
+            // header_payload: None,
+            // connector_mandate_request_reference_id: None,
+            // authentication_id: None,
+            // psd2_sca_exemption_type: None,
+            // raw_connector_response: None,
+            // is_payment_id_from_merchant: None,
+            // l2_l3_data: None,
+            // minor_amount_capturable: None,
         })
     }
 }

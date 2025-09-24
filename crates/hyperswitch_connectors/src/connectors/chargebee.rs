@@ -16,7 +16,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_data_v2::flow_common_types::SubscriptionCreateData,
+    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -223,6 +223,17 @@ impl
         SubscriptionCreateData,
         SubscriptionCreateRequest,
         SubscriptionCreateResponse,
+    > for Chargebee
+{
+    // Not Implemented (R)
+}
+
+impl
+    ConnectorIntegrationV2<
+        CreateConnectorCustomer,
+        SubscriptionCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
     > for Chargebee
 {
     // Not Implemented (R)
