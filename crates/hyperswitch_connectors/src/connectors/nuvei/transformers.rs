@@ -1861,8 +1861,7 @@ where
 
             ..Default::default()
         })?;
-        // let return_url = item.request.get_return_url_required()?;
-        let return_url = "https://google.com".to_string();
+        let return_url = item.request.get_return_url_required()?;
 
         let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
         let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;

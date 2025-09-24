@@ -548,7 +548,6 @@ pub trait RouterData {
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
     fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
-    fn get_is_stored_credential(&self) -> Option<bool>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -1081,10 +1080,6 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
         self.customer_id.clone()
-    }
-
-    fn get_is_stored_credential(&self) -> Option<bool> {
-        todo!()
     }
 }
 

@@ -1330,6 +1330,12 @@ impl PaymentCreate {
             address_id => address_id,
         };
 
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &request.recurring_details,
+            &request.payment_token,
+            request.mandate_id.is_some(),
+            request.is_stored_credential,
+        );
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
@@ -1412,7 +1418,7 @@ impl PaymentCreate {
                 connector_request_reference_id: None,
                 network_transaction_id:None,
                 network_details:None,
-                is_stored_credential:None
+                is_stored_credential
             },
             additional_pm_data,
 
@@ -1577,6 +1583,12 @@ impl PaymentCreate {
             .force_3ds_challenge
             .unwrap_or(business_profile.force_3ds_challenge);
 
+        let is_stored_credential = helpers::update_is_stored_credential(
+            &request.recurring_details,
+            &request.payment_token,
+            request.mandate_id.is_some(),
+            request.is_stored_credential,
+        );
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
             merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
@@ -1657,7 +1669,7 @@ impl PaymentCreate {
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
-            is_stored_credential: request.is_stored_credential,
+            is_stored_credential,
         })
     }
 
