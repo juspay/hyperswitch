@@ -1,4 +1,5 @@
 use common_utils::types::StringMinorUnit;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
@@ -67,9 +68,9 @@ impl TryFrom<&ConnectorAuthType> for TokenexAuthType {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenexInsertResponse {
-    token: String,
-    first_six: String,
-    last_four: String,
+    token: Option<String>,
+    first_six: Option<String>,
+    last_four: Option<String>,
     success: bool,
     error: String,
     message: Option<String>,
@@ -96,12 +97,17 @@ impl
         let resp = item.response;
         match resp.success && resp.error.is_empty() {
             true => {
+                let token = resp
+                    .token
+                    .clone()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Token is missing in tokenex response")?;
                 Ok(Self {
                     status: common_enums::AttemptStatus::Started,
                     response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                        connector_vault_id: resp.token.clone(),
+                        connector_vault_id: token.clone(),
                         //fingerprint is not provided by tokenex, using token as fingerprint
-                        fingerprint_id: resp.token.clone(),
+                        fingerprint_id: token.clone(),
                     }),
                     ..item.data
                 })
@@ -139,8 +145,10 @@ pub struct TokenexRetrieveRequest {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenexRetrieveResponse {
-    value: cards::CardNumber,
+    value: Option<cards::CardNumber>,
     success: bool,
+    error: String,
+    message: Option<String>,
 }
 
 impl<F> TryFrom<&VaultRouterData<F>> for TokenexRetrieveRequest {
@@ -179,13 +187,43 @@ impl
     ) -> Result<Self, Self::Error> {
         let resp = item.response;
 
-        Ok(Self {
-            status: common_enums::AttemptStatus::Started,
-            response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
-                vault_data: PaymentMethodVaultingData::CardNumber(resp.value),
-            }),
-            ..item.data
-        })
+        match resp.success && resp.error.is_empty() {
+            true => {
+                let data = resp
+                    .value
+                    .clone()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Card number is missing in tokenex response")?;
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
+                        vault_data: PaymentMethodVaultingData::CardNumber(data),
+                    }),
+                    ..item.data
+                })
+            }
+            false => {
+                let (code, message) = resp.error.split_once(':').unwrap_or(("", ""));
+
+                let response = Err(ErrorResponse {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                    reason: resp.message,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+        }
     }
 }
 

@@ -7,7 +7,6 @@ use api_models::{
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
-#[cfg(feature = "v2")]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
     ext_traits::StringExt,
@@ -18,12 +17,10 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
-use crate::errors::api_error_response;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -2603,7 +2600,6 @@ impl
 
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_holder_name.clone() {
-            use masking::ExposeInterface;
 
             if name.clone().expose().is_empty() {
                 card_token_data
@@ -2646,7 +2642,7 @@ impl
         CardDetailsPaymentMethod,
     )> for Card
 {
-    type Error = error_stack::Report<api_error_response::ApiErrorResponse>;
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
     fn try_from(
         value: (
             cards::CardNumber,
@@ -2655,13 +2651,11 @@ impl
             CardDetailsPaymentMethod,
         ),
     ) -> Result<Self, Self::Error> {
-        use common_utils::ext_traits::OptionExt;
 
         let (card_number, card_token_data, co_badged_card_data, card_details) = value;
         
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_details.card_holder_name.clone() {
-            use masking::ExposeInterface;
 
             if name.clone().expose().is_empty() {
                 card_token_data
@@ -2678,15 +2672,11 @@ impl
             card_number,
             card_exp_month: card_details
                 .expiry_month
-                .get_required_value("expiry_month")
-                .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Expiry month not present")?
+                .get_required_value("expiry_month")?
                 .clone(),
             card_exp_year: card_details
                 .expiry_year
-                .get_required_value("expiry_year")
-                .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Expiry year not present")?
+                .get_required_value("expiry_year")?
                 .clone(),
             card_holder_name: name_on_card,
             card_cvc: card_token_data

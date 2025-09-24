@@ -2535,7 +2535,7 @@ pub async fn fetch_card_details_from_external_vault(
                 card_token_data,
                 co_badged_card_data,
                 card,
-            ))?)
+            )).change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to fetch Card data from external vault")?)
         }
     }
 }
