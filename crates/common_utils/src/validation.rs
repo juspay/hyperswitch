@@ -185,4 +185,103 @@ mod tests {
             prop_assert!(validate_email(&email).is_err());
         }
     }
+
+    #[test]
+    fn detects_basic_script_tags() {
+        assert!(contains_potential_xss_or_sqli(
+            "<script>alert('xss')</script>"
+        ));
+    }
+
+    #[test]
+    fn detects_event_handlers() {
+        assert!(contains_potential_xss_or_sqli(
+            "onload=alert('xss') onclick=alert('xss') onmouseover=alert('xss')",
+        ));
+    }
+
+    #[test]
+    fn detects_data_url_payload() {
+        assert!(contains_potential_xss_or_sqli(
+            "data:text/html,<script>alert('xss')</script>",
+        ));
+    }
+
+    #[test]
+    fn detects_iframe_javascript_src() {
+        assert!(contains_potential_xss_or_sqli(
+            "<iframe src=javascript:alert('xss')></iframe>",
+        ));
+    }
+
+    #[test]
+    fn detects_svg_with_script() {
+        assert!(contains_potential_xss_or_sqli(
+            "<svg><script>alert('xss')</script></svg>",
+        ));
+    }
+
+    #[test]
+    fn detects_object_with_js() {
+        assert!(contains_potential_xss_or_sqli(
+            "<object data=javascript:alert('xss')></object>",
+        ));
+    }
+
+    #[test]
+    fn detects_mixed_case_tags() {
+        assert!(contains_potential_xss_or_sqli(
+            "<ScRiPt>alert('xss')</ScRiPt>"
+        ));
+    }
+
+    #[test]
+    fn detects_embedded_script_in_text() {
+        assert!(contains_potential_xss_or_sqli(
+            "Test<script>alert('xss')</script>Company",
+        ));
+    }
+
+    #[test]
+    fn detects_math_with_script() {
+        assert!(contains_potential_xss_or_sqli(
+            "<math><script>alert('xss')</script></math>",
+        ));
+    }
+
+    #[test]
+    fn detects_basic_sql_tautology() {
+        assert!(contains_potential_xss_or_sqli("' OR '1'='1"));
+    }
+
+    #[test]
+    fn detects_time_based_sqli() {
+        assert!(contains_potential_xss_or_sqli("' OR SLEEP(5) --"));
+    }
+
+    #[test]
+    fn detects_percent_encoded_sqli() {
+        // %27 OR %271%27=%271 is a typical encoded variant
+        assert!(contains_potential_xss_or_sqli("%27%20OR%20%271%27%3D%271"));
+    }
+
+    #[test]
+    fn detects_benign_html_as_suspicious() {
+        assert!(contains_potential_xss_or_sqli("<b>Hello</b>"));
+    }
+
+    #[test]
+    fn allows_legitimate_plain_text() {
+        assert!(!contains_potential_xss_or_sqli("My Test Company Ltd."));
+    }
+
+    #[test]
+    fn allows_normal_url() {
+        assert!(!contains_potential_xss_or_sqli("https://example.com"));
+    }
+
+    #[test]
+    fn allows_percent_char_without_encoding() {
+        assert!(!contains_potential_xss_or_sqli("Get 50% off today"));
+    }
 }
