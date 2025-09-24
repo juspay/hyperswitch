@@ -38,7 +38,7 @@ impl PaymentMethodVaultingData {
                 )
             }
             Self::CardNumber(_card_number) => payment_method_data::PaymentMethodsData::Card(
-                payment_method_data::CardDetailsPaymentMethod{
+                payment_method_data::CardDetailsPaymentMethod {
                     last4_digits: None,
                     issuer_country: None,
                     expiry_month: None,

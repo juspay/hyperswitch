@@ -1,7 +1,6 @@
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
-use crate::errors::api_error_response;
 use api_models::{
     mandates,
     payment_methods::{self},
@@ -23,6 +22,8 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
+
+use crate::errors::api_error_response;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
