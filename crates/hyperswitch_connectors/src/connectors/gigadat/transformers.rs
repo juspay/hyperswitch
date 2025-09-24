@@ -156,6 +156,7 @@ pub struct GigadatPaymentResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct GigadatPaymentData {
     pub transaction_id: String,
 }
