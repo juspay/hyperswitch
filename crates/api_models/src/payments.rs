@@ -4873,6 +4873,56 @@ pub struct PaymentsCaptureResponse {
     pub amount: PaymentAmountDetailsResponse,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelRequest {
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsCancelResponse {
+    /// The unique identifier for the payment
+    pub id: id_type::GlobalPaymentId,
+
+    /// Status of the payment
+    #[schema(value_type = IntentStatus, example = "cancelled")]
+    pub status: common_enums::IntentStatus,
+
+    /// Cancellation reason for the payment cancellation
+    #[schema(example = "Requested by merchant")]
+    pub cancellation_reason: Option<String>,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
+
+    /// The unique identifier for the customer associated with the payment
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The connector used for the payment
+    #[schema(example = "stripe")]
+    pub connector: Option<api_enums::Connector>,
+
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+
+    /// The payment method type for this payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+
+    /// List of payment attempts associated with payment intent
+    pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// The url to which user must be redirected to after completion of the purchase
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+}
+
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct UrlDetails {
     pub url: String,
@@ -5002,9 +5052,8 @@ pub struct ThreeDsData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(tag = "three_ds_method_key")]
+#[serde(untagged)]
 pub enum ThreeDsMethodData {
-    #[serde(rename = "threeDSMethodData")]
     AcsThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
         three_ds_method_data_submission: bool,
@@ -5012,7 +5061,19 @@ pub enum ThreeDsMethodData {
         three_ds_method_data: Option<String>,
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
+        /// Three DS Method Key
+        three_ds_method_key: Option<ThreeDsMethodKey>,
+        /// Indicates whethere to wait for Post message after 3DS method data submission
+        consume_post_message_for_three_ds_method_completion: bool,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub enum ThreeDsMethodKey {
+    #[serde(rename = "threeDSMethodData")]
+    ThreeDsMethodData,
+    #[serde(rename = "JWT")]
+    JWT,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -8210,6 +8271,7 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
@@ -8448,6 +8510,8 @@ pub struct PaymentsExternalAuthenticationResponse {
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
     pub challenge_request: Option<String>,
+    /// Challenge request key which should be set as form field name for creq
+    pub challenge_request_key: Option<String>,
     /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
     pub acs_reference_number: Option<String>,
     /// Unique identifier assigned by the ACS to identify a single transaction

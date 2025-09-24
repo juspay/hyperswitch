@@ -21,6 +21,7 @@ pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 pub mod hyperswitch_ai_interaction;
+pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -147,6 +148,7 @@ pub trait StorageInterface:
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
     + subscription::SubscriptionInterface
+    + invoice::InvoiceInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

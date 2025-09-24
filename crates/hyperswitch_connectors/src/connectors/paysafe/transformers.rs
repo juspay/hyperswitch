@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
 use common_utils::{
-    pii::{IpAddress, SecretSerdeValue},
+    id_type,
+    pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
     types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{BankRedirectData, GiftCardData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
@@ -22,7 +23,7 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -56,11 +57,19 @@ pub struct PaysafeConnectorMetadataObject {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<Currency, CardAccountId>>,
+    pub skrill: Option<HashMap<Currency, RedirectAccountId>>,
+    pub interac: Option<HashMap<Currency, RedirectAccountId>>,
+    pub pay_safe_card: Option<HashMap<Currency, RedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CardAccountId {
     no_three_ds: Option<Secret<String>>,
+    three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RedirectAccountId {
     three_ds: Option<Secret<String>>,
 }
 
@@ -127,13 +136,54 @@ pub struct PaysafePaymentHandleRequest {
     pub return_links: Vec<ReturnLink>,
     pub account_id: Secret<String>,
     pub three_ds: Option<ThreeDs>,
+    pub profile: Option<PaysafeProfile>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeProfile {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub email: Email,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum PaysafePaymentMethod {
-    Card { card: PaysafeCard },
+    Card {
+        card: PaysafeCard,
+    },
+    Skrill {
+        skrill: SkrillWallet,
+    },
+    Interac {
+        #[serde(rename = "interacEtransfer")]
+        interac_etransfer: InteracBankRedirect,
+    },
+    PaysafeCard {
+        #[serde(rename = "paysafecard")]
+        pay_safe_card: PaysafeGiftCard,
+    },
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SkrillWallet {
+    pub consumer_id: Email,
+    pub country_code: Option<api_models::enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct InteracBankRedirect {
+    pub consumer_id: Email,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGiftCard {
+    pub consumer_id: id_type::CustomerId,
 }
 
 #[derive(Debug, Serialize)]
@@ -153,9 +203,12 @@ pub enum LinkType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaysafePaymentType {
-    #[serde(rename = "CARD")]
     Card,
+    Skrill,
+    InteracEtransfer,
+    Paysafecard,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,7 +226,7 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.no_three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing no_3ds account_id",
             })
     }
@@ -186,8 +239,47 @@ impl PaysafePaymentMethodDetails {
             .as_ref()
             .and_then(|cards| cards.get(&currency))
             .and_then(|card| card.three_ds.clone())
-            .ok_or_else(|| errors::ConnectorError::InvalidConnectorConfig {
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
                 config: "Missing 3ds account_id",
+            })
+    }
+
+    pub fn get_skrill_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.skrill
+            .as_ref()
+            .and_then(|wallets| wallets.get(&currency))
+            .and_then(|skrill| skrill.three_ds.clone())
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing skrill account_id",
+            })
+    }
+
+    pub fn get_interac_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.interac
+            .as_ref()
+            .and_then(|redirects| redirects.get(&currency))
+            .and_then(|interac| interac.three_ds.clone())
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing interac account_id",
+            })
+    }
+
+    pub fn get_paysafe_gift_card_account_id(
+        &self,
+        currency: Currency,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        self.pay_safe_card
+            .as_ref()
+            .and_then(|gift_cards| gift_cards.get(&currency))
+            .and_then(|pay_safe_card| pay_safe_card.three_ds.clone())
+            .ok_or(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Missing paysafe gift card account_id",
             })
     }
 }
@@ -268,6 +360,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
                     return_links,
                     account_id,
                     three_ds: None,
+                    profile: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -285,6 +378,7 @@ pub struct PaysafePaymentHandleResponse {
     pub payment_handle_token: Secret<String>,
     pub status: PaysafePaymentHandleStatus,
     pub links: Option<Vec<PaymentLink>>,
+    pub error: Option<Error>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -303,6 +397,7 @@ pub enum PaysafePaymentHandleStatus {
     Failed,
     Expired,
     Completed,
+    Error,
 }
 
 impl TryFrom<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
@@ -310,9 +405,9 @@ impl TryFrom<PaysafePaymentHandleStatus> for common_enums::AttemptStatus {
     fn try_from(item: PaysafePaymentHandleStatus) -> Result<Self, Self::Error> {
         match item {
             PaysafePaymentHandleStatus::Completed => Ok(Self::Authorized),
-            PaysafePaymentHandleStatus::Failed | PaysafePaymentHandleStatus::Expired => {
-                Ok(Self::Failure)
-            }
+            PaysafePaymentHandleStatus::Failed
+            | PaysafePaymentHandleStatus::Expired
+            | PaysafePaymentHandleStatus::Error => Ok(Self::Failure),
             // We get an `Initiated` status, with a redirection link from the connector, which indicates that further action is required by the customer,
             PaysafePaymentHandleStatus::Initiated => Ok(Self::AuthenticationPending),
             PaysafePaymentHandleStatus::Payable | PaysafePaymentHandleStatus::Processing => {
@@ -544,60 +639,118 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             Some(enums::CaptureMethod::Automatic) | None
         );
         let transaction_type = TransactionType::Payment;
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = PaysafeCard {
-                    card_num: req_card.card_number.clone(),
-                    card_expiry: PaysafeCardExpiry {
-                        month: req_card.card_exp_month.clone(),
-                        year: req_card.get_expiry_year_4_digit(),
-                    },
-                    cvv: if req_card.card_cvc.clone().expose().is_empty() {
-                        None
-                    } else {
-                        Some(req_card.card_cvc.clone())
-                    },
-                    holder_name: item.router_data.get_optional_billing_full_name(),
-                };
-                let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
-                let payment_type = PaysafePaymentType::Card;
-                let headers = item.router_data.header_payload.clone();
-                let platform = headers
-                    .as_ref()
-                    .and_then(|headers| headers.x_client_platform.clone());
-                let device_channel = match platform {
-                    Some(common_enums::ClientPlatform::Web)
-                    | Some(common_enums::ClientPlatform::Unknown)
-                    | None => DeviceChannel::Browser,
-                    Some(common_enums::ClientPlatform::Ios)
-                    | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
-                };
-                let account_id = metadata.account_id.get_three_ds_account_id(currency_code)?;
-                let three_ds = Some(ThreeDs {
-                    merchant_url: item.router_data.request.get_router_return_url()?,
-                    device_channel,
-                    message_category: ThreeDsMessageCategory::Payment,
-                    authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
-                    requestor_challenge_preference: ThreeDsChallengePreference::ChallengeMandated,
-                });
+        let (payment_method, payment_type, account_id, three_ds, profile) =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(req_card) => {
+                    let card = PaysafeCard {
+                        card_num: req_card.card_number.clone(),
+                        card_expiry: PaysafeCardExpiry {
+                            month: req_card.card_exp_month.clone(),
+                            year: req_card.get_expiry_year_4_digit(),
+                        },
+                        cvv: if req_card.card_cvc.clone().expose().is_empty() {
+                            None
+                        } else {
+                            Some(req_card.card_cvc.clone())
+                        },
+                        holder_name: item.router_data.get_optional_billing_full_name(),
+                    };
+                    let payment_method = PaysafePaymentMethod::Card { card: card.clone() };
+                    let payment_type = PaysafePaymentType::Card;
 
-                Ok(Self {
-                    merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
-                    amount,
-                    settle_with_auth,
-                    payment_method,
-                    currency_code,
-                    payment_type,
-                    transaction_type,
-                    return_links,
-                    account_id,
-                    three_ds,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))?,
-        }
+                    let headers = item.router_data.header_payload.clone();
+                    let platform = headers.as_ref().and_then(|h| h.x_client_platform.clone());
+                    let device_channel = match platform {
+                        Some(common_enums::ClientPlatform::Web)
+                        | Some(common_enums::ClientPlatform::Unknown)
+                        | None => DeviceChannel::Browser,
+                        Some(common_enums::ClientPlatform::Ios)
+                        | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
+                    };
+
+                    let account_id = metadata.account_id.get_three_ds_account_id(currency_code)?;
+                    let three_ds = Some(ThreeDs {
+                        merchant_url: item.router_data.request.get_router_return_url()?,
+                        device_channel,
+                        message_category: ThreeDsMessageCategory::Payment,
+                        authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
+                        requestor_challenge_preference:
+                            ThreeDsChallengePreference::ChallengeMandated,
+                    });
+
+                    (payment_method, payment_type, account_id, three_ds, None)
+                }
+
+                PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+                    let payment_method = PaysafePaymentMethod::Skrill {
+                        skrill: SkrillWallet {
+                            consumer_id: item.router_data.get_billing_email()?,
+                            country_code: item.router_data.get_optional_billing_country(),
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::Skrill;
+                    let account_id = metadata.account_id.get_skrill_account_id(currency_code)?;
+                    (payment_method, payment_type, account_id, None, None)
+                }
+                PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))?,
+
+                PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => {
+                    let payment_method = PaysafePaymentMethod::Interac {
+                        interac_etransfer: InteracBankRedirect {
+                            consumer_id: item.router_data.get_billing_email()?,
+                        },
+                    };
+                    let payment_type = PaysafePaymentType::InteracEtransfer;
+                    let account_id = metadata.account_id.get_interac_account_id(currency_code)?;
+                    let profile = Some(PaysafeProfile {
+                        first_name: item.router_data.get_billing_first_name()?,
+                        last_name: item.router_data.get_billing_last_name()?,
+                        email: item.router_data.get_billing_email()?,
+                    });
+                    (payment_method, payment_type, account_id, None, profile)
+                }
+                PaymentMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))?,
+
+                PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
+                    GiftCardData::PaySafeCard {} => {
+                        let payment_method = PaysafePaymentMethod::PaysafeCard {
+                            pay_safe_card: PaysafeGiftCard {
+                                consumer_id: item.router_data.get_customer_id()?,
+                            },
+                        };
+                        let payment_type = PaysafePaymentType::Paysafecard;
+                        let account_id = metadata
+                            .account_id
+                            .get_paysafe_gift_card_account_id(currency_code)?;
+                        (payment_method, payment_type, account_id, None, None)
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment Method".to_string(),
+                    ))?,
+                },
+
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))?,
+            };
+
+        Ok(Self {
+            merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
+            amount,
+            settle_with_auth,
+            payment_method,
+            currency_code,
+            payment_type,
+            transaction_type,
+            return_links,
+            account_id,
+            three_ds,
+            profile,
+        })
     }
 }
 
@@ -744,13 +897,13 @@ pub struct PaysafePaymentHandlesSyncResponse {
 }
 
 // Paysafe Payments Response Structure
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsResponse {
     pub id: String,
     pub merchant_ref_num: Option<String>,
     pub status: PaysafePaymentStatus,
-    pub settlements: Option<Vec<PaysafeSettlementResponse>>,
+    pub error: Option<Error>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -787,9 +940,71 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 common_enums::AttemptStatus::try_from(payment_handle_response.status)?
             }
         };
-        Ok(Self {
-            status,
-            response: Ok(PaymentsResponseData::TransactionResponse {
+
+        let response = if utils::is_payment_failure(status) {
+            let (code, message, reason, connector_transaction_id) = match &item.response {
+                PaysafeSyncResponse::Payments(sync_response) => {
+                    let payment_response = sync_response
+                        .payments
+                        .first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    match &payment_response.error {
+                        Some(err) => (
+                            err.code.clone(),
+                            err.message.clone(),
+                            err.details
+                                .as_ref()
+                                .and_then(|d| d.first().cloned())
+                                .or_else(|| Some(err.message.clone())),
+                            payment_response.id.clone(),
+                        ),
+                        None => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            consts::NO_ERROR_MESSAGE.to_string(),
+                            None,
+                            payment_response.id.clone(),
+                        ),
+                    }
+                }
+                PaysafeSyncResponse::PaymentHandles(sync_response) => {
+                    let payment_handle_response = sync_response
+                        .payment_handles
+                        .first()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    match &payment_handle_response.error {
+                        Some(err) => (
+                            err.code.clone(),
+                            err.message.clone(),
+                            err.details
+                                .as_ref()
+                                .and_then(|d| d.first().cloned())
+                                .or_else(|| Some(err.message.clone())),
+                            payment_handle_response.id.clone(),
+                        ),
+                        None => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            consts::NO_ERROR_MESSAGE.to_string(),
+                            None,
+                            payment_handle_response.id.clone(),
+                        ),
+                    }
+                }
+            };
+
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code,
+                message,
+                reason,
+                attempt_status: None,
+                connector_transaction_id: Some(connector_transaction_id),
+                status_code: item.http_code,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -798,7 +1013,12 @@ impl<F> TryFrom<ResponseRouterData<F, PaysafeSyncResponse, PaymentsSyncData, Pay
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
@@ -1027,7 +1247,7 @@ pub struct PaysafeErrorResponse {
     pub error: Error,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Error {
     pub code: String,
     pub message: String,
@@ -1036,7 +1256,7 @@ pub struct Error {
     pub field_errors: Option<Vec<FieldError>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldError {
     pub field: Option<String>,
     pub error: String,
