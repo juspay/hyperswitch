@@ -5837,9 +5837,9 @@ api_key = "API Key"
 api_key = "Username"
 api_secret = "Password"
 key1 = "Compaign Id"
-[[paysafe.bank_redirect]]
+[[gigadat.bank_redirect]]
 payment_method_type = "interac"
-[paysafe.metadata.site]
+[gigadat.metadata.site]
 name = "Site where transaction is initiated"
 label = "Site where transaction is initiated"
 placeholder = "Enter site where transaction is initiated"
