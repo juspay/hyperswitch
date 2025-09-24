@@ -430,7 +430,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn get_connector_tokenization_action<'a>(
         &'a self,
         _state: &SessionState,
-        payment_data: &D,
+        _payment_data: &D,
     ) -> RouterResult<(payments::TokenizationAction)> {
         Ok(payments::TokenizationAction::SkipConnectorTokenization)
     }

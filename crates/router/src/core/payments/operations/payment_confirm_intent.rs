@@ -543,10 +543,10 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         &'a self,
         state: &SessionState,
         payment_data: &PaymentConfirmData<F>,
-    ) -> RouterResult<(payments::TokenizationAction)> {
+    ) -> RouterResult<payments::TokenizationAction> {
         let connector = payment_data.payment_attempt.connector.to_owned();
 
-        let is_mandate = payment_data
+        let is_connector_mandate_flow = payment_data
             .mandate_data
             .as_ref()
             .and_then(|mandate_details| mandate_details.mandate_reference_id.as_ref())
@@ -558,14 +558,17 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             .unwrap_or(false);
 
         let tokenization_action = match connector {
-            Some(_) if is_mandate => payments::TokenizationAction::SkipConnectorTokenization,
+            Some(_) if is_connector_mandate_flow => {
+                payments::TokenizationAction::SkipConnectorTokenization
+            }
             Some(connector) => {
                 let payment_method = payment_data
                     .payment_attempt
                     .get_payment_method()
                     .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Payment method not found")?;
-                let payment_method_type = payment_data.payment_attempt.get_payment_method_type();
+                let payment_method_type: Option<common_enums::PaymentMethodType> =
+                    payment_data.payment_attempt.get_payment_method_type();
 
                 let mandate_flow_enabled = payment_data.payment_intent.setup_future_usage;
 
@@ -578,14 +581,13 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         mandate_flow_enabled,
                     )?;
 
-                payments::decide_payment_method_tokenize_action(
-                    state,
-                    payment_data.payment_intent.clone(),
-                    is_connector_tokenization_enabled,
-                )
-                .await?
+                if is_connector_tokenization_enabled {
+                    payments::TokenizationAction::TokenizeInConnector
+                } else {
+                    payments::TokenizationAction::SkipConnectorTokenization
+                }
             }
-            _ => payments::TokenizationAction::SkipConnectorTokenization,
+            None => payments::TokenizationAction::SkipConnectorTokenization,
         };
 
         Ok(tokenization_action)

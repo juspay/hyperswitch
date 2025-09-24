@@ -4589,7 +4589,7 @@ where
         )
         .await?;
 
-    let (tokenization_action) = operation
+    let tokenization_action = operation
         .to_domain()?
         .get_connector_tokenization_action(state, payment_data)
         .await?;
@@ -6948,6 +6948,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
         })
         .unwrap_or(false))
 }
+// Determines connector tokenization eligibility: if no flow restriction, allow for one-off/CIT with raw cards; if flow = “mandates”, only allow MIT off-session with stored tokens.
 #[cfg(feature = "v2")]
 fn is_payment_flow_allowed_for_connector(
     mandate_flow_enabled: storage_enums::FutureUsage,
@@ -7192,27 +7193,6 @@ fn is_payment_method_type_allowed_for_connector(
             PaymentMethodTypeTokenFilter::DisableOnly(disabled) => !disabled.contains(&pm_type),
         },
         None => true, // Allow all types if payment_method_type is not present
-    }
-}
-
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-async fn decide_payment_method_tokenize_action(
-    state: &SessionState,
-    payment_intent_data: payments::PaymentIntent,
-    is_connector_tokenization_enabled: bool,
-) -> RouterResult<TokenizationAction> {
-    if matches!(
-        payment_intent_data.split_payments,
-        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) {
-        Ok(TokenizationAction::TokenizeInConnector)
-    } else {
-        Ok(if is_connector_tokenization_enabled {
-            TokenizationAction::TokenizeInConnector
-        } else {
-            TokenizationAction::SkipConnectorTokenization
-        })
     }
 }
 
@@ -11563,7 +11543,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt = payment_attempt;
     }
 
-    fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
+    fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
         todo!()
     }
 
