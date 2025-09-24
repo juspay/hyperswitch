@@ -8822,6 +8822,7 @@ impl<const T: u8> ConnectorIntegration<Authenticate, PaymentsAuthenticateData, P
 {
 }
 
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentsGiftCardBalanceCheck for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
