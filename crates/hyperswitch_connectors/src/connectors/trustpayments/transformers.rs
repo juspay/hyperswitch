@@ -998,70 +998,39 @@ impl TrustpaymentsPaymentResponseData {
     }
 
     pub fn get_payment_status_for_sync(&self) -> common_enums::AttemptStatus {
-        router_env::logger::info!(
-            "TrustPayments PSync Status Logic - Starting status computation with errorcode={:?}, requesttypedescription={}, authcode={:?}, settlestatus={:?}, transactionreference={:?}",
-            self.errorcode,
-            self.requesttypedescription,
-            self.authcode,
-            self.settlestatus,
-            self.transactionreference
-        );
+        
 
         let status = match self.errorcode {
             TrustpaymentsErrorCode::Success => {
-                router_env::logger::info!(
-                    "TrustPayments PSync Status Logic - Success errorcode, evaluating conditions"
-                );
-
-                router_env::logger::info!(
-                    "dfsdfsd auth code{} records{} transactionreference{}",
-                    self.authcode.is_some(),
-                    self.records.is_some(),
-                    self.transactionreference.is_some()
-                );
 
                 if self.requesttypedescription == "TRANSACTIONQUERY"
                     && self.authcode.is_none()
                     && self.records.is_none()
                     && self.transactionreference.is_none()
                 {
-                    router_env::logger::info!("TrustPayments PSync Status Logic - Condition 1 matched: TRANSACTIONQUERY with all fields None -> Authorized");
                     common_enums::AttemptStatus::Charged
                 } else if self.authcode.is_some() {
-                    router_env::logger::info!(
-                        "TrustPayments PSync Status Logic - Condition 2 matched: authcode.is_some()={} OR (TRANSACTIONQUERY with settlestatus and transactionreference present)",
-                        self.authcode.is_some()
-                    );
 
                     let settle_status = match &self.settlestatus {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlement -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Settled) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Settled -> Charged");
                             common_enums::AttemptStatus::Charged
                         }
                         Some(TrustpaymentsSettleStatus::ManualCapture) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: ManualCapture -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
-                            router_env::logger::info!(
-                                "TrustPayments PSync Status Logic - SettleStatus: Voided -> Voided"
-                            );
                             common_enums::AttemptStatus::Voided
                         }
                         Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlementRedirect -> Authorizing");
                             common_enums::AttemptStatus::Authorizing
                         }
                         Some(TrustpaymentsSettleStatus::SettledRedirect) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: SettledRedirect -> Charged");
                             common_enums::AttemptStatus::Charged
                         }
                         None => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: None -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                     };
@@ -1077,60 +1046,38 @@ impl TrustpaymentsPaymentResponseData {
                         .and_then(|record| record.settlestatus.as_ref())
                     {
                         Some(TrustpaymentsSettleStatus::PendingSettlement) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlement -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Settled) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: Settled -> Charged");
                             common_enums::AttemptStatus::Charged
                         }
                         Some(TrustpaymentsSettleStatus::ManualCapture) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: ManualCapture -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                         Some(TrustpaymentsSettleStatus::Voided) => {
-                            router_env::logger::info!(
-                                "TrustPayments PSync Status Logic - SettleStatus: Voided -> Voided"
-                            );
                             common_enums::AttemptStatus::Voided
                         }
                         Some(TrustpaymentsSettleStatus::PendingSettlementRedirect) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: PendingSettlementRedirect -> Authorizing");
                             common_enums::AttemptStatus::Authorizing
                         }
                         Some(TrustpaymentsSettleStatus::SettledRedirect) => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: SettledRedirect -> Charged");
                             common_enums::AttemptStatus::Charged
                         }
                         None => {
-                            router_env::logger::info!("TrustPayments PSync Status Logic - SettleStatus: None -> Authorized");
                             common_enums::AttemptStatus::Authorized
                         }
                     };
 
                     settle_status
                 } else {
-                    router_env::logger::info!(
-                        "TrustPayments PSync Status Logic - No conditions matched -> Pending"
-                    );
                     common_enums::AttemptStatus::Pending
                 }
             }
             _ => {
                 let error_status = self.errorcode.get_attempt_status();
-                router_env::logger::info!(
-                    "TrustPayments PSync Status Logic - Non-success errorcode={:?} -> {:?}",
-                    self.errorcode,
-                    error_status
-                );
                 error_status
             }
         };
-
-        router_env::logger::info!(
-            "TrustPayments PSync Status Logic - Final computed status: {:?}",
-            status
-        );
 
         status
     }
@@ -1181,8 +1128,6 @@ impl
             .responses
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        router_env::logger::info!("TrustPayments response_data: {:?}", response_data);
 
         let status: enums::AttemptStatus = response_data.get_payment_status();
         let transaction_id = response_data
@@ -1265,10 +1210,7 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Starting response transformation, http_code: {}",
-            item.http_code
-        );
+        
 
         let response_data = item
             .response
@@ -1276,25 +1218,8 @@ impl
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        router_env::logger::info!("TrustPayments response_data: {:?}", response_data);
-
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Raw response data: errorcode={:?}, errormessage={}, requesttypedescription={}, authcode={:?}, settlestatus={:?}, transactionreference={:?}, redirecturl={:?}",
-            response_data.errorcode,
-            response_data.errormessage,
-            response_data.requesttypedescription,
-            response_data.authcode,
-            response_data.settlestatus,
-            response_data.transactionreference,
-            response_data.redirecturl
-        );
 
         let status = response_data.get_payment_status_for_sync();
-
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Computed status: {:?}",
-            status
-        );
 
         let transaction_id = item
             .data
@@ -1303,18 +1228,9 @@ impl
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Transaction ID from request: {}",
-            transaction_id
-        );
+        
 
         if !response_data.errorcode.is_success() {
-            router_env::logger::warn!(
-                "TrustPayments PSync Response - Error response: errorcode={:?}, message={}, status={:?}",
-                response_data.errorcode,
-                response_data.errormessage,
-                status
-            );
 
             return Ok(Self {
                 status,
@@ -1334,11 +1250,6 @@ impl
             });
         }
 
-        router_env::logger::info!(
-            "TrustPayments PSync Response - Success response: final_status={:?}, transaction_id={}",
-            status,
-            transaction_id
-        );
 
         Ok(Self {
             status,
