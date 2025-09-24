@@ -1,0 +1,34 @@
+{
+  "email": "guest@example.com",
+  "name": "John Doe",
+  "phone": "999999999",
+  "phone_country_code": "+65",
+  "description": "First customer",
+  "default_billing_address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US",
+      "first_name": "joseph",
+      "last_name": "Doe"
+  },
+  "default_shipping_address": {
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "line3": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US",
+      "first_name": "joseph",
+      "last_name": "Doe"
+  },
+  "metadata": {
+    "udf1": "value1",
+    "new_customer": "true",
+    "login_date": "2019-09-10T10:11:12Z"
+  }
+}
