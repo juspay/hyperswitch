@@ -2658,7 +2658,7 @@ impl
         use common_utils::ext_traits::OptionExt;
 
         let (card_number, card_token_data, co_badged_card_data, card_details) = value;
-        
+
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_details.card_holder_name.clone() {
             use masking::ExposeInterface;

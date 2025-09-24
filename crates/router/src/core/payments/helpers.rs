@@ -2520,15 +2520,15 @@ pub async fn fetch_card_details_from_external_vault(
         ),
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(card_number) => {
             let payment_methods_data = payment_methods_data
-            .get_required_value("PaymentMethodsData")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment methods data not present")?;
+                .get_required_value("PaymentMethodsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payment methods data not present")?;
 
-        let card = payment_methods_data
-            .get_card()
-            .get_required_value("CardDetails")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card details not present")?;
+            let card = payment_methods_data
+                .get_card()
+                .get_required_value("CardDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Card details not present")?;
 
             Ok(domain::Card::try_from((
                 card_number,
