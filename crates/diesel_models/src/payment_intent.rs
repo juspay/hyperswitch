@@ -813,6 +813,7 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization: None,
             split_txns_enabled: source.split_txns_enabled,
             enable_overcapture: None,
+            is_stored_credential: None,
         }
     }
 }

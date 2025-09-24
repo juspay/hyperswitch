@@ -1325,6 +1325,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payment_channel: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4072,6 +4073,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         })
     }
 }

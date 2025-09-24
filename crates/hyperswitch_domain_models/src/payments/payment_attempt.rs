@@ -2539,6 +2539,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_id,
             is_overcapture_enabled: None,
             network_details: None,
+            is_stored_credential: None,
         })
     }
 
@@ -2817,6 +2818,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
             network_details: None,
+            is_stored_credential: None,
         })
     }
 }
