@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0-hotfix2
+
+### Bug Fixes
+
+- **payouts:** Populate additional payout method data during recurring payouts ([#9514](https://github.com/juspay/hyperswitch/pull/9514)) ([`d1a2b24`](https://github.com/juspay/hyperswitch/commit/d1a2b245a1b6f27dc077568fcc2c54725377cd32))
+- **webhooks:** Move webhook acknowledge config to cover early deserialization errors ([#9530](https://github.com/juspay/hyperswitch/pull/9530)) ([`3cb44a5`](https://github.com/juspay/hyperswitch/commit/3cb44a5814dbe2cbc74e7b752f5b05a9980947c9))
+
+**Full Changelog:** [`2025.09.17.0-hotfix1...2025.09.17.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0-hotfix1...2025.09.17.0-hotfix2)
+
+- - -
+
 ## 2025.09.17.0-hotfix1
 
 ### Features
