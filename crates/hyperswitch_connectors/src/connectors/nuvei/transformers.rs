@@ -14,7 +14,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    address::Address,
+    address::{Address, AddressDetails},
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
         GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
@@ -1951,7 +1951,7 @@ where
         None
     };
 
-    let address: Option<&hyperswitch_domain_models::address::AddressDetails> = item
+    let address: Option<&AddressDetails> = item
         .get_optional_billing()
         .and_then(|billing_details| billing_details.address.as_ref());
 
