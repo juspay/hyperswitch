@@ -267,7 +267,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: gigadat::GigadatPaymentResponse = res
             .response
-            .parse_struct("GigadatTokenResponse")
+            .parse_struct("GigadatPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -544,12 +544,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         let code = response
             .error
             .first()
-            .and_then(|e| e.code.clone())
+            .and_then(|error_detail| error_detail.code.clone())
             .unwrap_or(api_consts::NO_ERROR_CODE.to_string());
         let message = response
             .error
             .first()
-            .map(|e| e.detail.clone())
+            .map(|error_detail| error_detail.detail.clone())
             .unwrap_or(api_consts::NO_ERROR_MESSAGE.to_string());
         Ok(ErrorResponse {
             status_code: res.status_code,

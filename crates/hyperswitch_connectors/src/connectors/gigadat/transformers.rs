@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -151,7 +151,7 @@ impl TryFrom<&ConnectorAuthType> for GigadatAuthType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GigadatPaymentResponse {
-    pub token: String,
+    pub token: Secret<String>,
     pub data: GigadatPaymentData,
 }
 
@@ -202,11 +202,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Will be raising a sepearte PR to populate a field connect_base_url in routerData and use it here
         let base_url = CONNECTOR_BASE_URL;
 
         let redirect_url = format!(
             "{}/webflow?transaction={}&token={}",
-            base_url, item.data.connector_request_reference_id, item.response.token
+            base_url,
+            item.data.connector_request_reference_id,
+            item.response.token.peek()
         );
 
         let redirection_data = Some(RedirectForm::Form {
