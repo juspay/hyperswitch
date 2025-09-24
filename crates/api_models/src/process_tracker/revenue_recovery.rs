@@ -26,10 +26,14 @@ pub struct RevenueRecoveryId {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RevenueRecoveryRetriggerRequest {
+    /// The task we want to resume
     pub revenue_recovery_task: String,
+    /// Time at which the job was scheduled at
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time: Option<PrimitiveDateTime>,
+    /// Status of The Process Tracker Task
     pub status: enums::ProcessTrackerStatus,
+    /// Business Status of The Process Tracker Task
     pub business_status: String,
 }
