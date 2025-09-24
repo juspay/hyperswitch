@@ -1,6 +1,12 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use base64::Engine;
+use common_utils::{
+    consts,
+    crypto::{self, GenerateDigest},
+    errors::CustomResult,
+    ext_traits::ValueExt,
+};
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
 use router_env::tracing;
@@ -146,18 +152,28 @@ pub(crate) fn get_idempotent_event_id(
     primary_object_id: &str,
     event_type: types::storage::enums::EventType,
     delivery_attempt: types::storage::enums::WebhookDeliveryAttempt,
-) -> String {
+) -> Result<String, Report<errors::WebhooksFlowError>> {
     use crate::types::storage::enums::WebhookDeliveryAttempt;
 
     const EVENT_ID_SUFFIX_LENGTH: usize = 8;
 
     let common_prefix = format!("{primary_object_id}_{event_type}");
-    match delivery_attempt {
-        WebhookDeliveryAttempt::InitialAttempt => common_prefix,
+
+    // Hash the common prefix with SHA256 and encode with URL-safe base64 without padding
+    let digest = crypto::Sha256
+        .generate_digest(common_prefix.as_bytes())
+        .change_context(errors::WebhooksFlowError::IdGenerationFailed)
+        .attach_printable("Failed to generate idempotent event ID")?;
+    let base_encoded = consts::BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest);
+
+    let result = match delivery_attempt {
+        WebhookDeliveryAttempt::InitialAttempt => base_encoded,
         WebhookDeliveryAttempt::AutomaticRetry | WebhookDeliveryAttempt::ManualRetry => {
-            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &common_prefix)
+            common_utils::generate_id(EVENT_ID_SUFFIX_LENGTH, &base_encoded)
         }
-    }
+    };
+
+    Ok(result)
 }
 
 #[inline]
