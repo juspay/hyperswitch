@@ -1,12 +1,7 @@
-// use api_models::payments::BillingConnectorDetails;
-use std::str::FromStr;
-
-use api_models::enums::Connector;
 use async_trait::async_trait;
 use common_enums::connector_enums::InvoiceStatus;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::invoice::InvoiceNew;
-use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 
 use crate::{
@@ -59,16 +54,9 @@ async fn perform_subscription_mit_payment(
         )
         .await?;
 
-    let connector_name = &tracking_data.connector_name;
-
-    let connector = Connector::from_str(connector_name).map_err(|_| {
-        logger::error!("unable to parse connector name {connector_name:?}");
-        errors::ProcessTrackerError::SerializationFailed
-    })?;
-
     let invoice_new = InvoiceNew {
         id: tracking_data.invoice_id.clone(),
-        subscription_id: tracking_data.subscription_id.clone(),
+        subscription_id: tracking_data.subscription_id.get_string_repr().to_string(),
         merchant_id: tracking_data.merchant_id.clone(),
         profile_id: tracking_data.profile_id.clone(),
         merchant_connector_id: tracking_data.billing_connector_mca_id.clone(),
@@ -78,7 +66,7 @@ async fn perform_subscription_mit_payment(
         amount: tracking_data.amount,
         currency: tracking_data.currency.to_string(),
         status: InvoiceStatus::PaymentPending.to_string(),
-        provider_name: connector,
+        provider_name: tracking_data.connector_name,
         metadata: None,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),

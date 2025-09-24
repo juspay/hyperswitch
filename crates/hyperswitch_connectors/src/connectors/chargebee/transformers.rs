@@ -466,10 +466,9 @@ pub struct ChargebeeInvoiceData {
     pub currency_code: enums::Currency,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
-    // New fields for invoice_generated webhook
     pub status: Option<String>,
     pub customer_id: CustomerId,
-    pub subscription_id: String,
+    pub subscription_id: SubscriptionId,
     pub first_invoice: Option<bool>,
 }
 
@@ -592,7 +591,7 @@ pub struct ChargebeeMitPaymentData {
     pub currency_code: enums::Currency,
     pub status: String,
     pub customer_id: CustomerId,
-    pub subscription_id: String,
+    pub subscription_id: SubscriptionId,
     pub first_invoice: bool,
 }
 

@@ -3,7 +3,10 @@ use std::{str::FromStr, time::Instant};
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
-use api_models::webhooks::{self, WebhookResponseTracker};
+use api_models::{
+    enums::Connector,
+    webhooks::{self, WebhookResponseTracker},
+};
 pub use common_enums::enums::ProcessTrackerRunner;
 use common_utils::{
     errors::ReportSwitchExt,
@@ -13,6 +16,9 @@ use common_utils::{
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
+use hyperswitch_connectors::connectors::chargebee::transformers::{
+    ChargebeeInvoiceBody, ChargebeeMitPaymentData,
+};
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
@@ -517,7 +523,7 @@ async fn process_webhook_business_logic(
         .get_webhook_object_reference_id(request_details)
         .switch()
         .attach_printable("Could not find object reference id in incoming webhook body")?;
-    let connector_enum = api_models::enums::Connector::from_str(connector_name)
+    let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
@@ -848,7 +854,7 @@ fn handle_incoming_webhook_error(
     logger::error!(?error, "Incoming webhook flow failed");
 
     // fetch the connector enum from the connector name
-    let connector_enum = api_models::connector_enums::Connector::from_str(connector_name)
+    let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
@@ -2566,10 +2572,6 @@ async fn subscription_incoming_webhook_flow(
     // Parse the webhook body to extract MIT payment data
     let mit_payment_data = match connector.id() {
         "chargebee" => {
-            use hyperswitch_connectors::connectors::chargebee::transformers::{
-                ChargebeeInvoiceBody, ChargebeeMitPaymentData,
-            };
-
             let webhook_body = ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(
                 &webhook_details.resource_object,
             )
@@ -2605,7 +2607,7 @@ async fn subscription_incoming_webhook_flow(
         .store
         .find_by_merchant_id_subscription_id(
             merchant_context.get_merchant_account().get_id(),
-            mit_payment_data.subscription_id.clone(),
+            mit_payment_data.subscription_id.get_string_repr().to_string(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2618,6 +2620,13 @@ async fn subscription_incoming_webhook_flow(
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 
+    let connector_name = connector.id().to_string();
+
+    let connector = Connector::from_str(&connector_name)
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name}"))?;
+
     // Create tracking data for subscription MIT payment
     let tracking_data =
         api_models::process_tracker::subscription::SubscriptionWorkflowTrackingData {
@@ -2629,7 +2638,7 @@ async fn subscription_incoming_webhook_flow(
             amount: mit_payment_data.amount_due,
             currency: mit_payment_data.currency_code,
             customer_id: mit_payment_data.customer_id,
-            connector_name: connector.id().to_string(),
+            connector_name: connector,
             billing_connector_mca_id: billing_connector_mca_id.clone(),
         };
 
