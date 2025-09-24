@@ -2834,11 +2834,11 @@ pub async fn list_payment_methods(
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
             {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.clone().conf.connectors,
-                    &intermediate.connector,
-                    api::GetToken::from(intermediate.payment_method_type),
+                let connector_data = helpers::get_connector_data_with_token(
+                    &state,
+                    intermediate.connector.to_string(),
                     None,
+                    intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("invalid connector name received")?;

@@ -1616,13 +1616,9 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let payment_method = match payment_method {
-        Some(pm) => pm,
-        None => payment_data
-            .payment_attempt
-            .payment_method
-            .get_required_value("payment_method")?,
-    };
+    let payment_method = payment_method
+        .or(payment_data.payment_attempt.payment_method)
+        .get_required_value("payment_method")?;
 
     let payment_method_type =
         payment_method_type.or(payment_data.payment_attempt.payment_method_type);
@@ -5180,7 +5176,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata: payment_data.payment_intent.metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-            payment_method: None,
+            payment_method: Some(payment_data.payment_attempt.payment_method_type),
             payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         })
     }
