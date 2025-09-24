@@ -799,11 +799,23 @@ impl
 
     fn get_attempt_status_for_db_update(
         &self,
-        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
+        payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
     ) -> common_enums::AttemptStatus {
-        // For this step, consider whatever status was given by the connector module
-        // We do not need to check for amount captured or amount capturable here because we are authorizing the whole amount
-        self.status
+        match self.status {
+            common_enums::AttemptStatus::Charged => {
+                let amount_captured = self
+                    .get_captured_amount(payment_data)
+                    .unwrap_or(MinorUnit::zero());
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
+
+                if amount_captured == total_amount {
+                    common_enums::AttemptStatus::Charged
+                } else {
+                    common_enums::AttemptStatus::PartialCharged
+                }
+            }
+            _ => self.status,
+        }
     }
 
     fn get_amount_capturable(
@@ -812,7 +824,7 @@ impl
     ) -> Option<MinorUnit> {
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_capturable_from_intent_status = match intent_status {
             // If the status is already succeeded / failed we cannot capture any more amount
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
@@ -839,46 +851,20 @@ impl
             // Invalid statues for this flow, after doing authorization this state is invalid
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
+        self.minor_amount_capturable
+            .or(amount_capturable_from_intent_status)
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 
     fn get_captured_amount(
         &self,
         payment_data: &payments::PaymentConfirmData<router_flow_types::Authorize>,
     ) -> Option<MinorUnit> {
-        // Based on the status of the response, we can determine the amount that was captured
-        let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
-            // If the status is succeeded then we have captured the whole amount
-            // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
-            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
-                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
-                Some(total_amount)
-            }
-            // No amount is captured
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::CancelledPostCapture
-            | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Expired => Some(MinorUnit::zero()),
-            // For these statuses, update the amount captured when it reaches terminal state
-            common_enums::IntentStatus::RequiresCustomerAction
-            | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing => None,
-            // Invalid states for this flow
-            common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation => None,
-            // No amount has been captured yet
-            common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
-                Some(MinorUnit::zero())
-            }
-            // Invalid statues for this flow
-            common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        self.minor_amount_captured
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
-
 #[cfg(feature = "v2")]
 impl
     TrackerPostUpdateObjects<
@@ -1274,7 +1260,7 @@ impl
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_capturable_from_intent_status = match intent_status {
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
@@ -1290,14 +1276,16 @@ impl
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
             // Invalid statues for this flow
-            common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+            common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
+        };
+        self.minor_amount_capturable
+            .or(amount_capturable_from_intent_status)
     }
 
     fn get_captured_amount(
@@ -1308,7 +1296,7 @@ impl
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
-        match intent_status {
+        let amount_captured_from_intent_status = match intent_status {
             // If the status is succeeded then we have captured the whole amount or amount_to_capture
             common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_attempt.amount_details.get_amount_to_capture();
@@ -1338,7 +1326,10 @@ impl
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
-        }
+        };
+        self.minor_amount_captured
+            .or(amount_captured_from_intent_status)
+            .or(Some(payment_data.payment_attempt.get_total_amount()))
     }
 }
 
