@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0-hotfix4
+
+### Bug Fixes
+
+- **router:** Check payment_method_data before the decryption flow ([#9522](https://github.com/juspay/hyperswitch/pull/9522)) ([`b4e6be7`](https://github.com/juspay/hyperswitch/commit/b4e6be74ec4fcd39496c40e1bc86715684ffed5e))
+
+**Full Changelog:** [`2025.09.17.0-hotfix3...2025.09.17.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0-hotfix3...2025.09.17.0-hotfix4)
+
+- - -
+
 ## 2025.09.17.0-hotfix3
 
 ### Bug Fixes
