@@ -7,9 +7,8 @@ use api_models::{
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
-    ext_traits::StringExt,
+    ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -20,7 +19,6 @@ use common_utils::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
-
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -2600,7 +2598,6 @@ impl
 
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_holder_name.clone() {
-
             if name.clone().expose().is_empty() {
                 card_token_data
                     .and_then(|token_data| token_data.card_holder_name.clone())
@@ -2651,12 +2648,10 @@ impl
             CardDetailsPaymentMethod,
         ),
     ) -> Result<Self, Self::Error> {
-
         let (card_number, card_token_data, co_badged_card_data, card_details) = value;
 
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_details.card_holder_name.clone() {
-
             if name.clone().expose().is_empty() {
                 card_token_data
                     .and_then(|token_data| token_data.card_holder_name.clone())
