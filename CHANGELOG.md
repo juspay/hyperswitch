@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [NEXIXPAY] Updated the Api Response Schema ([#9516](https://github.com/juspay/hyperswitch/pull/9516)) ([`c5f76f7`](https://github.com/juspay/hyperswitch/commit/c5f76f73462ad3a7e532213b3afbc314e7f9e9bb))
+- **connectors:** [Nexixpay] send cvv in nexixpay requests ([#9517](https://github.com/juspay/hyperswitch/pull/9517)) ([`ee2f372`](https://github.com/juspay/hyperswitch/commit/ee2f372992e268f8d576c0c97e3f3c18afdb0f9c))
+
+**Full Changelog:** [`2025.09.17.0-hotfix2...2025.09.17.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0-hotfix2...2025.09.17.0-hotfix3)
+
+- - -
+
 ## 2025.09.17.0-hotfix2
 
 ### Bug Fixes
