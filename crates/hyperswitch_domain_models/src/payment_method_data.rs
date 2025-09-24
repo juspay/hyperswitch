@@ -2643,7 +2643,7 @@ impl
         cards::CardNumber,
         Option<&CardToken>,
         Option<payment_methods::CoBadgedCardData>,
-        Option<PaymentMethodsData>,
+        CardDetailsPaymentMethod,
     )> for Card
 {
     type Error = error_stack::Report<api_error_response::ApiErrorResponse>;
@@ -2652,25 +2652,15 @@ impl
             cards::CardNumber,
             Option<&CardToken>,
             Option<payment_methods::CoBadgedCardData>,
-            Option<PaymentMethodsData>,
+            CardDetailsPaymentMethod,
         ),
     ) -> Result<Self, Self::Error> {
         use common_utils::ext_traits::OptionExt;
 
-        let (card_number, card_token_data, co_badged_card_data, payment_methods_data) = value;
-        let payment_methods_data = payment_methods_data
-            .get_required_value("PaymentMethodsData")
-            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment methods data not present")?;
-
-        let card = payment_methods_data
-            .get_card()
-            .get_required_value("CardDetails")
-            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card details not present")?;
-
+        let (card_number, card_token_data, co_badged_card_data, card_details) = value;
+        
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-        let name_on_card = if let Some(name) = card.card_holder_name.clone() {
+        let name_on_card = if let Some(name) = card_details.card_holder_name.clone() {
             use masking::ExposeInterface;
 
             if name.clone().expose().is_empty() {
@@ -2686,13 +2676,13 @@ impl
 
         Ok(Self {
             card_number,
-            card_exp_month: card
+            card_exp_month: card_details
                 .expiry_month
                 .get_required_value("expiry_month")
                 .change_context(api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Expiry month not present")?
                 .clone(),
-            card_exp_year: card
+            card_exp_year: card_details
                 .expiry_year
                 .get_required_value("expiry_year")
                 .change_context(api_error_response::ApiErrorResponse::InternalServerError)
@@ -2704,12 +2694,12 @@ impl
                 .unwrap_or_default()
                 .card_cvc
                 .unwrap_or_default(),
-            card_issuer: card.card_issuer,
-            card_network: card.card_network,
-            card_type: card.card_type,
-            card_issuing_country: card.issuer_country,
+            card_issuer: card_details.card_issuer,
+            card_network: card_details.card_network,
+            card_type: card_details.card_type,
+            card_issuing_country: card_details.issuer_country,
             bank_code: None,
-            nick_name: card.nick_name,
+            nick_name: card_details.nick_name,
             co_badged_card_data,
         })
     }
