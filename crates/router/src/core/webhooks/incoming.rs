@@ -237,10 +237,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 connector = connector_name,
                 "Using Unified Connector Service for webhook processing",
             );
-            let profile_id = merchant_connector_account
-                .as_ref()
-                .map(|mca| mca.profile_id.clone())
-                .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
             process_ucs_webhook_transform(
                 &state,
                 &merchant_context,

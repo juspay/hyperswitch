@@ -4316,7 +4316,7 @@ where
                     &header_payload,
                     lineage_ids,
                     merchant_connector_account.clone(),
-                    &merchant_context,
+                    merchant_context,
                 )
                 .await?;
 
