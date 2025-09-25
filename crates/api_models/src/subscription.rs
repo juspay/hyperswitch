@@ -105,5 +105,33 @@ impl CreateSubscriptionResponse {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GetPlansResponse {
+    pub plan_id: String,
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ClientSecret(String);
+
+impl ClientSecret {
+    pub fn new(secret: String) -> Self {
+        Self(secret)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct GetPlansQuery {
+    pub client_secret: Option<ClientSecret>,
+    pub subscription_id: Option<String>,
+}
+
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+impl ApiEventMetric for GetPlansQuery {}
+impl ApiEventMetric for GetPlansResponse {}

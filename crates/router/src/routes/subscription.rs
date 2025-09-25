@@ -67,3 +67,35 @@ pub async fn create_subscription(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn get_subscription_plans(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<subscription_types::GetPlansQuery>,
+) -> impl Responder {
+    let flow = Flow::GetPlansForSubscription;
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let auth_data = match auth::is_ephemeral_auth(req.headers(), api_auth) {
+        Ok(auth) => auth,
+        Err(err) => return crate::services::api::log_and_return_error_response(err),
+    };
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::get_subscription_plans(state, merchant_context, auth.profile_id, query)
+        },
+        &*auth_data,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

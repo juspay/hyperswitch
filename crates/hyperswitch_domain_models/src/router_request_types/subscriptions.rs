@@ -23,7 +23,7 @@ pub enum SubscriptionAutoCollection {
     On,
     Off,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GetSubscriptionPlansRequest {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
