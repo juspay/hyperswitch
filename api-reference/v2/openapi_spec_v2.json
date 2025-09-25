@@ -7522,6 +7522,11 @@
             "type": "string",
             "description": "Accept-language of the browser",
             "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },
@@ -8679,6 +8684,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -23793,11 +23799,13 @@
           "schedule_time_for_payment": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "schedule_time_for_psync": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "status": {
@@ -23931,6 +23939,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",

@@ -1,16 +1,20 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
-        GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+        SubscriptionCreateData,
     },
     router_flow_types::subscriptions::{
-        GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate,
+        GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+        SubscriptionCreate,
     },
     router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 
@@ -19,7 +23,11 @@ use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait SubscriptionsV2
 pub trait SubscriptionsV2:
-    GetSubscriptionPlansV2 + SubscriptionsCreateV2 + ConnectorCustomerV2 + GetSubscriptionPlanPricesV2
+    GetSubscriptionPlansV2
+    + SubscriptionsCreateV2
+    + ConnectorCustomerV2
+    + GetSubscriptionPlanPricesV2
+    + GetSubscriptionEstimateV2
 {
 }
 
@@ -52,6 +60,17 @@ pub trait SubscriptionsCreateV2:
     SubscriptionCreateData,
     SubscriptionCreateRequest,
     SubscriptionCreateResponse,
+>
+{
+}
+
+/// trait GetSubscriptionEstimate for V2
+pub trait GetSubscriptionEstimateV2:
+    ConnectorIntegrationV2<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateData,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
 >
 {
 }

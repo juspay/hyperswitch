@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.25.0
+
+### Features
+
+- **connector:** [paysafe] introduce applepay encrypt and predecrypt flow ([#9358](https://github.com/juspay/hyperswitch/pull/9358)) ([`2e0da5c`](https://github.com/juspay/hyperswitch/commit/2e0da5c0322909790e49d4df5adc76331e7f76c7))
+- **core:** Add referer field to browser_info ([#9474](https://github.com/juspay/hyperswitch/pull/9474)) ([`46d483d`](https://github.com/juspay/hyperswitch/commit/46d483d87cf6076b4459a2b02b8e971e8c3efe2f))
+- **subscription:** Add support to estimate for a subscription in chargebee ([#9336](https://github.com/juspay/hyperswitch/pull/9336)) ([`a751837`](https://github.com/juspay/hyperswitch/commit/a7518373786ab3a1129cdfc67385b26e5641a6a9))
+
+### Bug Fixes
+
+- **core:** Fixed ctp bug for confirmation and added multi profile support for modular auth ([#9545](https://github.com/juspay/hyperswitch/pull/9545)) ([`acf816d`](https://github.com/juspay/hyperswitch/commit/acf816d046a383b0a61b736d9ab1155dadf6e431))
+- **nuvei:** Make `eci_provider` in applepay decrypt flow non mandatory field ([#9509](https://github.com/juspay/hyperswitch/pull/9509)) ([`ecfaf42`](https://github.com/juspay/hyperswitch/commit/ecfaf425edd88f96090cf9306f249ff6d1151b72))
+- Map attempt_status_unspecified to None instead of Unresolved for HS<>UCS ErrorResponse ([#9445](https://github.com/juspay/hyperswitch/pull/9445)) ([`e0fa7e9`](https://github.com/juspay/hyperswitch/commit/e0fa7e9b6c518ae1650596a699af470e03c8efd9))
+
+**Full Changelog:** [`2025.09.24.1...2025.09.25.0`](https://github.com/juspay/hyperswitch/compare/2025.09.24.1...2025.09.25.0)
+
+- - -
+
+## 2025.09.24.1
+
+### Features
+
+- **connector:** [checkout] Add NTID flow ([#9449](https://github.com/juspay/hyperswitch/pull/9449)) ([`d692928`](https://github.com/juspay/hyperswitch/commit/d692928080d7c5dd8b44dbc6f3dfdf09c716d9ff))
+- **euclid_wasm:** Add wasm changes for payout webhooks ([#9524](https://github.com/juspay/hyperswitch/pull/9524)) ([`e2464a8`](https://github.com/juspay/hyperswitch/commit/e2464a83b79d86f266d81fa2d63330afee011c75))
+- **process_tracker:** Add resume api to resume the tasks in process tracker for revenue_recovery ([#9461](https://github.com/juspay/hyperswitch/pull/9461)) ([`a4b6df0`](https://github.com/juspay/hyperswitch/commit/a4b6df0844afa9c340a88a0c14b589bb06b3a540))
+- **router:** Add attempts_group DB changes for split payments (v2) ([#9466](https://github.com/juspay/hyperswitch/pull/9466)) ([`9dbfeda`](https://github.com/juspay/hyperswitch/commit/9dbfeda43de895d66729e6d88401e400f4f8ebed))
+
+### Bug Fixes
+
+- **common_utils:** Prevent logging sensitive information on deserialization failure ([#8970](https://github.com/juspay/hyperswitch/pull/8970)) ([`0087282`](https://github.com/juspay/hyperswitch/commit/008728283e4d76ca019d3b1bec7b77df8b26670f))
+- **connector:** [SHIFT4] Fix 3DS payments and api key ([#9480](https://github.com/juspay/hyperswitch/pull/9480)) ([`97fe072`](https://github.com/juspay/hyperswitch/commit/97fe0723922b13226e1b87cf7ec4f5bd3f12c827))
+- **core:** Allow accepting liability during arbitration stage ([#9504](https://github.com/juspay/hyperswitch/pull/9504)) ([`fb52869`](https://github.com/juspay/hyperswitch/commit/fb52869c7a8960264e26923c65e48b2740ba0829))
+
+### Refactors
+
+- **subscription:** Make invoice as an id type ([#9488](https://github.com/juspay/hyperswitch/pull/9488)) ([`3a4bc98`](https://github.com/juspay/hyperswitch/commit/3a4bc986d4ab34bec39f163ab92fe76500768c61))
+
+**Full Changelog:** [`2025.09.24.0...2025.09.24.1`](https://github.com/juspay/hyperswitch/compare/2025.09.24.0...2025.09.24.1)
+
+- - -
+
 ## 2025.09.24.0
 
 ### Features
