@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.24.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Fixed ctp bug for confirmation and added multi profile support for modular auth ([#9546](https://github.com/juspay/hyperswitch/pull/9546)) ([`f62178d`](https://github.com/juspay/hyperswitch/commit/f62178d30dfac2cd3d6cab9fa337d0d6eb358119))
+
+**Full Changelog:** [`2025.09.24.0...2025.09.24.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.09.24.0...2025.09.24.0-hotfix1)
+
+- - -
+
 ## 2025.09.24.0
 
 ### Features
