@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::EnablePartialAuthorizationBool;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
@@ -250,7 +251,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub feature_metadata: Option<Secret<serde_json::Value>>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -452,7 +453,7 @@ pub struct PaymentIntentUpdateInternal {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 

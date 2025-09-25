@@ -380,7 +380,9 @@ impl Decision {
                     .change_context(errors::RecoveryError::ValueNotFound)?;
                 Self::ReviewForFailedPayment(attempt_triggered_by)
             }
-            (enums::IntentStatus::Succeeded, _, _) => Self::ReviewForSuccessfulPayment,
+            (enums::IntentStatus::Succeeded | enums::IntentStatus::PartiallyCaptured, _, _) => {
+                Self::ReviewForSuccessfulPayment
+            }
             _ => Self::InvalidDecision,
         })
     }

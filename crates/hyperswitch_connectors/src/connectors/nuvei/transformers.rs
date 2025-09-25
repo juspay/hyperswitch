@@ -171,7 +171,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         self.enable_partial_authorization
-            .map(PartialApprovalFlag::from)
+            .map(|partial_auth| PartialApprovalFlag::from(partial_auth.is_true()))
     }
 
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -255,7 +255,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     }
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         self.enable_partial_authorization
-            .map(PartialApprovalFlag::from)
+            .map(|partial_auth| PartialApprovalFlag::from(partial_auth.is_true()))
     }
 }
 

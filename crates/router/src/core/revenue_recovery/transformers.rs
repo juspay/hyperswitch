@@ -12,7 +12,9 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             AttemptStatus::Authorized
             | AttemptStatus::Charged
             | AttemptStatus::AutoRefunded
-            | AttemptStatus::PartiallyAuthorized => Self::Succeeded,
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Succeeded,
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -32,8 +34,6 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             AttemptStatus::Voided
             | AttemptStatus::VoidedPostCharge
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending

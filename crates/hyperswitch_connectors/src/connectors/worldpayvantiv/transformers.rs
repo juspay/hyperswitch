@@ -1,6 +1,6 @@
 use common_utils::{
     ext_traits::Encode,
-    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnitForConnector},
+    types::{MinorUnit, StringMajorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
