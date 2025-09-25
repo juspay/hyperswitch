@@ -2395,7 +2395,7 @@ where
             Ok((
                 auth.clone(),
                 AuthenticationType::InternalMerchantIdProfileId {
-                    merchant_id: merchant_id,
+                    merchant_id,
                     profile_id: Some(profile_id),
                 },
             ))
