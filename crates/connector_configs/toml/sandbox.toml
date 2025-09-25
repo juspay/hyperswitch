@@ -6901,8 +6901,11 @@ key1 = "API Secret"
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]
   payment_method_type = "paysera"
+<<<<<<< HEAD
 [[trustpayments.bank_redirect]]
 payment_method_type = "eps"
+=======
+>>>>>>> 6e506391f (PR Review changes)
 [trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Password"
@@ -7561,15 +7564,3 @@ api_key = "API Key"
 [gigadat]
 [gigadat.connector_auth.HeaderKey]
 api_key = "API Key"
-
-[trustpayments]
-[trustpayments.connector_auth.HeaderKey]
-api_key = "API Key"
-[payjustnow]
-[payjustnow.connector_auth.BodyKey]
-api_key = "Signing Key"
-key1 = "Merchant Account Id"
-
-[[payjustnow.pay_later]]
-  payment_method_type = "payjustnow"
-
