@@ -639,7 +639,7 @@ pix = { country = "BR", currency = "BRL" }
 [pm_filters.nexinets]
 credit = { country = "DE",currency = "EUR" }
 debit = { country = "DE",currency = "EUR" }
-ideal = { country = "DE",currency = "EUR" }
+ideal = { currency = "EUR" }
 giropay = { country = "DE",currency = "EUR" }
 sofort = { country = "DE",currency = "EUR" }
 eps = { country = "DE",currency = "EUR" }
