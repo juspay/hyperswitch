@@ -86,12 +86,12 @@ impl ResponseError for Error {}
 impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Error::NoAssociatedId => write!(fmt, "No request ID associated with this request"),
-            Error::InvalidHeaderValue { value } => write!(fmt, "Invalid header value: {}", value),
-            Error::GenerationFailed { reason } => {
+            Self::NoAssociatedId => write!(fmt, "No request ID associated with this request"),
+            Self::InvalidHeaderValue { value } => write!(fmt, "Invalid header value: {}", value),
+            Self::GenerationFailed { reason } => {
                 write!(fmt, "Request ID generation failed: {}", reason)
             }
-            Error::Configuration { message } => write!(fmt, "Configuration error: {}", message),
+            Self::Configuration { message } => write!(fmt, "Configuration error: {}", message),
         }
     }
 }
@@ -156,16 +156,18 @@ impl RequestIdGenerator for UuidV7Generator {
         let uuid_str = uuid.to_string();
 
         // UUID strings are always valid, but fallback to v4 just in case
-        (!uuid_str.is_empty())
-            .then_some(Ok(uuid_str))
-            .unwrap_or_else(|| {
+        if !uuid_str.is_empty() {
+            Ok(uuid_str)
+        } else {
+            {
                 tracing::warn!("UUID v7 generated empty string, falling back to UUID v4");
                 UuidV4Generator
                     .generate()
                     .map_err(|_| Error::GenerationFailed {
                         reason: "Both UUID v7 and v4 generation failed".to_string(),
                     })
-            })
+            }
+        }
     }
 }
 
@@ -273,8 +275,7 @@ impl TryFrom<HeaderValue> for RequestId {
 impl From<RequestId> for HeaderValue {
     fn from(request_id: RequestId) -> Self {
         // This should never fail since we validate on creation
-        HeaderValue::from_str(&request_id.0)
-            .unwrap_or_else(|_| HeaderValue::from_static("invalid-request-id"))
+        Self::from_str(&request_id.0).unwrap_or_else(|_| Self::from_static("invalid-request-id"))
     }
 }
 
@@ -599,7 +600,7 @@ impl FromRequest for RequestId {
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         ready(
             req.extensions()
-                .get::<RequestId>()
+                .get::<Self>()
                 .cloned()
                 .ok_or(Error::NoAssociatedId),
         )
