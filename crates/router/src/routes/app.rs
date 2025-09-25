@@ -15,10 +15,10 @@ use external_services::email::{
 };
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
-use external_services::superposition::SuperpositionClient;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
+    superposition::SuperpositionClient,
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,

@@ -12,7 +12,6 @@ use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-use external_services::superposition::SuperpositionClientConfig;
 use external_services::{
     crm::CrmManagerConfig,
     file_storage::FileStorageConfig,
@@ -21,6 +20,7 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
 pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::{
