@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, PaymentMethodData, BankTransferData, WalletData},
+    payment_method_data::{BankRedirectData, BankTransferData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
@@ -369,48 +369,34 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         }
 
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                Self::build_card_request(item, &auth, &req_card)
-            }
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                match bank_redirect_data {
-                    BankRedirectData::Eps { .. } => {
-                        Self::build_eps_request(item, &auth)
-                    }
-                    BankRedirectData::Trustly { .. } => {
-                        Self::build_trustly_request(item, &auth)
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank redirect method not supported".to_string(),
-                    ).into()),
-                }
-            }
-            PaymentMethodData::Wallet(wallet_data) => {
-                match wallet_data {
-                    WalletData::AliPayRedirect { .. } => {
-                        Self::build_alipay_request(item, &auth)
-                    }
-                    WalletData::Paysera(_) => {
-                        Self::build_paysera_request(item, &auth)
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Wallet method not supported".to_string(),
-                    ).into()),
-                }
-            }
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match &*bank_transfer_data {
-                    BankTransferData::SepaBankTransfer { .. } => {
-                        Self::build_sepa_request(item, &auth)
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank transfer method not supported".to_string(),
-                    ).into()),
-                }
-            }
+            PaymentMethodData::Card(req_card) => Self::build_card_request(item, &auth, &req_card),
+            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+                BankRedirectData::Eps { .. } => Self::build_eps_request(item, &auth),
+                BankRedirectData::Trustly { .. } => Self::build_trustly_request(item, &auth),
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Bank redirect method not supported".to_string(),
+                )
+                .into()),
+            },
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::AliPayRedirect { .. } => Self::build_alipay_request(item, &auth),
+                WalletData::Paysera(_) => Self::build_paysera_request(item, &auth),
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Wallet method not supported".to_string(),
+                )
+                .into()),
+            },
+            PaymentMethodData::BankTransfer(bank_transfer_data) => match &*bank_transfer_data {
+                BankTransferData::SepaBankTransfer { .. } => Self::build_sepa_request(item, &auth),
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Bank transfer method not supported".to_string(),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method not supported".to_string(),
-            ).into()),
+            )
+            .into()),
         }
     }
 }
@@ -478,12 +464,8 @@ impl TrustpaymentsPaymentsRequest {
                 errorurlredirect: None,
 
                 // Billing fields
-                billingfirstname: item
-                    .router_data
-                    .get_optional_billing_first_name(),
-                billinglastname: item
-                    .router_data
-                    .get_optional_billing_last_name(),
+                billingfirstname: item.router_data.get_optional_billing_first_name(),
+                billinglastname: item.router_data.get_optional_billing_last_name(),
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -518,12 +500,8 @@ impl TrustpaymentsPaymentsRequest {
                 errorurlredirect: item.router_data.request.router_return_url.clone(),
 
                 // Billing fields
-                billingfirstname: item
-                    .router_data
-                    .get_optional_billing_first_name(),
-                billinglastname: item
-                    .router_data
-                    .get_optional_billing_last_name(),
+                billingfirstname: item.router_data.get_optional_billing_first_name(),
+                billinglastname: item.router_data.get_optional_billing_last_name(),
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -563,12 +541,8 @@ impl TrustpaymentsPaymentsRequest {
                 errorurlredirect: None,
 
                 // Billing fields
-                billingfirstname: item
-                    .router_data
-                    .get_optional_billing_first_name(),
-                billinglastname: item
-                    .router_data
-                    .get_optional_billing_last_name(),
+                billingfirstname: item.router_data.get_optional_billing_first_name(),
+                billinglastname: item.router_data.get_optional_billing_last_name(),
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -650,12 +624,8 @@ impl TrustpaymentsPaymentsRequest {
                 errorurlredirect: item.router_data.request.router_return_url.clone(),
 
                 // Billing fields
-                billingfirstname: item
-                    .router_data
-                    .get_optional_billing_first_name(),
-                billinglastname: item
-                    .router_data
-                    .get_optional_billing_last_name(),
+                billingfirstname: item.router_data.get_optional_billing_first_name(),
+                billinglastname: item.router_data.get_optional_billing_last_name(),
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -695,12 +665,8 @@ impl TrustpaymentsPaymentsRequest {
                 errorurlredirect: None,
 
                 // Billing fields
-                billingfirstname: item
-                    .router_data
-                    .get_optional_billing_first_name(),
-                billinglastname: item
-                    .router_data
-                    .get_optional_billing_last_name(),
+                billingfirstname: item.router_data.get_optional_billing_first_name(),
+                billinglastname: item.router_data.get_optional_billing_last_name(),
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -780,7 +746,6 @@ pub struct TrustpaymentsPaymentResponseData {
 pub struct TrustpaymentsPaymentRecords {
     pub settlestatus: Option<TrustpaymentsSettleStatus>,
 }
-
 
 impl TrustpaymentsPaymentResponseData {
     fn map_settlestatus_to_attempt_status(
