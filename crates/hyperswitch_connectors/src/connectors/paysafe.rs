@@ -622,6 +622,10 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest =
+                    common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(

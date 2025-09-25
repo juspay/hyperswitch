@@ -2840,6 +2840,8 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         non_mandate: HashMap::from([
                             RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
                             RequiredField::BillingEmail.to_tuple(),
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressState.to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },

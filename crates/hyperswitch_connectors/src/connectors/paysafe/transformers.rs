@@ -40,7 +40,7 @@ use crate::{
     utils::{
         self, missing_field_err, to_connector_meta, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as RouterDataUtils,
+        PaymentsPreProcessingRequestData, RouterData as RouterDataUtils
     },
 };
 
@@ -169,7 +169,6 @@ pub enum ThreeDsMessageCategory {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ThreeDsAuthenticationPurpose {
     PaymentTransaction,
-    RecurringTransaction,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,6 +205,7 @@ pub struct PaysafeBillingDetails {
     pub street: Option<Secret<String>>,
     pub street2: Option<Secret<String>>,
     pub city: Option<String>,
+    pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub country: Option<api_models::enums::CountryAlpha2>,
 }
@@ -496,6 +496,7 @@ impl PaysafePaymentMethodDetails {
     }
 }
 
+
 fn create_paysafe_billing_details<T>(
     is_customer_initiated_mandate_payment: bool,
     item: &T,
@@ -505,6 +506,7 @@ where
 {
     let zip = item.get_billing_zip();
     let country = item.get_billing_country();
+    let state = item.get_billing_state_code();
 
     if is_customer_initiated_mandate_payment {
         Ok(Some(PaysafeBillingDetails {
@@ -514,8 +516,9 @@ where
             city: item.get_optional_billing_city(),
             zip: Some(zip?),
             country: Some(country?),
+            state: Some(state?)
         }))
-    } else if let (Ok(zip), Ok(country)) = (zip, country) {
+    } else if let (Ok(zip), Ok(country), Ok(state)) = (zip, country, state) {
         Ok(Some(PaysafeBillingDetails {
             nick_name: item.get_optional_billing_first_name(),
             street: item.get_optional_billing_line1(),
@@ -523,6 +526,7 @@ where
             city: item.get_optional_billing_city(),
             zip: Some(zip),
             country: Some(country),
+            state: Some(state)
         }))
     } else {
         Ok(None)
@@ -1135,24 +1139,17 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     config: "merchant_connector_account.metadata",
                 })?;
 
-        let account_id = match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::MandatePayment => {
-                if item.router_data.is_three_ds() {
-                    Some(
-                        metadata
-                            .account_id
-                            .get_three_ds_account_id(item.router_data.request.currency)?,
-                    )
-                } else {
-                    Some(
-                        metadata
-                            .account_id
-                            .get_no_three_ds_account_id(item.router_data.request.currency)?,
-                    )
+            let account_id = match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(_)
+                | PaymentMethodData::MandatePayment => {
+                    if item.router_data.is_three_ds() {
+                        Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?)
+                    } else {
+                        Some(metadata.account_id.get_no_three_ds_account_id(item.router_data.request.currency)?)
+                    }
                 }
-            }
-            _ => None,
-        };
+                _ => None,
+            };
 
         let (stored_credential, payment_token) = match (
             item.router_data.request.is_cit_mandate_payment(),
@@ -1187,6 +1184,8 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
         })
     }
 }
+
+
 
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -1258,22 +1257,12 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                         | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
                     };
 
-                    let authentication_purpose = if item
-                        .router_data
-                        .request
-                        .is_customer_initiated_mandate_payment()
-                    {
-                        ThreeDsAuthenticationPurpose::RecurringTransaction
-                    } else {
-                        ThreeDsAuthenticationPurpose::PaymentTransaction
-                    };
-
                     let account_id = metadata.account_id.get_three_ds_account_id(currency_code)?;
                     let three_ds = Some(ThreeDs {
                         merchant_url: item.router_data.request.get_router_return_url()?,
                         device_channel,
                         message_category: ThreeDsMessageCategory::Payment,
-                        authentication_purpose,
+                        authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
                         requestor_challenge_preference:
                             ThreeDsChallengePreference::ChallengeMandated,
                     });
@@ -1381,21 +1370,18 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
                 .get_browser_info()?
                 .get_ip_address()?,
         );
-
+    
         let metadata: PaysafeConnectorMetadataObject =
-            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                    config: "merchant_connector_account.metadata",
-                })?;
+        utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "merchant_connector_account.metadata",
+            })?;
 
-        let account_id = match item.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::Card(_)) => Some(
-                metadata
-                    .account_id
-                    .get_three_ds_account_id(item.router_data.request.currency)?,
-            ),
-            _ => None,
+        let account_id =   match item.router_data.request.payment_method_data.clone() {
+            Some(PaymentMethodData::Card(_)) => Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?),
+            _ => None
         };
+
 
         let (stored_credential, payment_handle_token) = match (
             item.router_data.request.is_cit_mandate_payment(),
@@ -1408,9 +1394,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
             (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
                 .map(|(transaction_token, initial_transaction_id)| {
                     (
-                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(
-                            initial_transaction_id,
-                        )),
+                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(initial_transaction_id)),
                         Secret::new(transaction_token),
                     )
                 })
@@ -1425,8 +1409,8 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
             settle_with_auth: item.router_data.request.is_auto_capture()?,
             currency_code: item.router_data.request.currency,
             customer_ip,
-            stored_credential,
-            account_id,
+            stored_credential: None,
+            account_id: None,
         })
     }
 }
@@ -1445,17 +1429,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let initial_transaction_id = item.response.id;
-        let mandate_reference = item
-            .response
-            .payment_handle_token
-            .map(|payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
-            .map(|mandate_id| MandateReference {
-                connector_mandate_id: Some(mandate_id),
-                payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
-            });
 
         Ok(Self {
             status: get_paysafe_payment_status(
@@ -1463,9 +1436,9 @@ impl<F>
                 item.data.request.capture_method,
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(initial_transaction_id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(mandate_reference),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
