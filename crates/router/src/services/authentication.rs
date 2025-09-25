@@ -2336,7 +2336,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        if state.conf().internal_merchant_id_profile_id_auth.enabled {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
             return self.0.authenticate_and_fetch(request_headers, state).await;
         }
         let merchant_id = HeaderMapStruct::new(request_headers)
@@ -2395,8 +2395,8 @@ where
             Ok((
                 auth.clone(),
                 AuthenticationType::InternalMerchantIdProfileId {
-                    merchant_id: merchant_id.clone(),
-                    profile_id: Some(profile_id.clone()),
+                    merchant_id: merchant_id,
+                    profile_id: Some(profile_id),
                 },
             ))
         } else {
