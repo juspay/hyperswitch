@@ -376,7 +376,7 @@ type="Text"
 [[adyenplatform_payout.debit]]
   payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
-  payment_method_type = "sepa"
+  payment_method_type = "sepa_bank_transfer"
 [adyenplatform_payout.connector_auth.HeaderKey]
 api_key="Adyen platform's API Key"
 [adyenplatform_payout.metadata.source_balance_account]
@@ -2158,7 +2158,7 @@ merchant_secret="Source verification key"
 api_key="Client ID"
 key1="Client Secret"
 [dwolla.connector_webhook_details]
-merchant_secret="Source verification key" 
+merchant_secret = "Source verification key"
 [dwolla.metadata.merchant_funding_source]
 name = "merchant_funding_source"
 label = "Funding Source ID"
@@ -3709,7 +3709,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options=["Connector","Hyperswitch"]
 
 [[nuvei.metadata.google_pay]]
 name="merchant_name"
@@ -3911,6 +3911,8 @@ client_id="Client ID"
 [paypal_payout.connector_auth.BodyKey]
 api_key="Client Secret"
 key1="Client ID"
+[paypal_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [paystack]
 [[paystack.bank_redirect]]
@@ -4328,6 +4330,24 @@ options=["Connector"]
   payment_method_type = "sofort"
 [[shift4.bank_redirect]]
   payment_method_type = "eps"
+[[shift4.bank_redirect]]
+  payment_method_type = "trustly"
+[[shift4.bank_redirect]]
+  payment_method_type = "blik"
+[[shift4.wallet]]
+  payment_method_type = "ali_pay"
+[[shift4.wallet]]
+  payment_method_type = "we_chat_pay"
+[[shift4.wallet]]
+  payment_method_type = "paysera"
+[[shift4.wallet]]
+  payment_method_type = "skrill"
+[[shift4.pay_later]]
+  payment_method_type = "klarna"
+[[shift4.voucher]]
+  payment_method_type = "boleto"
+[[shift4.crypto]]
+  payment_method_type = "crypto_currency"
 [shift4.connector_auth.HeaderKey]
 api_key="API Key"
 [shift4.connector_webhook_details]
@@ -5410,7 +5430,7 @@ api_key="Api Key"
 [[adyen_payout.debit]]
   payment_method_type = "UnionPay"
 [[adyen_payout.bank_transfer]]
-  payment_method_type = "sepa"
+  payment_method_type = "sepa_bank_transfer"
 [[adyen_payout.wallet]]
   payment_method_type = "paypal"
 
@@ -5434,7 +5454,7 @@ api_key = "Stripe API Key"
 
 [nomupay_payout]
 [[nomupay_payout.bank_transfer]]
-  payment_method_type = "sepa"
+  payment_method_type = "sepa_bank_transfer"
 [nomupay_payout.connector_auth.BodyKey]
 api_key = "Nomupay kid"
 key1 = "Nomupay eid"
@@ -5451,10 +5471,12 @@ type="Text"
 [[wise_payout.bank_transfer]]
   payment_method_type = "bacs"
 [[wise_payout.bank_transfer]]
-  payment_method_type = "sepa"
+  payment_method_type = "sepa_bank_transfer"
 [wise_payout.connector_auth.BodyKey]
 api_key = "Wise API Key"
 key1 = "Wise Account Id"
+[wise_payout.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -5552,6 +5574,21 @@ label="Merchant Configuration ID"
 placeholder="Enter Merchant Configuration ID"
 required=false
 type="Text"
+
+
+[cardinal]
+[cardinal.connector_auth.SignatureKey]
+api_key = "API Key"
+api_secret = "API ID"
+key1 = "Organization Unit ID"
+
+[cardinal.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
+
 
 [taxjar]
 [taxjar.connector_auth.HeaderKey]
@@ -6610,7 +6647,7 @@ options=[]
 [[santander.voucher]]
   payment_method_type = "boleto"
 [[santander.bank_transfer]]
-  payment_method_type = "pix"  
+  payment_method_type = "pix"
 
 [santander.connector_auth.BodyKey]
 api_key="Client ID"
@@ -6722,8 +6759,19 @@ api_key = "API Key"
 key1 = "API Secret"
 
 [trustpayments]
+[[trustpayments.credit]]
+  payment_method_type = "Mastercard"
+[[trustpayments.credit]]
+  payment_method_type = "Visa"
+[[trustpayments.debit]]
+  payment_method_type = "Mastercard"
+[[trustpayments.debit]]
+  payment_method_type = "Visa"
 [trustpayments.connector_auth.HeaderKey]
 api_key = "API Key"
+[trustpayments.connector_webhook_details]
+merchant_secret = "Source verification key"
+
 
 [breadpay]
 [breadpay.connector_auth.BodyKey]
@@ -6828,17 +6876,153 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[paysafe.debit]]
 payment_method_type = "UnionPay"
+[[paysafe.bank_redirect]]
+payment_method_type = "interac"
+[[paysafe.wallet]]
+payment_method_type = "skrill"
+[[paysafe.gift_card]]
+payment_method_type = "pay_safe_card"
+[[paysafe.wallet]]
+payment_method_type = "apple_pay"
+
 [paysafe.connector_auth.BodyKey]
 api_key = "Username"
 key1 = "Password"
+
 [paysafe.connector_webhook_details]
 merchant_secret = "Source verification key"
-[paysafe.metadata.account_id]
-name="account_id"
-label="Payment Method Account ID"
-placeholder="Enter Account ID"
+
+[[paysafe.metadata.account_id.card.USD.three_ds]]
+name="three_ds"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
 required=true
 type="Text"
+[[paysafe.metadata.account_id.card.USD.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.card.EUR.three_ds]]
+name="three_ds"
+label="ThreeDS account id"
+placeholder="Enter ThreeDS Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.card.EUR.no_three_ds]]
+name="no_three_ds"
+label="Non ThreeDS account id"
+placeholder="Enter Non ThreeDS Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.interac.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.USD.three_ds]]
+name="three_ds"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.skrill.EUR.three_ds]]
+name="three_ds"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.USD.three_ds]]
+name="three_ds"
+label="USD"
+placeholder="Enter usd Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.CAD.three_ds]]
+name="three_ds"
+label="CAD"
+placeholder="Enter cad Account ID"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.pay_safe_card.EUR.three_ds]]
+name="three_ds"
+label="EUR"
+placeholder="Enter eur Account ID"
+required=true
+type="Text"
+
+[[paysafe.metadata.account_id.apple_pay.USD.encrypt]]
+name="encrypt"
+label="Encrypt"
+placeholder="Enter encrypt value"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.apple_pay.USD.decrypt]]
+name="decrypt"
+label="Decrypt"
+placeholder="Enter decrypt value"
+required=true
+type="Text"
+
+[[paysafe.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[paysafe.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[paysafe.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[paysafe.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector","Hyperswitch"]
 
 [peachpayments]
 [[peachpayments.credit]]
@@ -6859,8 +7043,14 @@ key1="Tenant ID"
 [peachpayments.connector_webhook_details]
 merchant_secret="Webhook Secret"
 
-[peachpayments.metadata.merchant_name]
-name="merchant_name"
+[peachpayments.metadata.client_merchant_reference_id]
+name="client_merchant_reference_id"
+label="Client Merchant Reference Id"
+placeholder="Enter Client Merchant Reference Id"
+required=true
+type="Text"
+[peachpayments.metadata.name]
+name="name"
 label="Merchant Name"
 placeholder="Enter Merchant Name"
 required=true
@@ -6926,20 +7116,20 @@ label="Merchant Website"
 placeholder="Enter merchant website URL"
 required=true
 type="Text"
-[peachpayments.metadata.routing_mid]
-name="routing_mid"
+[peachpayments.metadata.mid]
+name="mid"
 label="Routing MID"
 placeholder="Enter routing MID"
 required=true
 type="Text"
-[peachpayments.metadata.routing_tid]
-name="routing_tid"
+[peachpayments.metadata.tid]
+name="tid"
 label="Routing TID"
 placeholder="Enter routing TID"
 required=true
 type="Text"
-[peachpayments.metadata.routing_route]
-name="routing_route"
+[peachpayments.metadata.route]
+name="route"
 label="Routing Route"
 placeholder="Select routing route"
 required=true
@@ -6951,3 +7141,40 @@ label="AmEx ID"
 placeholder="Enter AmEx ID for routing"
 required=false
 type="Text"
+[peachpayments.metadata.sub_mid]
+name="sub_mid"
+label="Sub Mid"
+placeholder="Enter Sub Mid"
+required=false
+type="Text"
+[peachpayments.metadata.visa_payment_facilitator_id]
+name="visa_payment_facilitator_id"
+label="Visa Payment Facilitator Id"
+placeholder="Enter Visa Payment Facilitator Id"
+required=false
+type="Text"
+[peachpayments.metadata.mastercard_payment_facilitator_id]
+name="mastercard_payment_facilitator_id"
+label="mastercard Payment Facilitator Id"
+placeholder="Enter mastercard Payment Facilitator Id"
+required=false
+type="Text"
+
+[tokenex]
+[tokenex.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "TokenEx ID"
+
+[gigadat]
+[gigadat.connector_auth.SignatureKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Compaign Id"
+[[gigadat.bank_redirect]]
+payment_method_type = "interac"
+[gigadat.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"

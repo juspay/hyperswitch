@@ -98,8 +98,11 @@ pub mod consts {
     /// Header key for sending the session/request ID for request correlation and tracing
     pub(crate) const UCS_HEADER_SESSION_ID: &str = "x-session-id";
 
-    /// Header key for sending the Lineage IDs in UCS requests.
+    /// Header key for sending the list of lineage ids
     pub(crate) const UCS_LINEAGE_IDS: &str = "x-lineage-ids";
+
+    /// Header key for sending the merchant reference id to UCS
+    pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
 }
 
 /// Metrics for interactions with external systems.

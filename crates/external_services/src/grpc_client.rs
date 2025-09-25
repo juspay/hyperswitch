@@ -14,7 +14,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
-use common_utils::id_type;
+use common_utils::{id_type, ucs_types};
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -163,13 +163,21 @@ pub struct GrpcHeadersUcs {
     lineage_ids: LineageIds,
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
+    /// Merchant Reference Id
+    merchant_reference_id: Option<ucs_types::UcsReferenceId>,
 }
+
 /// Type aliase for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), ())>;
+    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), ())>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
-pub type GrpcHeadersUcsBuilderIntermediate =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (Option<String>,))>;
+pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (Option<String>,),
+    (Option<ucs_types::UcsReferenceId>,),
+)>;
 
 /// struct to represent set of Lineage ids
 #[derive(Debug, serde::Serialize)]

@@ -24,6 +24,8 @@ pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
+#[cfg(feature = "v2")]
+pub mod gift_card;
 pub mod gsm;
 pub mod health_check;
 #[cfg(feature = "v1")]
@@ -49,6 +51,8 @@ pub mod refunds_v2;
 #[cfg(feature = "v1")]
 pub mod debit_routing;
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod subscription;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "olap")]
@@ -73,4 +77,6 @@ pub mod relay;
 pub mod revenue_recovery;
 
 pub mod chat;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_data_backfill;
 pub mod tokenization;
