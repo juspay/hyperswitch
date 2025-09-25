@@ -546,7 +546,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
 
         let amount = item.amount;
         let currency_code = item.router_data.request.get_currency()?;
-        let redirect_url = item.router_data.request.get_router_return_url()?;
+        let redirect_url =  item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -860,6 +860,7 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+
         let redirection_data = item
             .response
             .links
@@ -1192,13 +1193,20 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
     fn try_from(
         item: &PaysafeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.request.is_customer_initiated_mandate_payment() {
+            Err(errors::ConnectorError::NotSupported{
+                message: format!("Mandate Payment with {} {}", item.router_data.payment_method, item.router_data.auth_type),
+                connector: "Paysafe"
+            })?
+        };
+
         let metadata: PaysafeConnectorMetadataObject =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
-        let redirect_url_success = format!("https://5043f618ed38.ngrok-free.app/payments/{}/postman_merchant_GHAction_5eb5fcc5-5e2c-4549-b651-332497ec158b/redirect/complete/paysafe", item.router_data.payment_id); //item.router_data.request.get_complete_authorize_url()?;
-        let redirect_url = format!("https://5043f618ed38.ngrok-free.app/payments"); // item.router_data.request.get_router_return_url()?;
+        let redirect_url_success = item.router_data.request.get_complete_authorize_url()?;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -1362,7 +1370,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
         .change_context(errors::ConnectorError::InvalidConnectorConfig {
             config: "connector_metadata",
         })?;
-
+        let payment_handle_token = paysafe_meta.payment_handle_token;
         let amount = item.amount;
         let customer_ip = Some(
             item.router_data

@@ -1553,8 +1553,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Paysafe,
             fields(
                 vec![
-                    RequiredField::BillingAddressCountries(vec!["ALL"]),
-                    RequiredField::BillingAddressZip,
+                    RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                    RequiredField::BillingEmail.to_tuple(),
+                    RequiredField::BillingAddressZip.to_tuple(),
+                    RequiredField::BillingAddressState.to_tuple(),
                 ],
                 vec![],
                 vec![],
@@ -2840,8 +2842,6 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                         non_mandate: HashMap::from([
                             RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
                             RequiredField::BillingEmail.to_tuple(),
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },

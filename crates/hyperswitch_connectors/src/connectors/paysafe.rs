@@ -59,7 +59,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData, CustomerData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
@@ -283,7 +283,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                     field_name: "currency",
                 })?;
         let amount = utils::convert_amount(self.amount_converter, minor_amount, currency)?;
-        println!("ssssss Building request body for pre processing in Paysafe");
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
@@ -370,7 +369,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        println!("ssssss Building request body for creating customer in Paysafe");
         let connector_req = paysafe::PaysafeCustomerDetails::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -380,21 +378,25 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::ConnectorCustomerType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::ConnectorCustomerType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::ConnectorCustomerType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        if req.request.is_mandate_payment() && matches!(req.payment_method, enums::PaymentMethod::Card) && !req.is_three_ds() {
+            Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&types::ConnectorCustomerType::get_url(
+                        self, req, connectors,
+                    )?)
+                    .attach_default_headers()
+                    .headers(types::ConnectorCustomerType::get_headers(
+                        self, req, connectors,
+                    )?)
+                    .set_body(types::ConnectorCustomerType::get_request_body(
+                        self, req, connectors,
+                    )?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_response(
@@ -479,7 +481,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.minor_amount,
             req.request.currency,
         )?;
-        println!("ssssss Building request body for authorization in Paysafe");
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         match req.payment_method {
             //Card No 3DS
@@ -622,10 +623,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         let connector_req = paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest =
-                    common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
