@@ -314,7 +314,7 @@ pub struct TrustpaymentsPaymentsRequest {
     pub request: Vec<TrustpaymentsPaymentRequestData>,
 }
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TrustpaymentsPaymentRequestData {
     // Common fields for all payment types
     pub sitereference: String,
@@ -458,11 +458,6 @@ impl TrustpaymentsPaymentsRequest {
                         .to_string(),
                 }),
 
-                // Not used for cards
-                returnurl: None,
-                successfulurlredirect: None,
-                errorurlredirect: None,
-
                 // Billing fields
                 billingfirstname: item.router_data.get_optional_billing_first_name(),
                 billinglastname: item.router_data.get_optional_billing_last_name(),
@@ -472,8 +467,7 @@ impl TrustpaymentsPaymentsRequest {
                     .map(|country| country.to_string()),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for cards
-                applicationtype: None,
+                ..Default::default()
             }],
         })
     }
@@ -508,13 +502,7 @@ impl TrustpaymentsPaymentsRequest {
                     .map(|country| country.to_string()),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for EPS
-                pan: None,
-                expirydate: None,
-                securitycode: None,
-                credentialsonfile: None,
-                settlestatus: None,
-                applicationtype: None,
+                ..Default::default()
             }],
         })
     }
@@ -549,13 +537,8 @@ impl TrustpaymentsPaymentsRequest {
                     .map(|country| country.to_string()),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for Trustly
-                pan: None,
-                expirydate: None,
-                securitycode: None,
-                credentialsonfile: None,
-                settlestatus: None,
-                applicationtype: None,
+                ..Default::default()
+                
             }],
         })
     }
@@ -578,12 +561,7 @@ impl TrustpaymentsPaymentsRequest {
                 // Alipay-specific fields
                 paymenttypedescription: Some("ALIPAY".to_string()),
                 returnurl: item.router_data.request.router_return_url.clone(),
-                successfulurlredirect: None,
-                errorurlredirect: None,
 
-                // Billing fields
-                billingfirstname: None,
-                billinglastname: None,
                 billingcountryiso2a: item
                     .router_data
                     .get_optional_billing_country()
@@ -591,13 +569,7 @@ impl TrustpaymentsPaymentsRequest {
                     .or_else(|| Some("CN".to_string())),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for Alipay
-                pan: None,
-                expirydate: None,
-                securitycode: None,
-                credentialsonfile: None,
-                settlestatus: None,
-                applicationtype: None,
+               ..Default::default()
             }],
         })
     }
@@ -632,13 +604,8 @@ impl TrustpaymentsPaymentsRequest {
                     .map(|country| country.to_string()),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for Paysera
-                pan: None,
-                expirydate: None,
-                securitycode: None,
-                credentialsonfile: None,
-                settlestatus: None,
-                applicationtype: None,
+                ..Default::default()
+
             }],
         })
     }
@@ -660,9 +627,6 @@ impl TrustpaymentsPaymentsRequest {
 
                 // SEPA-specific fields
                 paymenttypedescription: Some("SEPA".to_string()),
-                returnurl: None,
-                successfulurlredirect: None,
-                errorurlredirect: None,
 
                 // Billing fields
                 billingfirstname: item.router_data.get_optional_billing_first_name(),
@@ -673,13 +637,8 @@ impl TrustpaymentsPaymentsRequest {
                     .map(|country| country.to_string()),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-                // Not used for SEPA
-                pan: None,
-                expirydate: None,
-                securitycode: None,
-                credentialsonfile: None,
-                settlestatus: None,
-                applicationtype: None,
+                ..Default::default()
+
             }],
         })
     }
