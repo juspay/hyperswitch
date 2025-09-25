@@ -40,7 +40,7 @@ use crate::{
     utils::{
         self, missing_field_err, to_connector_meta, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as RouterDataUtils
+        PaymentsPreProcessingRequestData, RouterData as RouterDataUtils,
     },
 };
 
@@ -496,7 +496,6 @@ impl PaysafePaymentMethodDetails {
     }
 }
 
-
 fn create_paysafe_billing_details<T>(
     is_customer_initiated_mandate_payment: bool,
     item: &T,
@@ -516,7 +515,7 @@ where
             city: item.get_optional_billing_city(),
             zip: Some(zip?),
             country: Some(country?),
-            state: Some(state?)
+            state: Some(state?),
         }))
     } else if let (Ok(zip), Ok(country), Ok(state)) = (zip, country, state) {
         Ok(Some(PaysafeBillingDetails {
@@ -526,7 +525,7 @@ where
             city: item.get_optional_billing_city(),
             zip: Some(zip),
             country: Some(country),
-            state: Some(state)
+            state: Some(state),
         }))
     } else {
         Ok(None)
@@ -546,7 +545,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
 
         let amount = item.amount;
         let currency_code = item.router_data.request.get_currency()?;
-        let redirect_url =  item.router_data.request.get_router_return_url()?;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -860,7 +859,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-
         let redirection_data = item
             .response
             .links
@@ -1140,17 +1138,24 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     config: "merchant_connector_account.metadata",
                 })?;
 
-            let account_id = match item.router_data.request.payment_method_data.clone() {
-                PaymentMethodData::Card(_)
-                | PaymentMethodData::MandatePayment => {
-                    if item.router_data.is_three_ds() {
-                        Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?)
-                    } else {
-                        Some(metadata.account_id.get_no_three_ds_account_id(item.router_data.request.currency)?)
-                    }
+        let account_id = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(_) | PaymentMethodData::MandatePayment => {
+                if item.router_data.is_three_ds() {
+                    Some(
+                        metadata
+                            .account_id
+                            .get_three_ds_account_id(item.router_data.request.currency)?,
+                    )
+                } else {
+                    Some(
+                        metadata
+                            .account_id
+                            .get_no_three_ds_account_id(item.router_data.request.currency)?,
+                    )
                 }
-                _ => None,
-            };
+            }
+            _ => None,
+        };
 
         let (stored_credential, payment_token) = match (
             item.router_data.request.is_cit_mandate_payment(),
@@ -1186,17 +1191,22 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
     }
 }
 
-
-
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentHandleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PaysafeRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.is_customer_initiated_mandate_payment() {
-            Err(errors::ConnectorError::NotSupported{
-                message: format!("Mandate Payment with {} {}", item.router_data.payment_method, item.router_data.auth_type),
-                connector: "Paysafe"
+        if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            Err(errors::ConnectorError::NotSupported {
+                message: format!(
+                    "Mandate Payment with {} {}",
+                    item.router_data.payment_method, item.router_data.auth_type
+                ),
+                connector: "Paysafe",
             })?
         };
 
@@ -1378,7 +1388,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
                 .get_browser_info()?
                 .get_ip_address()?,
         );
-    
+
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
             payment_handle_token,
@@ -1406,7 +1416,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-
         Ok(Self {
             status: get_paysafe_payment_status(
                 item.response.status,

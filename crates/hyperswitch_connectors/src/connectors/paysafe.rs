@@ -58,8 +58,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSyncRequestData, CustomerData,
+        self, CustomerData, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
@@ -378,7 +378,10 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        if req.request.is_mandate_payment() && matches!(req.payment_method, enums::PaymentMethod::Card) && !req.is_three_ds() {
+        if req.request.is_mandate_payment()
+            && matches!(req.payment_method, enums::PaymentMethod::Card)
+            && !req.is_three_ds()
+        {
             Ok(Some(
                 RequestBuilder::new()
                     .method(Method::Post)
