@@ -431,4 +431,3 @@ impl FromRequest for RequestId {
         )
     }
 }
-
