@@ -1554,9 +1554,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(
                 vec![
                     RequiredField::BillingAddressCountries(vec!["ALL"]),
-                    RequiredField::BillingEmail.to_tuple(),
-                    RequiredField::BillingAddressZip.to_tuple(),
-                    RequiredField::BillingAddressState.to_tuple(),
+                    RequiredField::BillingEmail,
+                    RequiredField::BillingAddressZip,
+                    RequiredField::BillingAddressState,
                 ],
                 vec![],
                 vec![],
