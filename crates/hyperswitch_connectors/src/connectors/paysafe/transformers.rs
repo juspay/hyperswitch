@@ -1371,37 +1371,6 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
                 .get_ip_address()?,
         );
     
-        let metadata: PaysafeConnectorMetadataObject =
-        utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "merchant_connector_account.metadata",
-            })?;
-
-        let account_id =   match item.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::Card(_)) => Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?),
-            _ => None
-        };
-
-
-        let (stored_credential, payment_handle_token) = match (
-            item.router_data.request.is_cit_mandate_payment(),
-            item.router_data.request.get_connector_mandate_id(),
-        ) {
-            (true, _) => (
-                Some(PaysafeStoredCredential::new_customer_initiated_transaction()),
-                paysafe_meta.payment_handle_token,
-            ),
-            (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
-                .map(|(transaction_token, initial_transaction_id)| {
-                    (
-                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(initial_transaction_id)),
-                        Secret::new(transaction_token),
-                    )
-                })
-                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-            _ => (None, paysafe_meta.payment_handle_token),
-        };
-
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
             payment_handle_token,
