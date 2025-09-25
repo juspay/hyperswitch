@@ -123,11 +123,20 @@ pub struct AccountIdConfigForRedirect {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+
+pub struct AccountIdConfigForApplePay {
+    pub encrypt: Option<Vec<InputData>>,
+    pub decrypt: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AccountIDSupportedMethods {
+    apple_pay: HashMap<String, AccountIdConfigForApplePay>,
     card: HashMap<String, AccountIdConfigForCard>,
-    skrill: HashMap<String, AccountIdConfigForRedirect>,
     interac: HashMap<String, AccountIdConfigForRedirect>,
     pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
+    skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -177,6 +186,7 @@ pub struct ConfigMetadata {
     pub route: Option<InputData>,
     pub mid: Option<InputData>,
     pub tid: Option<InputData>,
+    pub site: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -273,6 +283,7 @@ pub struct ConnectorConfig {
     pub flexiti: Option<ConnectorTomlConfig>,
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
+    pub gigadat: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
@@ -485,6 +496,7 @@ impl ConnectorConfig {
             Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Getnet => Ok(connector_data.getnet),
+            Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
@@ -534,6 +546,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),

@@ -12,8 +12,8 @@ impl utils::Connector for TokenexTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Tokenex;
         utils::construct_connector_data_old(
-            Box::new(Tokenex::new()),
-            types::Connector::Plaid,
+            Box::new(&Tokenex),
+            types::Connector::Tokenex,
             api::GetToken::Connector,
             None,
         )

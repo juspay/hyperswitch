@@ -49,6 +49,7 @@ mod fiuu;
 mod flexiti;
 mod forte;
 mod getnet;
+mod gigadat;
 mod globalpay;
 mod globepay;
 mod gocardless;

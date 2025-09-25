@@ -53,6 +53,7 @@ fn get_default_browser_info() -> BrowserInformation {
         os_version: None,
         device_model: None,
         accept_language: Some("en".to_string()),
+        referer: None,
     }
 }
 
