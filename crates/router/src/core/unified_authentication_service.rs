@@ -914,7 +914,7 @@ pub async fn authentication_eligibility_core(
         None,
         None,
         &merchant_context,
-        None,
+        req.profile_id.as_ref(),
         db,
         true,
     )
