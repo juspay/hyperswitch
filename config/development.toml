@@ -1017,8 +1017,8 @@ debit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 apple_pay = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 
 [pm_filters.trustpayments]
-eps = {country = "AT", currency = "EUR"}
-paysera = {country = "EE,LT,LV", currency = "EUR"}
+eps = {currency = "EUR"}
+paysera = {currency = "EUR"}
 trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
 sepa = {currency = "EUR"}
 ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
