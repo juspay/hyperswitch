@@ -102,6 +102,7 @@ pub enum RoutableConnectors {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -277,6 +278,7 @@ pub enum Connector {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -336,6 +338,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tokenex,
     Tokenio,
     Trustpay,
     Trustpayments,
@@ -474,6 +477,7 @@ impl Connector {
             | Self::Flexiti
             | Self::Forte
             | Self::Getnet
+            | Self::Gigadat
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -496,7 +500,6 @@ impl Connector {
             | Self::Nomupay
             | Self::Nordea
             | Self::Novalnet
-            | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
             | Self::Payload
@@ -548,12 +551,13 @@ impl Connector {
             | Self::Cardinal
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenex
             | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Phonepe => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel | Self::Nuvei            => true,
         }
     }
 
@@ -659,6 +663,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
+            RoutableConnectors::Gigadat => Self::Gigadat,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -856,6 +861,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
@@ -870,7 +876,21 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
-            | Connector::Cardinal => Err("Invalid conversion. Not a routable connector"),
+            | Connector::Cardinal
+            | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
         }
     }
+}
+
+// Enum representing different status an invoice can have.
+#[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
+pub enum InvoiceStatus {
+    InvoiceCreated,
+    PaymentPending,
+    PaymentPendingTimeout,
+    PaymentSucceeded,
+    PaymentFailed,
+    PaymentCanceled,
+    InvoicePaid,
+    ManualReview,
 }
