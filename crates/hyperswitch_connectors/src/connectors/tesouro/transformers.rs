@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -16,12 +16,12 @@ use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
 pub struct TesouroRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for TesouroRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for TesouroRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -33,7 +33,7 @@ impl<T> From<(StringMinorUnit, T)> for TesouroRouterData<T> {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TesouroPaymentsRequest {
-    amount: StringMinorUnit,
+    amount: FloatMajorUnit,
     card: TesouroCard,
 }
 
@@ -135,7 +135,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TesouroPaymentsResponse, T, PaymentsRes
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct TesouroRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&TesouroRouterData<&RefundsRouterData<F>>> for TesouroRefundRequest {

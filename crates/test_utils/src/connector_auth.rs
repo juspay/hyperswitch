@@ -59,7 +59,7 @@ pub struct ConnectorAuthentication {
     pub flexiti: Option<HeaderKey>,
     pub forte: Option<MultiAuthKey>,
     pub getnet: Option<HeaderKey>,
-    pub gigadat: Option<HeaderKey>,
+    pub gigadat: Option<SignatureKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
