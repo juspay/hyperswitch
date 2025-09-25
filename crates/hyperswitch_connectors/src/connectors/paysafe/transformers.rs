@@ -41,6 +41,8 @@ use crate::{
     },
 };
 
+const MAX_ID_LENGTH: usize = 36;
+
 pub struct PaysafeRouterData<T> {
     pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -105,13 +107,15 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
             billing.address.clone()
             });
 
-        Ok(Self {
-            merchant_customer_id: customer_data.customer_id.clone().ok_or(
-                // Add length limitation
-                errors::ConnectorError::MissingRequiredField {
+        let merchant_customer_id = match customer_data.customer_id.as_ref() {
+                Some(cid) if cid.get_string_repr().len() <= MAX_ID_LENGTH => Ok(cid.get_string_repr().to_string()),
+                _ => Err(errors::ConnectorError::MissingRequiredField {
                     field_name: "customer_id",
-                },
-            )?.get_string_repr().to_string(),
+                }),
+            }?;
+
+        Ok(Self {
+            merchant_customer_id,
             first_name: billing_address.as_ref().and_then(|address| address.first_name.clone()),
             last_name:  billing_address.as_ref().and_then(|address| address.last_name.clone()),
             email: customer_data.request.email.clone(),
@@ -128,12 +132,6 @@ pub struct PaysafeCustomerDetails {
     pub last_name: Option<Secret<String>>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DateOfBirth {
-    pub merchant_customer_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1178,7 +1176,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
                     config: "merchant_connector_account.metadata",
                 })?;
-        let redirect_url_success = format!("https://5043f618ed38.ngrok-free.app/payments"); //item.router_data.request.get_complete_authorize_url()?;
+        let redirect_url_success = format!("https://5043f618ed38.ngrok-free.app/payments/{}/postman_merchant_GHAction_5eb5fcc5-5e2c-4549-b651-332497ec158b/redirect/complete/paysafe", item.router_data.payment_id); //item.router_data.request.get_complete_authorize_url()?;
         let redirect_url = format!("https://5043f618ed38.ngrok-free.app/payments");// item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
@@ -1370,7 +1368,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
 
         let (stored_credential, payment_handle_token) = match (
             item.router_data.request.is_cit_mandate_payment(),
-            item.router_data.request.connector_mandate_id(),
+            item.router_data.request.get_connector_mandate_id(),
         ) {
             (true, _) => (
                 Some(PaysafeStoredCredential::new_customer_initiated_transaction()),
@@ -1532,7 +1530,7 @@ pub struct PaysafePaymentsResponse {
     pub error: Option<Error>,
 }
 
-// Paysafe Payments Response Structure
+// Paysafe Customer Response Structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCustomerResponse {

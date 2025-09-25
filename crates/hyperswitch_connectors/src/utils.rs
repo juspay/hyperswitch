@@ -2334,7 +2334,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
-    fn connector_mandate_id(&self) -> Option<String>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2403,7 +2403,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
-    fn connector_mandate_id(&self) -> Option<String> {
+    fn get_connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {

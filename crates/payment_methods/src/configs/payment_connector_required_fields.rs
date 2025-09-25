@@ -2833,9 +2833,7 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 (
                     Connector::Paysafe,
                     RequiredFieldFinal {
-                        mandate: HashMap::from(
-                            HashMap::new(),
-                        ),
+                        mandate: HashMap::new(),
                         non_mandate: HashMap::from([
                             RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
                             RequiredField::BillingEmail.to_tuple(),
