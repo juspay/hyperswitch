@@ -762,6 +762,10 @@ przelewy24 = { country = "PL", currency = "CZK,EUR,GBP,PLN" }
 trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
+
+[pm_filters.gigadat]
+interac = { currency = "CAD"}
+
 [payout_method_filters.adyenplatform]
 sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
 credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }

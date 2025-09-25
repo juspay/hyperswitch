@@ -265,6 +265,8 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
+    /// Subscription confirm flow,
+    ConfirmSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing

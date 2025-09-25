@@ -778,6 +778,8 @@ przelewy24 = { country = "PL", currency = "CZK,EUR,GBP,PLN" }
 trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
+[pm_filters.gigadat]
+interac = { currency = "CAD"}
 
 [pm_filters.mollie]
 credit = { not_available_flows = { capture_method = "manual" } }

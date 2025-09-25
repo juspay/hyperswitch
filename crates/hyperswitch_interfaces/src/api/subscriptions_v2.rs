@@ -2,14 +2,12 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
         GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-        InvoiceRecordBackData, SubscriptionCreateData,
+        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
     },
     router_flow_types::{
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
-        },
+        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+        CreateConnectorCustomer, GetSubscriptionEstimate,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
@@ -17,6 +15,7 @@ use hyperswitch_domain_models::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCreateRequest,
         },
+        ConnectorCustomerData,
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
@@ -24,17 +23,17 @@ use hyperswitch_domain_models::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
             GetSubscriptionPlansResponse, SubscriptionCreateResponse,
         },
+        PaymentsResponseData,
     },
 };
 
-use super::payments_v2::ConnectorCustomerV2;
 use crate::connector_integration_v2::ConnectorIntegrationV2;
 
 /// trait SubscriptionsV2
 pub trait SubscriptionsV2:
     GetSubscriptionPlansV2
     + SubscriptionsCreateV2
-    + ConnectorCustomerV2
+    + SubscriptionConnectorCustomerV2
     + GetSubscriptionPlanPricesV2
     + SubscriptionRecordBackV2
     + GetSubscriptionEstimateV2
@@ -62,6 +61,7 @@ pub trait SubscriptionRecordBackV2:
 >
 {
 }
+/// trait GetSubscriptionPlanPricesV2 for V2
 pub trait GetSubscriptionPlanPricesV2:
     ConnectorIntegrationV2<
     GetSubscriptionPlanPrices,
@@ -83,6 +83,16 @@ pub trait SubscriptionsCreateV2:
 {
 }
 
+/// trait SubscriptionConnectorCustomerV2
+pub trait SubscriptionConnectorCustomerV2:
+    ConnectorIntegrationV2<
+    CreateConnectorCustomer,
+    SubscriptionCustomerData,
+    ConnectorCustomerData,
+    PaymentsResponseData,
+>
+{
+}
 /// trait GetSubscriptionEstimate for V2
 pub trait GetSubscriptionEstimateV2:
     ConnectorIntegrationV2<
