@@ -6,8 +6,11 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
-        CreateConnectorCustomer, GetSubscriptionEstimate,
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
+        CreateConnectorCustomer,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,

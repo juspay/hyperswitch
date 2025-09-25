@@ -149,7 +149,7 @@ pub async fn confirm_subscription(
             billing_handler.amount,
             billing_handler.currency.clone().to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
-            billing_handler.connector_data.connector_name,
+            billing_handler.connector_data.connector_name.clone(),
             None,
         )
         .await?;
@@ -334,7 +334,6 @@ impl InvoiceHandler {
     pub fn new(subscription: diesel_models::subscription::Subscription) -> Self {
         Self { subscription }
     }
-
     pub async fn fetch_invoice(
         &self,
         state: &SessionState,
@@ -353,7 +352,7 @@ impl InvoiceHandler {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn create_invoice_entry(
-        self,
+        &self,
         state: &SessionState,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
@@ -419,7 +418,6 @@ impl InvoiceHandler {
 
     pub async fn create_invoice_record_back_job(
         &self,
-        // _invoice: &subscription_types::Invoice,
         state: &SessionState,
         payment_response: &subscription_types::PaymentResponseData,
         invoice: &diesel_models::invoice::Invoice,
@@ -554,9 +552,9 @@ impl BillingHandler {
             billing_address: self
                 .billing_address
                 .as_ref()
-                .and_then(|add| add.address.clone())
-                .and_then(|addr| addr.into()),
+                .and_then(|add| add.address.clone()),
         };
+
         let router_data = self.build_router_data(
             state,
             customer_req,
