@@ -468,8 +468,10 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
-    //assurance_details of the card
+    /// assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -479,6 +481,15 @@ pub struct GooglePayAssuranceDetails {
     pub card_holder_authenticated: bool,
     /// indicates that identification and verifications (ID&V) was performed
     pub account_verified: bool,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum GooglePayCardFundingSource {
+    Unknown,
+    Credit,
+    Debit,
+    Prepaid,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1251,6 +1262,17 @@ impl From<api_models::payments::WalletData> for WalletData {
     }
 }
 
+impl From<api_models::payments::GooglePayCardFundingSource> for GooglePayCardFundingSource {
+    fn from(value: api_models::payments::GooglePayCardFundingSource) -> Self {
+        match value {
+            api_models::payments::GooglePayCardFundingSource::Unknown => Self::Unknown,
+            api_models::payments::GooglePayCardFundingSource::Credit => Self::Credit,
+            api_models::payments::GooglePayCardFundingSource::Debit => Self::Debit,
+            api_models::payments::GooglePayCardFundingSource::Prepaid => Self::Prepaid,
+        }
+    }
+}
+
 impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
     fn from(value: api_models::payments::GooglePayWalletData) -> Self {
         Self {
@@ -1265,6 +1287,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                         account_verified: info.account_verified,
                     }
                 }),
+                card_funding_source: value.info.card_funding_source.map(Into::into),
             },
             tokenization_data: value.tokenization_data,
         }

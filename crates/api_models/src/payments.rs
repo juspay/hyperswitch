@@ -4247,6 +4247,8 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
     //assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4256,6 +4258,15 @@ pub struct GooglePayAssuranceDetails {
     pub card_holder_authenticated: bool,
     /// indicates that identification and verifications (ID&V) was performed
     pub account_verified: bool,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum GooglePayCardFundingSource {
+    Unknown,
+    Credit,
+    Debit,
+    Prepaid,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
