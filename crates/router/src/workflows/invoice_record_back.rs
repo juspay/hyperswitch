@@ -7,7 +7,7 @@ use common_utils::ext_traits::ValueExt;
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
+use scheduler::{consumer::{workflows::ProcessTrackerWorkflow, types as scheduler_types}, errors, utils as scheduler_utils};
 
 use crate::{
     core::payments,
@@ -15,6 +15,7 @@ use crate::{
     services,
     types::{api as api_types, domain, storage},
     workflows,
+    db::StorageInterface,
 };
 pub struct InvoiceRecordBackWorkflow;
 
@@ -116,7 +117,7 @@ async fn perform_subscription_invoice_record_back(
     } else if status == common_enums::IntentStatus::Processing {
         let db = &*state.store;
         let connector = billing_processor_mca.connector_name.clone();
-        let is_last_retry = workflows::payment_sync::retry_subscription_psync_task(
+        let is_last_retry = retry_subscription_psync_task(
             db,
             connector,
             merchant_account.get_id().to_owned(),
@@ -196,23 +197,17 @@ pub async fn create_invoice_record_back_job(
             attempt_status,
         );
 
-    let process_tracker_entry = diesel_models::ProcessTrackerNew {
-        id: common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
-        name: Some("INVOICE_RECORD_BACK".to_string()),
-        tag: vec!["INVOICE".to_string()],
-        runner: Some(common_enums::ProcessTrackerRunner::InvoiceRecordBackflow.to_string()),
-        retry_count: 5,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: serde_json::to_value(&tracking_data)
-            .change_context(crate::errors::ApiErrorResponse::InternalServerError)?,
-        business_status: "Pending".to_string(),
-        status: diesel_models::enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: common_utils::date_time::now(),
-        updated_at: common_utils::date_time::now(),
-        version: common_types::consts::API_VERSION,
-    };
+    let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
+        common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
+        "INVOICE_RECORD_BACK".to_string(),
+        common_enums::ProcessTrackerRunner::InvoiceRecordBackflow,
+        vec!["INVOICE".to_string()],
+        tracking_data,
+        Some(5),
+        common_utils::date_time::now(),
+        common_types::consts::API_VERSION
+    )
+    .change_context(crate::errors::ApiErrorResponse::InternalServerError)?;
 
     state
         .store
@@ -233,7 +228,6 @@ pub struct InvoiceRecordBackHandler<'a> {
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub customer_id: &'a common_utils::id_type::CustomerId,
     pub invoice: diesel_models::invoice::Invoice,
-    // To have an invoice object as well 
 }
 
 impl<'a> InvoiceRecordBackHandler<'a> {
@@ -428,5 +422,43 @@ impl<'a> InvoiceRecordBackHandler<'a> {
             invoice: updated_invoice,
         })
    
+    }
+}
+
+pub async fn get_subscription_psync_process_schedule_time(
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    // Can have config based mapping as well
+    let mapping = scheduler_types::process_data::SubscriptionPSyncPTMapping::default();
+    let time_delta = scheduler_utils::get_subscription_psync_retry_schedule_time(
+        mapping,
+        merchant_id,
+        retry_count,
+    );
+
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
+}
+
+pub async fn retry_subscription_psync_task(
+    db: &dyn StorageInterface,
+    _connector: String,
+    merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, errors::ProcessTrackerError> {
+    let schedule_time =
+        get_subscription_psync_process_schedule_time(&merchant_id, pt.retry_count + 1).await?;
+
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
     }
 }

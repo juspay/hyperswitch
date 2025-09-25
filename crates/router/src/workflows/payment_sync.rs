@@ -308,43 +308,6 @@ pub async fn retry_sync_task(
     }
 }
 
-pub async fn get_subscription_psync_process_schedule_time(
-    merchant_id: &common_utils::id_type::MerchantId,
-    retry_count: i32,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    // Can have config based mapping as well
-    let mapping = process_data::SubscriptionPSyncPTMapping::default();
-    let time_delta = scheduler_utils::get_subscription_psync_retry_schedule_time(
-        mapping,
-        merchant_id,
-        retry_count,
-    );
-
-    Ok(scheduler_utils::get_time_from_delta(time_delta))
-}
-
-pub async fn retry_subscription_psync_task(
-    db: &dyn StorageInterface,
-    _connector: String,
-    merchant_id: common_utils::id_type::MerchantId,
-    pt: storage::ProcessTracker,
-) -> Result<bool, sch_errors::ProcessTrackerError> {
-    let schedule_time =
-        get_subscription_psync_process_schedule_time(&merchant_id, pt.retry_count + 1).await?;
-
-    match schedule_time {
-        Some(s_time) => {
-            db.as_scheduler().retry_process(pt, s_time).await?;
-            Ok(false)
-        }
-        None => {
-            db.as_scheduler()
-                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
-                .await?;
-            Ok(true)
-        }
-    }
-}
 /// Schedule the task for retry and update redis token expiry time
 ///
 /// Returns bool which indicates whether this was the last retry or not

@@ -1,3 +1,4 @@
+use crate::enums as api_enums;
 use common_utils::{id_type, types};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceRecordBackTrackingData {
@@ -9,7 +10,7 @@ pub struct InvoiceRecordBackTrackingData {
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
     pub amount: types::MinorUnit,
-    pub currency: crate::enums::Currency,
+    pub currency: api_enums::Currency,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub attempt_status: common_enums::AttemptStatus,
 }
@@ -24,7 +25,7 @@ impl InvoiceRecordBackTrackingData {
         profile_id: id_type::ProfileId,
         customer_id: id_type::CustomerId,
         amount: types::MinorUnit,
-        currency: crate::enums::Currency,
+        currency: api_enums::Currency,
         payment_method_type: Option<common_enums::PaymentMethodType>,
         attempt_status: common_enums::AttemptStatus,
     ) -> Self {
