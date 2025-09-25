@@ -501,7 +501,7 @@ apple_pay.country = "AU, AT, BE, BR, BG, CA, HR, CY, CZ, DK, EE, FI, FR, DE, GR,
 cashapp = { country = "US", currency = "USD" }
 eps = { country = "AT", currency = "EUR" }
 giropay = { country = "DE", currency = "EUR" }
-google_pay.country = "AU, AT, BE, BR, BG, CA, HR, CZ, DK, EE, FI, FR, DE, GR, HK, HU, IN, ID, IE, IT, JP, LV, KE, LT, LU, MY, MX, NL, NZ, NO, PL, PT, RO, SG, SK, ZA, ES, SE, CH, TH, AE, GB, US"
+google_pay.country = "AU, AT, BE, BR, BG, CA, HR, CZ, DK, EE, FI, FR, DE, GR, HK, HU, IN, ID, IE, IT, JP, LV, KE, LT, LU, MY, MX, NL, NZ, NO, PL, PT, RO, SG, SK, ZA, ES, SE, CH, TH, AE, GB, US, GI, LI, MT, CY, PH, IS, AR, CL, KR, IL"
 ideal = { country = "NL", currency = "EUR" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,CAD,CHF,CZK,DKK,EUR,GBP,NOK,NZD,PLN,SEK,USD" }
 multibanco = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HU,IE,IT,LV,LI,LT,LU,MT,NL,NO,PL,PT,RO,SK,SI,ES,SE,CH,GB", currency = "EUR" }
