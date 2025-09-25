@@ -80,6 +80,7 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -141,6 +142,7 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -203,6 +205,7 @@ pub struct ProfileUpdateInternal {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
@@ -264,6 +267,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details,
+            billing_processor_id,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -357,6 +361,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_external_vault_enabled),
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
+            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
 }
@@ -423,6 +428,7 @@ pub struct Profile {
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
     pub is_manual_retry_enabled: Option<bool>,
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
@@ -497,6 +503,7 @@ pub struct ProfileNew {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -558,6 +565,7 @@ pub struct ProfileUpdateInternal {
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -604,6 +612,7 @@ impl ProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
             is_tax_connector_enabled,
+            billing_processor_id,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
@@ -729,6 +738,7 @@ impl ProfileUpdateInternal {
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
 }

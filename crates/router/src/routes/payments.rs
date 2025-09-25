@@ -78,42 +78,23 @@ pub async fn payments_create(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
-    let auth_type = if state.conf.internal_merchant_id_profile_id_auth.enabled {
-        match env::which() {
-            env::Env::Production => {
-                &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: true,
-                }))
-            }
-            _ => auth::auth_type(
-                &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: true,
-                })),
-                &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                }),
-                req.headers(),
-            ),
-        }
-    } else {
-        match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth {
+    let auth_type = match env::which() {
+        env::Env::Production => {
+            &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: true,
-            }),
-            _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: true,
-                }),
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
+            }))
         }
+        _ => auth::auth_type(
+            &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            })),
+            &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+            }),
+            req.headers(),
+        ),
     };
 
     Box::pin(api::server_wrap(

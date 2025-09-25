@@ -252,6 +252,8 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        billing_processor_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -733,6 +735,40 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    invoice (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
+        #[max_length = 64]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        amount -> Int8,
+        #[max_length = 3]
+        currency -> Varchar,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 128]
+        provider_name -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -1011,6 +1047,8 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
+        #[max_length = 64]
+        attempts_group_id -> Nullable<Varchar>,
     }
 }
 
@@ -1106,6 +1144,10 @@ diesel::table! {
         id -> Varchar,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        #[max_length = 64]
+        active_attempts_group_id -> Nullable<Varchar>,
+        #[max_length = 16]
+        active_attempt_id_type -> Nullable<Varchar>,
     }
 }
 
@@ -1687,6 +1729,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     hyperswitch_ai_interaction,
     hyperswitch_ai_interaction_default,
     incremental_authorization,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,
