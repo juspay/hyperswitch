@@ -1129,6 +1129,12 @@ impl Settings<SecuredSecret> {
             .transpose()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
+        #[cfg(feature = "superposition")]
+        self.superposition
+            .get_inner()
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         Ok(())
     }
 }

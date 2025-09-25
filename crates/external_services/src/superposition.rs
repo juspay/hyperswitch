@@ -164,12 +164,6 @@ impl SuperpositionClient {
             return Err(SuperpositionError::NotEnabled.into());
         }
 
-        // Validate configuration fields
-        config
-            .validate()
-            .change_context(SuperpositionError::InvalidConfiguration(
-                "Invalid Superposition configuration".to_string(),
-            ))?;
 
         let provider_options = SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
