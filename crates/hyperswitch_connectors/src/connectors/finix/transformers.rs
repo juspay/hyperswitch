@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -16,12 +16,12 @@ use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
 pub struct FinixRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for FinixRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(MinorUnit, T)> for FinixRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -33,7 +33,7 @@ impl<T> From<(StringMinorUnit, T)> for FinixRouterData<T> {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct FinixPaymentsRequest {
-    amount: StringMinorUnit,
+    amount: MinorUnit,
     card: FinixCard,
 }
 
@@ -133,7 +133,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsRespo
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct FinixRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&FinixRouterData<&RefundsRouterData<F>>> for FinixRefundRequest {

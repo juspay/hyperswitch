@@ -55,7 +55,7 @@ pub struct Finix {
 impl Finix {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConvertor,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
@@ -104,7 +104,7 @@ impl ConnectorCommon for Finix {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
