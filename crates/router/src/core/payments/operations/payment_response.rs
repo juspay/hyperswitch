@@ -1407,22 +1407,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     // This is for details like whether 3ds was upgraded and which version of 3ds was used
     // also some connectors might send card network details in the response, which is captured and stored
 
-    let additional_payment_data: Option<api_models::payments::AdditionalPaymentData> = payment_data
-        .payment_attempt
-        .payment_method_data
-        .clone()
-        .and_then(|data| match data {
-            serde_json::Value::Null => None,
-            _ => Some(
-                data.parse_value::<api_models::payments::AdditionalPaymentData>(
-                    "AdditionalPaymentData",
-                ),
-            ),
-        })
-        .transpose()
-        .map_err(|err| logger::error!("Failed to parse AdditionalPaymentData {err:?}"))
-        .ok()
-        .flatten();
+    let additional_payment_data = payment_data.payment_attempt.get_payment_method_data();
 
     // Helper closure for updating the additional_payment_data with connector response
     let update_pm_data = || {
@@ -1431,7 +1416,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             router_data
                 .connector_response
                 .as_ref()
-                .and_then(|cr| cr.additional_payment_method_data.clone()),
+                .and_then(|connector_response| {
+                    connector_response.additional_payment_method_data.clone()
+                }),
         )
         .ok()
         .flatten()
