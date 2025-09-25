@@ -372,10 +372,7 @@ fn get_aci_payment_brand(
         Some(common_enums::CardNetwork::UnionPay) => Ok(PaymentBrand::UnionPay),
         Some(common_enums::CardNetwork::Maestro) => Ok(PaymentBrand::Maestro),
         Some(unsupported_network) => Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Card network {:?} is not supported by ACI",
-                unsupported_network
-            ),
+            message: format!("Card network {unsupported_network} is not supported by ACI"),
             connector: "ACI",
         })?,
         None => {

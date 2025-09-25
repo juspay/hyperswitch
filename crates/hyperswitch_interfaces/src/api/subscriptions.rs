@@ -2,12 +2,16 @@
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
-    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+    router_flow_types::subscriptions::{
+        GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+    },
     router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+        GetSubscriptionPlansRequest, SubscriptionCreateRequest,
     },
     router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+        GetSubscriptionPlansResponse, SubscriptionCreateResponse,
     },
 };
 
@@ -45,6 +49,16 @@ pub trait SubscriptionCreate:
 {
 }
 
+#[cfg(feature = "v1")]
+/// trait GetSubscriptionEstimate for V1
+pub trait GetSubscriptionEstimateFlow:
+    ConnectorIntegration<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>
+{
+}
 /// trait Subscriptions
 #[cfg(feature = "v1")]
 pub trait Subscriptions:
@@ -53,6 +67,7 @@ pub trait Subscriptions:
     + GetSubscriptionPlanPricesFlow
     + SubscriptionCreate
     + PaymentsConnectorCustomer
+    + GetSubscriptionEstimateFlow
 {
 }
 
@@ -75,3 +90,7 @@ pub trait ConnectorCustomer {}
 /// trait SubscriptionCreate
 #[cfg(not(feature = "v1"))]
 pub trait SubscriptionCreate {}
+
+/// trait GetSubscriptionEstimateFlow (disabled when not V1)
+#[cfg(not(feature = "v1"))]
+pub trait GetSubscriptionEstimateFlow {}

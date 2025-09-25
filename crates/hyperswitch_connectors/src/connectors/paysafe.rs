@@ -450,14 +450,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let base_url = self.base_url(connectors);
         match req.payment_method {
             enums::PaymentMethod::Card if !req.is_three_ds() => {
-                Ok(format!("{base_url}v1/payments"))
+                Ok(format!("{}v1/payments", self.base_url(connectors)))
             }
-            _ =>  if req.request.is_customer_initiated_mandate_payment() {
+            enums::PaymentMethod::Card if req.request.is_customer_initiated_mandate_payment() => {
                 let customer_id = req.get_connector_customer_id()?.to_string();
                 Ok(format!("{base_url}v1/customers/{customer_id}/paymenthandles"))
-            } else {
-                Ok(format!("{}v1/paymenthandles", self.base_url(connectors)))
             }
+            enums::PaymentMethod::Wallet
+                if req.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
+            {
+                Ok(format!("{}v1/payments", self.base_url(connectors)))
+            }
+            _ => Ok(format!("{}v1/paymenthandles", self.base_url(connectors),)),
         }
     }
 
@@ -480,6 +484,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
             },
+            enums::PaymentMethod::Wallet
+                if req.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
+            {
+                let connector_req =
+                    paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
+                Ok(RequestContent::Json(Box::new(connector_req)))
+            }
             _ => {
                 let connector_req =
                     paysafe::PaysafePaymentHandleRequest::try_from(&connector_router_data)?;
@@ -518,6 +529,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match data.payment_method {
             enums::PaymentMethod::Card if !data.is_three_ds() => {
+                let response: paysafe::PaysafePaymentsResponse = res
+                    .response
+                    .parse_struct("Paysafe PaymentsAuthorizeResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            enums::PaymentMethod::Wallet
+                if data.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
+            {
                 let response: paysafe::PaysafePaymentsResponse = res
                     .response
                     .parse_struct("Paysafe PaymentsAuthorizeResponse")
@@ -1141,6 +1167,17 @@ static PAYSAFE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
                     }
                 }),
             ),
+        },
+    );
+
+    paysafe_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 
