@@ -90,7 +90,8 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
     let request_id = RequestId::extract(req)
         .await
-        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
+        .attach_printable("Unable to extract request id from request")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let auth_type = auth::AuthenticationType::WebhookAuth {
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
     };
@@ -154,7 +155,8 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
 
     let request_id = RequestId::extract(req)
         .await
-        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to extract request id from request")?;
     let auth_type = auth::AuthenticationType::NoAuth;
     let status_code = 200;
     let api_event = ApiEventsType::NetworkTokenWebhook {
