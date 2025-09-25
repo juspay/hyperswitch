@@ -295,14 +295,17 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                 let payment_get_response = response.into_inner();
 
-                let (status, router_data_response, status_code) =
+                let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_payment_get(
                         payment_get_response.clone(),
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                router_data.status = status;
+                let router_data_response = router_data_response.map(|(response, status)| {
+                    router_data.status = status;
+                    response
+                });
                 router_data.response = router_data_response;
                 router_data.raw_connector_response = payment_get_response
                     .raw_connector_response

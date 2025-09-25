@@ -61,3 +61,27 @@ pub enum PeriodUnit {
     Month,
     Year,
 }
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateResponse {
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: Option<MinorUnit>,
+    pub amount_paid: Option<MinorUnit>,
+    pub amount_due: Option<MinorUnit>,
+    pub currency: Currency,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    pub line_items: Vec<SubscriptionLineItem>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionLineItem {
+    pub item_id: String,
+    pub item_type: String,
+    pub description: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub unit_amount: Option<MinorUnit>,
+    pub quantity: i64,
+    pub pricing_model: Option<String>,
+}
