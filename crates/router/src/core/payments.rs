@@ -6602,7 +6602,10 @@ where
                 (router_data, false)
             } else if connector.connector_name == router_types::Connector::Paysafe
                 && router_data.auth_type == storage_enums::AuthenticationType::NoThreeDs
-                && !matches!(payment_data.get_payment_method_data(), Some(domain::PaymentMethodData::MandatePayment))
+                && !matches!(
+                    payment_data.get_payment_method_data(),
+                    Some(domain::PaymentMethodData::MandatePayment)
+                )
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 

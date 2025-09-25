@@ -1552,7 +1552,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (
             Connector::Paysafe,
             fields(
-                vec![RequiredField::BillingAddressCountries(vec!["ALL"]), RequiredField::BillingAddressZip],
+                vec![
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    RequiredField::BillingAddressZip,
+                ],
                 vec![],
                 vec![],
             ),

@@ -18,25 +18,26 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, PreProcessing,
-            Session, SetupMandate, Void, CreateConnectorCustomer
+            Authorize, Capture, CompleteAuthorize, CreateConnectorCustomer, PSync,
+            PaymentMethodToken, PreProcessing, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData, ConnectorCustomerData,
+        AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        ConnectorCustomerRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -57,9 +58,9 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, PaymentsSyncRequestData, RefundsRequestData as OtherRefundsRequestData,
-        RouterData as _, PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
-        PaymentMethodDataType,
+        self, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
+        RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
 
@@ -206,9 +207,7 @@ impl ConnectorValidation for Paysafe {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-        ]);
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -258,7 +257,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         let base_url = self.base_url(connectors);
         if req.request.is_customer_initiated_mandate_payment() {
             let customer_id = req.get_connector_customer_id()?.to_string();
-            Ok(format!("{base_url}v1/customers/{customer_id}/paymenthandles"))
+            Ok(format!(
+                "{base_url}v1/customers/{customer_id}/paymenthandles"
+            ))
         } else {
             Ok(format!("{}v1/paymenthandles", self.base_url(connectors)))
         }
@@ -341,7 +342,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
     }
 }
 
-
 impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
     for Paysafe
 {
@@ -383,9 +383,13 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::ConnectorCustomerType::get_url(self, req, connectors)?)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::ConnectorCustomerType::get_headers(self, req, connectors)?)
+                .headers(types::ConnectorCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
                 .set_body(types::ConnectorCustomerType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -403,9 +407,9 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         PaymentsResponseData: Clone,
     {
         let response: paysafe::PaysafeCustomerResponse = res
-        .response
-        .parse_struct("Paysafe PaysafeCustomerResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .response
+            .parse_struct("Paysafe PaysafeCustomerResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -426,8 +430,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         self.build_error_response(res, event_builder)
     }
 }
-
-
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Paysafe {
     fn get_headers(
@@ -454,7 +456,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             }
             enums::PaymentMethod::Card if req.request.is_customer_initiated_mandate_payment() => {
                 let customer_id = req.get_connector_customer_id()?.to_string();
-                Ok(format!("{base_url}v1/customers/{customer_id}/paymenthandles"))
+                Ok(format!(
+                    "{base_url}v1/customers/{customer_id}/paymenthandles"
+                ))
             }
             enums::PaymentMethod::Wallet
                 if req.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
@@ -479,11 +483,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = paysafe::PaysafeRouterData::from((amount, req));
         match req.payment_method {
             //Card No 3DS
-            enums::PaymentMethod::Card if !req.is_three_ds() || req.request.get_connector_mandate_id().is_ok() => {
+            enums::PaymentMethod::Card
+                if !req.is_three_ds() || req.request.get_connector_mandate_id().is_ok() =>
+            {
                 let connector_req =
                     paysafe::PaysafePaymentsRequest::try_from(&connector_router_data)?;
                 Ok(RequestContent::Json(Box::new(connector_req)))
-            },
+            }
             enums::PaymentMethod::Wallet
                 if req.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
             {

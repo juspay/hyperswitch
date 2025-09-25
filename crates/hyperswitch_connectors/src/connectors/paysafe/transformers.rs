@@ -21,11 +21,14 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{ConnectorCustomerResponseData, PaymentsResponseData, RedirectForm, RefundsResponseData, MandateReference},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
-        ConnectorCustomerRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -99,25 +102,30 @@ impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
     }
 }
 
-
 impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(customer_data: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        let billing_address = customer_data.get_optional_billing().and_then(|billing| {
-            billing.address.clone()
-            });
+        let billing_address = customer_data
+            .get_optional_billing()
+            .and_then(|billing| billing.address.clone());
 
         let merchant_customer_id = match customer_data.customer_id.as_ref() {
-                Some(cid) if cid.get_string_repr().len() <= MAX_ID_LENGTH => Ok(cid.get_string_repr().to_string()),
-                _ => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
-                }),
-            }?;
+            Some(cid) if cid.get_string_repr().len() <= MAX_ID_LENGTH => {
+                Ok(cid.get_string_repr().to_string())
+            }
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            }),
+        }?;
 
         Ok(Self {
             merchant_customer_id,
-            first_name: billing_address.as_ref().and_then(|address| address.first_name.clone()),
-            last_name:  billing_address.as_ref().and_then(|address| address.last_name.clone()),
+            first_name: billing_address
+                .as_ref()
+                .and_then(|address| address.first_name.clone()),
+            last_name: billing_address
+                .as_ref()
+                .and_then(|address| address.last_name.clone()),
             email: customer_data.request.email.clone(),
             phone: customer_data.request.phone.clone(),
         })
@@ -131,7 +139,7 @@ pub struct PaysafeCustomerDetails {
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
     pub email: Option<Email>,
-    pub phone: Option<Secret<String>>
+    pub phone: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,7 +198,6 @@ pub struct PaysafePaymentHandleRequest {
     pub profile: Option<PaysafeProfile>,
     pub billing_details: Option<PaysafeBillingDetails>,
 }
-
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -394,7 +401,6 @@ pub enum PaysafePaymentType {
 pub enum TransactionType {
     #[serde(rename = "PAYMENT")]
     Payment,
-    
 }
 
 impl PaysafePaymentMethodDetails {
@@ -493,9 +499,9 @@ impl PaysafePaymentMethodDetails {
 fn create_paysafe_billing_details<T>(
     is_customer_initiated_mandate_payment: bool,
     item: &T,
-) -> Result<Option<PaysafeBillingDetails>, error_stack::Report<errors::ConnectorError>> 
+) -> Result<Option<PaysafeBillingDetails>, error_stack::Report<errors::ConnectorError>>
 where
-    T: RouterDataUtils
+    T: RouterDataUtils,
 {
     let zip = item.get_billing_zip();
     let country = item.get_billing_country();
@@ -566,7 +572,9 @@ impl TryFrom<&PaysafeRouterData<&PaymentsPreProcessingRouterData>> for PaysafePa
         let transaction_type = TransactionType::Payment;
 
         let billing_details = create_paysafe_billing_details(
-            item.router_data.request.is_customer_initiated_mandate_payment(),
+            item.router_data
+                .request
+                .is_customer_initiated_mandate_payment(),
             item.router_data,
         )?;
 
@@ -798,8 +806,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let initial_transaction_id = item.response.id;
-        let mandate_reference = item.response.payment_handle_token.map(
-            |payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
+        let mandate_reference = item
+            .response
+            .payment_handle_token
+            .map(|payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
             .map(|mandate_id| MandateReference {
                 connector_mandate_id: Some(mandate_id),
                 payment_method_id: None,
@@ -897,7 +907,7 @@ pub struct PaysafeStoredCredential {
     stored_credential_type: PaysafeStoredCredentialType,
     occurrence: MandateOccurence,
     #[serde(skip_serializing_if = "Option::is_none")]
-    initial_transaction_id: Option<String>
+    initial_transaction_id: Option<String>,
 }
 
 impl PaysafeStoredCredential {
@@ -905,14 +915,14 @@ impl PaysafeStoredCredential {
         Self {
             stored_credential_type: PaysafeStoredCredentialType::Adhoc,
             occurrence: MandateOccurence::Initial,
-            initial_transaction_id: None
+            initial_transaction_id: None,
         }
     }
     fn new_merchant_initiated_transaction(initial_transaction_id: String) -> Self {
         Self {
             stored_credential_type: PaysafeStoredCredentialType::Topup,
             occurrence: MandateOccurence::Subsequent,
-            initial_transaction_id: Some(initial_transaction_id)
+            initial_transaction_id: Some(initial_transaction_id),
         }
     }
 }
@@ -1101,7 +1111,9 @@ impl
 }
 
 fn split_by_double_hyphen(input: &str) -> Option<(String, String)> {
-    input.split_once("--").map(|(first, second)| (first.to_string(), second.to_string()))
+    input
+        .split_once("--")
+        .map(|(first, second)| (first.to_string(), second.to_string()))
 }
 
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentsRequest {
@@ -1118,40 +1130,50 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
         );
 
         let metadata: PaysafeConnectorMetadataObject =
-        utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "merchant_connector_account.metadata",
-            })?;
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
 
-            let account_id = match item.router_data.request.payment_method_data.clone() {
-                PaymentMethodData::MandatePayment => {
-                    if item.router_data.is_three_ds() {
-                        Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?)
-                    } else {
-                        Some(metadata.account_id.get_no_three_ds_account_id(item.router_data.request.currency)?)
-                    }
+        let account_id = match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::MandatePayment => {
+                if item.router_data.is_three_ds() {
+                    Some(
+                        metadata
+                            .account_id
+                            .get_three_ds_account_id(item.router_data.request.currency)?,
+                    )
+                } else {
+                    Some(
+                        metadata
+                            .account_id
+                            .get_no_three_ds_account_id(item.router_data.request.currency)?,
+                    )
                 }
-                _ => None,
-            };
+            }
+            _ => None,
+        };
 
-            let (stored_credential, payment_token) = match (
-                item.router_data.request.is_cit_mandate_payment(),
-                item.router_data.request.get_connector_mandate_id().ok(),
-            ) {
-                (true, _) => (
-                    Some(PaysafeStoredCredential::new_customer_initiated_transaction()),
-                    item.router_data.get_preprocessing_id()?,
-                ),
-                (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
-                    .map(|(transaction_token, initial_transaction_id)| {
-                        (
-                            Some(PaysafeStoredCredential::new_merchant_initiated_transaction(initial_transaction_id)),
-                            transaction_token,
-                        )
-                    })
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                _ => (None, item.router_data.get_preprocessing_id()?),
-            };
+        let (stored_credential, payment_token) = match (
+            item.router_data.request.is_cit_mandate_payment(),
+            item.router_data.request.get_connector_mandate_id().ok(),
+        ) {
+            (true, _) => (
+                Some(PaysafeStoredCredential::new_customer_initiated_transaction()),
+                item.router_data.get_preprocessing_id()?,
+            ),
+            (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
+                .map(|(transaction_token, initial_transaction_id)| {
+                    (
+                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(
+                            initial_transaction_id,
+                        )),
+                        transaction_token,
+                    )
+                })
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+            _ => (None, item.router_data.get_preprocessing_id()?),
+        };
 
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
@@ -1177,7 +1199,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     config: "merchant_connector_account.metadata",
                 })?;
         let redirect_url_success = format!("https://5043f618ed38.ngrok-free.app/payments/{}/postman_merchant_GHAction_5eb5fcc5-5e2c-4549-b651-332497ec158b/redirect/complete/paysafe", item.router_data.payment_id); //item.router_data.request.get_complete_authorize_url()?;
-        let redirect_url = format!("https://5043f618ed38.ngrok-free.app/payments");// item.router_data.request.get_router_return_url()?;
+        let redirect_url = format!("https://5043f618ed38.ngrok-free.app/payments"); // item.router_data.request.get_router_return_url()?;
         let return_links = vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -1236,7 +1258,11 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                         | Some(common_enums::ClientPlatform::Android) => DeviceChannel::Sdk,
                     };
 
-                    let authentication_purpose = if item.router_data.request.is_customer_initiated_mandate_payment() {
+                    let authentication_purpose = if item
+                        .router_data
+                        .request
+                        .is_customer_initiated_mandate_payment()
+                    {
                         ThreeDsAuthenticationPurpose::RecurringTransaction
                     } else {
                         ThreeDsAuthenticationPurpose::PaymentTransaction
@@ -1312,10 +1338,12 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                 ))?,
             };
 
-            let billing_details = create_paysafe_billing_details(
-                item.router_data.request.is_customer_initiated_mandate_payment(),
-                item.router_data,
-            )?;
+        let billing_details = create_paysafe_billing_details(
+            item.router_data
+                .request
+                .is_customer_initiated_mandate_payment(),
+            item.router_data,
+        )?;
 
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
@@ -1355,16 +1383,19 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
         );
 
         let metadata: PaysafeConnectorMetadataObject =
-        utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "merchant_connector_account.metadata",
-            })?;
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
 
-        let account_id =   match item.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::Card(_)) => Some(metadata.account_id.get_three_ds_account_id(item.router_data.request.currency)?),
-            _ => None
+        let account_id = match item.router_data.request.payment_method_data.clone() {
+            Some(PaymentMethodData::Card(_)) => Some(
+                metadata
+                    .account_id
+                    .get_three_ds_account_id(item.router_data.request.currency)?,
+            ),
+            _ => None,
         };
-
 
         let (stored_credential, payment_handle_token) = match (
             item.router_data.request.is_cit_mandate_payment(),
@@ -1377,7 +1408,9 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
             (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
                 .map(|(transaction_token, initial_transaction_id)| {
                     (
-                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(initial_transaction_id)),
+                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(
+                            initial_transaction_id,
+                        )),
                         Secret::new(transaction_token),
                     )
                 })
@@ -1393,7 +1426,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsCompleteAuthorizeRouterData>> for Paysa
             currency_code: item.router_data.request.currency,
             customer_ip,
             stored_credential,
-            account_id
+            account_id,
         })
     }
 }
@@ -1413,8 +1446,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let initial_transaction_id = item.response.id;
-        let mandate_reference = item.response.payment_handle_token.map(
-            |payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
+        let mandate_reference = item
+            .response
+            .payment_handle_token
+            .map(|payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
             .map(|mandate_id| MandateReference {
                 connector_mandate_id: Some(mandate_id),
                 payment_method_id: None,
