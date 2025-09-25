@@ -275,8 +275,11 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
-pub static PROFILE_ID_UNAVAILABLE: Lazy<id_type::ProfileId> =
-    Lazy::new(|| id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE").unwrap());
+pub static PROFILE_ID_UNAVAILABLE: Lazy<id_type::ProfileId> = Lazy::new(|| {
+    #[allow(clippy::expect_used)]
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+});
 
 /// Default payment attempt id
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
