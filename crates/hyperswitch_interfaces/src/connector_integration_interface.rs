@@ -571,12 +571,8 @@ impl ConnectorSpecifications for ConnectorEnum {
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
         match self {
-            Self::Old(connector) => connector.should_call_connector_customer(
-                payment_attempt
-            ),
-            Self::New(connector) => connector.should_call_connector_customer(
-                payment_attempt
-            ),
+            Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
+            Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
         }
     }
 }

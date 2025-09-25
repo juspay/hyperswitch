@@ -968,5 +968,4 @@ impl ConnectorSpecifications for Facilitapay {
     ) -> bool {
         true
     }
-
 }
