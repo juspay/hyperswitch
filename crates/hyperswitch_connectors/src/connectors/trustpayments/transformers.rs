@@ -538,7 +538,6 @@ impl TrustpaymentsPaymentsRequest {
                 billingemail: item.router_data.get_optional_billing_email(),
 
                 ..Default::default()
-                
             }],
         })
     }
@@ -569,7 +568,7 @@ impl TrustpaymentsPaymentsRequest {
                     .or_else(|| Some("CN".to_string())),
                 billingemail: item.router_data.get_optional_billing_email(),
 
-               ..Default::default()
+                ..Default::default()
             }],
         })
     }
@@ -605,7 +604,6 @@ impl TrustpaymentsPaymentsRequest {
                 billingemail: item.router_data.get_optional_billing_email(),
 
                 ..Default::default()
-
             }],
         })
     }
@@ -638,7 +636,6 @@ impl TrustpaymentsPaymentsRequest {
                 billingemail: item.router_data.get_optional_billing_email(),
 
                 ..Default::default()
-
             }],
         })
     }
