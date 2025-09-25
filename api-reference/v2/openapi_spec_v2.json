@@ -7522,6 +7522,11 @@
             "type": "string",
             "description": "Accept-language of the browser",
             "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },
@@ -8679,6 +8684,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -8733,6 +8739,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
           "trustpayments",
@@ -22284,6 +22291,11 @@
             ],
             "default": "skip",
             "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22585,6 +22597,11 @@
                 "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
               }
             ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
@@ -23792,11 +23809,13 @@
           "schedule_time_for_payment": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "schedule_time_for_psync": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "status": {
@@ -23930,6 +23949,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",

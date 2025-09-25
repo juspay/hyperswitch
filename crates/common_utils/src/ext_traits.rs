@@ -175,7 +175,13 @@ impl BytesExt for bytes::Bytes {
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
                 let variable_type = std::any::type_name::<T>();
-                format!("Unable to parse {variable_type} from bytes {self:?}")
+                let value = serde_json::from_slice::<serde_json::Value>(self)
+                    .unwrap_or_else(|_| serde_json::Value::String(String::new()));
+
+                format!(
+                    "Unable to parse {variable_type} from bytes {:?}",
+                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                )
             })
     }
 }
@@ -202,7 +208,15 @@ impl ByteSliceExt for [u8] {
     {
         serde_json::from_slice(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
+            .attach_printable_lazy(|| {
+                let value = serde_json::from_slice::<serde_json::Value>(self)
+                    .unwrap_or_else(|_| serde_json::Value::String(String::new()));
+
+                format!(
+                    "Unable to parse {type_name} from &[u8] {:?}",
+                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                )
+            })
     }
 }
 
@@ -219,13 +233,15 @@ impl ValueExt for serde_json::Value {
     where
         T: serde::de::DeserializeOwned,
     {
-        let debug = format!(
-            "Unable to parse {type_name} from serde_json::Value: {:?}",
-            &self
-        );
-        serde_json::from_value::<T>(self)
+        serde_json::from_value::<T>(self.clone())
             .change_context(errors::ParsingError::StructParseFailure(type_name))
-            .attach_printable_lazy(|| debug)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Unable to parse {type_name} from serde_json::Value: {:?}",
+                    // Required to prevent logging sensitive data in case of deserialization failure
+                    Secret::<_, masking::JsonMaskStrategy>::new(self)
+                )
+            })
     }
 }
 
@@ -289,7 +305,12 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
-                format!("Unable to parse {type_name} from string {:?}", &self)
+                format!(
+                    "Unable to parse {type_name} from string {:?}",
+                    Secret::<_, masking::JsonMaskStrategy>::new(serde_json::Value::String(
+                        self.clone()
+                    ))
+                )
             })
     }
 }
