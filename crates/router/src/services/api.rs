@@ -108,6 +108,10 @@ pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
 pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -171,7 +175,7 @@ where
         }
     }?;
 
-    let (status, router_data_response, status_code) =
+    let (router_data_response, status_code) =
         unified_connector_service::handle_unified_connector_service_response_for_payment_get(
             payment_get_response.clone(),
         )
@@ -179,7 +183,10 @@ where
         .attach_printable("Failed to process UCS webhook response using PSync handler")?;
 
     let mut updated_router_data = router_data;
-    updated_router_data.status = status;
+    let router_data_response = router_data_response.map(|(response, status)| {
+        updated_router_data.status = status;
+        response
+    });
 
     let _ = router_data_response.map_err(|error_response| {
         updated_router_data.response = Err(error_response);
@@ -211,6 +218,9 @@ where
     }
     Ok(())
 }
+
+pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
