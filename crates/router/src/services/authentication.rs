@@ -4467,6 +4467,7 @@ pub fn is_internal_api_key_merchant_id_profile_id_auth(headers: &HeaderMap) -> b
         && headers.contains_key(headers::X_PROFILE_ID)
 }
 
+#[cfg(feature = "v1")]
 pub fn check_internal_api_key_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
