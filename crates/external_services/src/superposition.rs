@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use masking::{ExposeInterface, Secret};
 use superposition_provider::{
     PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
