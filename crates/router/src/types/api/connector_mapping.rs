@@ -270,6 +270,9 @@ impl ConnectorData {
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
                 }
+                enums::Connector::Gigadat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }

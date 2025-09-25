@@ -186,6 +186,7 @@ pub struct ConfigMetadata {
     pub route: Option<InputData>,
     pub mid: Option<InputData>,
     pub tid: Option<InputData>,
+    pub site: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -495,6 +496,7 @@ impl ConnectorConfig {
             Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Getnet => Ok(connector_data.getnet),
+            Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
