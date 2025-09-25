@@ -2419,7 +2419,7 @@ pub async fn retrieve_extended_card_info(
         &req,
         payment_id,
         |state, auth: auth::AuthenticationData, payment_id, _| {
-            let merchant_context = domain::MerchantContext::<()>::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             payments::get_extended_card_info(

@@ -243,9 +243,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
             process_ucs_webhook_transform(
                 &state,
-                &merchant_context
-                    .clone()
-                    .convert_to_profile_add_on(profile_id),
+                &merchant_context,
                 &connector_name,
                 &body,
                 &request_details,
@@ -404,7 +402,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 /// Process UCS webhook transformation using the high-level UCS abstraction
 async fn process_ucs_webhook_transform(
     state: &SessionState,
-    merchant_context: &domain::MerchantContextWithProfile,
+    merchant_context: &domain::MerchantContext,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &IncomingWebhookRequestDetails<'_>,
