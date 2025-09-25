@@ -42,9 +42,7 @@ vergen = { version = "8.3.2", features = ["cargo", "git", "git2", "rustc"], opti
 
 [features]
 default = ["actix_web", "payouts"]
-actix_web = ["actix-web", "tracing-actix-web", "uuid"]
-uuid-generator = ["uuid"]
-uuid-v4-generator = ["uuid"]
+actix_web = ["dep:actix-web", "tracing-actix-web", "dep:uuid"]
 log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
 log_active_span_json = []

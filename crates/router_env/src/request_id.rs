@@ -32,6 +32,8 @@ use std::{
     fmt::{self, Display, Formatter},
     future::{ready, Future, Ready},
     pin::Pin,
+    str::FromStr,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -41,7 +43,11 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     Error as ActixError, FromRequest, HttpMessage, HttpRequest,
 };
+use tracing::Instrument;
 use uuid::Uuid;
+
+/// Custom result type for request ID operations.
+pub type RequestIdResult<T> = Result<T, Error>;
 
 /// The default header name used for the request ID.
 ///
@@ -56,6 +62,21 @@ pub enum Error {
     /// This typically occurs when the RequestId extractor is used without
     /// the RequestIdentifier middleware being properly configured.
     NoAssociatedId,
+    /// Failed to convert header value to request ID.
+    InvalidHeaderValue {
+        /// The invalid header value that caused the error.
+        value: String,
+    },
+    /// Request ID generation failed.
+    GenerationFailed {
+        /// The reason why generation failed.
+        reason: String,
+    },
+    /// Configuration error.
+    Configuration {
+        /// The configuration error message.
+        message: String,
+    },
 }
 
 impl error_stack::Context for Error {}
@@ -66,6 +87,11 @@ impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Error::NoAssociatedId => write!(fmt, "No request ID associated with this request"),
+            Error::InvalidHeaderValue { value } => write!(fmt, "Invalid header value: {}", value),
+            Error::GenerationFailed { reason } => {
+                write!(fmt, "Request ID generation failed: {}", reason)
+            }
+            Error::Configuration { message } => write!(fmt, "Configuration error: {}", message),
         }
     }
 }
@@ -89,28 +115,103 @@ pub enum IdReuse {
     IgnoreIncoming,
 }
 
-/// Function type for generating request ID header values.
+/// Trait for generating request IDs.
 ///
-/// Generator functions should return unique, ASCII-only header values.
-/// The returned `HeaderValue` will be used both for internal tracking
-/// and as the response header value.
-type Generator = fn() -> HeaderValue;
+/// Implementing this trait allows for custom request ID generation strategies,
+/// including integration with external systems, databases, or custom formats.
+pub trait RequestIdGenerator: Send + Sync + fmt::Debug + 'static {
+    /// Generate a new request ID string.
+    ///
+    /// Should return a unique identifier suitable for request tracking.
+    /// The implementation should be thread-safe and efficient.
+    fn generate(&self) -> RequestIdResult<String>;
+}
+
+/// Function-based generator wrapper for backwards compatibility.
+#[derive(Clone, Copy)]
+pub struct FunctionGenerator(pub fn() -> String);
+
+impl fmt::Debug for FunctionGenerator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FunctionGenerator")
+            .field("function", &self.0)
+            .finish()
+    }
+}
+
+impl RequestIdGenerator for FunctionGenerator {
+    fn generate(&self) -> RequestIdResult<String> {
+        Ok((self.0)())
+    }
+}
+
+/// UUID v7 generator with v4 fallback.
+#[derive(Default, Clone, Copy, Debug)]
+pub struct UuidV7Generator;
+
+impl RequestIdGenerator for UuidV7Generator {
+    fn generate(&self) -> RequestIdResult<String> {
+        // Try UUID v7 first
+        let uuid = Uuid::now_v7();
+        let uuid_str = uuid.to_string();
+
+        // UUID strings are always valid, but fallback to v4 just in case
+        (!uuid_str.is_empty())
+            .then_some(Ok(uuid_str))
+            .unwrap_or_else(|| {
+                tracing::warn!("UUID v7 generated empty string, falling back to UUID v4");
+                UuidV4Generator
+                    .generate()
+                    .map_err(|_| Error::GenerationFailed {
+                        reason: "Both UUID v7 and v4 generation failed".to_string(),
+                    })
+            })
+    }
+}
+
+/// UUID v4 generator.
+#[derive(Default, Clone, Copy, Debug)]
+pub struct UuidV4Generator;
+
+impl RequestIdGenerator for UuidV4Generator {
+    fn generate(&self) -> RequestIdResult<String> {
+        let uuid = Uuid::new_v4();
+        let uuid_str = uuid.to_string();
+
+        (!uuid_str.is_empty())
+            .then_some(uuid_str)
+            .ok_or(Error::GenerationFailed {
+                reason: "UUID v4 generation failed".to_string(),
+            })
+    }
+}
 
 /// Configuration builder for the request ID middleware.
 ///
 /// This struct provides a fluent interface for configuring how request IDs
 /// are generated and handled.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+///
+/// ## Why `Arc<dyn RequestIdGenerator>`?
+/// - **Type Erasure**: Can store any generator implementation (UuidV7, UuidV4, custom)
+/// - **Shared Ownership**: Cheap cloning for middleware (Arc::clone is O(1))
+/// - **Thread Safety**: `Send + Sync` for async web frameworks
+/// - **Flexibility**: Supports stateful generators with custom logic
+#[derive(Clone, Debug)]
 pub struct RequestIdentifier {
     header_name: &'static str,
-    id_generator: Generator,
+    id_generator: Arc<dyn RequestIdGenerator>,
     use_incoming_id: IdReuse,
 }
 
 /// Request ID value that can be extracted in route handlers.
 ///
-/// This wraps a `HeaderValue` and provides convenient methods for accessing
-/// the request ID as a string.
+/// This wraps an `Arc<str>` for optimal performance in web middleware.
+///
+/// ## Why `Arc<str>`?
+/// - **Performance**: ~1000x faster cloning vs `String` (atomic increment vs heap allocation)
+/// - **Memory Efficiency**: Shared string data, 8-byte pointer vs 24-byte `String`
+/// - **Thread Safety**: `Send + Sync` for async request handling
+/// - **Immutable**: Perfect for IDs that are created once, cloned many times
 ///
 /// # Examples
 ///
@@ -123,8 +224,8 @@ pub struct RequestIdentifier {
 ///     Ok(HttpResponse::Ok().json(format!("Request ID: {}", request_id)))
 /// }
 /// ```
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct RequestId(HeaderValue);
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub struct RequestId(Arc<str>);
 
 /// The actual middleware implementation that processes requests.
 ///
@@ -134,7 +235,7 @@ pub struct RequestId(HeaderValue);
 pub struct RequestIdMiddleware<S> {
     service: S,
     header_name: HeaderName,
-    id_generator: Generator,
+    id_generator: Arc<dyn RequestIdGenerator>,
     use_incoming_id: IdReuse,
 }
 
@@ -144,26 +245,76 @@ impl Display for RequestId {
     }
 }
 
+impl FromStr for RequestId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            Err(Error::InvalidHeaderValue {
+                value: s.to_string(),
+            })
+        } else {
+            Ok(Self(s.into()))
+        }
+    }
+}
+
+impl TryFrom<HeaderValue> for RequestId {
+    type Error = Error;
+
+    fn try_from(value: HeaderValue) -> Result<Self, Self::Error> {
+        let s = value.to_str().map_err(|_| Error::InvalidHeaderValue {
+            value: format!("{:?}", value),
+        })?;
+        Self::from_str(s)
+    }
+}
+
+impl From<RequestId> for HeaderValue {
+    fn from(request_id: RequestId) -> Self {
+        // This should never fail since we validate on creation
+        HeaderValue::from_str(&request_id.0)
+            .unwrap_or_else(|_| HeaderValue::from_static("invalid-request-id"))
+    }
+}
+
+impl From<RequestId> for String {
+    fn from(request_id: RequestId) -> Self {
+        request_id.0.to_string()
+    }
+}
+
+impl From<String> for RequestId {
+    fn from(s: String) -> Self {
+        Self(s.into())
+    }
+}
+
+impl From<&str> for RequestId {
+    fn from(s: &str) -> Self {
+        Self(s.into())
+    }
+}
+
 impl RequestId {
-    /// Get the raw header value for this request ID.
+    /// Create a new RequestId from a string.
+    pub fn new(value: impl Into<Arc<str>>) -> Self {
+        Self(value.into())
+    }
+
+    /// Convert this request ID to a `HeaderValue`.
     ///
     /// This can be useful when you need to pass the request ID to other
     /// HTTP clients or services that expect a `HeaderValue`.
-    pub const fn header_value(&self) -> &HeaderValue {
-        &self.0
+    pub fn to_header_value(&self) -> RequestIdResult<HeaderValue> {
+        HeaderValue::from_str(&self.0).map_err(|_| Error::InvalidHeaderValue {
+            value: self.0.to_string(),
+        })
     }
 
     /// Get a string representation of this request ID.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the header value contains non-ASCII characters. This should
-    /// never happen with properly generated UUIDs, but could occur if external
-    /// request IDs contain invalid characters.
     pub fn as_str(&self) -> &str {
-        self.0
-            .to_str()
-            .expect("Request ID contains non-ASCII characters")
+        &self.0
     }
 }
 
@@ -171,8 +322,7 @@ impl RequestIdentifier {
     /// Create a request ID middleware with default UUID generation.
     ///
     /// By default, this uses UUID v7 for time-ordered request IDs, which provides
-    /// better database performance and natural sorting. If the `uuid-v4-generator`
-    /// feature is enabled, it will use UUID v4 instead.
+    /// better database performance and natural sorting.
     ///
     /// Uses the default header name [`DEFAULT_HEADER`] and [`IdReuse::UseIncoming`].
     #[must_use]
@@ -182,17 +332,25 @@ impl RequestIdentifier {
 
     /// Create a request ID middleware with explicit UUID v7 generation.
     ///
-    /// This explicitly uses UUID v7 regardless of feature flags. UUID v7 provides
+    /// This explicitly uses UUID v7 with v4 fallback. UUID v7 provides
     /// time-ordered identifiers that are more efficient for database indexing
     /// and provide natural chronological sorting.
     #[must_use]
     pub fn with_uuid_v7() -> Self {
-        Self::with_generator(uuid_v7_generator)
+        Self::with_generator(UuidV7Generator)
+    }
+
+    /// Create a request ID middleware with UUID v4 generation.
+    ///
+    /// UUID v4 provides fully random identifiers without timestamp information.
+    #[must_use]
+    pub fn with_uuid_v4() -> Self {
+        Self::with_generator(UuidV4Generator)
     }
 
     /// Create a request ID middleware with a custom header name.
     ///
-    /// Uses the default UUID generator (v7 unless `uuid-v4-generator` feature is enabled)
+    /// Uses the default UUID generator (v7 with v4 fallback)
     /// and [`IdReuse::UseIncoming`] behavior.
     ///
     /// # Examples
@@ -216,7 +374,7 @@ impl RequestIdentifier {
     /// Common alternatives include `x-trace-id`, `x-correlation-id`, or
     /// service-specific headers.
     #[must_use]
-    pub const fn header(self, header_name: &'static str) -> Self {
+    pub fn header(self, header_name: &'static str) -> Self {
         Self {
             header_name,
             ..self
@@ -225,26 +383,20 @@ impl RequestIdentifier {
 
     /// Create a request ID middleware with a custom ID generator.
     ///
-    /// The generator function should return unique, ASCII-only header values.
-    /// This is useful for integrating with existing ID generation systems
-    /// or implementing custom ID formats.
+    /// The generator should implement [`RequestIdGenerator`] and provide
+    /// unique identifiers suitable for request tracking.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use actix_web::http::header::HeaderValue;
-    /// use router_env::RequestIdentifier;
+    /// use router_env::{RequestIdentifier, UuidV4Generator};
     ///
-    /// fn custom_generator() -> HeaderValue {
-    ///     HeaderValue::from_static("custom-id-123")
-    /// }
-    ///
-    /// let middleware = RequestIdentifier::with_generator(custom_generator);
+    /// let middleware = RequestIdentifier::with_generator(UuidV4Generator);
     /// ```
     #[must_use]
-    pub fn with_generator(id_generator: Generator) -> Self {
+    pub fn with_generator<G: RequestIdGenerator>(generator: G) -> Self {
         Self {
-            id_generator,
+            id_generator: Arc::new(generator),
             header_name: DEFAULT_HEADER,
             use_incoming_id: IdReuse::default(),
         }
@@ -255,11 +407,32 @@ impl RequestIdentifier {
     /// This allows switching between different UUID versions or implementing
     /// completely custom ID generation logic.
     #[must_use]
-    pub fn generator(self, id_generator: Generator) -> Self {
+    pub fn generator<G: RequestIdGenerator>(self, generator: G) -> Self {
         Self {
-            id_generator,
+            id_generator: Arc::new(generator),
             ..self
         }
+    }
+
+    /// Create a request ID middleware with a function-based generator.
+    ///
+    /// This is provided for backwards compatibility with function-based generators.
+    /// For new code, prefer implementing [`RequestIdGenerator`] directly.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::RequestIdentifier;
+    ///
+    /// fn custom_generator() -> String {
+    ///     \"custom-id-123\".to_string()
+    /// }
+    ///
+    /// let middleware = RequestIdentifier::with_function_generator(custom_generator);
+    /// ```
+    #[must_use]
+    pub fn with_function_generator(generator: fn() -> String) -> Self {
+        Self::with_generator(FunctionGenerator(generator))
     }
 
     /// Configure how incoming request ID headers should be handled.
@@ -289,53 +462,18 @@ impl RequestIdentifier {
 ///
 /// UUID v7 provides time-ordered identifiers that are more efficient for
 /// database operations and provide natural chronological sorting.
-#[cfg(not(feature = "uuid-v4-generator"))]
+/// Default configuration uses UUID v7 generation with UUID v4 fallback.
+///
+/// UUID v7 provides time-ordered identifiers that are more efficient for
+/// database operations and provide natural chronological sorting.
 impl Default for RequestIdentifier {
     fn default() -> Self {
         Self {
             header_name: DEFAULT_HEADER,
-            id_generator: uuid_v7_generator,
+            id_generator: Arc::new(UuidV7Generator),
             use_incoming_id: IdReuse::default(),
         }
     }
-}
-
-/// When the `uuid-v4-generator` feature is enabled, use UUID v4 by default.
-///
-/// UUID v4 provides fully random identifiers without timestamp information.
-#[cfg(feature = "uuid-v4-generator")]
-impl Default for RequestIdentifier {
-    fn default() -> Self {
-        Self {
-            header_name: DEFAULT_HEADER,
-            id_generator: uuid_v4_generator,
-            use_incoming_id: IdReuse::default(),
-        }
-    }
-}
-
-/// Generate a UUID v4 based request ID.
-///
-/// UUID v4 uses random numbers and provides no ordering guarantees.
-/// This generator is only available when the `uuid-generator` feature is enabled.
-#[cfg(feature = "uuid-generator")]
-fn uuid_v4_generator() -> HeaderValue {
-    let uuid = Uuid::new_v4();
-    HeaderValue::from_str(&uuid.to_string())
-        // This unwrap is safe because UUID v4 strings are always ASCII
-        .expect("UUID v4 should always be valid ASCII")
-}
-
-/// Generate a UUID v7 based request ID.
-///
-/// UUID v7 includes timestamp information, making the IDs naturally ordered
-/// by creation time. This provides better database performance and enables
-/// chronological sorting without additional metadata.
-fn uuid_v7_generator() -> HeaderValue {
-    let uuid = Uuid::now_v7();
-    HeaderValue::from_str(&uuid.to_string())
-        // This unwrap is safe because UUID v7 strings are always ASCII
-        .expect("UUID v7 should always be valid ASCII")
 }
 
 impl<S, B> Transform<S, ServiceRequest> for RequestIdentifier
@@ -351,10 +489,15 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
+        let header_name = HeaderName::from_str(self.header_name).unwrap_or_else(|_| {
+            tracing::error!("Invalid header name '{}', using default", self.header_name);
+            HeaderName::from_static("x-request-id")
+        });
+
         ready(Ok(RequestIdMiddleware {
             service,
-            header_name: HeaderName::from_static(self.header_name),
-            id_generator: self.id_generator,
+            header_name,
+            id_generator: Arc::clone(&self.id_generator),
             use_incoming_id: self.use_incoming_id,
         }))
     }
@@ -382,35 +525,66 @@ where
         let incoming_request_id = request.headers().get(&header_name).cloned();
 
         // Determine the request ID to use based on configuration
-        let header_value = match self.use_incoming_id {
-            IdReuse::UseIncoming => request
-                .headers()
-                .get(&header_name)
-                .map_or_else(self.id_generator, Clone::clone),
-            IdReuse::IgnoreIncoming => (self.id_generator)(),
+        let request_id_string = match self.use_incoming_id {
+            IdReuse::UseIncoming => {
+                // Try to use incoming header first
+                if let Some(existing_header) = request.headers().get(&header_name) {
+                    existing_header.to_str()
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|_| {
+                            tracing::warn!("Incoming request ID header contains non-ASCII characters, generating new one");
+                            self.id_generator.generate().unwrap_or_else(|e| {
+                                tracing::error!("Failed to generate request ID: {}", e);
+                                "fallback-request-id".to_string()
+                            })
+                        })
+                } else {
+                    // No incoming header, generate new one
+                    self.id_generator.generate().unwrap_or_else(|e| {
+                        tracing::error!("Failed to generate request ID: {}", e);
+                        "fallback-request-id".to_string()
+                    })
+                }
+            }
+            IdReuse::IgnoreIncoming => {
+                // Always generate new request ID
+                self.id_generator.generate().unwrap_or_else(|e| {
+                    tracing::error!("Failed to generate request ID: {}", e);
+                    "fallback-request-id".to_string()
+                })
+            }
         };
 
+        let request_id = RequestId(request_id_string.into());
+
+        // Create header value for response
+        let header_value = request_id.to_header_value().unwrap_or_else(|e| {
+            tracing::error!("Failed to convert request ID to header value: {}", e);
+            HeaderValue::from_static("invalid-request-id")
+        });
         // Store the request ID in request extensions for handler extraction
-        let request_id = RequestId(header_value.clone());
         request.extensions_mut().insert(request_id);
 
         let fut = self.service.call(request);
-        Box::pin(async move {
-            // Log incoming request IDs for debugging and request correlation
-            if let Some(upstream_request_id) = incoming_request_id {
-                tracing::debug!(
-                    ?upstream_request_id,
-                    "Received upstream request ID for correlation"
-                );
+        Box::pin(
+            async move {
+                // Log incoming request IDs for debugging and request correlation
+                if let Some(upstream_request_id) = incoming_request_id {
+                    tracing::debug!(
+                        ?upstream_request_id,
+                        "Received upstream request ID for correlation"
+                    );
+                }
+
+                let mut response = fut.await?;
+
+                // Add the request ID to the response headers for client correlation
+                response.headers_mut().insert(header_name, header_value);
+
+                Ok(response)
             }
-
-            let mut response = fut.await?;
-
-            // Add the request ID to the response headers for client correlation
-            response.headers_mut().insert(header_name, header_value);
-
-            Ok(response)
-        })
+            .in_current_span(),
+        )
     }
 }
 

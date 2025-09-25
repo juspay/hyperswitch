@@ -12,7 +12,7 @@ pub mod metrics;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
 #[cfg(feature = "actix_web")]
-pub mod request_id_span;
+pub mod root_span;
 /// `cargo` build instructions generation for obtaining information about the application
 /// environment.
 #[cfg(feature = "vergen")]
@@ -24,9 +24,11 @@ pub use logger::*;
 pub use opentelemetry;
 // Re-export our internal request_id module for easier migration
 #[cfg(feature = "actix_web")]
-pub use request_id::{IdReuse, RequestId, RequestIdentifier};
+pub use request_id::{
+    IdReuse, RequestId, RequestIdGenerator, RequestIdentifier, UuidV4Generator, UuidV7Generator,
+};
 #[cfg(feature = "actix_web")]
-pub use request_id_span::RequestIdRootSpanBuilder;
+pub use root_span::RequestIdRootSpanBuilder;
 pub use tracing;
 #[cfg(feature = "actix_web")]
 pub use tracing_actix_web;
