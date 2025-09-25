@@ -671,8 +671,13 @@ impl BillingHandler {
             connector_transaction_id: None,
         };
 
-        let router_data =
-            self.build_router_data(state, invoice_record_back_req, InvoiceRecordBackData)?;
+        let router_data = self.build_router_data(
+            state,
+            invoice_record_back_req,
+            InvoiceRecordBackData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
         let connector_integration = self.connector_data.connector.get_connector_integration();
 
         let response = self
