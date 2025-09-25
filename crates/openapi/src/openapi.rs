@@ -709,6 +709,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::PayoutLinkInitiateRequest,
         api_models::payments::ExtendedCardInfoResponse,
         api_models::payments::GooglePayAssuranceDetails,
+        api_models::payments::GooglePayCardFundingSource,
         api_models::routing::RoutingConfigRequest,
         api_models::routing::RoutingDictionaryRecord,
         api_models::routing::RoutingKind,

@@ -16152,6 +16152,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "UNKNOWN",
+          "CREDIT",
+          "DEBIT",
+          "PREPAID"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -16171,6 +16180,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
