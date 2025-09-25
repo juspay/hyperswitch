@@ -37,6 +37,7 @@ pub struct Request {
     pub method: Method,
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
+    pub ca_certificate: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -80,6 +81,7 @@ impl Request {
             headers: std::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
+            ca_certificate: None,
             body: None,
         }
     }
@@ -103,6 +105,10 @@ impl Request {
     pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
         self.certificate = certificate_key;
     }
+
+    pub fn add_ca_certificate(&mut self, ca_certificate: Option<Secret<String>>) {
+        self.ca_certificate = ca_certificate;
+    }
 }
 
 #[derive(Debug)]
@@ -112,6 +118,7 @@ pub struct RequestBuilder {
     pub method: Method,
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
+    pub ca_certificate: Option<Secret<String>>,
     pub body: Option<RequestContent>,
 }
 
@@ -123,6 +130,7 @@ impl RequestBuilder {
             headers: std::collections::HashSet::new(),
             certificate: None,
             certificate_key: None,
+            ca_certificate: None,
             body: None,
         }
     }
@@ -172,6 +180,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn add_ca_certificate(mut self, ca_certificate: Option<Secret<String>>) -> Self {
+        self.ca_certificate = ca_certificate;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -179,6 +192,7 @@ impl RequestBuilder {
             headers: self.headers,
             certificate: self.certificate,
             certificate_key: self.certificate_key,
+            ca_certificate: self.ca_certificate,
             body: self.body,
         }
     }

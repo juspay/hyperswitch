@@ -105,6 +105,11 @@ pub enum ConnectorAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    CertificateAuthWithCa {
+        certificate: Secret<String>,
+        private_key: Secret<String>,
+        ca_certificate: Secret<String>,
+    },
     #[default]
     NoKey,
 }

@@ -321,7 +321,8 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
             | types::ConnectorAuthType::CurrencyAuthKey { .. }
             | types::ConnectorAuthType::TemporaryAuth { .. }
             | types::ConnectorAuthType::NoKey { .. }
-            | types::ConnectorAuthType::CertificateAuth { .. } => {
+            | types::ConnectorAuthType::CertificateAuth { .. }
+            | types::ConnectorAuthType::CertificateAuthWithCa { .. } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType.into())
             }
         }
