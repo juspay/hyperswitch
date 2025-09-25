@@ -8,8 +8,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     tar \
     xz-utils \
-    ca-certificates \
-    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install diesel CLI
