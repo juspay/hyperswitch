@@ -103,6 +103,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
                 .set_optional_body(self.get_request_body(req)?)
                 .add_certificate(self.get_certificate(req)?)
                 .add_certificate_key(self.get_certificate_key(req)?)
+                .add_ca_certificate(self.get_ca_certificate(req)?)
                 .build(),
         ))
     }
@@ -183,6 +184,14 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
 
     /// returns private key string
     fn get_certificate_key(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    /// returns ca certificate string
+    fn get_ca_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
