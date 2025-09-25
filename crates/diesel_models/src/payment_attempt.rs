@@ -129,6 +129,8 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// A string indicating the group of the payment attempt. Used in split payments flow
+    pub attempts_group_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -300,6 +302,7 @@ pub struct PaymentListFilters {
 pub struct PaymentAttemptNew {
     pub payment_id: id_type::GlobalPaymentId,
     pub merchant_id: id_type::MerchantId,
+    pub attempts_group_id: Option<String>,
     pub status: storage_enums::AttemptStatus,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -862,7 +865,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub connector_payment_id: Option<ConnectorTransactionId>,
     pub connector_payment_data: Option<String>,
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
-    // cancellation_reason: Option<String>,
+    pub cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,
     // payment_token: Option<String>,
@@ -914,6 +917,7 @@ impl PaymentAttemptUpdateInternal {
             modified_at,
             browser_info,
             error_code,
+            cancellation_reason,
             connector_metadata,
             error_reason,
             amount_capturable,
@@ -1011,6 +1015,7 @@ impl PaymentAttemptUpdateInternal {
                 .or(source.connector_request_reference_id),
             is_overcapture_enabled: source.is_overcapture_enabled,
             network_details: source.network_details,
+            attempts_group_id: source.attempts_group_id,
         }
     }
 }
@@ -1404,6 +1409,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1451,6 +1457,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1496,6 +1503,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1539,6 +1547,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_advice_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1578,6 +1587,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1622,6 +1632,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
         }

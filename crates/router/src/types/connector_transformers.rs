@@ -67,6 +67,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
+            api_enums::Connector::Gigadat => Self::Gigadat,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
@@ -145,6 +146,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripe => Self::Stripe,
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Thunes => Self::Thunes,
+            api_enums::Connector::Tokenex => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Tokenex is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Tokenio => Self::Tokenio,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
