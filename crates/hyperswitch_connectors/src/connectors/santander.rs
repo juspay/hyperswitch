@@ -329,7 +329,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 Some(enums::PaymentMethodType::Pix) => Ok(format!(
                     "{}api/v1/cob/{}",
                     self.base_url(connectors),
-                    req.payment_id
+                    req.connector_request_reference_id
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
