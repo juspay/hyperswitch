@@ -85,36 +85,78 @@ pub fn validate_domain_against_allowed_domains(
 /// checks whether the input string contains potential XSS or SQL injection attack vectors
 pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
     let decoded = urlencoding::decode(input).unwrap_or_else(|_| input.into());
-    // Check for suspicious percent-encoded patterns
-    static PERCENT_ENCODED: LazyLock<Result<Regex, regex::Error>> =
-        LazyLock::new(|| Regex::new(r"%[0-9A-Fa-f]{2}"));
 
-    if decoded.contains('%')
-        && PERCENT_ENCODED
-            .as_ref()
-            .is_ok_and(|re| re.is_match(&decoded))
-    {
-        return true;
+    // Check for suspicious percent-encoded patterns
+    static PERCENT_ENCODED: LazyLock<Option<Regex>> =
+        LazyLock::new(|| match Regex::new(r"%[0-9A-Fa-f]{2}") {
+            Ok(regex) => Some(regex),
+            Err(_error) => {
+                #[cfg(feature = "logs")]
+                logger::error!(?_error);
+                None
+            }
+        });
+
+    if decoded.contains('%') {
+        match PERCENT_ENCODED.as_ref() {
+            Some(regex) => {
+                if regex.is_match(&decoded) {
+                    return true;
+                }
+            }
+            None => return true,
+        }
     }
 
     if ammonia::is_html(&decoded) {
         return true;
     }
 
-    static XSS: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
-        Regex::new(
+    static XSS: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        match Regex::new(
             r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|\b(alert|prompt|confirm|eval)\s*\(",
-        )
+        ) {
+            Ok(regex) => Some(regex),
+            Err(_error) => {
+                #[cfg(feature = "logs")]
+                logger::error!(?_error);
+                None
+            }
+        }
     });
 
-    static SQLI: LazyLock<Result<Regex, regex::Error>> = LazyLock::new(|| {
-        Regex::new(
+    static SQLI: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        match Regex::new(
             r"(?is)(?:')\s*or\s*'?\d+'?=?\d*|union\s+select|insert\s+into|drop\s+table|information_schema|sleep\s*\(|--|;",
-        )
+        ) {
+            Ok(regex) => Some(regex),
+            Err(_error) => {
+                #[cfg(feature = "logs")]
+                logger::error!(?_error);
+                None
+            }
+        }
     });
 
-    XSS.as_ref().is_ok_and(|re| re.is_match(&decoded))
-        || SQLI.as_ref().is_ok_and(|re| re.is_match(&decoded))
+    match XSS.as_ref() {
+        Some(regex) => {
+            if regex.is_match(&decoded) {
+                return true;
+            }
+        }
+        None => return true,
+    }
+
+    match SQLI.as_ref() {
+        Some(regex) => {
+            if regex.is_match(&decoded) {
+                return true;
+            }
+        }
+        None => return true,
+    }
+
+    false
 }
 
 #[cfg(test)]
