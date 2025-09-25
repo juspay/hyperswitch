@@ -2057,6 +2057,7 @@ impl IncomingWebhook for Adyen {
         Ok(optional_network_txn_id)
     }
 
+    #[cfg(feature = "v1")]
     fn get_additional_payment_method_data(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
@@ -2067,51 +2068,28 @@ impl IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let card_expiry_in_parts = notif
+        let (month_str, year_str) = notif
             .additional_data
-            .expiry_date // expiry_date is of format: "M/YYYY"
-            .map(|date| {
-                date.expose()
-                    .split('/')
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>()
-            })
+            .expiry_date
+            .map(|date| transformers::parse_expiry_date(&date.expose()))
+            .transpose()?
             .ok_or(errors::ConnectorError::ParsingFailed)?;
 
-        if card_expiry_in_parts.len() == 2 {
-            // Parse month as integer and format back as 2 digits
-            let month = card_expiry_in_parts
-                .get(1)
-                .ok_or(errors::ConnectorError::ParsingFailed)?
-                .parse::<u32>()
-                .change_context(errors::ConnectorError::ParsingFailed)?;
-            let month_str = Secret::new(format!("{:02}", month));
-
-            // Parse year as integer and take last 2 digits
-            let year = card_expiry_in_parts
-                .get(2)
-                .ok_or(errors::ConnectorError::ParsingFailed)?
-                .parse::<u32>()
-                .change_context(errors::ConnectorError::ParsingFailed)?;
-            let year_str = Secret::new(format!("{:02}", year % 100));
-            Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
-                card: Some(api_models::payment_methods::CardDetailUpdate {
-                    card_exp_month: Some(month_str),
-                    card_exp_year: Some(year_str),
-                    card_holder_name: None,
-                    nick_name: None,
-                    issuer_country: notif.additional_data.card_issuing_country.clone(),
-                    card_issuer: notif.additional_data.card_issuing_bank.clone(),
-                    last4_digits: notif
-                        .additional_data
-                        .card_summary
-                        .map(|last4| last4.expose().to_string()),
-                }),
-                client_secret: None,
-            }))
-        } else {
-            Ok(None)
-        }
+        Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str),
+                card_exp_year: Some(year_str),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .map(|last4| last4.expose().to_string()),
+            }),
+            client_secret: None,
+        }))
     }
 }
 impl Dispute for Adyen {}

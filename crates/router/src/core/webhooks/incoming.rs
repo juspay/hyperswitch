@@ -1021,7 +1021,13 @@ async fn payments_incoming_webhook_flow(
                 .await?
             };
 
-            if should_update_additional_payment_method_data(source_verified, event_type) {
+            if let Ok(true) = should_update_additional_payment_method_data(
+                state.clone(),
+                merchant_context.clone(),
+                webhook_details.object_reference_id.clone(),
+            )
+            .await
+            {
                 update_additional_payment_method_data(
                     &state,
                     &merchant_context,
@@ -1029,7 +1035,7 @@ async fn payments_incoming_webhook_flow(
                     connector,
                     request_details,
                 )
-                .await?
+                .await?;
             }
 
             lock_action
@@ -2334,11 +2340,37 @@ fn should_update_connector_mandate_details(
     source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentSuccess
 }
 
-fn should_update_additional_payment_method_data(
-    source_verified: bool,
-    event_type: webhooks::IncomingWebhookEvent,
-) -> bool {
-    source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentFailure
+async fn should_update_additional_payment_method_data(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    object_ref_id: api::ObjectReferenceId,
+) -> Result<bool, error_stack::Report<errors::ApiErrorResponse>> {
+    let db = state.store.as_ref();
+    let payment_attempt =
+        get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_context)
+            .await?;
+
+    let payment_method_id = payment_attempt
+        .payment_method_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("No payment method id found in payment attempt")?;
+
+    let pm = db
+        .find_payment_method(
+            &((&state).into()),
+            merchant_context.get_merchant_key_store(),
+            &payment_method_id,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    if pm.locker_id.is_some() {
+        return Ok(false);
+    }
+
+    Ok(true)
 }
 
 async fn update_additional_payment_method_data(
