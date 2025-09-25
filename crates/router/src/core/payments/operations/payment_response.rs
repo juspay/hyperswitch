@@ -1997,7 +1997,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::TokenizationResponse { .. } => {
                             (None, None, None)
                         }
-                        types::PaymentsResponseData::ConnectorCustomerResponse { .. } => {
+                        types::PaymentsResponseData::ConnectorCustomerResponse(..) => {
                             (None, None, None)
                         }
                         types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => {
@@ -3230,5 +3230,85 @@ fn get_total_amount_captured<F: Clone, T: types::Capturable>(
                 }
             })
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Send + Clone + Sync> Operation<F, types::PaymentsCancelData> for PaymentResponse {
+    type Data = hyperswitch_domain_models::payments::PaymentCancelData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsCancelData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone + Send + Sync>
+    PostUpdateTracker<
+        F,
+        hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        types::PaymentsCancelData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCancelData<F>>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<
+                F,
+                types::PaymentsCancelData,
+                hyperswitch_domain_models::payments::PaymentCancelData<F>,
+            >,
+    {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
+
+        let payment_intent_update =
+            router_data.get_payment_intent_update(&payment_data, storage_scheme);
+
+        let updated_payment_intent = db
+            .update_payment_intent(
+                key_manager_state,
+                payment_data.payment_intent.clone(),
+                payment_intent_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_intent")?;
+
+        let payment_attempt_update =
+            router_data.get_payment_attempt_update(&payment_data, storage_scheme);
+
+        let updated_payment_attempt = db
+            .update_payment_attempt(
+                key_manager_state,
+                key_store,
+                payment_data.payment_attempt.clone(),
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_attempt")?;
+
+        payment_data.set_payment_intent(updated_payment_intent);
+        payment_data.set_payment_attempt(updated_payment_attempt);
+
+        Ok(payment_data)
     }
 }
