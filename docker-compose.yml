@@ -58,6 +58,7 @@ services:
 
   migration_runner:
     image: debian:trixie-slim
+    pull_policy: always
     command: >
       bash -c "
       apt-get update && apt-get install -y curl xz-utils &&
