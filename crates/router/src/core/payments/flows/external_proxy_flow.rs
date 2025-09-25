@@ -368,7 +368,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         state: &SessionState,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        merchant_context: &domain::MerchantContextWithProfile,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client

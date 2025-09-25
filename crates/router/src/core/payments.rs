@@ -1582,7 +1582,9 @@ where
             let router_data = call_unified_connector_service_for_external_proxy(
                 state,
                 req_state.clone(),
-                &merchant_context,
+                &merchant_context
+                    .clone()
+                    .convert_to_profile_add_on(profile.get_id().clone()),
                 connector_data.connector_data.clone(),
                 &operation,
                 &mut payment_data,
@@ -4309,7 +4311,9 @@ where
                 .call_unified_connector_service(
                     state,
                     merchant_connector_account.clone(),
-                    merchant_context,
+                    &merchant_context
+                        .clone()
+                        .convert_to_profile_add_on(business_profile.get_id().clone()),
                 )
                 .await?;
 
@@ -4848,7 +4852,7 @@ where
                 .call_unified_connector_service(
                     state,
                     merchant_connector_account_type_details.clone(),
-                    merchant_context,
+                    &merchant_context.clone().convert_to_profile_add_on(business_profile.get_id().clone()),
                 )
                 .await?;
 
@@ -4945,7 +4949,9 @@ where
                 .call_unified_connector_service(
                     state,
                     merchant_connector_account_type_details.clone(),
-                    merchant_context,
+                    &merchant_context
+                        .clone()
+                        .convert_to_profile_add_on(business_profile.get_id().clone()),
                 )
                 .await?;
 
@@ -4989,7 +4995,7 @@ where
 pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &domain::MerchantContextWithProfile,
     _connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,

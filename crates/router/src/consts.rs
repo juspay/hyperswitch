@@ -2,15 +2,16 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr};
 
 use api_models::enums::Country;
-use common_utils::consts;
+use common_utils::{consts, id_type};
 pub use hyperswitch_domain_models::consts::{
     CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
     ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
 };
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+use once_cell::sync::Lazy;
 
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
@@ -273,6 +274,9 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+pub static PROFILE_ID_UNAVAILABLE: Lazy<id_type::ProfileId> =
+    Lazy::new(|| id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE").unwrap());
 
 /// Default payment attempt id
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =

@@ -25,7 +25,9 @@ mod business_profile {
 }
 
 pub mod merchant_context {
-    pub use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+    pub use hyperswitch_domain_models::merchant_context::{
+        Context, MerchantContext, MerchantContextWithProfile,
+    };
 }
 mod customers {
     pub use hyperswitch_domain_models::customer::*;

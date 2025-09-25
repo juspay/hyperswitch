@@ -237,9 +237,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 connector = connector_name,
                 "Using Unified Connector Service for webhook processing",
             );
+            let profile_id = merchant_connector_account
+                .as_ref()
+                .map(|mca| mca.profile_id.clone())
+                .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
             process_ucs_webhook_transform(
                 &state,
-                &merchant_context,
+                &merchant_context
+                    .clone()
+                    .convert_to_profile_add_on(profile_id),
                 &connector_name,
                 &body,
                 &request_details,
@@ -398,7 +404,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 /// Process UCS webhook transformation using the high-level UCS abstraction
 async fn process_ucs_webhook_transform(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &domain::MerchantContextWithProfile,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &IncomingWebhookRequestDetails<'_>,

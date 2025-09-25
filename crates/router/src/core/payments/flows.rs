@@ -209,7 +209,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContextWithProfile,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -225,7 +225,7 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        _merchant_context: &domain::MerchantContext,
+        _merchant_context: &domain::MerchantContextWithProfile,
     ) -> RouterResult<()>
     where
         F: Clone,

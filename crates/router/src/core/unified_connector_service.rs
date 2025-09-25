@@ -19,7 +19,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
     ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
 };
 use hyperswitch_domain_models::{
-    merchant_context::MerchantContext,
+    merchant_context::{MerchantContext, MerchantContextWithProfile},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::PaymentsResponseData,
 };
@@ -431,7 +431,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-    merchant_context: &MerchantContext,
+    merchant_context: &MerchantContextWithProfile,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -693,7 +693,7 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
 /// This provides a clean interface similar to payment flow UCS calls
 pub async fn call_unified_connector_service_for_webhook(
     state: &SessionState,
-    merchant_context: &MerchantContext,
+    merchant_context: &MerchantContextWithProfile,
     connector_name: &str,
     body: &actix_web::web::Bytes,
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,

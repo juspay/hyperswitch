@@ -523,7 +523,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-        merchant_context: &domain::MerchantContext,
+        merchant_context: &domain::MerchantContextWithProfile,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
@@ -838,7 +838,7 @@ async fn call_unified_connector_service_authorize(
     state: &SessionState,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &domain::MerchantContextWithProfile,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -922,7 +922,7 @@ async fn call_unified_connector_service_repeat_payment(
     state: &SessionState,
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &domain::MerchantContextWithProfile,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
