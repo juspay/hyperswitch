@@ -394,12 +394,16 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(middleware::RequestId)
-        .wrap(cors::cors(cors))
-        // this middleware works only for Http1.1 requests
-        .wrap(middleware::Http400RequestDetailsLogger)
-        .wrap(middleware::AddAcceptLanguageHeader)
-        .wrap(middleware::RequestResponseMetrics)
+        .wrap(router_env::tracing_actix_web::TracingLogger::<
+            router_env::RequestIdRootSpanBuilder,
+        >::new())
         .wrap(middleware::LogSpanInitializer)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
+        .wrap(middleware::RequestResponseMetrics)
+        .wrap(middleware::AddAcceptLanguageHeader)
+        .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(cors::cors(cors))
+        .wrap(
+            router_env::RequestIdentifier::with_uuid()
+                .use_incoming_id(router_env::IdReuse::UseIncoming),
+        )
 }

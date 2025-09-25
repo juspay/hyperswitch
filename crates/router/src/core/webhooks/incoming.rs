@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing, tracing_actix_web::RequestId};
+use router_env::{instrument, tracing, RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
@@ -90,8 +90,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
     let request_id = RequestId::extract(req)
         .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
     let auth_type = auth::AuthenticationType::WebhookAuth {
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
     };
@@ -155,8 +154,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
 
     let request_id = RequestId::extract(req)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to extract request id from request")?;
+        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
     let auth_type = auth::AuthenticationType::NoAuth;
     let status_code = 200;
     let api_event = ApiEventsType::NetworkTokenWebhook {

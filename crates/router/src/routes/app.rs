@@ -24,7 +24,7 @@ use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
 };
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
@@ -150,17 +150,20 @@ impl SessionState {
     pub fn get_grpc_headers(&self) -> GrpcHeaders {
         GrpcHeaders {
             tenant_id: self.tenant.tenant_id.get_string_repr().to_string(),
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
     pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        GrpcHeadersUcs::builder().tenant_id(tenant_id)
+        let request_id = self.request_id.clone();
+        GrpcHeadersUcs::builder()
+            .tenant_id(tenant_id)
+            .request_id(request_id)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
         GrpcRecoveryHeaders {
-            request_id: self.request_id.map(|req_id| (*req_id).to_string()),
+            request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
     }
 }
@@ -191,7 +194,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.get_request_id()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
@@ -293,7 +296,7 @@ impl AppStateInfo for AppState {
         self.event_handler.clone()
     }
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.api_client.add_request_id(request_id);
+        self.api_client.add_request_id(request_id.clone());
         self.request_id.replace(request_id);
     }
 
@@ -530,7 +533,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
-            request_id: self.request_id,
+            request_id: self.request_id.clone(),
             base_url: tenant_conf.base_url.clone(),
             tenant: tenant_conf.clone(),
             #[cfg(feature = "email")]

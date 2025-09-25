@@ -1,7 +1,7 @@
 //! Connector API logs interface
 
 use common_utils::request::Method;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use serde::Serialize;
 use serde_json::json;
 use time::OffsetDateTime;
@@ -63,7 +63,7 @@ impl ConnectorEvent {
             merchant_id,
             created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id
-                .map(|i| i.as_hyphenated().to_string())
+                .map(|i| i.to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
             refund_id,

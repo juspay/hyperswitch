@@ -95,6 +95,10 @@ pub mod consts {
     /// Header key for sending the EXTERNAL VAULT METADATA in proxy payments
     pub(crate) const UCS_HEADER_EXTERNAL_VAULT_METADATA: &str = "x-external-vault-metadata";
 
+    /// Header key for sending the session/request ID for request correlation and tracing
+    pub(crate) const UCS_HEADER_SESSION_ID: &str = "x-session-id";
+
+    /// Header key for sending the Lineage IDs in UCS requests.
     pub(crate) const UCS_LINEAGE_IDS: &str = "x-lineage-ids";
 }
 

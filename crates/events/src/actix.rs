@@ -1,4 +1,4 @@
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 
 use crate::EventInfo;
 
@@ -6,7 +6,7 @@ impl EventInfo for RequestId {
     type Data = String;
 
     fn data(&self) -> error_stack::Result<String, crate::EventsError> {
-        Ok(self.as_hyphenated().to_string())
+        Ok(self.to_string())
     }
 
     fn key(&self) -> String {

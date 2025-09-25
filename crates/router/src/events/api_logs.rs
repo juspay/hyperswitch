@@ -1,7 +1,7 @@
 use actix_web::HttpRequest;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
 use common_utils::impl_api_event_type;
-use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
+use router_env::{types::FlowMetric, RequestId};
 use serde::Serialize;
 use time::OffsetDateTime;
 
@@ -72,7 +72,7 @@ impl ApiEvent {
             merchant_id,
             api_flow: api_flow.to_string(),
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
-            request_id: request_id.as_hyphenated().to_string(),
+            request_id: request_id.to_string(),
             latency,
             status_code,
             request: request.to_string(),

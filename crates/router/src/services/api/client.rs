@@ -7,11 +7,11 @@ use http::{HeaderValue, Method};
 use hyperswitch_interfaces::types::Proxy;
 use masking::PeekInterface;
 use reqwest::multipart::Form;
-use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};
 use crate::{
     core::errors::{ApiClientError, CustomResult},
+    middleware::RequestId,
     routes::SessionState,
 };
 
@@ -203,8 +203,7 @@ impl ApiClient for ProxyClient {
     }
 
     fn add_request_id(&mut self, request_id: RequestId) {
-        self.request_id
-            .replace(request_id.as_hyphenated().to_string());
+        self.request_id.replace(request_id.to_string());
     }
 
     fn get_request_id(&self) -> Option<String> {
