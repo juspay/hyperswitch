@@ -344,7 +344,7 @@ pub struct CheckTokenStatus {
     pub customer_id: id_type::GlobalCustomerId,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TokenStatus {
     Active,
@@ -362,6 +362,22 @@ pub struct CheckTokenStatusResponsePayload {
 #[derive(Debug, Deserialize)]
 pub struct CheckTokenStatusResponse {
     pub payload: CheckTokenStatusResponsePayload,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Deserialize)]
+pub struct NetworkTokenStatusResponse {
+    pub token_details: NetworkTokenStatusDetails,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Deserialize)]
+pub struct NetworkTokenStatusDetails {
+    pub status: TokenStatus,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub last_four: String,
+    pub first_six: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

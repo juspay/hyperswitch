@@ -325,6 +325,26 @@ pub async fn payment_method_update_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
 
+/// Payment Method - Check Network Token Status
+///
+/// Check the status of a network token for a saved payment method
+#[utoipa::path(
+    get,
+    path = "/v2/payment-methods/{payment_method_id}/check-network-token-status",
+    params (
+        ("payment_method_id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Network Token Status Retrieved", body = NetworkTokenStatusCheckResponse),
+        (status = 404, description = "Payment Method Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Check Network Token Status",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn network_token_status_check_api() {}
+
 /// Payment Method - List Customer Saved Payment Methods
 ///
 /// List the payment methods saved for a customer
