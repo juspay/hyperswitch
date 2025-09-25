@@ -4357,12 +4357,6 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
     api::AuthFlow,
 )> {
-    if is_internal_api_key_merchant_id_profile_id_auth(headers) {
-        return Ok((
-            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
-            api::AuthFlow::Merchant,
-        ));
-    }
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
@@ -4471,6 +4465,28 @@ pub fn is_internal_api_key_merchant_id_profile_id_auth(headers: &HeaderMap) -> b
     headers.contains_key(headers::X_INTERNAL_API_KEY)
         && headers.contains_key(headers::X_MERCHANT_ID)
         && headers.contains_key(headers::X_PROFILE_ID)
+}
+
+pub fn get_internal_api_key_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+    api_auth: ApiKeyAuth,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    if is_internal_api_key_merchant_id_profile_id_auth(headers) {
+        Ok((
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
+            api::AuthFlow::Merchant,
+        ))
+    } else {
+        check_client_secret_and_get_auth(headers, payload, api_auth)
+    }
 }
 
 pub async fn decode_jwt<T>(token: &str, state: &impl SessionStateInfo) -> RouterResult<T>
