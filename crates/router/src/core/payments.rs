@@ -2780,7 +2780,7 @@ pub(crate) async fn payments_create_and_confirm_intent(
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     request: payments_api::PaymentsRequest,
-    mut header_payload: HeaderPayload,
+    header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
         payments::PaymentIntentData, router_flow_types::PaymentCreateIntent,
@@ -3771,6 +3771,7 @@ where
     if is_operation_confirm(operation)
         && payment_data.get_payment_attempt().payment_method
             == Some(storage_enums::PaymentMethod::Wallet)
+        && payment_data.get_payment_method_data().is_some()
     {
         let wallet_type = payment_data
             .get_payment_attempt()
@@ -4568,7 +4569,7 @@ where
             customer,
             &merchant_connector_account_type_details,
             None,
-            None,
+            Some(header_payload),
         )
         .await?;
 
@@ -4766,7 +4767,7 @@ where
             &None,
             &merchant_connector_account_type_details,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5113,7 +5114,7 @@ where
             customer,
             &merchant_connector_account,
             merchant_recipient_data,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5278,7 +5279,7 @@ where
             &None,
             &merchant_connector_account,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5402,7 +5403,7 @@ where
             &None,
             &merchant_connector_account,
             None,
-            None,
+            Some(header_payload.clone()),
         )
         .await?;
 
@@ -5978,7 +5979,7 @@ where
                 customer,
                 &merchant_connector_account,
                 None,
-                None,
+                Some(header_payload.clone()),
             )
             .await?;
 
@@ -6100,7 +6101,7 @@ where
                 customer,
                 &merchant_connector_account,
                 None,
-                None,
+                Some(header_payload.clone()),
             )
             .await?;
 
@@ -6567,6 +6568,12 @@ where
                     router_data.preprocessing_steps(state, connector).await?,
                     false,
                 )
+            } else if connector.connector_name == router_types::Connector::Paysafe {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
@@ -6621,8 +6628,22 @@ where
             } else if router_data.auth_type == common_enums::AuthenticationType::ThreeDs
                 && ((connector.connector_name == router_types::Connector::Nexixpay
                     && is_operation_complete_authorize(&operation))
-                    || ((connector.connector_name == router_types::Connector::Nuvei
-                        || connector.connector_name == router_types::Connector::Shift4)
+                    || (((connector.connector_name == router_types::Connector::Nuvei && {
+                        #[cfg(feature = "v1")]
+                        {
+                            payment_data
+                                .get_payment_intent()
+                                .request_external_three_ds_authentication
+                                != Some(true)
+                        }
+                        #[cfg(feature = "v2")]
+                        {
+                            payment_data
+                                .get_payment_intent()
+                                .request_external_three_ds_authentication
+                                != Some(true).into()
+                        }
+                    }) || connector.connector_name == router_types::Connector::Shift4)
                         && !is_operation_complete_authorize(&operation)))
             {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
@@ -6729,7 +6750,7 @@ where
     let should_do_uas_confirmation_call = service_details
         .as_ref()
         .map(|details| details.is_network_confirmation_call_required())
-        .unwrap_or(true);
+        .unwrap_or(false);
     if should_do_uas_confirmation_call
         && (payment_intent.status == storage_enums::IntentStatus::Succeeded
             || payment_intent.status == storage_enums::IntentStatus::Failed)
@@ -10228,6 +10249,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .as_ref()
                 .map(ToString::to_string),
             challenge_request: authentication_response.challenge_request,
+            // If challenge_request_key is None, we send "creq" as a static value which is standard 3DS challenge form field name
+            challenge_request_key: authentication_response
+                .challenge_request_key
+                .or(Some(consts::CREQ_CHALLENGE_REQUEST_KEY.to_string())),
             acs_reference_number: authentication_response.acs_reference_number,
             acs_trans_id: authentication_response.acs_trans_id,
             three_dsserver_trans_id: authentication_response.three_dsserver_trans_id,

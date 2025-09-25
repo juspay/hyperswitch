@@ -1997,7 +1997,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::TokenizationResponse { .. } => {
                             (None, None, None)
                         }
-                        types::PaymentsResponseData::ConnectorCustomerResponse { .. } => {
+                        types::PaymentsResponseData::ConnectorCustomerResponse(..) => {
                             (None, None, None)
                         }
                         types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => {

@@ -705,14 +705,6 @@ pub async fn payouts_fulfill_core(
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
 
-    if helpers::is_payout_err_state(status) {
-        return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-            data: Some(
-                serde_json::json!({"payout_status": status.to_string(), "error_message": payout_attempt.error_message, "error_code": payout_attempt.error_code})
-            ),
-        }));
-    }
-
     trigger_webhook_and_handle_response(&state, &merchant_context, &payout_data).await
 }
 
@@ -1324,9 +1316,65 @@ pub async fn create_recipient(
                         .attach_printable("Error updating payouts in db")?;
                 }
             }
-            Err(err) => Err(errors::ApiErrorResponse::PayoutFailed {
-                data: serde_json::to_value(err).ok(),
-            })?,
+            Err(err) => {
+                let status = storage_enums::PayoutStatus::Failed;
+                let (error_code, error_message) = (Some(err.code), Some(err.message));
+                let (unified_code, unified_message) = helpers::get_gsm_record(
+                    state,
+                    error_code.clone(),
+                    error_message.clone(),
+                    payout_data.payout_attempt.connector.clone(),
+                    consts::PAYOUT_FLOW_STR,
+                )
+                .await
+                .map_or(
+                    (
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_CODE.to_string()),
+                        Some(crate::consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_string()),
+                    ),
+                    |gsm| (gsm.unified_code, gsm.unified_message),
+                );
+                let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                    connector_payout_id: payout_data.payout_attempt.connector_payout_id.to_owned(),
+                    status,
+                    error_code,
+                    error_message,
+                    is_eligible: None,
+                    unified_code: unified_code
+                        .map(UnifiedCode::try_from)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "unified_code",
+                        })?,
+                    unified_message: unified_message
+                        .map(UnifiedMessage::try_from)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "unified_message",
+                        })?,
+                };
+                let db = &*state.store;
+                payout_data.payout_attempt = db
+                    .update_payout_attempt(
+                        &payout_data.payout_attempt,
+                        updated_payout_attempt,
+                        &payout_data.payouts,
+                        merchant_context.get_merchant_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error updating payout_attempt in db")?;
+                payout_data.payouts = db
+                    .update_payout(
+                        &payout_data.payouts,
+                        storage::PayoutsUpdate::StatusUpdate { status },
+                        &payout_data.payout_attempt,
+                        merchant_context.get_merchant_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error updating payouts in db")?;
+            }
         }
     }
     Ok(())
@@ -1371,10 +1419,8 @@ pub async fn complete_payout_eligibility(
             .is_eligible
             .unwrap_or(state.conf.payouts.payout_eligibility),
         || {
-            Err(report!(errors::ApiErrorResponse::PayoutFailed {
-                data: Some(serde_json::json!({
-                    "message": "Payout method data is invalid"
-                }))
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payout method data is invalid".to_string(),
             })
             .attach_printable("Payout data provided is invalid"))
         },
@@ -1454,13 +1500,6 @@ pub async fn check_payout_eligibility(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payouts in db")?;
-            if helpers::is_payout_err_state(status) {
-                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-                    data: Some(
-                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
-                    ),
-                }));
-            }
         }
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
@@ -1676,13 +1715,6 @@ pub async fn create_payout(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payouts in db")?;
-            if helpers::is_payout_err_state(status) {
-                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-                    data: Some(
-                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
-                    ),
-                }));
-            }
         }
         Err(err) => {
             let status = storage_enums::PayoutStatus::Failed;
@@ -2407,13 +2439,7 @@ pub async fn fulfill_payout(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payouts in db")?;
-            if helpers::is_payout_err_state(status) {
-                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-                    data: Some(
-                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
-                    ),
-                }));
-            } else if payout_data.payouts.recurring
+            if payout_data.payouts.recurring
                 && payout_data.payouts.payout_method_id.clone().is_none()
             {
                 let payout_method_data = payout_data
@@ -2782,7 +2808,15 @@ pub async fn payout_create_db_entries(
             helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
                 .await
         })
-        .await;
+        .await
+        // If no payout method data in request but we have a stored payment method, populate from it
+        .or_else(|| {
+            payment_method.as_ref().and_then(|payment_method| {
+                payment_method
+                    .get_payment_methods_data()
+                    .and_then(|pmd| pmd.get_additional_payout_method_data())
+            })
+        });
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
