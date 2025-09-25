@@ -564,6 +564,21 @@ impl ConnectorSpecifications for ConnectorEnum {
             }
         }
     }
+
+    /// Check if connector requires create customer call
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_connector_customer(
+                payment_attempt
+            ),
+            Self::New(connector) => connector.should_call_connector_customer(
+                payment_attempt
+            ),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {

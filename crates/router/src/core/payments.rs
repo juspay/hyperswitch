@@ -6412,7 +6412,9 @@ where
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state, &connector, customer, &label,
+                    &connector,
+                    customer,
+                    &payment_data.get_payment_attempt(),
                 );
 
             if should_call_connector {
