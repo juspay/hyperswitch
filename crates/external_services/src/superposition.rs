@@ -164,7 +164,6 @@ impl SuperpositionClient {
             return Err(SuperpositionError::NotEnabled.into());
         }
 
-
         let provider_options = SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
             token: config.token.expose(),
