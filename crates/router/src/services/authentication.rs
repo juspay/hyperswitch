@@ -4361,11 +4361,11 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
 
     if api_key.starts_with("pk_") {
         return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
+            Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(PublishableKeyAuth))),
             api::AuthFlow::Client,
         ));
     }
-    Ok((Box::new(HeaderAuth(api_auth)), api::AuthFlow::Merchant))
+    Ok((Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))), api::AuthFlow::Merchant))
 }
 
 pub fn check_client_secret_and_get_auth<T>(
