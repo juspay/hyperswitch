@@ -171,6 +171,9 @@ pub struct GetSubscriptionPlanPricesData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateData;
+
+#[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,

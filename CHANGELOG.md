@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.25.0
+
+### Features
+
+- **connector:** [paysafe] introduce applepay encrypt and predecrypt flow ([#9358](https://github.com/juspay/hyperswitch/pull/9358)) ([`2e0da5c`](https://github.com/juspay/hyperswitch/commit/2e0da5c0322909790e49d4df5adc76331e7f76c7))
+- **core:** Add referer field to browser_info ([#9474](https://github.com/juspay/hyperswitch/pull/9474)) ([`46d483d`](https://github.com/juspay/hyperswitch/commit/46d483d87cf6076b4459a2b02b8e971e8c3efe2f))
+- **subscription:** Add support to estimate for a subscription in chargebee ([#9336](https://github.com/juspay/hyperswitch/pull/9336)) ([`a751837`](https://github.com/juspay/hyperswitch/commit/a7518373786ab3a1129cdfc67385b26e5641a6a9))
+
+### Bug Fixes
+
+- **core:** Fixed ctp bug for confirmation and added multi profile support for modular auth ([#9545](https://github.com/juspay/hyperswitch/pull/9545)) ([`acf816d`](https://github.com/juspay/hyperswitch/commit/acf816d046a383b0a61b736d9ab1155dadf6e431))
+- **nuvei:** Make `eci_provider` in applepay decrypt flow non mandatory field ([#9509](https://github.com/juspay/hyperswitch/pull/9509)) ([`ecfaf42`](https://github.com/juspay/hyperswitch/commit/ecfaf425edd88f96090cf9306f249ff6d1151b72))
+- Map attempt_status_unspecified to None instead of Unresolved for HS<>UCS ErrorResponse ([#9445](https://github.com/juspay/hyperswitch/pull/9445)) ([`e0fa7e9`](https://github.com/juspay/hyperswitch/commit/e0fa7e9b6c518ae1650596a699af470e03c8efd9))
+
+**Full Changelog:** [`2025.09.24.1...2025.09.25.0`](https://github.com/juspay/hyperswitch/compare/2025.09.24.1...2025.09.25.0)
+
+- - -
+
 ## 2025.09.24.1
 
 ### Features
