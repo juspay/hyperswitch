@@ -1,5 +1,6 @@
-use crate::enums as api_enums;
 use common_utils::{id_type, types};
+
+use crate::enums as api_enums;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceRecordBackTrackingData {
     pub payment_id: id_type::PaymentId,
