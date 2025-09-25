@@ -6903,7 +6903,7 @@ key1 = "API Secret"
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]
   payment_method_type = "paysera"
-[trustpayments.connector_auth.HeaderKey]
+[trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Password"
 api_secret = "API Secret"
@@ -7547,18 +7547,3 @@ options=["CRYPTOGRAM_3DS"]
 [zift.connector_auth.HeaderKey]
 
 api_key = "API Key"
-<<<<<<< HEAD
-[payjustnow]
-[payjustnow.connector_auth.BodyKey]
-api_key = "Signing Key"
-key1 = "Merchant Account Id"
-
-[[payjustnow.pay_later]]
-  payment_method_type = "payjustnow"
-
-=======
-
-[trustpayments]
-[trustpayments.connector_auth.HeaderKey]
-api_key = "API Key"
->>>>>>> b4cfc8e30 (feat(connector): Add Trustpayments connector template)

@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{BankRedirectData, PaymentMethodData},
+    payment_method_data::{BankRedirectData, PaymentMethodData, BankTransferData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
@@ -387,10 +387,10 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Wallet(wallet_data) => {
                 match wallet_data {
-                    hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect { .. } => {
+                    WalletData::AliPayRedirect { .. } => {
                         Self::build_alipay_request(item, &auth)
                     }
-                    hyperswitch_domain_models::payment_method_data::WalletData::Paysera(_) => {
+                    WalletData::Paysera(_) => {
                         Self::build_paysera_request(item, &auth)
                     }
                     _ => Err(errors::ConnectorError::NotImplemented(
@@ -400,7 +400,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match &*bank_transfer_data {
-                    hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer { .. } => {
+                    BankTransferData::SepaBankTransfer { .. } => {
                         Self::build_sepa_request(item, &auth)
                     }
                     _ => Err(errors::ConnectorError::NotImplemented(
