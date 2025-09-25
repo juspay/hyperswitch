@@ -149,7 +149,7 @@ pub async fn confirm_subscription(
             billing_handler.amount,
             billing_handler.currency.clone().to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
-            billing_handler.connector_data.connector_name.clone(),
+            billing_handler.connector_data.connector_name,
             None,
         )
         .await?;

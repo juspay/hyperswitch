@@ -14,6 +14,7 @@ pub struct InvoiceRecordBackTrackingData {
     pub currency: api_enums::Currency,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub intent_status: common_enums::IntentStatus,
+    pub connector_invoice_id: String,
 }
 
 impl InvoiceRecordBackTrackingData {
@@ -30,6 +31,7 @@ impl InvoiceRecordBackTrackingData {
         currency: api_enums::Currency,
         payment_method_type: Option<common_enums::PaymentMethodType>,
         intent_status: common_enums::IntentStatus,
+        connector_invoice_id: String,
     ) -> Self {
         Self {
             payment_id,
@@ -43,6 +45,7 @@ impl InvoiceRecordBackTrackingData {
             currency,
             payment_method_type,
             intent_status,
+            connector_invoice_id,
         }
     }
 }

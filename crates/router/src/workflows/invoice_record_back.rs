@@ -1,3 +1,4 @@
+use api_models::process_tracker as process_tracker_types;
 use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_utils::errors::CustomResult;
@@ -147,7 +148,7 @@ pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    tracking_data: &api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
+    tracking_data: &process_tracker_types::invoice_record_back::InvoiceRecordBackTrackingData,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
@@ -206,7 +207,7 @@ pub async fn perform_billing_processor_record_back(
         .await?;
 
     billing_handler
-        .record_back_to_billing_processor(state, invoice.id.get_string_repr().to_string())
+        .record_back_to_billing_processor(state, tracking_data.connector_invoice_id.clone())
         .await?;
 
     invoice_handler
@@ -234,6 +235,7 @@ pub async fn create_invoice_record_back_job(
     currency: common_enums::Currency,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     intent_status: common_enums::IntentStatus,
+    connector_invoice_id: String,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
     let tracking_data =
         api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData::new(
@@ -248,6 +250,7 @@ pub async fn create_invoice_record_back_job(
             currency,
             payment_method_type,
             intent_status,
+            connector_invoice_id,
         );
 
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(

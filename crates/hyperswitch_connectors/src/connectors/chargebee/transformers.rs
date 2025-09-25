@@ -120,6 +120,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionCreateResponse {
     pub subscription: ChargebeeSubscriptionDetails,
+    pub invoice: ChargebeeInvoiceData,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -183,6 +184,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let subscription = &item.response.subscription;
+        let invoice = &item.response.invoice;
         Ok(Self {
             response: Ok(SubscriptionCreateResponse {
                 subscription_id: subscription.id.clone(),
@@ -192,6 +194,7 @@ impl
                 total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),
                 next_billing_at: subscription.next_billing_at,
                 created_at: subscription.created_at,
+                connector_invoice_id: invoice.id.clone(),
             }),
             ..item.data
         })
@@ -461,7 +464,7 @@ pub enum ChargebeeEventType {
     InvoiceDeleted,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChargebeeInvoiceData {
     // invoice id
     pub id: String,
@@ -471,7 +474,7 @@ pub struct ChargebeeInvoiceData {
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChargebeeInvoicePayments {
     pub txn_status: Option<String>,
 }
@@ -539,7 +542,7 @@ pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChargebeeInvoiceBillingAddress {
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
