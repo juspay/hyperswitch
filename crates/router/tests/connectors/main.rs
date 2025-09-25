@@ -118,7 +118,6 @@ mod trustpay;
 mod trustpayments;
 mod tsys;
 mod unified_authentication_service;
-mod finix;
 mod utils;
 mod vgs;
 mod volt;
