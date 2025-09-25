@@ -3261,8 +3261,8 @@ pub struct AuthenticationDetails {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct NetworkTokenStatusCheckResponse {
     /// The status of the network token
-    #[schema(value_type = String)]
-    pub status: String,
+    #[schema(value_type = Option<api_enums::TokenStatus>)]
+    pub status: Option<api_enums::TokenStatus>,
 
     /// The expiry month of the network token if active
     #[schema(value_type = Option<String>)]
@@ -3282,11 +3282,15 @@ pub struct NetworkTokenStatusCheckResponse {
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
-    pub payment_method_id: String,
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
 
     /// The customer ID associated with the payment method
     #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
-    pub customer_id: String,
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// Error message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]

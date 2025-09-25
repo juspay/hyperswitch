@@ -488,3 +488,25 @@ impl From<PermissionScope> for ReconPermissionScope {
         }
     }
 }
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum TokenStatus {
+    /// Indicates that the token is active and can be used for payments
+    Active,
+    /// Indicates that the token is not active and cannot be used for payments
+    Inactive,
+}

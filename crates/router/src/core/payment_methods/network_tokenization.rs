@@ -912,6 +912,7 @@ pub async fn do_status_check_for_network_token(
             } else {
                 Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Network Tokenization Service not configured")
                     .inspect_err(|_| {
                         logger::error!("Network Tokenization Service not configured");
                     })
