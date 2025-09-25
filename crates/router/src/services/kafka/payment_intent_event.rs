@@ -1,5 +1,8 @@
 #[cfg(feature = "v2")]
-use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
+use ::common_types::{
+    payments,
+    primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
+};
 #[cfg(feature = "v2")]
 use common_enums::{self, RequestIncrementalAuthorization};
 use common_utils::{
@@ -129,7 +132,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
     pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
 
     #[serde(flatten)]
     infra_values: Option<Value>,

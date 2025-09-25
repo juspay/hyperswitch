@@ -1,5 +1,6 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
+use common_types::primitive_wrappers::EnablePartialAuthorizationBool;
 use common_utils::{id_type, pii, types as util_types};
 use time::PrimitiveDateTime;
 
@@ -80,7 +81,7 @@ pub struct RevenueRecoveryInvoiceData {
     /// metadata of the merchant
     pub metadata: Option<pii::SecretSerdeValue>,
     /// Allow partial authorization for this payment
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
 }
 
 #[derive(Clone, Debug)]

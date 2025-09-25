@@ -1,5 +1,7 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_types::primitive_wrappers::RequestExtendedAuthorizationBool;
+use common_types::primitive_wrappers::{
+    EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool,
+};
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::ExposeInterface;
@@ -76,7 +78,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
@@ -178,7 +180,7 @@ pub struct PaymentIntent {
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -357,7 +359,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
@@ -468,7 +470,7 @@ pub struct PaymentIntentNew {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -639,7 +641,7 @@ pub struct PaymentIntentUpdateFields {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -863,7 +865,7 @@ pub struct PaymentIntentUpdateInternal {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
