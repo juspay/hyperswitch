@@ -5917,5 +5917,6 @@ required = true
 type = "Text"
 
 [tesouro]
-[tesouro.connector_auth.HeaderKey]
-api_key = "API Key"
+[tesouro.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
