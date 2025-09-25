@@ -12,7 +12,6 @@ use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
-#[cfg(feature = "superposition")]
 use external_services::superposition::SuperpositionClientConfig;
 use external_services::{
     crm::CrmManagerConfig,
@@ -169,7 +168,6 @@ pub struct Settings<S: SecretState> {
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
-    #[cfg(feature = "superposition")]
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
 }
@@ -1129,7 +1127,6 @@ impl Settings<SecuredSecret> {
             .transpose()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
-        #[cfg(feature = "superposition")]
         self.superposition
             .get_inner()
             .validate()

@@ -4135,31 +4135,21 @@ pub async fn list_customer_payment_method(
 
     let requires_cvv = configs::get_config_bool(
         state,
-        #[cfg(feature = "superposition")]
-        configs::ConfigRetrieveContext::SuperpositionWithDatabaseFallback {
-            superposition_key: router_consts::superposition::REQUIRES_CVV.to_string(),
-            superposition_context: Some(
-                external_services::superposition::ConfigContext::new().with(
-                    "merchant_id",
-                    merchant_context
-                        .get_merchant_account()
-                        .get_id()
-                        .get_string_repr(),
-                ),
+        router_consts::superposition::REQUIRES_CVV, // superposition key
+        &merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_requires_cvv_key(), // database key
+        Some(
+            external_services::superposition::ConfigContext::new().with(
+                "merchant_id",
+                merchant_context
+                    .get_merchant_account()
+                    .get_id()
+                    .get_string_repr(),
             ),
-            database_key: merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-        },
-        #[cfg(not(feature = "superposition"))]
-        configs::ConfigRetrieveContext::DatabaseOnly {
-            key: merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-        },
-        true, // default value
+        ), // context
+        true,                                       // default value
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

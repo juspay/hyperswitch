@@ -15,7 +15,6 @@ use external_services::email::{
 };
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
-#[cfg(feature = "superposition")]
 use external_services::superposition::SuperpositionClient;
 use external_services::{
     file_storage::FileStorageInterface,
@@ -139,7 +138,6 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    #[cfg(feature = "superposition")]
     pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
@@ -265,7 +263,6 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    #[cfg(feature = "superposition")]
     pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerAppState for AppState {
@@ -433,7 +430,6 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
-            #[cfg(feature = "superposition")]
             let superposition_service = if conf.superposition.get_inner().enabled {
                 match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
                     Ok(client) => {
@@ -473,7 +469,6 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
-                #[cfg(feature = "superposition")]
                 superposition_service,
             }
         })
@@ -571,7 +566,6 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
-            #[cfg(feature = "superposition")]
             superposition_service: self.superposition_service.clone(),
         })
     }
