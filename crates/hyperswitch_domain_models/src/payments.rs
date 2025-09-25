@@ -969,6 +969,10 @@ impl<F: Clone> PaymentConfirmData<F> {
         self.payment_attempt.payment_method_id = Some(payment_method_id);
         self.payment_method = Some(payment_method);
     }
+
+    pub fn update_payment_token(&mut self, payment_token: String) {
+        self.payment_attempt.payment_token = Some(payment_token);
+    }
 }
 
 #[cfg(feature = "v2")]

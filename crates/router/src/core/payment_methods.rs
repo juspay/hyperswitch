@@ -512,18 +512,44 @@ pub async fn add_payment_method_status_update_task(
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
-    _state: &SessionState,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _token_data: &storage::PaymentTokenData,
-    _payment_intent: &PaymentIntent,
-    _card_token_data: Option<&domain::CardToken>,
-    _customer: &Option<domain::Customer>,
-    _storage_scheme: common_enums::enums::MerchantStorageScheme,
-    _mandate_id: Option<api_models::payments::MandateIds>,
-    _payment_method_info: Option<domain::PaymentMethod>,
-    _business_profile: &domain::Profile,
+    state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    token_data: &storage::PaymentTokenData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    card_token_data: Option<&domain::CardToken>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
-    todo!()
+    let token = match token_data {
+        storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
+            payment_helpers::retrieve_payment_method_with_temporary_token(
+                state,
+                &generic_token.token,
+                payment_intent,
+                payment_attempt,
+                merchant_key_store,
+                card_token_data,
+            )
+            .await?
+            .map(
+                |(payment_method_data, payment_method)| storage::PaymentMethodDataWithId {
+                    payment_method_data: Some(payment_method_data),
+                    payment_method: Some(payment_method),
+                    payment_method_id: None,
+                },
+            )
+            .unwrap_or_default()
+        }
+
+        storage::PaymentTokenData::PermanentCard(_)
+        | storage::PaymentTokenData::AuthBankDebit(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "Only TemporaryGeneric Token is implemented".to_string(),
+                ),
+            })?
+        }
+    };
+    Ok(token)
 }
 
 #[cfg(feature = "v1")]
@@ -1192,6 +1218,39 @@ pub async fn create_payment_method_proxy_card_core(
         pm_transforms::generate_payment_method_response(&payment_method, &None)?;
 
     Ok((payment_method_response, payment_method))
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn store_card_data_in_redis(
+    state: &SessionState,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method_type: enums::PaymentMethod,
+    merchant_context: &domain::MerchantContext,
+    profile: &domain::Profile,
+) -> RouterResult<String> {
+    payment_helpers::store_in_vault_and_generate_ppmt(
+        state,
+        payment_method_data,
+        payment_intent,
+        payment_attempt,
+        payment_method_type,
+        merchant_context.get_merchant_key_store(),
+        Some(profile),
+    )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn get_card_data_from_redis(
+    state: &SessionState,
+    token: String,
+    payment_method_type: enums::PaymentMethod,
+) -> RouterResult<storage::PaymentTokenData> {
+    utils::retrieve_payment_token_data(state, token, Some(&payment_method_type)).await
 }
 
 #[cfg(feature = "v2")]

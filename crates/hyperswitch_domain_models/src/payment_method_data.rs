@@ -18,6 +18,8 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
+#[cfg(feature = "v2")]
+use masking::StrongSecret;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
@@ -1954,6 +1956,7 @@ impl From<MobilePaymentData> for api_models::payments::MobilePaymentData {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue1 {
@@ -1966,6 +1969,20 @@ pub struct TokenizedCardValue1 {
     pub card_holder_name: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue1 {
+    pub card_number: StrongSecret<String>,
+    pub exp_year: Secret<String>,
+    pub exp_month: Secret<String>,
+    pub nickname: Option<String>,
+    pub card_last_four: Option<String>,
+    pub card_token: Option<String>,
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue2 {
@@ -1973,6 +1990,17 @@ pub struct TokenizedCardValue2 {
     pub card_fingerprint: Option<String>,
     pub external_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue2 {
+    pub card_security_code: Option<StrongSecret<String>>,
+    pub card_fingerprint: Option<String>,
+    pub external_id: Option<String>,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
     pub payment_method_id: Option<String>,
 }
 

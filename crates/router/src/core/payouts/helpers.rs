@@ -109,6 +109,7 @@ pub async fn make_payout_method_data(
         None
     };
 
+    #[cfg(feature = "v1")]
     match (
         payout_method_data.to_owned(),
         hyperswitch_token,
@@ -190,6 +191,13 @@ pub async fn make_payout_method_data(
         // Ignore if nothing is passed
         _ => Ok(None),
     }
+
+    #[cfg(feature = "v2")]
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message: payment_methods::core::errors::NotImplementedMessage::Reason(
+            "make_payout_method_data currently not supported in v2".to_string(),
+        ),
+    })?
 }
 
 pub fn should_create_connector_transfer_method(
