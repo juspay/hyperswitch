@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.25.1
+
+### Features
+
+- **connector:** [Gigadat] integrate interac bank redirect payment method ([#9525](https://github.com/juspay/hyperswitch/pull/9525)) ([`93b97ef`](https://github.com/juspay/hyperswitch/commit/93b97ef5202c592aded23d7819bcef8eb27a2977))
+- **core:** Confirm true mandatory when using stored payment method id in payouts ([#9424](https://github.com/juspay/hyperswitch/pull/9424)) ([`fd2f857`](https://github.com/juspay/hyperswitch/commit/fd2f85706cbf7c9c8434e91dbc2200c744152527))
+
+### Miscellaneous Tasks
+
+- **wasm:** Update sepa to sepa_bank_transfer for payout MCAs ([#9536](https://github.com/juspay/hyperswitch/pull/9536)) ([`94beaf9`](https://github.com/juspay/hyperswitch/commit/94beaf915d62d678fca715ec18bfc64f9166f794))
+
+**Full Changelog:** [`2025.09.25.0...2025.09.25.1`](https://github.com/juspay/hyperswitch/compare/2025.09.25.0...2025.09.25.1)
+
+- - -
+
 ## 2025.09.25.0
 
 ### Features
