@@ -5,25 +5,30 @@ use std::collections::HashMap;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
-use open_feature;
-use serde_json;
 use superposition_provider::{
     PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
 };
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
-pub struct JsonValue(pub serde_json::Value);
+struct JsonValue(serde_json::Value);
 
 impl TryFrom<open_feature::StructValue> for JsonValue {
     type Error = String;
 
     fn try_from(sv: open_feature::StructValue) -> Result<Self, Self::Error> {
-        let mut map = serde_json::Map::new();
-        for (k, v) in sv.fields {
-            map.insert(k, convert_open_feature_value(v)?);
-        }
-        Ok(Self(serde_json::Value::Object(map)))
+        let capacity = sv.fields.len();
+        sv.fields
+            .into_iter()
+            .try_fold(
+                serde_json::Map::with_capacity(capacity),
+                |mut map, (k, v)| {
+                    let value = convert_open_feature_value(v)?;
+                    map.insert(k, value);
+                    Ok(map)
+                },
+            )
+            .map(|map| Self(serde_json::Value::Object(map)))
     }
 }
 
@@ -34,12 +39,14 @@ fn convert_open_feature_value(v: open_feature::Value) -> Result<serde_json::Valu
         open_feature::Value::Int(n) => Ok(serde_json::Value::Number(serde_json::Number::from(n))),
         open_feature::Value::Float(f) => serde_json::Number::from_f64(f)
             .map(serde_json::Value::Number)
-            .ok_or_else(|| format!("Invalid number: {}", f)),
+            .ok_or_else(|| format!("Invalid number: {f}")),
         open_feature::Value::Struct(sv) => Ok(JsonValue::try_from(sv)?.0),
-        open_feature::Value::Array(list) => {
-            let arr: Result<Vec<_>, _> = list.into_iter().map(convert_open_feature_value).collect();
-            Ok(serde_json::Value::Array(arr?))
-        }
+        open_feature::Value::Array(values) => Ok(serde_json::Value::Array(
+            values
+                .into_iter()
+                .map(convert_open_feature_value)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
     }
 }
 
@@ -98,7 +105,7 @@ pub enum SuperpositionError {
 #[derive(Debug, Clone, Default)]
 pub struct ConfigContext {
     /// Key-value pairs for configuration context
-    pub values: HashMap<String, String>,
+    values: HashMap<String, String>,
 }
 
 impl SuperpositionClientConfig {
@@ -230,8 +237,7 @@ impl SuperpositionClient {
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get bool value for key '{}': {:?}",
-                    key, e
+                    "Failed to get bool value for key '{key}': {e:?}"
                 )))
             })
     }
@@ -249,8 +255,7 @@ impl SuperpositionClient {
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get string value for key '{}': {:?}",
-                    key, e
+                    "Failed to get string value for key '{key}': {e:?}"
                 )))
             })
     }
@@ -268,8 +273,7 @@ impl SuperpositionClient {
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get int value for key '{}': {:?}",
-                    key, e
+                    "Failed to get int value for key '{key}': {e:?}"
                 )))
             })
     }
@@ -287,8 +291,7 @@ impl SuperpositionClient {
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get float value for key '{}': {:?}",
-                    key, e
+                    "Failed to get float value for key '{key}': {e:?}"
                 )))
             })
     }
@@ -307,8 +310,7 @@ impl SuperpositionClient {
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
-                    "Failed to get object value for key '{}': {:?}",
-                    key, e
+                    "Failed to get object value for key '{key}': {e:?}"
                 )))
             })?;
 
