@@ -206,6 +206,7 @@ pub async fn perform_billing_processor_record_back(
         .fetch_invoice(state, &tracking_data.invoice_id)
         .await?;
 
+    // Should we retry if this fails?
     billing_handler
         .record_back_to_billing_processor(state, tracking_data.connector_invoice_id.clone())
         .await?;

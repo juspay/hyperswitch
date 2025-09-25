@@ -154,8 +154,13 @@ pub async fn confirm_subscription(
         )
         .await?;
 
-    // invoice_entry
-    //     .create_invoice_record_back_job(&payment_response)
+    // invoice_handler
+    //     .create_invoice_record_back_job(
+    //         &handler.state,
+    //         payment_response,
+    //         &invoice_entry,
+    //         subscription_create_response.connector_invoice_id.clone(),
+    //     )
     //     .await?;
 
     subscription_entry
@@ -395,7 +400,7 @@ impl InvoiceHandler {
         invoice_id: String,
         status: common_enums::connector_enums::InvoiceStatus,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
-        let update = diesel_models::invoice::InvoiceUpdate::new(Some(status.to_string()), None);
+        let update = diesel_models::invoice::InvoiceUpdate::new(None, Some(status));
 
         let updated_invoice = state
             .store
@@ -421,6 +426,7 @@ impl InvoiceHandler {
         state: &SessionState,
         payment_response: &subscription_types::PaymentResponseData,
         invoice: &diesel_models::invoice::Invoice,
+        connector_invoice_id: String,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
         workflows::invoice_record_back::create_invoice_record_back_job(
@@ -436,6 +442,7 @@ impl InvoiceHandler {
             payment_response.currency,
             None,
             payment_response.status,
+            connector_invoice_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::SubscriptionError {
