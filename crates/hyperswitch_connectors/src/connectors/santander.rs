@@ -68,6 +68,8 @@ impl Santander {
 
 pub mod santander_constants {
     pub const SANTANDER_VERSION: &str = "v2";
+    pub const MIN_LEN_PAYMENT_ID: usize = 26;
+    pub const MAX_LEN_PAYMENT_ID: usize = 35;
 }
 
 impl api::Payment for Santander {}
@@ -228,7 +230,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("control entered this fn");
         Ok(format!(
             "{}oauth/token?grant_type=client_credentials",
             connectors.santander.base_url
@@ -1112,5 +1113,22 @@ impl ConnectorSpecifications for Santander {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SANTANDER_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        println!("control reached this fn - generate_connector_request_reference_id");
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            connector_utils::generate_alphanumeric_code(santander_constants::MIN_LEN_PAYMENT_ID, santander_constants::MIN_LEN_PAYMENT_ID)
+        }
     }
 }

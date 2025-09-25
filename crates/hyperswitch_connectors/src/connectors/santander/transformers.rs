@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors,
+    errors::{self},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -34,16 +34,6 @@ use url::Url;
 use crate::{
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self as connector_utils, QrImage, RouterData as _},
-};
-const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
-    width: 16,
-    poly: 0x1021,
-    init: 0xFFFF,
-    refin: false,
-    refout: false,
-    xorout: 0x0000,
-    check: 0x29B1,
-    residue: 0x0000,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -90,58 +80,86 @@ pub fn format_emv_field(id: &str, value: &str) -> String {
     format!("{id}{:02}{value}", value.len())
 }
 
+fn format_field(id: &str, value: &str) -> String {
+    format!("{}{:02}{}", id, value.len(), value)
+}
+
 pub fn generate_emv_string(
-    payload_url: &str,
+    city: &str,
+    amount: &str,
+    country: enums::CountryAlpha2,
     merchant_name: &str,
-    merchant_city: &str,
-    amount: Option<&str>,
-    txid: Option<&str>,
-) -> String {
-    let mut emv = String::new();
+    transaction_id: String,
+    location: String,
+) -> Result<String, errors::ConnectorError> {
+    // ID 00: Payload Format Indicator
+    let payload_format_indicator = format_field("00", "01");
 
-    // 00: Payload Format Indicator
-    emv += &format_emv_field("00", "01");
-    // 01: Point of Initiation Method (dynamic)
-    emv += &format_emv_field("01", "12");
+    // ID 01: Point of Initiation Method
+    let point_of_initiation_method = format_field("01", "12");
 
-    // 26: Merchant Account Info
-    let gui = format_emv_field("00", "br.gov.bcb.pix");
-    let url = format_emv_field("25", payload_url);
-    let merchant_account_info = format_emv_field("26", &(gui + &url));
-    emv += &merchant_account_info;
+    // ID 26: Merchant Account Information
+    let gui = format_field("00", "br.gov.bcb.pix");
+    let loc = format_field("25", &location);
+    let merchant_account_information = format_field("26", &format!("{}{}", gui, loc));
 
-    // 52: Merchant Category Code (0000)
-    emv += &format_emv_field("52", "0000");
-    // 53: Currency Code (986 for BRL)
-    emv += &format_emv_field("53", "986");
+    // ID 52: Merchant Category Code
+    let merchant_category_code = format_field("52", "0000");
 
-    // 54: Amount (optional)
-    if let Some(amount) = amount {
-        emv += &format_emv_field("54", amount);
-    }
+    // ID 53: Transaction Currency
+    let transaction_currency = format_field("53", "986");
 
-    // 58: Country Code (BR)
-    emv += &format_emv_field("58", "BR");
-    // 59: Merchant Name
-    emv += &format_emv_field("59", merchant_name);
-    // 60: Merchant City
-    emv += &format_emv_field("60", merchant_city);
+    // ID 54: Transaction Amount
+    let transaction_amount = format_field("54", amount);
 
-    // 62: Additional Data Field Template (optional TXID)
-    if let Some(txid) = txid {
-        let reference = format_emv_field("05", txid);
-        emv += &format_emv_field("62", &reference);
-    }
+    // ID 58: Country Code
+    let country_code = format_field("58", &country.to_string());
 
-    // Placeholder for CRC (we need to calculate this last)
-    emv += "6304";
+    // ID 59: Merchant Name
+    let merchant_name = format_field("59", merchant_name);
 
-    // Compute CRC16-CCITT (False) checksum
-    let crc = Crc::<u16>::new(&CRC_16_CCITT_FALSE);
-    let checksum = crc.checksum(emv.as_bytes());
-    emv += &format!("{checksum:04X}");
+    // ID 60: Merchant City
+    let merchant_city = format_field("60", city); // to consume from req
 
-    emv
+    // Format subfield 05 with the actual TXID
+    // let dummy_txnid = "ZXCV0987654321QWER5678901";
+    let reference_label = format_field("05", &transaction_id);
+    // let reference_label = format_field("05", dummy_txnid);
+
+    // Wrap it inside ID 62
+    let additional_data = format_field("62", &reference_label);
+
+    let emv_without_crc = format!(
+        "{}{}{}{}{}{}{}{}{}{}",
+        payload_format_indicator,
+        point_of_initiation_method,
+        merchant_account_information,
+        merchant_category_code,
+        transaction_currency,
+        transaction_amount,
+        country_code,
+        merchant_name,
+        merchant_city,
+        additional_data
+    );
+    // CRC16-CCITT-FALSE constant
+    const CRC16_CCITT_FALSE: Algorithm<u16> = Algorithm {
+        width: 16,
+        poly: 0x1021,
+        init: 0xFFFF,
+        refin: false,
+        refout: false,
+        xorout: 0x0000,
+        check: 0x29B1,
+        residue: 0x0000,
+    };
+
+    // ID 63: CRC16
+    let crc_payload = format!("{}6304", emv_without_crc);
+    let crc_value = Crc::<u16>::new(&CRC16_CCITT_FALSE).checksum(crc_payload.as_bytes());
+    let crc_hex = format!("{:04X}", crc_value);
+
+    Ok(format!("{}{}", crc_payload, crc_hex))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1134,33 +1152,10 @@ fn get_qr_code_data<F, T>(
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
     let response = pix_data.clone();
-    let expiration_time = response.calendar.expiration;
-
-    let expiration_i64 = expiration_time
-        .parse::<i64>()
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let rfc3339_expiry = (OffsetDateTime::now_utc() + time::Duration::seconds(expiration_i64))
-        .format(&time::format_description::well_known::Rfc3339)
-        .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
-
-    let qr_expiration_duration = OffsetDateTime::parse(
-        rfc3339_expiry.as_str(),
-        &time::format_description::well_known::Rfc3339,
-    )
-    .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?
-    .unix_timestamp()
-        * 1000;
 
     let merchant_city = santander_mca_metadata.merchant_city.as_str();
 
     let merchant_name = santander_mca_metadata.merchant_name.as_str();
-
-    let payload_url = if let Some(location) = response.location {
-        location
-    } else {
-        return Err(errors::ConnectorError::ResponseHandlingFailed)?;
-    };
 
     let amount_i64 = StringMajorUnitForConnector
         .convert_back(response.value.original, enums::Currency::BRL)
@@ -1170,13 +1165,20 @@ fn get_qr_code_data<F, T>(
     let amount_string = amount_i64.to_string();
     let amount = amount_string.as_str();
 
+    let location = pix_data
+        .location
+        .clone()
+        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
     let dynamic_pix_code = generate_emv_string(
-        payload_url.as_str(),
-        merchant_name,
         merchant_city,
-        Some(amount),
-        Some(response.transaction_id.as_str()),
-    );
+        amount,
+        item.data.get_billing_country()?,
+        merchant_name,
+        pix_data.transaction_id.clone(),
+        location,
+    )?;
+    println!("QR CODE DATA: {:?}", dynamic_pix_code);
 
     let image_data = QrImage::new_from_data(dynamic_pix_code.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
@@ -1186,7 +1188,7 @@ fn get_qr_code_data<F, T>(
 
     let qr_code_info = QrCodeInformation::QrDataUrl {
         image_data_url,
-        display_to_timestamp: Some(qr_expiration_duration),
+        display_to_timestamp: None,
     };
 
     Some(qr_code_info.encode_to_value())
