@@ -1,0 +1,328 @@
+name: API Compatibility Check
+
+on:
+  pull_request:
+    paths:
+      - 'crates/api_models/**'
+      - 'crates/openapi/**'
+      - 'crates/router/**'
+      - 'api-reference/**'
+      - '.oasdiff-config.yaml'
+      - '.spectral-hyperswitch.yml'
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-compatibility-check:
+    name: API Schema Compatibility Validation
+    runs-on: ubuntu-latest
+    
+    # Only run if validate-api label is present OR if critical API files changed
+    if: >
+      contains(github.event.pull_request.labels.*.name, 'validate-api') ||
+      (
+        github.event_name == 'pull_request' &&
+        (
+          contains(github.event.pull_request.head.ref, 'api') ||
+          contains(github.event.pull_request.title, 'api') ||
+          contains(github.event.pull_request.title, 'API')
+        )
+      )
+    
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ github.token }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - name: Setup Node.js for validation tools
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install validation tools
+        run: |
+          # Install Spectral CLI for linting
+          npm install -g @stoplight/spectral-cli@6.11.0
+          
+          # Install oasdiff for breaking change detection
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            curl -L https://github.com/Tufin/oasdiff/releases/latest/download/oasdiff_linux_amd64 -o oasdiff
+            chmod +x oasdiff
+            sudo mv oasdiff /usr/local/bin/
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew install oasdiff
+          fi
+          
+          # Verify installations
+          spectral --version
+          oasdiff version
+
+      - name: Generate current API schemas
+        run: |
+          echo "Generating API schemas for current PR..."
+          cargo run -p openapi --features v1 > pr-v1-schema.json
+          cargo run -p openapi --features v2 > pr-v2-schema.json
+          
+          echo "✅ Generated current schemas:"
+          echo "- V1: $(wc -c < pr-v1-schema.json) bytes"
+          echo "- V2: $(wc -c < pr-v2-schema.json) bytes"
+
+      - name: Extract base branch schemas
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          echo "Extracting base branch ($BASE_REF) API schemas..."
+          
+          # Store current schemas safely
+          cp pr-v1-schema.json current-v1-schema.json
+          cp pr-v2-schema.json current-v2-schema.json
+          
+          # Checkout base branch schemas
+          git fetch origin "$BASE_REF"
+          git checkout "$BASE_SHA" -- api-reference/v1/openapi_spec_v1.json || echo "V1 schema not found in base"
+          git checkout "$BASE_SHA" -- api-reference/v2/openapi_spec_v2.json || echo "V2 schema not found in base"
+          
+          # Use base schemas if they exist, otherwise generate them
+          if [[ -f "api-reference/v1/openapi_spec_v1.json" ]]; then
+            cp api-reference/v1/openapi_spec_v1.json base-v1-schema.json
+            echo "✅ Using base V1 schema from git"
+          else
+            echo "⚠️ Base V1 schema not found, generating from base commit..."
+            git checkout "$BASE_SHA"
+            cargo run -p openapi --features v1 > base-v1-schema.json || echo "{}" > base-v1-schema.json
+            git checkout -
+          fi
+          
+          if [[ -f "api-reference/v2/openapi_spec_v2.json" ]]; then
+            cp api-reference/v2/openapi_spec_v2.json base-v2-schema.json
+            echo "✅ Using base V2 schema from git"
+          else
+            echo "⚠️ Base V2 schema not found, generating from base commit..."
+            git checkout "$BASE_SHA"
+            cargo run -p openapi --features v2 > base-v2-schema.json || echo "{}" > base-v2-schema.json
+            git checkout -
+          fi
+          
+          # Restore current schemas
+          cp current-v1-schema.json pr-v1-schema.json
+          cp current-v2-schema.json pr-v2-schema.json
+          
+          echo "✅ Base schemas prepared:"
+          echo "- Base V1: $(wc -c < base-v1-schema.json) bytes"
+          echo "- Base V2: $(wc -c < base-v2-schema.json) bytes"
+
+      - name: Run Spectral validation
+        id: spectral
+        run: |
+          echo "Running Spectral validation on current schemas..."
+          
+          SPECTRAL_ERRORS=0
+          
+          # Validate V1 schema
+          echo "Validating V1 schema..."
+          if spectral lint pr-v1-schema.json --ruleset .spectral-hyperswitch.yml --format json > spectral-v1-report.json 2>&1; then
+            echo "✅ V1 schema passed Spectral validation"
+          else
+            echo "⚠️ V1 schema has Spectral violations"
+            SPECTRAL_ERRORS=$((SPECTRAL_ERRORS + 1))
+          fi
+          
+          # Validate V2 schema  
+          echo "Validating V2 schema..."
+          if spectral lint pr-v2-schema.json --ruleset .spectral-hyperswitch.yml --format json > spectral-v2-report.json 2>&1; then
+            echo "✅ V2 schema passed Spectral validation"
+          else
+            echo "⚠️ V2 schema has Spectral violations"
+            SPECTRAL_ERRORS=$((SPECTRAL_ERRORS + 1))
+          fi
+          
+          echo "spectral_errors=$SPECTRAL_ERRORS" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Run breaking change detection
+        id: breaking_changes
+        run: |
+          echo "Analyzing API changes for breaking changes..."
+          
+          BREAKING_CHANGES=0
+          TOTAL_ISSUES=0
+          
+          # Check V1 API changes
+          echo "Checking V1 API for breaking changes..."
+          if oasdiff breaking base-v1-schema.json pr-v1-schema.json > v1-breaking-report.txt 2>&1; then
+            echo "✅ No breaking changes in V1 API"
+            echo "✅ V1 API is backward compatible" > v1-breaking-status.txt
+          else
+            echo "❌ Breaking changes detected in V1 API"
+            echo "❌ Breaking changes detected in V1 API" > v1-breaking-status.txt
+            BREAKING_CHANGES=$((BREAKING_CHANGES + 1))
+            cat v1-breaking-report.txt
+          fi
+          
+          # Check V2 API changes
+          echo "Checking V2 API for breaking changes..."
+          if oasdiff breaking base-v2-schema.json pr-v2-schema.json > v2-breaking-report.txt 2>&1; then
+            echo "✅ No breaking changes in V2 API"
+            echo "✅ V2 API is backward compatible" > v2-breaking-status.txt
+          else
+            echo "❌ Breaking changes detected in V2 API"
+            echo "❌ Breaking changes detected in V2 API" > v2-breaking-status.txt
+            BREAKING_CHANGES=$((BREAKING_CHANGES + 1))
+            cat v2-breaking-report.txt
+          fi
+          
+          # Generate detailed diff reports
+          echo "Generating detailed change reports..."
+          oasdiff diff base-v1-schema.json pr-v1-schema.json > v1-detailed-diff.txt 2>/dev/null || true
+          oasdiff diff base-v2-schema.json pr-v2-schema.json > v2-detailed-diff.txt 2>/dev/null || true
+          
+          echo "breaking_changes=$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+          echo "total_issues=$((BREAKING_CHANGES + ${SPECTRAL_ERRORS:-0}))" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Generate compatibility report
+        id: report
+        run: |
+          # Use enhanced report generation script
+          chmod +x ./scripts/generate-compatibility-report.sh
+          ./scripts/generate-compatibility-report.sh > compatibility-report.md
+          
+          # Set output variables
+          echo "report_generated=true" >> $GITHUB_OUTPUT
+          
+          if [[ "${BREAKING_CHANGES:-0}" -gt 0 ]]; then
+            echo "validation_status=❌ BREAKING CHANGES DETECTED" >> $GITHUB_OUTPUT
+            echo "validation_passed=false" >> $GITHUB_OUTPUT
+          elif [[ "${SPECTRAL_ERRORS:-0}" -gt 0 ]]; then
+            echo "validation_status=⚠️ LINTING ISSUES FOUND" >> $GITHUB_OUTPUT  
+            echo "validation_passed=partial" >> $GITHUB_OUTPUT
+          else
+            echo "validation_status=✅ ALL CHECKS PASSED" >> $GITHUB_OUTPUT
+            echo "validation_passed=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          BREAKING_CHANGES: ${{ steps.breaking_changes.outputs.breaking_changes }}
+          SPECTRAL_ERRORS: ${{ steps.spectral.outputs.spectral_errors }}
+
+      - name: Update PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+            
+            // Read the compatibility report
+            let report = '';
+            if (fs.existsSync('compatibility-report.md')) {
+              report = fs.readFileSync('compatibility-report.md', 'utf8');
+            } else {
+              report = '⚠️ Could not generate compatibility report. Please check the workflow logs.';
+            }
+            
+            // Create the PR comment body
+            const commentBody = `## 🔍 API Compatibility Report
+            
+            **Status**: ${{ steps.report.outputs.validation_status || '❓ Unknown' }}
+            
+            ${report}
+            
+            ---
+            
+            ### 🔧 How to interpret this report
+            
+            - **✅ Safe Changes**: Backward-compatible additions and modifications
+            - **⚠️ Warnings**: Changes that need attention but won't break existing clients  
+            - **❌ Breaking Changes**: Changes that will break existing API clients
+            
+            ### 🛠️ Local Testing
+            
+            Test these changes locally:
+            \`\`\`bash
+            # Run full validation
+            just api-validate
+            
+            # Compare with specific branch/commit
+            just api-diff origin/main HEAD
+            \`\`\`
+            
+            ---
+            *🤖 This report was automatically generated by the API Compatibility workflow.*
+            ${fs.existsSync('v1-breaking-report.txt') || fs.existsSync('v2-breaking-report.txt') ? 
+              '\\n⚠️ **Breaking changes detected** - Please review carefully before merging.' : ''}`;
+            
+            // Find existing API compatibility comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const existingComment = comments.data.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('🔍 API Compatibility Report')
+            );
+            
+            // Update existing comment or create new one
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+              console.log('✅ Updated existing API compatibility comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+              console.log('✅ Created new API compatibility comment');
+            }
+
+      - name: Fail if breaking changes detected
+        if: steps.breaking_changes.outputs.breaking_changes > 0
+        run: |
+          echo "::error::Breaking changes detected in API schema."
+          echo "::error::Found ${{ steps.breaking_changes.outputs.breaking_changes }} breaking change(s)."
+          echo "::error::Please review the compatibility report and consider:"
+          echo "::error::- Creating a new API version (v3)"
+          echo "::error::- Using backward-compatible changes instead"
+          echo "::error::- Coordinating with API consumers before deployment"
+          exit 1
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-validation-artifacts-${{ github.run_number }}
+          path: |
+            pr-v1-schema.json
+            pr-v2-schema.json
+            base-v1-schema.json
+            base-v2-schema.json
+            v1-breaking-report.txt
+            v2-breaking-report.txt
+            v1-detailed-diff.txt
+            v2-detailed-diff.txt
+            spectral-v1-report.json
+            spectral-v2-report.json
+            compatibility-report.md
+            v1-breaking-status.txt
+            v2-breaking-status.txt
+          retention-days: 30

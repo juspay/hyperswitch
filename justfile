@@ -240,3 +240,103 @@ resurrect database_name=db_name:
 
 ci_hack:
     scripts/ci-checks.sh
+
+# API Validation Commands
+
+# Run complete API validation locally (compare current HEAD with main)
+api-validate:
+    ./scripts/local-api-validation.sh
+
+# Compare API schemas between two references (commits, tags, or branches)
+api-diff from='origin/main' to='HEAD':
+    ./scripts/local-api-validation.sh {{ from }} {{ to }}
+
+# Simulate PR validation locally (same as CI)
+api-validate-pr:
+    ./scripts/local-api-validation.sh origin/main HEAD ./pr-validation-output
+
+# Generate API schemas without validation
+api-generate-schemas:
+    @echo "Generating V1 schema..."
+    cargo run -p openapi --features v1
+    @if [ -f "api-reference/v1/openapi_spec_v1.json" ]; then \
+        cp api-reference/v1/openapi_spec_v1.json openapi-v1-current.json; \
+        echo "✅ V1 schema copied to openapi-v1-current.json"; \
+    else \
+        echo "❌ V1 schema file not found"; \
+    fi
+    @echo "Generating V2 schema..."
+    cargo run -p openapi --features v2
+    @if [ -f "api-reference/v2/openapi_spec_v2.json" ]; then \
+        cp api-reference/v2/openapi_spec_v2.json openapi-v2-current.json; \
+        echo "✅ V2 schema copied to openapi-v2-current.json"; \
+    else \
+        echo "❌ V2 schema file not found"; \
+    fi
+
+# Run only Spectral linting on current schemas
+api-lint:
+    @echo "Generating schemas for linting..."
+    cargo run -p openapi --features v1
+    cargo run -p openapi --features v2
+    @echo "Running Spectral validation..."
+    @if [ -f "api-reference/v1/openapi_spec_v1.json" ]; then \
+        spectral lint api-reference/v1/openapi_spec_v1.json --ruleset .spectral-hyperswitch.yml || true; \
+    fi
+    @if [ -f "api-reference/v2/openapi_spec_v2.json" ]; then \
+        spectral lint api-reference/v2/openapi_spec_v2.json --ruleset .spectral-hyperswitch.yml || true; \
+    fi
+
+# Quick check for breaking changes only (no linting)
+api-breaking-changes from='origin/main' to='HEAD':
+    #! /usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🔍 Checking for breaking changes between {{ from }} and {{ to }}..."
+    
+    # Generate temp schemas
+    temp_dir=$(mktemp -d)
+    trap "rm -rf $temp_dir" EXIT
+    
+    # Extract schemas from git (no checkout needed!)
+    echo "Extracting {{ from }} schemas..."
+    git show "{{ from }}:api-reference/v1/openapi_spec_v1.json" > "$temp_dir/from-v1.json" 2>/dev/null || echo "{}" > "$temp_dir/from-v1.json"
+    git show "{{ from }}:api-reference/v2/openapi_spec_v2.json" > "$temp_dir/from-v2.json" 2>/dev/null || echo "{}" > "$temp_dir/from-v2.json"
+    
+    echo "Extracting {{ to }} schemas..."
+    if [[ "{{ to }}" == "HEAD" ]]; then
+        # For HEAD, generate current schemas if they don't exist in git
+        if ! git show "HEAD:api-reference/v1/openapi_spec_v1.json" > "$temp_dir/to-v1.json" 2>/dev/null; then
+            echo "Generating current V1 schema..."
+            cargo run -p openapi --features v1 >/dev/null 2>&1
+            cp api-reference/v1/openapi_spec_v1.json "$temp_dir/to-v1.json" 2>/dev/null || echo "{}" > "$temp_dir/to-v1.json"
+        fi
+        if ! git show "HEAD:api-reference/v2/openapi_spec_v2.json" > "$temp_dir/to-v2.json" 2>/dev/null; then
+            echo "Generating current V2 schema..."
+            cargo run -p openapi --features v2 >/dev/null 2>&1
+            cp api-reference/v2/openapi_spec_v2.json "$temp_dir/to-v2.json" 2>/dev/null || echo "{}" > "$temp_dir/to-v2.json"
+        fi
+    else
+        git show "{{ to }}:api-reference/v1/openapi_spec_v1.json" > "$temp_dir/to-v1.json" 2>/dev/null || echo "{}" > "$temp_dir/to-v1.json"
+        git show "{{ to }}:api-reference/v2/openapi_spec_v2.json" > "$temp_dir/to-v2.json" 2>/dev/null || echo "{}" > "$temp_dir/to-v2.json"
+    fi
+    
+    # Check for breaking changes
+    echo "V1 API:"
+    oasdiff breaking "$temp_dir/from-v1.json" "$temp_dir/to-v1.json" || echo "✅ No breaking changes in V1"
+    echo ""
+    echo "V2 API:" 
+    oasdiff breaking "$temp_dir/from-v2.json" "$temp_dir/to-v2.json" || echo "✅ No breaking changes in V2"
+
+# Install API validation dependencies
+api-install-deps:
+    @echo "Installing API validation dependencies..."
+    @echo "1. Installing Spectral CLI..."
+    npm install -g @stoplight/spectral-cli@6.11.0
+    @echo "2. Installing oasdiff..."
+    @if command -v brew &> /dev/null; then \
+        brew install oasdiff; \
+    else \
+        echo "Please install oasdiff manually from: https://github.com/Tufin/oasdiff/releases"; \
+    fi
+    @echo "✅ Dependencies installed. Run 'just api-validate' to test."

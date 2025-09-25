@@ -1,0 +1,123 @@
+# oasdiff Configuration for Hyperswitch API Validation
+# This configuration defines breaking change detection rules for API compatibility
+
+# Breaking change detection settings
+breaking-changes:
+  # Request-related breaking changes
+  request:
+    # Removing required fields from request schemas is breaking
+    required-property-removed: error
+    # Removing enum values from request fields is breaking
+    enum-value-removed: error
+    # Changing property types in requests is breaking
+    property-type-changed: error
+    # Removing oneOf options from requests is breaking
+    one-of-removed: error
+    # Making optional properties required is breaking
+    property-became-required: error
+    # Removing request properties entirely is breaking
+    property-removed: error
+
+  # Response-related breaking changes  
+  response:
+    # Removing required fields from response schemas is breaking
+    required-property-removed: error
+    # Removing properties from responses is breaking (clients may depend on them)
+    property-removed: error
+    # Changing response property types is breaking
+    property-type-changed: error
+    # Making response properties required when they were optional is breaking
+    property-became-required: error
+    # Removing enum values from response fields is breaking
+    enum-value-removed: error
+
+  # API endpoint changes
+  endpoints:
+    # Removing endpoints is breaking
+    endpoint-removed: error
+    # Changing HTTP methods is breaking
+    method-changed: error
+    # Removing required parameters is breaking
+    required-parameter-removed: error
+    # Changing parameter types is breaking
+    parameter-type-changed: error
+
+  # Security and authentication changes
+  security:
+    # Changes to security requirements are breaking
+    security-requirement-removed: error
+    # Changes to security schemes are breaking
+    security-scheme-removed: error
+
+# Non-breaking changes (warnings or info level)
+non-breaking:
+  # Safe additions
+  additions:
+    # Adding new endpoints is safe
+    new-endpoint: info
+    # Adding optional request properties is safe
+    optional-request-property-added: info
+    # Adding response properties is safe
+    response-property-added: info
+    # Adding enum values is safe
+    enum-value-added: info
+    # Adding optional parameters is safe
+    optional-parameter-added: info
+
+  # Safe modifications
+  modifications:
+    # Making required properties optional is safe
+    property-became-optional: info
+    # Expanding type constraints (e.g., increasing maxLength) is safe
+    constraint-relaxed: info
+    # Adding oneOf options is safe
+    one-of-added: info
+
+# Hyperswitch-specific rules
+hyperswitch:
+  # Payment-specific validations
+  payments:
+    # Amount field modifications in payment endpoints
+    amount-field-changes: error
+    # Currency field modifications
+    currency-field-changes: error
+    # Payment method changes
+    payment-method-changes: error
+    
+  # Connector-specific validations
+  connectors:
+    # Connector enum changes
+    connector-enum-changes: warn
+    # Connector-specific field changes
+    connector-field-changes: warn
+
+# Output formatting
+output:
+  # Format for breaking change reports
+  format: text
+  # Include severity levels in output
+  include-severity: true
+  # Group changes by category
+  group-by-category: true
+  # Show detailed paths for changes
+  show-paths: true
+
+# Ignore patterns for known non-breaking changes
+ignore:
+  # Ignore documentation-only changes
+  - description-changed
+  - example-changed
+  - summary-changed
+  
+  # Ignore certain internal fields (if any)
+  - internal-field-*
+  
+  # Ignore version info changes
+  - version-changed
+
+# Validation thresholds
+thresholds:
+  # Maximum number of breaking changes before failing
+  max-breaking-changes: 0
+  # Maximum number of warnings before failing (set high to not fail on warnings)
+  max-warnings: 1000

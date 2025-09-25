@@ -1,0 +1,24 @@
+# Spectral Configuration for Hyperswitch API Validation
+# Minimal essential rules for OpenAPI spec linting
+
+# Note: Basic configuration without external dependencies to avoid module resolution issues
+
+rules:
+  # Basic OpenAPI structure validation
+  info-must-have-title:
+    description: "Info object must have a title"
+    message: "Info object must have a title"
+    given: "$.info"
+    severity: error
+    then:
+      field: "title"
+      function: truthy
+      
+  paths-must-exist:
+    description: "Paths object must exist"
+    message: "OpenAPI document must have paths"
+    given: "$"
+    severity: error
+    then:
+      field: "paths"
+      function: truthy

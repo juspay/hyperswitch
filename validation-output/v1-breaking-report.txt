@@ -1,0 +1,806 @@
+172 changes: 54 error, 118 warning, 0 info
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API POST /account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle
+		api path removed without deprecation
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		added 'subschema #30' to the 'payment_methods/items/payment_method_types/items/required_fields/additionalProperties/field_type' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/{account_id}/business_profile
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the '/items/payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/{account_id}/business_profile
+		removed the required property '/items/acquirer_configs/items/merchant_country_code' from the response with the '200' status
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/payment_statuses_enabled'
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/refund_statuses_enabled'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile
+		removed the required property 'acquirer_configs/items/merchant_country_code' from the response with the '200' status
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/{account_id}/business_profile/{profile_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/{account_id}/business_profile/{profile_id}
+		removed the required property 'acquirer_configs/items/merchant_country_code' from the response with the '200' status
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile/{profile_id}
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/payment_statuses_enabled'
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile/{profile_id}
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/refund_statuses_enabled'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile/{profile_id}
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile/{profile_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /account/{account_id}/business_profile/{profile_id}
+		removed the required property 'acquirer_configs/items/merchant_country_code' from the response with the '200' status
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/payment_statuses_enabled'
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/refund_statuses_enabled'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'frm_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /accounts/{account_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'frm_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /accounts/{account_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/payment_statuses_enabled'
+
+error	[new-required-request-property] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added the new required request property 'webhook_details/allOf[#/components/schemas/WebhookDetails]/refund_statuses_enabled'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'frm_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'payout_routing_algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API GET /accounts/{account_id}/connectors
+		api path removed without deprecation
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API POST /accounts/{account_id}/connectors
+		api path removed without deprecation
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API DELETE /accounts/{account_id}/connectors/{connector_id}
+		api path removed without deprecation
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API GET /accounts/{account_id}/connectors/{connector_id}
+		api path removed without deprecation
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API POST /accounts/{account_id}/connectors/{connector_id}
+		api path removed without deprecation
+
+error	[api-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API POST /customers/{customer_id}/mandates
+		api removed without deprecation
+
+error	[request-body-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payment_link/{payment_link_id}
+		removed the request body
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added 'subschema #4, subschema #9' to the '/items/data/items/next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/session_tokens
+		added '#/components/schemas/NullObject' to the 'session_token/items/oneOf[subschema #5]/allOf[#/components/schemas/ApplepaySessionTokenResponse]/session_token_data/allOf[#/components/schemas/ApplePaySessionResponse]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/post_session_tokens
+		added 'subschema #4, subschema #9' to the 'next_action/allOf[#/components/schemas/NextActionData]/' response property 'oneOf' list for the response status '200'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/create
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'routing/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'routing/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/confirm
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'routing/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /profile_acquirers
+		removed the required property 'merchant_country_code' from the response with the '200' status
+
+error	[response-required-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /profile_acquirers/{profile_id}/{profile_acquirer_id}
+		removed the required property 'merchant_country_code' from the response with the '200' status
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/active
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the '/oneOf[#/components/schemas/RoutingRetrieveResponse]/algorithm/allOf[#/components/schemas/MerchantRoutingAlgorithm]/algorithm/oneOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[request-property-one-of-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/deactivate
+		removed 'subschema #1, subschema #2, subschema #3, subschema #4' from the 'algorithm/allOf[#/components/schemas/StaticRoutingAlgorithm]/' request property 'oneOf' list
+
+error	[response-property-one-of-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/{routing_algorithm_id}
+		added 'subschema #1, subschema #2, subschema #3, subschema #4' to the 'algorithm/oneOf[#/components/schemas/StaticRoutingAlgorithm]/' response property 'oneOf' list for the response status '200'
+
+error	[api-path-removed-without-deprecation] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/from-v1-schema.json	
+	in API POST /{payment_id}/complete_authorize
+		api path removed without deprecation
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'path' request parameter 'accepted_currency'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'path' request parameter 'account_id'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'query' request parameter 'accepted_country'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'query' request parameter 'maximum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'query' request parameter 'minimum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		deleted the 'query' request parameter 'recurring_payment_enabled'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		added the new 'paysera' enum value to the 'payment_methods/items/payment_method_types/items/payment_method_type' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /account/payment_methods
+		added the new 'skrill' enum value to the 'payment_methods/items/payment_method_types/items/payment_method_type' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added the new 'paysera' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts
+		added the new 'skrill' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /accounts/{account_id}
+		added the new 'paysera' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /accounts/{account_id}
+		added the new 'skrill' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added the new 'paysera' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /accounts/{account_id}
+		added the new 'skrill' enum value to the 'pm_collect_link_config/allOf[#/components/schemas/BusinessCollectLinkConfig]/allOf[subschema #2]/enabled_payment_methods/items/payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'path' request parameter 'accepted_currency'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'path' request parameter 'client-secret'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'path' request parameter 'customer_id'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'query' request parameter 'accepted_country'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'query' request parameter 'maximum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'query' request parameter 'minimum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		deleted the 'query' request parameter 'recurring_payment_enabled'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		added the new 'paysera' enum value to the 'customer_payment_methods/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/payment_methods
+		added the new 'skrill' enum value to the 'customer_payment_methods/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		deleted the 'path' request parameter 'accepted_currency'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		deleted the 'query' request parameter 'accepted_country'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		deleted the 'query' request parameter 'maximum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		deleted the 'query' request parameter 'minimum_amount'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[request-parameter-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		deleted the 'query' request parameter 'recurring_payment_enabled'
+		This is a warning because some apps may return an error when receiving a parameter that they do not expect. It is recommended to deprecate the parameter first.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		added the new 'paysera' enum value to the 'customer_payment_methods/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /customers/{customer_id}/payment_methods
+		added the new 'skrill' enum value to the 'customer_payment_methods/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payment_methods
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payment_methods
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payment_methods/{method_id}
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payment_methods/{method_id}
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payment_methods/{method_id}/update
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payment_methods/{method_id}/update
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'paysera' enum value to the '/items/data/items/allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'paysera' enum value to the '/items/data/items/attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'paysera' enum value to the '/items/data/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'skrill' enum value to the '/items/data/items/allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'skrill' enum value to the '/items/data/items/attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/list
+		added the new 'skrill' enum value to the '/items/data/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payments/{payment_id}
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/capture
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/confirm
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'paysera' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'paysera' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'skrill' enum value to the 'allowed_payment_method_types/items/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'skrill' enum value to the 'attempts/items/payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payments/{payment_id}/incremental_authorization
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/create
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/create
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payouts/list
+		added the new 'paysera' enum value to the 'data/items/attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payouts/list
+		added the new 'skrill' enum value to the 'data/items/attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/list
+		added the new 'paysera' enum value to the 'data/items/attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/list
+		added the new 'skrill' enum value to the 'data/items/attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payouts/{payout_id}
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /payouts/{payout_id}
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/cancel
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/cancel
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/confirm
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/confirm
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/fulfill
+		added the new 'paysera' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /payouts/{payout_id}/fulfill
+		added the new 'skrill' enum value to the 'attempts/items/payout_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[request-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /profile_acquirers
+		removed the request property 'merchant_country_code'
+
+warning	[request-property-removed] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /profile_acquirers/{profile_id}/{profile_acquirer_id}
+		removed the request property 'merchant_country_code'
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default
+		added the new 'authipay' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default
+		added the new 'celero' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default
+		added the new 'custombilling' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default
+		added the new 'payload' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default
+		added the new 'santander' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default
+		added the new 'authipay' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default
+		added the new 'celero' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default
+		added the new 'custombilling' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default
+		added the new 'payload' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default
+		added the new 'santander' enum value to the '/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default/profile
+		added the new 'authipay' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default/profile
+		added the new 'celero' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default/profile
+		added the new 'custombilling' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default/profile
+		added the new 'payload' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API GET /routing/default/profile
+		added the new 'santander' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default/profile/{profile_id}
+		added the new 'authipay' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default/profile/{profile_id}
+		added the new 'celero' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default/profile/{profile_id}
+		added the new 'custombilling' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default/profile/{profile_id}
+		added the new 'payload' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /routing/default/profile/{profile_id}
+		added the new 'santander' enum value to the 'connectors/items/connector' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /{customer_id}/payment_methods/{payment_method_id}/default
+		added the new 'paysera' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+warning	[response-property-enum-value-added] at /var/folders/mp/fqwfwym952318k3y4mgs_rtm0000gp/T/tmp.k6nYV9WMdQ/to-v1-schema.json	
+	in API POST /{customer_id}/payment_methods/{payment_method_id}/default
+		added the new 'skrill' enum value to the 'payment_method_type/allOf[#/components/schemas/PaymentMethodType]/' response property for the response status '200'
+		Adding new enum values to response could be unexpected for clients, use x-extensible-enum instead.
+
+

@@ -1,0 +1,70 @@
+
+═══════════════════════════════════════════════
+ Hyperswitch Local API Validation
+═══════════════════════════════════════════════
+Comparing: v1.115.0 → v1.116.0
+Output directory: ./validation-output
+
+ℹ️  Checking required dependencies...
+✅ All dependencies available
+
+═══════════════════════════════════════════════
+ Schema Generation
+═══════════════════════════════════════════════
+ℹ️  Extracting schemas for ref: v1.115.0
+✅ V1 schema extracted from git (  929422 bytes)
+✅ V2 schema extracted from git (  758308 bytes)
+ℹ️  Extracting schemas for ref: v1.116.0
+✅ V1 schema extracted from git (  961699 bytes)
+✅ V2 schema extracted from git (  767001 bytes)
+
+═══════════════════════════════════════════════
+ Spectral Validation
+═══════════════════════════════════════════════
+ℹ️  Running Spectral validation on V1 schema...
+✅ V1 schema passed Spectral validation
+ℹ️  Running Spectral validation on V2 schema...
+✅ V2 schema passed Spectral validation
+
+═══════════════════════════════════════════════
+ Breaking Change Detection
+═══════════════════════════════════════════════
+ℹ️  Checking V1 API for breaking changes...
+✅ No breaking changes in V1 API
+ℹ️  Checking V2 API for breaking changes...
+✅ No breaking changes in V2 API
+
+═══════════════════════════════════════════════
+ Detailed Change Analysis
+═══════════════════════════════════════════════
+ℹ️  Generating detailed diff for V1 API...
+✅ Detailed diff generated for V1
+ℹ️  Generating detailed diff for V2 API...
+✅ Detailed diff generated for V2
+
+═══════════════════════════════════════════════
+ Validation Summary
+═══════════════════════════════════════════════
+# API Validation Report
+
+**Comparison**: `v1.115.0` → `v1.116.0`
+**Generated**: Thu Sep 25 16:06:29 IST 2025
+
+## ✅ Overall Status: PASSED
+
+No breaking changes detected. The API changes are backward compatible.
+
+## Detailed Reports
+
+- **Spectral Reports**: `spectral-v1-report.json`, `spectral-v2-report.json`
+- **Breaking Changes**: `v1-breaking-report.txt`, `v2-breaking-report.txt`
+- **Detailed Diffs**: `v1-detailed-diff.txt`, `v2-detailed-diff.txt`
+- **Generated Schemas**: `*-v1-schema.json`, `*-v2-schema.json`
+
+## Next Steps
+
+- ✅ Safe to proceed with deployment
+- Consider updating API documentation if new features were added
+
+ℹ️  Detailed reports saved to: ./validation-output
+✅ API validation completed successfully!
