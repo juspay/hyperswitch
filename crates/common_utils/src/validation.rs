@@ -1,12 +1,13 @@
 //! Custom validations for some shared types.
 
-use std::{collections::HashSet, sync::LazyLock};
+#![deny(clippy::invalid_regex)]
 
 use error_stack::report;
 use globset::Glob;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
+use std::{collections::HashSet, sync::LazyLock};
 
 use crate::errors::{CustomResult, ValidationError};
 
@@ -87,15 +88,14 @@ pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
     let decoded = urlencoding::decode(input).unwrap_or_else(|_| input.into());
 
     // Check for suspicious percent-encoded patterns
-    static PERCENT_ENCODED: LazyLock<Option<Regex>> =
-        LazyLock::new(|| match Regex::new(r"%[0-9A-Fa-f]{2}") {
-            Ok(regex) => Some(regex),
-            Err(_error) => {
+    static PERCENT_ENCODED: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r"%[0-9A-Fa-f]{2}")
+            .map_err(|_err| {
                 #[cfg(feature = "logs")]
-                logger::error!(?_error);
-                None
-            }
-        });
+                logger::error!(?_err);
+            })
+            .ok()
+    });
 
     if decoded.contains('%') {
         match PERCENT_ENCODED.as_ref() {
@@ -113,29 +113,25 @@ pub fn contains_potential_xss_or_sqli(input: &str) -> bool {
     }
 
     static XSS: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        match Regex::new(
+        Regex::new(
             r"(?is)\bon[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:\s*text/html|\b(alert|prompt|confirm|eval)\s*\(",
-        ) {
-            Ok(regex) => Some(regex),
-            Err(_error) => {
-                #[cfg(feature = "logs")]
-                logger::error!(?_error);
-                None
-            }
-        }
+        )
+        .map_err(|_err| {
+            #[cfg(feature = "logs")]
+             logger::error!(?_err);
+        })
+        .ok()
     });
 
     static SQLI: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        match Regex::new(
+        Regex::new(
             r"(?is)(?:')\s*or\s*'?\d+'?=?\d*|union\s+select|insert\s+into|drop\s+table|information_schema|sleep\s*\(|--|;",
-        ) {
-            Ok(regex) => Some(regex),
-            Err(_error) => {
-                #[cfg(feature = "logs")]
-                logger::error!(?_error);
-                None
-            }
-        }
+        )
+        .map_err(|_err| {
+            #[cfg(feature = "logs")]
+             logger::error!(?_err);
+        })
+        .ok()
     });
 
     match XSS.as_ref() {
