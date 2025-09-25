@@ -151,6 +151,7 @@ impl ConfigContext {
 }
 
 /// Superposition client wrapper
+// Debug trait cannot be derived because open_feature::Client doesn't implement Debug
 #[allow(missing_debug_implementations)]
 pub struct SuperpositionClient {
     client: open_feature::Client,
