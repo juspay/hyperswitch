@@ -7078,3 +7078,7 @@ api_key = "API Key"
 [gigadat]
 [gigadat.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[finix]
+[finix.connector_auth.HeaderKey]
+api_key = "API Key"

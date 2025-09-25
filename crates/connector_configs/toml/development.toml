@@ -7098,3 +7098,7 @@ key1 = "TokenEx ID"
 [gigadat]
 [gigadat.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[finix]
+[finix.connector_auth.HeaderKey]
+api_key = "API Key"
