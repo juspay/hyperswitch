@@ -370,7 +370,7 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct GigadatQuoteResponse {
+pub struct GigadatPayoutResponse {
     pub token: Secret<String>,
     pub data: GigadatPayoutData,
 }
@@ -384,10 +384,10 @@ pub struct GigadatPayoutData {
 }
 
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatQuoteResponse>> for PayoutsRouterData<F> {
+impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: PayoutsResponseRouterData<F, GigadatQuoteResponse>,
+        item: PayoutsResponseRouterData<F, GigadatPayoutResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PayoutsResponseData {

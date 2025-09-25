@@ -649,9 +649,9 @@ impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Gigadat
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoQuote>, errors::ConnectorError> {
-        let response: gigadat::GigadatQuoteResponse = res
+        let response: gigadat::GigadatPayoutResponse = res
             .response
-            .parse_struct("GigadatFulfillResponse")
+            .parse_struct("GigadatPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -801,9 +801,9 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
-        let response: gigadat::GigadatQuoteResponse = res
+        let response: gigadat::GigadatPayoutResponse = res
             .response
-            .parse_struct("GigadatFulfillResponse")
+            .parse_struct("GigadatPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
