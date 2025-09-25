@@ -89,16 +89,21 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let dlocal_req = self.get_request_body(req, connectors)?;
-
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-        let sign_req: String = format!(
-            "{}{}{}",
-            auth.x_login.peek(),
-            date,
-            dlocal_req.get_inner_value().peek().to_owned()
-        );
+
+        let sign_req: String = if dlocal_req.get_inner_value().peek() == r#""{}""# {
+            format!("{}{}", auth.x_login.peek(), date)
+        } else {
+            format!(
+                "{}{}{}",
+                auth.x_login.peek(),
+                date,
+                dlocal_req.get_inner_value().peek()
+            )
+        };
+
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
             auth.secret.peek().as_bytes(),
@@ -484,7 +489,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dl
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
