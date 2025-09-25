@@ -11,7 +11,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
-    request::{MaskableMultipartForm, Method, RequestContent},
+    request::{Method, RequestContent},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -4513,7 +4513,7 @@ pub struct StripeFileRequest {
 
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<MaskableMultipartForm, ConnectorError> {
+) -> CustomResult<RequestContent, ConnectorError> {
     let request = file_upload_router_data.request;
     let stripe_file_request = StripeFileRequest {
         purpose: "dispute_evidence",
@@ -4528,10 +4528,10 @@ pub fn construct_file_upload_request(
         .mime_str(request.file_type.as_ref())
         .map_err(|_| ConnectorError::RequestEncodingFailed)?;
     multipart = multipart.part("file", file_data);
-    Ok(MaskableMultipartForm {
-        inner: multipart,
-        content: Box::new(stripe_file_request),
-    })
+    Ok(RequestContent::FormData((
+        multipart,
+        Box::new(stripe_file_request),
+    )))
 }
 
 #[derive(Debug, Deserialize, Serialize)]

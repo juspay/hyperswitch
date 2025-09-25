@@ -6,7 +6,7 @@ use common_utils::{
     errors::{CustomResult, ParsingError},
     ext_traits::ByteSliceExt,
     id_type::CustomerId,
-    request::{MaskableMultipartForm, Method},
+    request::{Method, RequestContent},
     types::MinorUnit,
 };
 use error_stack::ResultExt;
@@ -1746,7 +1746,7 @@ pub struct CheckoutFileRequest {
 
 pub fn construct_file_upload_request(
     file_upload_router_data: UploadFileRouterData,
-) -> CustomResult<MaskableMultipartForm, errors::ConnectorError> {
+) -> CustomResult<RequestContent, errors::ConnectorError> {
     let request = file_upload_router_data.request;
     let checkout_file_request = CheckoutFileRequest {
         purpose: "dispute_evidence",
@@ -1771,10 +1771,10 @@ pub fn construct_file_upload_request(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);
-    Ok(MaskableMultipartForm {
-        inner: multipart,
-        content: Box::new(checkout_file_request),
-    })
+    Ok(RequestContent::FormData((
+        multipart,
+        Box::new(checkout_file_request),
+    )))
 }
 
 #[derive(Debug, Deserialize, Serialize)]

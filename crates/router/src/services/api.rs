@@ -334,8 +334,7 @@ where
                             | RequestContent::Xml(i) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::FormData(f) => f
-                                .content
+                            RequestContent::FormData((_, i)) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
