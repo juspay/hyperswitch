@@ -574,7 +574,7 @@ pub async fn payments_retrieve(
     };
 
     let (auth_type, auth_flow) =
-        match auth::get_internal_api_key_auth(req.headers(), &payload, api_auth) {
+        match auth::check_internal_api_key_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
