@@ -14,10 +14,17 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::PoQuote, router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
+};
 use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "payouts")]
+use crate::{types::PayoutsResponseRouterData, utils::PayoutsData as _};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData, RouterData as _},
@@ -76,6 +83,7 @@ pub struct GigadatCpiRequest {
 #[serde(rename_all = "UPPERCASE")]
 pub enum GidadatTransactionType {
     Cpi,
+    Eto,
 }
 
 impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiRequest {
@@ -305,6 +313,153 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         })
     }
 }
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GigadatPayoutQuoteRequest {
+    pub amount: FloatMajorUnit,
+    pub compaign: Secret<String>,
+    pub currency: Currency,
+    pub email: Email,
+    pub mobile: Secret<String>,
+    pub name: Secret<String>,
+    pub site: String,
+    pub transaction_id: String,
+    #[serde(rename = "type")]
+    pub transaction_type: GidadatTransactionType,
+    pub user_id: id_type::CustomerId,
+    pub user_ip: Secret<String, IpAddress>,
+}
+
+// Payouts fulfill request transform
+#[cfg(feature = "payouts")]
+impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQuoteRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &GigadatRouterData<&PayoutsRouterData<PoQuote>>,
+    ) -> Result<Self, Self::Error> {
+        let metadata: GigadatConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
+
+        let router_data = item.router_data;
+        let name = router_data.get_billing_full_name()?;
+        let email = router_data.get_billing_email()?;
+        let mobile = router_data.get_billing_phone_number()?;
+        let currency = item.router_data.request.destination_currency;
+
+        let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
+        let auth_type = GigadatAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+        Ok(Self {
+            user_id: router_data.get_customer_id()?,
+            site: metadata.site,
+            user_ip,
+            currency,
+            amount: item.amount,
+            transaction_id: router_data.connector_request_reference_id.clone(),
+            transaction_type: GidadatTransactionType::Eto,
+            name,
+            email,
+            mobile,
+            compaign: auth_type.campaign_id,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GigadatQuoteResponse {
+    pub token: Secret<String>,
+    pub data: GigadatPayoutData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GigadatPayoutData {
+    pub transaction_id: String,
+    #[serde(rename = "type")]
+    pub transaction_type: String,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatQuoteResponse>> for PayoutsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, GigadatQuoteResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: None,
+                connector_payout_id: Some(item.response.data.transaction_id),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Payouts fulfill request transform
+// #[cfg(feature = "payouts")]
+// impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoFulfill>>> for GigadatPayoutQuoteRequest {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: &GigadatRouterData<&PayoutsRouterData<PoFulfill>>,
+//     ) -> Result<Self, Self::Error> {
+//         let metadata: GigadatConnectorMetadataObject =
+//             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+//                 .change_context(errors::ConnectorError::InvalidConnectorConfig {
+//                     config: "merchant_connector_account.metadata",
+//                 })?;
+
+//         let router_data = item.router_data;
+//                 let name = router_data.get_billing_full_name()?;
+//                 let email = router_data.get_billing_email()?;
+//                 let mobile = router_data.get_billing_phone_number()?;
+//                 let currency = item.router_data.request.destination_currency;
+
+//                 let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
+//                 let auth_type = GigadatAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+//         Ok(Self {
+//             user_id: router_data.get_customer_id()?,
+//             site: metadata.site,
+//             user_ip,
+//             currency,
+//             amount: item.amount,
+//             transaction_id: router_data.connector_request_reference_id.clone(),
+//             transaction_type: GidadatTransactionType::Eto,
+//             name,
+//             email,
+//             mobile,
+//             compaign: auth_type.campaign_id,
+//         })
+//     }
+// }
+
+// #[cfg(feature = "payouts")]
+// impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatQuoteResponse>> for PayoutsRouterData<F> {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(
+//         item: PayoutsResponseRouterData<F, GigadatQuoteResponse>,
+//     ) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             response: Ok(PayoutsResponseData {
+//                 status: None,
+//                 connector_payout_id: Some(item.response.data.transaction_id),
+//                 payout_eligible: None,
+//                 should_add_next_step_to_process_tracker: false,
+//                 error_code: None,
+//                 error_message: None,
+//             }),
+//             ..item.data
+//         })
+//     }
+// }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GigadatErrorResponse {

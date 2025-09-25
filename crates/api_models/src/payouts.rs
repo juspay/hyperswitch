@@ -191,6 +191,10 @@ pub struct PayoutCreateRequest {
 
     /// Identifier for payout method
     pub payout_method_id: Option<String>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<payments::BrowserInformation>,
 }
 
 impl PayoutCreateRequest {

@@ -932,6 +932,29 @@ impl From<common_utils::types::BrowserInformation> for BrowserInformation {
     }
 }
 
+#[cfg(feature = "v1")]
+impl From<api_models::payments::BrowserInformation> for BrowserInformation {
+    fn from(value: api_models::payments::BrowserInformation) -> Self {
+        Self {
+            color_depth: value.color_depth,
+            java_enabled: value.java_enabled,
+            java_script_enabled: value.java_script_enabled,
+            language: value.language,
+            screen_height: value.screen_height,
+            screen_width: value.screen_width,
+            time_zone: value.time_zone,
+            ip_address: value.ip_address,
+            accept_header: value.accept_header,
+            user_agent: value.user_agent,
+            os_type: value.os_type,
+            os_version: value.os_version,
+            device_model: value.device_model,
+            accept_language: value.accept_language,
+            referer: value.referer,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
@@ -1308,6 +1331,7 @@ pub struct PayoutsData {
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub connector_transfer_method_id: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Default, Clone)]

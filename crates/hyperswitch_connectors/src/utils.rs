@@ -6399,6 +6399,7 @@ pub trait PayoutsData {
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
     #[cfg(feature = "payouts")]
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6425,6 +6426,11 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
         self.payout_type
             .to_owned()
             .ok_or_else(missing_field_err("payout_type"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 pub trait RevokeMandateRequestData {

@@ -284,6 +284,8 @@ pub struct ConnectorConfig {
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
     pub gigadat: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
@@ -395,6 +397,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
             PayoutConnectors::Nomupay => Ok(connector_data.nomupay_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
