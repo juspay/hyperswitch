@@ -35,10 +35,12 @@ use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_connector_account,
-    merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
-    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
-    ApiModelToDieselModelConvertor,
+    address::Address,
+    business_profile, customer, errors,
+    merchant_connector_account::{self, MerchantConnectorAccountTypeDetails},
+    merchant_context, payment_address,
+    payment_method_data::{self, PaymentMethodData},
+    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -933,6 +935,7 @@ where
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
+    pub split_payment_details: Option<Vec<(PaymentAttempt, PaymentMethodData)>>,
 }
 
 #[cfg(feature = "v2")]

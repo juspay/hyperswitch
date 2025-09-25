@@ -630,6 +630,203 @@ impl PaymentAttempt {
         })
     }
 
+    /// Construct the split payments domain model from the ConfirmIntentRequest and PaymentIntent
+    #[cfg(feature = "v2")]
+    pub async fn create_domain_models_for_split_attempts(
+        payment_intent: &super::PaymentIntent,
+        cell_id: id_type::CellId,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        request: &api_models::payments::PaymentsConfirmIntentRequest,
+        encrypted_data: DecryptedPaymentAttempt,
+    ) -> CustomResult<
+        (
+            (Self, crate::payment_method_data::PaymentMethodData),
+            Vec<(Self, crate::payment_method_data::PaymentMethodData)>,
+        ),
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        // Create a Group ID
+        // Call gift card endpoint to get what amount to deduct for each attempt
+        // return the primary payment attempt, and vec of other payment attempts coupled with their payment method data
+
+        let group_id = id_type::GlobalAttemptGroupId::generate(&cell_id);
+        let intent_amount_details = payment_intent.amount_details.clone();
+
+        let attempt_amount_details = intent_amount_details.create_attempt_amount_details(request);
+
+        let now = common_utils::date_time::now();
+
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+
+        let connector_token = Some(diesel_models::ConnectorTokenDetails {
+            connector_mandate_id: None,
+            connector_token_request_reference_id: Some(common_utils::generate_id_with_len(
+                consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH,
+            )),
+        });
+
+        let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+
+        let split_payment_methods = request.split_payment_method_data.clone().ok_or(
+            errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: "split_payment_method_data",
+            },
+        )?;
+
+        let mut split_payment_methods = split_payment_methods;
+        let gift_card_method = split_payment_methods
+            .iter()
+            .position(|item| item.payment_method_type == storage_enums::PaymentMethod::GiftCard)
+            .map(|index| split_payment_methods.remove(index))
+            .ok_or(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "Split Payments without gift card not implemented".to_string(),
+                    ),
+                },
+            )?;
+
+        let id = id_type::GlobalAttemptId::generate(&cell_id);
+        let first_attempt_pm_data = crate::payment_method_data::PaymentMethodData::from(
+            gift_card_method.payment_method_data,
+        );
+        let first_attempt = Self {
+            payment_id: payment_intent.id.clone(),
+            merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: Some(group_id.get_string_repr().to_string()),
+            amount_details: attempt_amount_details.clone(),
+            status: common_enums::AttemptStatus::Started,
+            // This will be decided by the routing algorithm and updated in update trackers
+            // right before calling the connector
+            connector: None,
+            authentication_type,
+            created_at: now,
+            modified_at: now,
+            last_synced: None,
+            cancellation_reason: None,
+            browser_info: request.browser_info.clone(),
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            routing_result: None,
+            preprocessing_step_id: None,
+            multiple_capture_count: None,
+            connector_response_reference_id: None,
+            updated_by: storage_scheme.to_string(),
+            redirection_data: None,
+            encoded_data: None,
+            merchant_connector_id: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            charges: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id: payment_intent.profile_id.clone(),
+            organization_id: payment_intent.organization_id.clone(),
+            payment_method_type: gift_card_method.payment_method_type,
+            payment_method_id: None,
+            connector_payment_id: None,
+            payment_method_subtype: gift_card_method.payment_method_subtype,
+            authentication_applied: None,
+            external_reference_id: None,
+            payment_method_billing_address: payment_method_billing_address.clone(),
+            error: None,
+            connector_token_details: connector_token.clone(),
+            id,
+            card_discovery: None,
+            feature_metadata: None,
+            processor_merchant_id: payment_intent.merchant_id.clone(),
+            created_by: None,
+            connector_request_reference_id: None,
+            network_transaction_id: None,
+        };
+
+        let mut split_payment_attempt_data: Vec<(
+            Self,
+            crate::payment_method_data::PaymentMethodData,
+        )> = Vec::new();
+        for item in split_payment_methods {
+            let pm_data =
+                crate::payment_method_data::PaymentMethodData::from(item.payment_method_data);
+
+            let id = id_type::GlobalAttemptId::generate(&cell_id);
+            let attempt = Self {
+                payment_id: payment_intent.id.clone(),
+                merchant_id: payment_intent.merchant_id.clone(),
+                attempts_group_id: Some(group_id.get_string_repr().to_string()),
+                amount_details: attempt_amount_details.clone(),
+                status: common_enums::AttemptStatus::Started,
+                // This will be decided by the routing algorithm and updated in update trackers
+                // right before calling the connector
+                connector: None,
+                authentication_type,
+                created_at: now,
+                modified_at: now,
+                last_synced: None,
+                cancellation_reason: None,
+                browser_info: request.browser_info.clone(),
+                payment_token: None,
+                connector_metadata: None,
+                payment_experience: None,
+                payment_method_data: None,
+                routing_result: None,
+                preprocessing_step_id: None,
+                multiple_capture_count: None,
+                connector_response_reference_id: None,
+                updated_by: storage_scheme.to_string(),
+                redirection_data: None,
+                encoded_data: None,
+                merchant_connector_id: None,
+                external_three_ds_authentication_attempted: None,
+                authentication_connector: None,
+                authentication_id: None,
+                fingerprint_id: None,
+                charges: None,
+                client_source: None,
+                client_version: None,
+                customer_acceptance: None,
+                profile_id: payment_intent.profile_id.clone(),
+                organization_id: payment_intent.organization_id.clone(),
+                payment_method_type: item.payment_method_type,
+                payment_method_id: None,
+                connector_payment_id: None,
+                payment_method_subtype: item.payment_method_subtype,
+                authentication_applied: None,
+                external_reference_id: None,
+                payment_method_billing_address: payment_method_billing_address.clone(),
+                error: None,
+                connector_token_details: connector_token.clone(),
+                id,
+                card_discovery: None,
+                feature_metadata: None,
+                processor_merchant_id: payment_intent.merchant_id.clone(),
+                created_by: None,
+                connector_request_reference_id: None,
+                network_transaction_id: None,
+            };
+
+            split_payment_attempt_data.push((attempt, pm_data));
+        }
+
+        Ok((
+            (first_attempt, first_attempt_pm_data),
+            split_payment_attempt_data,
+        ))
+    }
+
     #[cfg(feature = "v2")]
     pub async fn proxy_create_domain_model(
         payment_intent: &super::PaymentIntent,
