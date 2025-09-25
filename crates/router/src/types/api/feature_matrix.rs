@@ -188,6 +188,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
                 }
+                enums::Connector::Gigadat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -353,6 +356,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }

@@ -743,7 +743,8 @@ impl Payments {
                 .service(
                     web::resource("/check-gift-card-balance")
                         .route(web::post().to(payments::payment_check_gift_card_balance)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
@@ -2943,8 +2944,16 @@ impl ProcessTracker {
         web::scope("/v2/process-trackers/revenue-recovery-workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/resume")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_resume_api)),
+                    ),
             )
     }
 }

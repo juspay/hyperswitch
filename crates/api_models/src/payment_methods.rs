@@ -1413,6 +1413,34 @@ impl From<CardDetail> for CardDetailFromLocker {
     }
 }
 
+#[cfg(feature = "v1")]
+impl From<CardDetail> for CardDetailFromLocker {
+    fn from(item: CardDetail) -> Self {
+        // scheme should be updated in case of co-badged cards
+        let card_scheme = item
+            .card_network
+            .clone()
+            .map(|card_network| card_network.to_string());
+        Self {
+            issuer_country: item.card_issuing_country,
+            last4_digits: Some(item.card_number.get_last4()),
+            card_number: Some(item.card_number),
+            expiry_month: Some(item.card_exp_month),
+            expiry_year: Some(item.card_exp_year),
+            card_holder_name: item.card_holder_name,
+            nick_name: item.nick_name,
+            card_isin: None,
+            card_issuer: item.card_issuer,
+            card_network: item.card_network,
+            card_type: item.card_type.map(|card| card.to_string()),
+            saved_to_locker: true,
+            card_fingerprint: None,
+            scheme: card_scheme,
+            card_token: None,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl From<CardDetail> for CardDetailsPaymentMethod {
     fn from(item: CardDetail) -> Self {
