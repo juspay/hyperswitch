@@ -12,10 +12,11 @@ pub struct InvoiceRecordBackTrackingData {
     pub amount: types::MinorUnit,
     pub currency: api_enums::Currency,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub attempt_status: common_enums::AttemptStatus,
+    pub intent_status: common_enums::IntentStatus,
 }
 
 impl InvoiceRecordBackTrackingData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         payment_id: id_type::PaymentId,
         subscription_id: id_type::SubscriptionId,
@@ -27,7 +28,7 @@ impl InvoiceRecordBackTrackingData {
         amount: types::MinorUnit,
         currency: api_enums::Currency,
         payment_method_type: Option<common_enums::PaymentMethodType>,
-        attempt_status: common_enums::AttemptStatus,
+        intent_status: common_enums::IntentStatus,
     ) -> Self {
         Self {
             payment_id,
@@ -40,7 +41,7 @@ impl InvoiceRecordBackTrackingData {
             amount,
             currency,
             payment_method_type,
-            attempt_status,
+            intent_status,
         }
     }
 }
