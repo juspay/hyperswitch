@@ -3877,22 +3877,24 @@ pub async fn check_network_token_status(
 
     // Check if the payment method has network token data
     if payment_method
-            .network_token_requestor_reference_id
+        .network_token_requestor_reference_id
         .is_none()
     {
         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_id",
-            }
+            field_name: "payment_method_id",
+        }
         .into());
     }
 
     // Call the network token status check function
     match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await {
         Ok(network_token_details) => {
-            let status = network_token_details.clone().map(|details| match details.status {
-                pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
-                pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
-            });
+            let status = network_token_details
+                .clone()
+                .map(|details| match details.status {
+                    pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
+                    pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
+                });
 
             Ok(services::ApplicationResponse::Json(
                 payment_methods::NetworkTokenStatusCheckResponse {
@@ -3916,7 +3918,7 @@ pub async fn check_network_token_status(
             ))
         }
         Err(e) => {
-            let err_message=e.current_context().error_message();
+            let err_message = e.current_context().error_message();
             logger::error!("Network token status check failed: {:?}", e);
             Ok(services::ApplicationResponse::Json(
                 payment_methods::NetworkTokenStatusCheckResponse {
