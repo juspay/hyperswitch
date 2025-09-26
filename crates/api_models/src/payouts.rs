@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
+#[cfg(feature = "v2")]
+use common_utils::types::BrowserInformation;
 use common_utils::{
     consts::default_payouts_list_limit,
     crypto, id_type, link_utils, payout_method_utils,
@@ -9,6 +11,8 @@ use common_utils::{
     types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
+#[cfg(feature = "v1")]
+use payments::BrowserInformation;
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -191,6 +195,10 @@ pub struct PayoutCreateRequest {
 
     /// Identifier for payout method
     pub payout_method_id: Option<String>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
 }
 
 impl PayoutCreateRequest {

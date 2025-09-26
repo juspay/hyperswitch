@@ -5906,10 +5906,24 @@ api_key = "API Key"
 [gigadat.connector_auth.SignatureKey]
 api_key = "Username"
 api_secret = "Password"
-key1 = "Compaign Id"
+key1 = "Campaign Id"
 [[gigadat.bank_redirect]]
 payment_method_type = "interac"
 [gigadat.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"
+
+[gigadat_payout]
+[gigadat_payout.connector_auth.SignatureKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Campaign Id"
+[[gigadat_payout.bank_redirect]]
+payment_method_type = "interac"
+[gigadat_payout.metadata.site]
 name = "site"
 label = "Site where transaction is initiated"
 placeholder = "Enter site where transaction is initiated"
