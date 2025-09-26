@@ -10,7 +10,7 @@ license.workspace = true
 
 [features]
 default = ["common_default", "v1"]
-common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "superposition"]
+common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
@@ -38,7 +38,6 @@ v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
-superposition = ["external_services/superposition"]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.

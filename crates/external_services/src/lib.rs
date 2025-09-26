@@ -12,9 +12,10 @@ pub mod file_storage;
 #[cfg(feature = "hashicorp-vault")]
 pub mod hashicorp_vault;
 
-pub mod superposition;
-
 pub mod no_encryption;
+
+#[cfg(feature = "superposition")]
+pub mod superposition;
 
 /// Building grpc clients to communicate with the server
 pub mod grpc_client;
