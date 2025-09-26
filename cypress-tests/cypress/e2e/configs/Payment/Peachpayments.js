@@ -82,7 +82,6 @@ export const connectorDetails = {
           status: "requires_payment_method",
           amount: 6000,
           shipping_cost: 50,
-
         },
       },
     },
@@ -103,7 +102,7 @@ export const connectorDetails = {
           amount_received: null,
           amount: 6000,
           net_amount: 6050,
-          error_message: "No or unknown response code"
+          error_message: "No or unknown response code",
         },
       },
     },
@@ -125,7 +124,7 @@ export const connectorDetails = {
             message: "Payment method type not supported",
             reason: "3DS flow is not supported by Peachpayments",
             type: "invalid_request",
-          }
+          },
         },
       },
     },
@@ -152,7 +151,7 @@ export const connectorDetails = {
             message: "Payment method type not supported",
             reason: "automatic is not supported by peachpayments",
             type: "invalid_request",
-          }
+          },
         },
       },
     },
@@ -198,7 +197,7 @@ export const connectorDetails = {
             message: "Payment method type not supported",
             reason: "automatic is not supported by peachpayments",
             type: "invalid_request",
-          }
+          },
         },
       },
     },
@@ -251,7 +250,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
             code: "IR_14",
           },
         },
@@ -263,9 +263,9 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Execute is not implemented",
             code: "IR_00",
-          }
-        }
-      }
+          },
+        },
+      },
     }),
     PartialRefund: getCustomExchange({
       Configs: {
@@ -279,7 +279,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
             code: "IR_14",
           },
         },
@@ -291,9 +292,9 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Execute is not implemented",
             code: "IR_00",
-          }
-        }
-      }
+          },
+        },
+      },
     }),
     manualPaymentRefund: getCustomExchange({
       Configs: {
@@ -315,9 +316,9 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Execute is not implemented",
             code: "IR_00",
-          }
-        }
-      }
+          },
+        },
+      },
     }),
     manualPaymentPartialRefund: getCustomExchange({
       Configs: {
@@ -339,9 +340,9 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Execute is not implemented",
             code: "IR_00",
-          }
-        }
-      }
+          },
+        },
+      },
     }),
     SyncRefund: {
       Response: {
@@ -359,7 +360,7 @@ export const connectorDetails = {
             code: "IR_00",
             message: "Setup Mandate flow for Peachpayments is not implemented",
             type: "invalid_request",
-          }
+          },
         },
       },
     },
@@ -600,7 +601,7 @@ export const connectorDetails = {
             message: "Payment method type not supported",
             reason: "automatic is not supported by peachpayments",
             type: "invalid_request",
-          }
+          },
         },
       },
     },
