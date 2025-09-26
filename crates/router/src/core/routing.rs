@@ -355,6 +355,12 @@ pub async fn create_routing_algorithm_under_profile(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
+    request
+        .validate_name_length()
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Validation failed for routing config request".to_string(),
+        })?;
+
     let name = request
         .name
         .get_required_value("name")

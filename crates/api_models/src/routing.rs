@@ -67,6 +67,20 @@ pub struct RoutingConfigRequest {
     pub transaction_type: Option<TransactionType>,
 }
 
+#[cfg(feature = "v1")]
+impl RoutingConfigRequest {
+    pub fn validate_name_length(&self) -> Result<(), ValidationError> {
+        if let Some(name) = &self.name {
+            if name.len() > 64 {
+                return Err(ValidationError::InvalidValue {
+                    message: "Name length must not exceed 64 characters".to_string()
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
     #[schema(value_type = String)]
