@@ -44,6 +44,8 @@ pub trait SubscriptionRecordBackFlow:
     ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
 {
 }
+
+#[cfg(feature = "v1")]
 /// trait GetSubscriptionPlanPrices for V1
 pub trait GetSubscriptionPlanPricesFlow:
     ConnectorIntegration<
