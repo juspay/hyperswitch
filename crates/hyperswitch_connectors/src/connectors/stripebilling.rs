@@ -12,39 +12,31 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::revenue_recovery;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::types as recovery_router_data_types;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        revenue_recovery as recovery_router_flows, subscriptions as subscription_flow_types,
     },
     router_request_types::{
+        revenue_recovery as recovery_request_types, subscriptions as subscription_request_types,
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        revenue_recovery as recovery_response_types, subscriptions as subscription_response_types,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::types as recovery_router_data_types;
-use hyperswitch_domain_models::{
-    router_flow_types::{
-        revenue_recovery as recovery_router_flows, subscriptions as subscription_flow_types,
-    },
-    router_request_types::{
-        revenue_recovery as recovery_request_types, subscriptions as subscription_request_types,
-    },
-    router_response_types::{
-        revenue_recovery as recovery_response_types, subscriptions as subscription_response_types,
-    },
-};
-
 use hyperswitch_interfaces::{
     api::{
         self, subscriptions as subscriptions_api, ConnectorCommon, ConnectorCommonExt,
