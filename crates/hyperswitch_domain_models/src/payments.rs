@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{SessionToken, VaultSessionDetails};
-use common_types::primitive_wrappers::EnablePartialAuthorizationBool;
+use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
@@ -123,7 +123,7 @@ pub struct PaymentIntent {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
 }
 
@@ -207,7 +207,7 @@ impl PaymentIntent {
         &self,
         connector: common_enums::connector_enums::Connector,
         always_enable_overcapture: Option<
-            common_types::primitive_wrappers::AlwaysEnableOvercaptureBool,
+            primitive_wrappers::AlwaysEnableOvercaptureBool,
         >,
         capture_method: &Option<common_enums::CaptureMethod>,
     ) -> Option<EnableOvercaptureBool> {
@@ -544,7 +544,7 @@ pub struct PaymentIntent {
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
-    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]

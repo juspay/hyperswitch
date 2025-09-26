@@ -92,7 +92,7 @@ mod bool_wrappers {
         }
     }
 
-    /// Bool that represents if Enalbe Partial Authorization is Requested or not
+    /// Bool that represents if Enable Partial Authorization is Requested or not
     #[derive(
         Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,
     )]
