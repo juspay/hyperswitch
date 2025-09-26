@@ -38,6 +38,7 @@ use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
 use crate::core::metrics;
 use crate::{
+    configs::settings,
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
@@ -47,7 +48,6 @@ use crate::{
     services::api,
     types::{domain, storage},
     utils::OptionExt,
-    configs::settings,
 };
 
 pub mod blacklist;
@@ -4462,8 +4462,12 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     }
 }
 
-pub fn is_internal_api_key_merchant_id_profile_id_auth(headers: &HeaderMap, internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings) -> bool {
-    internal_api_key_auth.enabled && headers.contains_key(headers::X_INTERNAL_API_KEY)
+pub fn is_internal_api_key_merchant_id_profile_id_auth(
+    headers: &HeaderMap,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
+) -> bool {
+    internal_api_key_auth.enabled
+        && headers.contains_key(headers::X_INTERNAL_API_KEY)
         && headers.contains_key(headers::X_MERCHANT_ID)
         && headers.contains_key(headers::X_PROFILE_ID)
 }
