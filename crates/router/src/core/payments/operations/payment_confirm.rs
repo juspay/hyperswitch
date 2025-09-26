@@ -1994,6 +1994,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .network_transaction_id
                             .clone(),
                         is_stored_credential,
+                        request_extended_authorization: payment_data
+                            .payment_attempt
+                            .request_extended_authorization,
                     },
                     storage_scheme,
                 )
