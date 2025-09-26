@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
-            SubscriptionCreateData, SubscriptionCustomerData,
+            InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
         },
         UasFlowData,
     },
@@ -24,9 +24,10 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
-        CreateConnectorCustomer,
+        CreateConnectorCustomer, InvoiceRecordBack,
     },
     router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCreateRequest,
@@ -39,6 +40,7 @@ use hyperswitch_domain_models::{
         ConnectorCustomerData,
     },
     router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
             GetSubscriptionPlansResponse, SubscriptionCreateResponse,
@@ -161,6 +163,7 @@ impl
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::GetSubscriptionPlansV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionRecordBackV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionConnectorCustomerV2 for Recurly {}
 
 impl
@@ -173,6 +176,16 @@ impl
 {
 }
 
+#[cfg(feature = "v1")]
+impl
+    ConnectorIntegrationV2<
+        InvoiceRecordBack,
+        InvoiceRecordBackData,
+        InvoiceRecordBackRequest,
+        InvoiceRecordBackResponse,
+    > for Recurly
+{
+}
 impl
     ConnectorIntegrationV2<
         CreateConnectorCustomer,
@@ -385,10 +398,10 @@ impl
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl
     ConnectorIntegrationV2<
-        recovery_router_flows::InvoiceRecordBack,
-        recovery_flow_common_types::InvoiceRecordBackData,
-        recovery_request_types::InvoiceRecordBackRequest,
-        recovery_response_types::InvoiceRecordBackResponse,
+        InvoiceRecordBack,
+        InvoiceRecordBackData,
+        InvoiceRecordBackRequest,
+        InvoiceRecordBackResponse,
     > for Recurly
 {
     fn get_headers(

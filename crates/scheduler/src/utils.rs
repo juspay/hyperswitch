@@ -386,6 +386,23 @@ pub fn get_pcr_payments_retry_schedule_time(
     }
 }
 
+pub fn get_subscription_invoice_sync_retry_schedule_time(
+    mapping: process_data::SubscriptionInvoiceSyncPTMapping,
+    merchant_id: &common_utils::id_type::MerchantId,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(retry_count, &mapping.frequencies)
+    }
+}
+
 /// Get the delay based on the retry count
 pub fn get_delay<'a>(
     retry_count: i32,

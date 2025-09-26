@@ -11,6 +11,7 @@ pub struct SubscriptionCreateResponse {
     pub total_amount: MinorUnit,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub created_at: Option<PrimitiveDateTime>,
+    pub connector_invoice_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
