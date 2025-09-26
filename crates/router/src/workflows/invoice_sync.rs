@@ -280,7 +280,7 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     // Can have config based mapping as well
     let mapping = scheduler_types::process_data::SubscriptionInvoiceSyncPTMapping::default();
-    let time_delta = scheduler_utils::get_subscription_psync_retry_schedule_time(
+    let time_delta = scheduler_utils::get_subscription_invoice_sync_retry_schedule_time(
         mapping,
         merchant_id,
         retry_count,
