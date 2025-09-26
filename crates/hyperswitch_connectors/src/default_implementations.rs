@@ -7369,13 +7369,6 @@ default_imp_for_billing_connector_payment_sync!(
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            InvoiceRecordBack,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse
-            > for $path::$connector
-            {}
         )*
     };
 }
