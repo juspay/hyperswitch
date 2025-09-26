@@ -206,9 +206,7 @@ impl PaymentIntent {
     pub fn get_enable_overcapture_bool_if_connector_supports(
         &self,
         connector: common_enums::connector_enums::Connector,
-        always_enable_overcapture: Option<
-            primitive_wrappers::AlwaysEnableOvercaptureBool,
-        >,
+        always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
         capture_method: &Option<common_enums::CaptureMethod>,
     ) -> Option<EnableOvercaptureBool> {
         let is_overcapture_supported_by_connector =
