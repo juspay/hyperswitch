@@ -900,6 +900,18 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     connectorId,
     ({ connectorId, constants, expectedUrl }) => {
       switch (connectorId) {
+        case "aci":
+          cy.get('form[name="challengeForm"]', {
+            timeout: constants.WAIT_TIME,
+          })
+            .should("exist")
+            .then(() => {
+              cy.get("#outcomeSelect")
+                .select("Approve")
+                .should("have.value", "Y");
+              cy.get('button[type="submit"]').click();
+            });
+          break;
         case "adyen":
           cy.get("iframe")
             .its("0.contentDocument.body")
