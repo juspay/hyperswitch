@@ -8,7 +8,7 @@ use common_enums::{CallConnectorAction, PaymentAction};
 use common_utils::errors::CustomResult;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -17,12 +17,10 @@ use hyperswitch_domain_models::router_request_types::authentication::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-    InvoiceRecordBackRequest,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    InvoiceRecordBackResponse,
 };
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
@@ -7195,7 +7193,6 @@ default_imp_for_subscriptions!(
     connectors::Stax,
     connectors::Stripe,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Threedsecureio,
     connectors::Thunes,

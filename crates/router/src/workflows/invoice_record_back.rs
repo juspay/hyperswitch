@@ -1,6 +1,7 @@
+#[cfg(feature = "v1")]
+use crate::core::subscription;
 use api_models::process_tracker as process_tracker_types;
 use async_trait::async_trait;
-#[cfg(feature = "v1")]
 use common_utils::errors::CustomResult;
 use common_utils::ext_traits::ValueExt;
 use diesel_models::process_tracker::business_status;
@@ -12,7 +13,6 @@ use scheduler::{
 };
 
 use crate::{
-    core::subscription,
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},

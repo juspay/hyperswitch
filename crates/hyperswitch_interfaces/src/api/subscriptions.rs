@@ -109,3 +109,7 @@ pub trait SubscriptionCreate {}
 /// trait GetSubscriptionEstimateFlow (disabled when not V1)
 #[cfg(not(feature = "v1"))]
 pub trait GetSubscriptionEstimateFlow {}
+
+/// trait SubscriptionRecordBackFlow (disabled when not V1)
+#[cfg(not(feature = "v1"))]
+pub trait SubscriptionRecordBackFlow {}
