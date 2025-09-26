@@ -125,6 +125,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub stripebilling: ConnectorParams,
     pub taxjar: ConnectorParams,
+    pub tesouro: ConnectorParams,
     pub threedsecureio: ConnectorParams,
     pub thunes: ConnectorParams,
     pub tokenex: ConnectorParams,
