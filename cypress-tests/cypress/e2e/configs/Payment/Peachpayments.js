@@ -57,9 +57,6 @@ const billingAddress = {
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
-      config: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         currency: "USD",
         amount: 6000,
@@ -607,18 +604,6 @@ export const connectorDetails = {
         },
       },
     },
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-        },
-      },
-    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -655,60 +640,6 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
-        },
-      },
-    },
-    CaptureCapturedAmount: {
-      Request: {
-        Request: {
-          amount_to_capture: 6000,
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "amount_to_capture is greater than amount",
-            code: "IR_06",
-          },
-        },
-      },
-    },
-    ConfirmSuccessfulPayment: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Missing required param: client_secret",
-            code: "IR_04",
-          },
-        },
-      },
-    },
-    RefundGreaterAmount: {
-      Request: {
-        amount: 6000000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
         },
       },
     },
