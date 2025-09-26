@@ -151,11 +151,13 @@ impl ConnectorCommon for Tokenex {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let (code, message) = response.error.split_once(':').unwrap_or(("", ""));
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: code.to_string(),
+            message: message.to_string(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,

@@ -2201,18 +2201,7 @@ pub async fn create_pm_additional_data_update(
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
-        .map(
-            |payment_method_vaulting_data| match payment_method_vaulting_data {
-                domain::PaymentMethodVaultingData::Card(card) => domain::PaymentMethodsData::Card(
-                    domain::CardDetailsPaymentMethod::from(card.clone()),
-                ),
-                domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                    domain::PaymentMethodsData::NetworkToken(
-                        domain::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
-                    )
-                }
-            },
-        )
+        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 

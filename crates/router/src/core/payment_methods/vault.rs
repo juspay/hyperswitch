@@ -1964,9 +1964,12 @@ pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
             }
         },
         Err(err) => {
-            logger::error!("Failed to retrieve payment method: {:?}", err);
+            logger::error!(
+                "Failed to retrieve payment method from external vault: {:?}",
+                err
+            );
             Err(report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method"))
+                .attach_printable("Failed to retrieve payment method from external vault"))
         }
     }
 }

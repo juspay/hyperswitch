@@ -1547,6 +1547,21 @@ impl Profile {
                 Cow::Borrowed(common_types::consts::DEFAULT_PAYOUT_WEBHOOK_TRIGGER_STATUSES)
             })
     }
+
+    pub fn get_billing_processor_id(
+        &self,
+    ) -> CustomResult<
+        common_utils::id_type::MerchantConnectorAccountId,
+        api_error_response::ApiErrorResponse,
+    > {
+        self.billing_processor_id
+            .to_owned()
+            .ok_or(error_stack::report!(
+                api_error_response::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_processor_id"
+                }
+            ))
+    }
 }
 
 #[cfg(feature = "v2")]
