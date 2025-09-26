@@ -5919,3 +5919,8 @@ type = "Text"
 [finix]
 [finix.connector_auth.HeaderKey]
 api_key = "API Key"
+
+[tesouro]
+[tesouro.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
