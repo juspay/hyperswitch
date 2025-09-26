@@ -6,7 +6,10 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
@@ -21,8 +24,8 @@ use crate::{
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
-            SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
@@ -46,8 +49,8 @@ use crate::{
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse,
-            SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
         },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
@@ -143,6 +146,12 @@ pub type InvoiceRecordBackRouterData =
 
 pub type GetSubscriptionPlansRouterData =
     RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>;
+
+pub type GetSubscriptionEstimateRouterData = RouterData<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;

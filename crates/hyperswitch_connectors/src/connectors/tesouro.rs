@@ -1,9 +1,9 @@
 pub mod transformers;
 
-use base64::Engine;
+use std::sync::LazyLock;
+
 use common_enums::enums;
 use common_utils::{
-    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -24,12 +24,11 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -38,24 +37,22 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts as api_consts, errors,
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use lazy_static::lazy_static;
-use masking::{Mask, PeekInterface};
-use transformers as gigadat;
-use uuid::Uuid;
+use masking::{ExposeInterface, Mask};
+use transformers as tesouro;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Gigadat {
+pub struct Tesouro {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Gigadat {
+impl Tesouro {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
@@ -63,26 +60,26 @@ impl Gigadat {
     }
 }
 
-impl api::Payment for Gigadat {}
-impl api::PaymentSession for Gigadat {}
-impl api::ConnectorAccessToken for Gigadat {}
-impl api::MandateSetup for Gigadat {}
-impl api::PaymentAuthorize for Gigadat {}
-impl api::PaymentSync for Gigadat {}
-impl api::PaymentCapture for Gigadat {}
-impl api::PaymentVoid for Gigadat {}
-impl api::Refund for Gigadat {}
-impl api::RefundExecute for Gigadat {}
-impl api::RefundSync for Gigadat {}
-impl api::PaymentToken for Gigadat {}
+impl api::Payment for Tesouro {}
+impl api::PaymentSession for Tesouro {}
+impl api::ConnectorAccessToken for Tesouro {}
+impl api::MandateSetup for Tesouro {}
+impl api::PaymentAuthorize for Tesouro {}
+impl api::PaymentSync for Tesouro {}
+impl api::PaymentCapture for Tesouro {}
+impl api::PaymentVoid for Tesouro {}
+impl api::Refund for Tesouro {}
+impl api::RefundExecute for Tesouro {}
+impl api::RefundSync for Tesouro {}
+impl api::PaymentToken for Tesouro {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Gigadat
+    for Tesouro
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gigadat
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tesouro
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -101,13 +98,16 @@ where
     }
 }
 
-impl ConnectorCommon for Gigadat {
+impl ConnectorCommon for Tesouro {
     fn id(&self) -> &'static str {
-        "gigadat"
+        "tesouro"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -115,20 +115,18 @@ impl ConnectorCommon for Gigadat {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.gigadat.base_url.as_ref()
+        connectors.tesouro.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(auth_type)
+        let auth = tesouro::TesouroAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
-        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_header.into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 
@@ -137,9 +135,9 @@ impl ConnectorCommon for Gigadat {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatErrorResponse = res
+        let response: tesouro::TesouroErrorResponse = res
             .response
-            .parse_struct("GigadatErrorResponse")
+            .parse_struct("TesouroErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -147,9 +145,9 @@ impl ConnectorCommon for Gigadat {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.err.clone(),
-            message: response.err.clone(),
-            reason: Some(response.err).clone(),
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -160,7 +158,7 @@ impl ConnectorCommon for Gigadat {
     }
 }
 
-impl ConnectorValidation for Gigadat {
+impl ConnectorValidation for Tesouro {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -186,15 +184,15 @@ impl ConnectorValidation for Gigadat {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Tesouro {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Gigadat {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Tesouro {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Gigadat {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Tesouro {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Tesouro {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -209,16 +207,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(format!(
-            "{}api/payment-token/{}",
-            self.base_url(connectors),
-            auth.campaign_id.peek()
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -232,8 +224,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = gigadat::GigadatRouterData::from((amount, req));
-        let connector_req = gigadat::GigadatCpiRequest::try_from(&connector_router_data)?;
+        let connector_router_data = tesouro::TesouroRouterData::from((amount, req));
+        let connector_req = tesouro::TesouroPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -265,14 +257,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatPaymentResponse = res
+        let response: tesouro::TesouroPaymentsResponse = res
             .response
-            .parse_struct("GigadatPaymentResponse")
+            .parse_struct("Tesouro PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -289,7 +279,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tesouro {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -304,18 +294,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
 
     fn get_url(
         &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}api/transactions/{transaction_id}",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -339,9 +321,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatTransactionStatusResponse = res
+        let response: tesouro::TesouroPaymentsResponse = res
             .response
-            .parse_struct("gigadat PaymentsSyncResponse")
+            .parse_struct("tesouro PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -361,7 +343,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Tesouro {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -416,9 +398,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatTransactionStatusResponse = res
+        let response: tesouro::TesouroPaymentsResponse = res
             .response
-            .parse_struct("Gigadat PaymentsCaptureResponse")
+            .parse_struct("Tesouro PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -438,28 +420,15 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Gigadat {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Tesouro {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tesouro {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
-        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-        Ok(vec![
-            (
-                headers::AUTHORIZATION.to_string(),
-                auth_header.into_masked(),
-            ),
-            (
-                headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
-            ),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -469,9 +438,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}refunds", self.base_url(connectors),))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -485,8 +454,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             req.request.currency,
         )?;
 
-        let connector_router_data = gigadat::GigadatRouterData::from((refund_amount, req));
-        let connector_req = gigadat::GigadatRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = tesouro::TesouroRouterData::from((refund_amount, req));
+        let connector_req = tesouro::TesouroRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -515,9 +484,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: gigadat::RefundResponse = res
+        let response: tesouro::RefundResponse = res
             .response
-            .parse_struct("gigadat RefundResponse")
+            .parse_struct("tesouro RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -533,45 +502,79 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatRefundErrorResponse = res
-            .response
-            .parse_struct("GigadatRefundErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let code = response
-            .error
-            .first()
-            .and_then(|error_detail| error_detail.code.clone())
-            .unwrap_or(api_consts::NO_ERROR_CODE.to_string());
-        let message = response
-            .error
-            .first()
-            .map(|error_detail| error_detail.detail.clone())
-            .unwrap_or(api_consts::NO_ERROR_MESSAGE.to_string());
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(response.message).clone(),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Gigadat {
-    //Gigadat does not support Refund Sync
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tesouro {
+    fn get_headers(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefundSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        let response: tesouro::RefundResponse = res
+            .response
+            .parse_struct("tesouro RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Gigadat {
+impl webhooks::IncomingWebhook for Tesouro {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -594,43 +597,28 @@ impl webhooks::IncomingWebhook for Gigadat {
     }
 }
 
-lazy_static! {
-    static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(SupportedPaymentMethods::new);
 
-        let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
-        gigadat_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Interac,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods,
-                specific_features: None,
-            },
-        );
+static TESOURO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Tesouro",
+    description: "Tesouro connects software companies and banks in one unified ecosystem, simplifying payments",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+};
 
-        gigadat_supported_payment_methods
-    };
-    static ref GIGADAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Gigadat",
-        description: "Gigadat is a financial services product that offers a single API for payment integration. It provides Canadian businesses with a secure payment gateway and various pay-in and pay-out solutions, including Interac e-Transfer",
-        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
-    };
-    static ref GIGADAT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
-}
+static TESOURO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Gigadat {
+impl ConnectorSpecifications for Tesouro {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*GIGADAT_CONNECTOR_INFO)
+        Some(&TESOURO_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*GIGADAT_SUPPORTED_PAYMENT_METHODS)
+        Some(&*TESOURO_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&TESOURO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
