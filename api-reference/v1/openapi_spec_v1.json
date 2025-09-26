@@ -23114,6 +23114,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         }
@@ -23587,6 +23588,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -24199,6 +24201,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -24985,6 +24988,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -25623,6 +25627,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -26247,6 +26252,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
