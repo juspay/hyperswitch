@@ -40,7 +40,7 @@ pub async fn construct_hyperswitch_ai_interaction(
         .and_then(|bytes| {
             GcmAes256
                 .encode_message(&key, &bytes)
-                .map_err(|e| e.change_context(errors::ApiErrorResponse::InternalServerError))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
         })
         .attach_printable("Failed to encrypt response")?;
 
