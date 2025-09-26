@@ -2593,7 +2593,7 @@ async fn subscription_incoming_webhook_flow(
 
     let connector = Connector::from_str(&connector_name)
         .change_context(errors::ConnectorError::InvalidConnectorName)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name}"))?;
 
     let mit_payment_data = match connector {
@@ -2629,12 +2629,16 @@ async fn subscription_incoming_webhook_flow(
                 .to_string(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError{
+            message: "Subscription not found".to_string(),
+        })
         .attach_printable("Failed to find subscription by merchant ID and subscription ID")?;
 
     let payment_method_id = subscription
         .payment_method_id
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "No payment method found for subscription".to_string(),
+        })
         .attach_printable("No payment method found for subscription")?;
 
     logger::info!("Payment method ID found: {}", payment_method_id);
@@ -2644,7 +2648,7 @@ async fn subscription_incoming_webhook_flow(
         api_models::process_tracker::subscription::SubscriptionWorkflowTrackingData {
             merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             profile_id: business_profile.get_id().clone(),
-            payment_method_id,
+            payment_method_id: Some(payment_method_id),
             subscription_id: mit_payment_data.subscription_id,
             invoice_id: mit_payment_data.invoice_id.clone(),
             amount: mit_payment_data.amount_due,

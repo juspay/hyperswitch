@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 pub struct SubscriptionWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
-    pub payment_method_id: String,
+    pub payment_method_id: Option<String>,
     pub subscription_id: id_type::SubscriptionId,
-    pub invoice_id: String,
+    pub invoice_id: id_type::InvoiceId,
     pub amount: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,
     pub customer_id: id_type::CustomerId,

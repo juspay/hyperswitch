@@ -5,7 +5,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::{CustomerId, SubscriptionId},
+    id_type::{CustomerId, SubscriptionId, InvoiceId},
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -465,7 +465,7 @@ pub enum ChargebeeEventType {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
-    pub id: String,
+    pub id: InvoiceId,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
@@ -590,7 +590,7 @@ impl ChargebeeInvoiceBody {
 // Structure to extract MIT payment data from invoice_generated webhook
 #[derive(Debug, Clone)]
 pub struct ChargebeeMitPaymentData {
-    pub invoice_id: String,
+    pub invoice_id: InvoiceId,
     pub amount_due: MinorUnit,
     pub currency_code: enums::Currency,
     pub status: String,

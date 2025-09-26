@@ -1330,13 +1330,8 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let subscription_id = webhook.content.invoice.subscription_id;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentIntentId(
-                common_utils::id_type::PaymentId::wrap(
-                    subscription_id.get_string_repr().to_string(),
-                )
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-            ),
+        Ok(api_models::webhooks::ObjectReferenceId::SubscriptionId(
+            subscription_id.into(),
         ))
     }
     fn get_webhook_event_type(

@@ -343,6 +343,7 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    SubscriptionId(common_utils::id_type::SubscriptionId),
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]

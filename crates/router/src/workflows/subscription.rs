@@ -58,12 +58,12 @@ async fn perform_subscription_mit_payment(
 
     let invoice_new = InvoiceNew {
         id: tracking_data.invoice_id.clone(),
-        subscription_id: tracking_data.subscription_id.get_string_repr().to_string(),
+        subscription_id: tracking_data.subscription_id.clone(),
         merchant_id: tracking_data.merchant_id.clone(),
         profile_id: tracking_data.profile_id.clone(),
         merchant_connector_id: tracking_data.billing_connector_mca_id.clone(),
         payment_intent_id: None,
-        payment_method_id: None,
+        payment_method_id: tracking_data.payment_method_id.clone(),
         customer_id: tracking_data.customer_id.clone(),
         amount: tracking_data.amount,
         currency: tracking_data.currency.to_string(),
