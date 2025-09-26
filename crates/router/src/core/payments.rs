@@ -4858,7 +4858,7 @@ where
                     &header_payload,
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
-                    &merchant_context,
+                    merchant_context,
                 )
                 .await?;
 
@@ -4960,7 +4960,7 @@ where
                     &header_payload,
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
-                    &merchant_context,
+                    merchant_context,
                 )
                 .await?;
 
