@@ -51,7 +51,10 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     network_tokenization::NetworkTokenNumber,
-    payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
+    payment_method_data::{
+        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
+        PaymentMethodData,
+    },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
@@ -238,13 +241,6 @@ pub struct GooglePayWalletData {
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayPaymentMethodInfo {
-    pub card_network: String,
-    pub card_details: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct CardMandateInfo {
     pub card_exp_month: Secret<String>,
@@ -277,6 +273,8 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
+                assurance_details: data.info.assurance_details,
+                card_funding_source: data.info.card_funding_source,
             },
             tokenization_data,
         })

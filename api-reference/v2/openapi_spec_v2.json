@@ -12387,6 +12387,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },

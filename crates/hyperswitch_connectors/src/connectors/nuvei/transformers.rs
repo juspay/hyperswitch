@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, GooglePayCardFundingSource, PaymentChannel};
 use common_types::payments::{
     ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
 };
@@ -1030,6 +1030,7 @@ struct GooglePayInfoCamelCase {
     card_network: Secret<String>,
     card_details: Secret<String>,
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
+    card_funding_source: Option<GooglePayCardFundingSource>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1158,6 +1159,7 @@ where
                                                 .card_holder_authenticated,
                                             account_verified: details.account_verified,
                                         }),
+                                    card_funding_source: gpay_data.info.card_funding_source.clone(),
                                 },
                                 tokenization_data: GooglePayTokenizationDataCamelCase {
                                     token_type: token_type.into(),
