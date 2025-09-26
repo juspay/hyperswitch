@@ -111,7 +111,7 @@ async fn perform_subscription_invoice_sync(
     } else if status == common_enums::IntentStatus::Processing {
         let db = &*state.store;
         let connector = billing_processor_mca.connector_name.clone();
-        let is_last_retry = retry_subscription_psync_task(
+        let is_last_retry = retry_subscription_invoice_sync_task(
             db,
             connector,
             merchant_account.get_id().to_owned(),
@@ -206,7 +206,7 @@ pub async fn perform_billing_processor_record_back(
         .fetch_invoice_by_id(state, &tracking_data.invoice_id)
         .await?;
 
-    // Should we retry if this fails?
+    // TODO: Handle retries here on failure
     billing_handler
         .record_back_to_billing_processor(state, tracking_data.connector_invoice_id.clone())
         .await?;
@@ -274,12 +274,12 @@ pub async fn create_invoice_record_back_job(
     Ok(())
 }
 
-pub async fn get_subscription_psync_process_schedule_time(
+pub async fn get_subscription_invoice_sync_process_schedule_time(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     // Can have config based mapping as well
-    let mapping = scheduler_types::process_data::SubscriptionPSyncPTMapping::default();
+    let mapping = scheduler_types::process_data::SubscriptionInvoiceSyncPTMapping::default();
     let time_delta = scheduler_utils::get_subscription_psync_retry_schedule_time(
         mapping,
         merchant_id,
@@ -289,14 +289,15 @@ pub async fn get_subscription_psync_process_schedule_time(
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
 
-pub async fn retry_subscription_psync_task(
+pub async fn retry_subscription_invoice_sync_task(
     db: &dyn StorageInterface,
     _connector: String,
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, errors::ProcessTrackerError> {
     let schedule_time =
-        get_subscription_psync_process_schedule_time(&merchant_id, pt.retry_count + 1).await?;
+        get_subscription_invoice_sync_process_schedule_time(&merchant_id, pt.retry_count + 1)
+            .await?;
 
     match schedule_time {
         Some(s_time) => {

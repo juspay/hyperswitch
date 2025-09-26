@@ -387,7 +387,7 @@ pub fn get_pcr_payments_retry_schedule_time(
 }
 
 pub fn get_subscription_psync_retry_schedule_time(
-    mapping: process_data::SubscriptionPSyncPTMapping,
+    mapping: process_data::SubscriptionInvoiceSyncPTMapping,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
