@@ -17,7 +17,8 @@ use hyperswitch_domain_models::{
     address::Address,
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
-        GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
+        GooglePayCardFundingSource, GooglePayWalletData, PayLaterData, PaymentMethodData,
+        WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -1030,6 +1031,7 @@ struct GooglePayInfoCamelCase {
     card_network: Secret<String>,
     card_details: Secret<String>,
     assurance_details: Option<GooglePayAssuranceDetailsCamelCase>,
+    card_funding_source: Option<GooglePayCardFundingSource>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1158,6 +1160,7 @@ where
                                                 .card_holder_authenticated,
                                             account_verified: details.account_verified,
                                         }),
+                                    card_funding_source: gpay_data.info.card_funding_source.clone(),
                                 },
                                 tokenization_data: GooglePayTokenizationDataCamelCase {
                                     token_type: token_type.into(),
