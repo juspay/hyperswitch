@@ -6414,7 +6414,7 @@ where
                 customers::should_call_connector_create_customer(
                     &connector,
                     customer,
-                    &payment_data.get_payment_attempt(),
+                    payment_data.get_payment_attempt(),
                 );
 
             if should_call_connector {
