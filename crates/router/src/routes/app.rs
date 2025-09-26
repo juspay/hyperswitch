@@ -3026,5 +3026,10 @@ impl RecoveryDataBackfill {
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
+            .service(web::resource("/update-ttl/{token_id}/{time}").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_update_ttl,
+                ),
+            ))
     }
 }

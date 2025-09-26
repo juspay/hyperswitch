@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
-    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
+    BackfillError, ComprehensiveCardData, RedisKeyType, RevenueRecoveryBackfillRequest,
+    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse, UpdatedTTLResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use router_env::{instrument, logger};
@@ -67,14 +68,8 @@ pub async fn unlock_connector_customer_status(
     let unlocked = storage::revenue_recovery_redis_operation::
         RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id)
         .await
-        .map_err(|e| {
-            logger::error!(
-                "Failed to unlock connector customer status for {}: {}",
-                connector_customer_id,
-                e
-            );
-            errors::ApiErrorResponse::InternalServerError
-        })?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to unlock the connector_customer_status key")?;
 
     let response = UnlockStatusResponse { unlocked };
 
@@ -82,6 +77,30 @@ pub async fn unlock_connector_customer_status(
         "Unlock operation completed for connector customer {}: {}",
         connector_customer_id,
         unlocked
+    );
+
+    Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn update_connector_customer_ttl(
+    state: SessionState,
+    connector_customer_id: &str,
+    expire_ttl: i64,
+    key_type: &RedisKeyType,
+) -> RouterResult<ApplicationResponse<UpdatedTTLResponse>> {
+    let is_updated = storage::revenue_recovery_redis_operation::
+        RedisTokenManager::update_connector_customer_lock_ttl(&state, connector_customer_id, expire_ttl, key_type)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to update the TTL of customer key")?;
+
+    let response = UpdatedTTLResponse { is_updated };
+
+    logger::info!(
+        "Update TTL operation completed for connector customer {} (key_type: {:?}): {}",
+        connector_customer_id,
+        key_type,
+        is_updated
     );
 
     Ok(ApplicationResponse::Json(response))
