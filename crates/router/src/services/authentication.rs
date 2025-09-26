@@ -47,6 +47,7 @@ use crate::{
     services::api,
     types::{domain, storage},
     utils::OptionExt,
+    configs::settings,
 };
 
 pub mod blacklist;
@@ -4461,8 +4462,8 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     }
 }
 
-pub fn is_internal_api_key_merchant_id_profile_id_auth(headers: &HeaderMap) -> bool {
-    headers.contains_key(headers::X_INTERNAL_API_KEY)
+pub fn is_internal_api_key_merchant_id_profile_id_auth(headers: &HeaderMap, internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings) -> bool {
+    internal_api_key_auth.enabled && headers.contains_key(headers::X_INTERNAL_API_KEY)
         && headers.contains_key(headers::X_MERCHANT_ID)
         && headers.contains_key(headers::X_PROFILE_ID)
 }
@@ -4472,6 +4473,7 @@ pub fn check_internal_api_key_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
     api_auth: ApiKeyAuth,
+    internal_api_key_auth: settings::InternalMerchantIdProfileIdAuthSettings,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
@@ -4480,8 +4482,9 @@ where
     T: SessionStateInfo + Sync + Send,
     ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
-    if is_internal_api_key_merchant_id_profile_id_auth(headers) {
+    if is_internal_api_key_merchant_id_profile_id_auth(headers, internal_api_key_auth) {
         Ok((
+            // HeaderAuth(api_auth) will never be called in this case as the internal auth will be checked first
             Box::new(InternalMerchantIdProfileIdAuth(HeaderAuth(api_auth))),
             api::AuthFlow::Merchant,
         ))

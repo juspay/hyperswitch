@@ -573,11 +573,15 @@ pub async fn payments_retrieve(
         is_platform_allowed: true,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_internal_api_key_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
+        req.headers(),
+        &payload,
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let locking_action = payload.get_locking_input(flow.clone());
 
