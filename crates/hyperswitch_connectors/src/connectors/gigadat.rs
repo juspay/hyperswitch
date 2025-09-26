@@ -52,7 +52,6 @@ use hyperswitch_interfaces::{
 };
 use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
-use router_env::logger;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
@@ -723,7 +722,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Gigada
         _event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoCreate>, errors::ConnectorError> {
-        logger::debug!("Expected zero bytes response, skipped parsing of the response");
+        router_env::logger::debug!("Expected zero bytes response, skipped parsing of the response");
 
         let status = if res.status_code == 200 {
             enums::PayoutStatus::RequiresFulfillment
