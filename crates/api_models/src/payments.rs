@@ -10,7 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
-use common_types::payments as common_payments_types;
+use common_types::{payments as common_payments_types,primitive_wrappers};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -312,8 +312,9 @@ pub struct PaymentsCreateIntentRequest {
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 
     /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization:
-        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -1275,13 +1276,14 @@ pub struct PaymentsRequest {
     pub order_date: Option<PrimitiveDateTime>,
 
     /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization:
-        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5653,16 +5655,17 @@ pub struct PaymentsResponse {
     pub whole_connector_response: Option<Secret<String>>,
 
     /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization:
-        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 
     /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
-    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
 
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
@@ -6088,8 +6091,9 @@ pub struct PaymentsRequest {
     pub return_raw_connector_response: Option<bool>,
 
     /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization:
-        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -9776,8 +9780,9 @@ pub struct RecoveryPaymentsCreate {
     pub action: common_payments_types::RecoveryAction,
 
     /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization:
-        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]

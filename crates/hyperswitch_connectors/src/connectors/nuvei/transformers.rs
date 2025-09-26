@@ -1,6 +1,9 @@
 use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
-use common_types::payments::{
-    ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
+use common_types::{
+    payments::{
+        ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
+    },
+    primitive_wrappers,
 };
 use common_utils::{
     crypto::{self, GenerateDigest},
@@ -171,7 +174,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         self.enable_partial_authorization
-            .map(|partial_auth| PartialApprovalFlag::from(partial_auth.is_true()))
+            .map(PartialApprovalFlag::from)
     }
 
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -255,7 +258,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     }
     fn get_is_partial_approval(&self) -> Option<PartialApprovalFlag> {
         self.enable_partial_authorization
-            .map(|partial_auth| PartialApprovalFlag::from(partial_auth.is_true()))
+            .map(PartialApprovalFlag::from)
     }
 }
 
@@ -465,9 +468,9 @@ pub enum PartialApprovalFlag {
     Disabled,
 }
 
-impl From<bool> for PartialApprovalFlag {
-    fn from(value: bool) -> Self {
-        if value {
+impl From<primitive_wrappers::EnablePartialAuthorizationBool> for PartialApprovalFlag {
+    fn from(value: primitive_wrappers::EnablePartialAuthorizationBool) -> Self {
+        if value.is_true() {
             Self::Enabled
         } else {
             Self::Disabled
