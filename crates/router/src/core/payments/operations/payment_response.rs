@@ -1411,27 +1411,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     let additional_payment_data = payment_data.payment_attempt.get_payment_method_data();
 
-    // Helper closure for updating the additional_payment_data with connector response
-    let update_pm_data = || {
-        update_additional_payment_data_with_connector_response_pm_data(
-            payment_data.payment_attempt.payment_method_data.clone(),
-            router_data
-                .connector_response
-                .as_ref()
-                .and_then(|connector_response| {
-                    connector_response.additional_payment_method_data.clone()
-                }),
-        )
-        .ok()
-        .flatten()
-    };
-
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
-        _ => additional_payment_data.and_then(|_| update_pm_data()),
+        _ => {
+            additional_payment_data
+                .map(|_| {
+                    update_additional_payment_data_with_connector_response_pm_data(
+                        payment_data.payment_attempt.payment_method_data.clone(),
+                        router_data
+                            .connector_response
+                            .as_ref()
+                            .and_then(|connector_response| {
+                                connector_response.additional_payment_method_data.clone()
+                            }),
+                    )
+                })
+                .transpose()?
+                .flatten()
+        }
     };
 
     router_data.payment_method_status.and_then(|status| {
