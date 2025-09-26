@@ -225,6 +225,7 @@ describe("Manual Retry Tests", () => {
 
     it("Retry Confirm after cutoff is expired (Should Throw Error)", () => {
       // wait for 35 seconds
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(MANUAL_RETRY_EXPIRATION);
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -292,6 +293,7 @@ describe("Manual Retry Tests", () => {
 
     it("First Confirm after Manual Retry Cutoff (Should Succeed)", () => {
       // wait for 35 seconds
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(MANUAL_RETRY_EXPIRATION);
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
