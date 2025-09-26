@@ -30,13 +30,13 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceRecordBackWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData>(
-                "InvoiceRecordBackTrackingData",
-            )?;
+            .parse_value::<api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData>(
+            "InvoiceSyncTrackingData",
+        )?;
 
         match process.name.as_deref() {
-            Some("INVOICE_RECORD_BACK") => {
-                Box::pin(perform_subscription_invoice_record_back(
+            Some("INVOICE_SYNC") => {
+                Box::pin(perform_subscription_invoice_sync(
                     state,
                     process,
                     &tracking_data,
@@ -56,10 +56,10 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceRecordBackWorkflow {
     }
 }
 #[cfg(feature = "v1")]
-async fn perform_subscription_invoice_record_back(
+async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: storage::ProcessTracker,
-    tracking_data: &api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData,
+    tracking_data: &api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData,
 ) -> Result<(), errors::ProcessTrackerError> {
     // Extract merchant context
     let key_manager_state = &state.into();
@@ -136,7 +136,7 @@ async fn perform_subscription_invoice_record_back(
             status
         );
         return Err(errors::ProcessTrackerError::FlowExecutionError {
-            flow: "INVOICE_RECORD_BACK",
+            flow: "INVOICE_SYNC",
         });
     }
 
@@ -148,7 +148,7 @@ pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    tracking_data: &process_tracker_types::invoice_record_back::InvoiceRecordBackTrackingData,
+    tracking_data: &process_tracker_types::inovoice_sync::InvoiceSyncTrackingData,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
@@ -203,7 +203,7 @@ pub async fn perform_billing_processor_record_back(
     let invoice_handler = subscription::InvoiceHandler::new(subscription.clone());
 
     let invoice = invoice_handler
-        .fetch_invoice(state, &tracking_data.invoice_id)
+        .fetch_invoice_by_id(state, &tracking_data.invoice_id)
         .await?;
 
     // Should we retry if this fails?
@@ -238,25 +238,24 @@ pub async fn create_invoice_record_back_job(
     intent_status: common_enums::IntentStatus,
     connector_invoice_id: String,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
-    let tracking_data =
-        api_models::process_tracker::invoice_record_back::InvoiceRecordBackTrackingData::new(
-            payment_id.clone(),
-            subscription_id,
-            billing_processor_mca_id,
-            invoice_id,
-            merchant_id.clone(),
-            profile_id,
-            customer_id.clone(),
-            amount,
-            currency,
-            payment_method_type,
-            intent_status,
-            connector_invoice_id,
-        );
+    let tracking_data = api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData::new(
+        payment_id.clone(),
+        subscription_id,
+        billing_processor_mca_id,
+        invoice_id,
+        merchant_id.clone(),
+        profile_id,
+        customer_id.clone(),
+        amount,
+        currency,
+        payment_method_type,
+        intent_status,
+        connector_invoice_id,
+    );
 
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
-        "INVOICE_RECORD_BACK".to_string(),
+        "INVOICE_SYNC".to_string(),
         common_enums::ProcessTrackerRunner::InvoiceRecordBackflow,
         vec!["INVOICE".to_string()],
         tracking_data,

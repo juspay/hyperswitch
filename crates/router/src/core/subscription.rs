@@ -339,7 +339,7 @@ impl InvoiceHandler {
     pub fn new(subscription: diesel_models::subscription::Subscription) -> Self {
         Self { subscription }
     }
-    pub async fn fetch_invoice(
+    pub async fn fetch_invoice_by_id(
         &self,
         state: &SessionState,
         id: &common_utils::id_type::InvoiceId,
@@ -429,7 +429,7 @@ impl InvoiceHandler {
         connector_invoice_id: String,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
-        workflows::invoice_record_back::create_invoice_record_back_job(
+        workflows::invoice_sync::create_invoice_record_back_job(
             state,
             payment_response.payment_id.to_owned(),
             self.subscription.id.to_owned(),

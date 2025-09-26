@@ -2,7 +2,7 @@ use common_utils::{id_type, types};
 
 use crate::enums as api_enums;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct InvoiceRecordBackTrackingData {
+pub struct InvoiceSyncTrackingData {
     pub payment_id: id_type::PaymentId,
     pub subscription_id: id_type::SubscriptionId,
     pub billing_processor_mca_id: id_type::MerchantConnectorAccountId,
@@ -17,7 +17,7 @@ pub struct InvoiceRecordBackTrackingData {
     pub connector_invoice_id: String,
 }
 
-impl InvoiceRecordBackTrackingData {
+impl InvoiceSyncTrackingData {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         payment_id: id_type::PaymentId,

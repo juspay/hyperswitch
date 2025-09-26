@@ -1,3 +1,3 @@
-pub mod invoice_record_back;
+pub mod inovoice_sync;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
