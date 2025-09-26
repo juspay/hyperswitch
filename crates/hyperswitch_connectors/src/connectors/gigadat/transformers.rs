@@ -63,7 +63,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for GigadatConnectorMetadataObject 
 }
 
 // CPI (Combined Pay-in) Request Structure for Gigadat
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GigadatCpiRequest {
     pub user_id: id_type::CustomerId,
@@ -79,7 +79,7 @@ pub struct GigadatCpiRequest {
     pub mobile: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum GidadatTransactionType {
     Cpi,
@@ -157,19 +157,19 @@ impl TryFrom<&ConnectorAuthType> for GigadatAuthType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatPaymentResponse {
     pub token: Secret<String>,
     pub data: GigadatPaymentData,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GigadatPaymentData {
     pub transaction_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GigadatPaymentStatus {
     StatusInited,
@@ -198,7 +198,7 @@ impl From<GigadatPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatTransactionStatusResponse {
     pub status: GigadatPaymentStatus,
 }
@@ -314,11 +314,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GigadatPayoutQuoteRequest {
     pub amount: FloatMajorUnit,
-    pub compaign: Secret<String>,
+    pub campaign: Secret<String>,
     pub currency: Currency,
     pub email: Email,
     pub mobile: Secret<String>,
@@ -364,18 +364,18 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
             name,
             email,
             mobile,
-            compaign: auth_type.campaign_id,
+            campaign: auth_type.campaign_id,
         })
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GigadatPayoutResponse {
     pub token: Secret<String>,
     pub data: GigadatPayoutData,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GigadatPayoutData {
     pub transaction_id: String,
@@ -403,18 +403,18 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for Payouts
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct GigadatErrorResponse {
     pub err: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct GigadatRefundErrorResponse {
     pub error: Vec<Error>,
     pub message: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Error {
     pub code: Option<String>,
     pub detail: String,
