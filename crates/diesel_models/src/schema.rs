@@ -1188,7 +1188,6 @@ diesel::table! {
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
-        is_stored_credential -> Nullable<Bool>,
     }
 }
 

@@ -4011,7 +4011,6 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
-            is_stored_credential: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4097,7 +4096,6 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
-            is_stored_credential: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4181,7 +4179,6 @@ mod tests {
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
-            is_stored_credential: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -7828,39 +7825,16 @@ pub async fn get_merchant_connector_account_v2(
     }
 }
 
-pub fn get_is_stored_credential(
-    recurring_details: &Option<RecurringDetails>,
-    payment_token: &Option<String>,
-    is_mandate: bool,
-) -> bool {
-    recurring_details.is_some() || payment_token.is_some() || is_mandate
-}
-pub fn validate_stored_credential(
-    is_stored_credential: Option<bool>,
-    recurring_details: &Option<RecurringDetails>,
-    payment_token: &Option<String>,
-    mandate_id: &Option<String>,
-) -> RouterResult<()> {
-    if is_stored_credential == Some(false)
-        && get_is_stored_credential(recurring_details, payment_token, mandate_id.is_some())
-    {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "is_stored_credential should be true when reusing stored payment method data"
-                .to_string(),
-        }
-        .into())
-    } else {
-        Ok(())
-    }
-}
-pub fn update_is_stored_credential(
+pub fn is_stored_credential(
     recurring_details: &Option<RecurringDetails>,
     payment_token: &Option<String>,
     is_mandate: bool,
     is_stored_credential_prev: Option<bool>,
 ) -> Option<bool> {
     if is_stored_credential_prev == Some(true)
-        || get_is_stored_credential(recurring_details, payment_token, is_mandate)
+        || recurring_details.is_some()
+        || payment_token.is_some()
+        || is_mandate
     {
         Some(true)
     } else {

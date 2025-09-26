@@ -976,7 +976,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .payment_intent
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
-                    is_stored_credential: payment_data.payment_intent.is_stored_credential,
                 })),
                 key_store,
                 storage_scheme,
@@ -1059,12 +1058,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         let _mandate_type = helpers::validate_mandate(request, false)?;
 
         helpers::validate_recurring_details_and_token(
-            &request.recurring_details,
-            &request.payment_token,
-            &request.mandate_id,
-        )?;
-        helpers::validate_stored_credential(
-            request.is_stored_credential,
             &request.recurring_details,
             &request.payment_token,
             &request.mandate_id,
