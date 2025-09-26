@@ -4199,8 +4199,8 @@ where
             &merchant_connector_account,
             merchant_recipient_data,
             None,
-            None,
-            None,
+            payment_data.get_payment_attempt().payment_method,
+            payment_data.get_payment_attempt().payment_method_type,
         )
         .await?;
 
@@ -5117,8 +5117,8 @@ where
             &merchant_connector_account,
             merchant_recipient_data,
             Some(header_payload.clone()),
-            None,
-            None,
+            payment_data.get_payment_attempt().payment_method,
+            payment_data.get_payment_attempt().payment_method_type,
         )
         .await?;
 
@@ -5617,14 +5617,6 @@ where
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
-        if let Some(hyperswitch_domain_models::payment_method_data::WalletData::ApplePayRedirect(
-            _,
-        )) = payment_data
-            .get_payment_method_data()
-            .and_then(|pmd| pmd.get_wallet_data())
-        {
-            return Ok(None);
-        }
         let apple_pay_metadata = check_apple_pay_metadata(state, Some(merchant_connector_account));
 
         add_apple_pay_flow_metrics(
@@ -6440,8 +6432,8 @@ where
                         merchant_connector_account,
                         None,
                         None,
-                        None,
-                        None,
+                        payment_data.get_payment_attempt().payment_method,
+                        payment_data.get_payment_attempt().payment_method_type,
                     )
                     .await?;
 
@@ -6851,8 +6843,8 @@ where
             merchant_conn_account,
             None,
             header_payload,
-            None,
-            None,
+            payment_data.get_payment_attempt().payment_method,
+            payment_data.get_payment_attempt().payment_method_type,
         )
         .await?;
 
