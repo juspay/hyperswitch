@@ -1456,6 +1456,7 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PayoutCreated
             | webhooks::IncomingWebhookEvent::PayoutExpired
             | webhooks::IncomingWebhookEvent::PayoutReversed
+            | webhooks::IncomingWebhookEvent::InvoiceGenerated
             | webhooks::IncomingWebhookEvent::SetupWebhook => {
                 common_types::payments::RecoveryAction::InvalidAction
             }

@@ -5,7 +5,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::{CustomerId, SubscriptionId},
+    id_type::{CustomerId, InvoiceId, SubscriptionId},
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -459,16 +459,21 @@ pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
     InvoiceDeleted,
+    InvoiceGenerated,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
-    pub id: String,
+    pub id: InvoiceId,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+    pub status: Option<String>,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -582,7 +587,35 @@ impl ChargebeeInvoiceBody {
         Ok(webhook_body)
     }
 }
+// Structure to extract MIT payment data from invoice_generated webhook
+#[derive(Debug, Clone)]
+pub struct ChargebeeMitPaymentData {
+    pub invoice_id: InvoiceId,
+    pub amount_due: MinorUnit,
+    pub currency_code: enums::Currency,
+    pub status: String,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: bool,
+}
 
+impl TryFrom<ChargebeeInvoiceBody> for ChargebeeMitPaymentData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(webhook_body: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let invoice = webhook_body.content.invoice;
+
+        Ok(Self {
+            invoice_id: invoice.id,
+            amount_due: invoice.total,
+            currency_code: invoice.currency_code,
+            status: invoice.status.unwrap_or_else(|| "payment_due".to_string()),
+            customer_id: invoice.customer_id,
+            subscription_id: invoice.subscription_id,
+            first_invoice: invoice.first_invoice.unwrap_or(false),
+        })
+    }
+}
 pub struct ChargebeeMandateDetails {
     pub customer_id: String,
     pub mandate_id: String,
@@ -743,6 +776,19 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::PaymentIntentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::PaymentIntentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::EventNotSupported,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
         }
     }
 }

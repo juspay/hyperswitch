@@ -9,8 +9,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-#[cfg(feature = "v1")]
-use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
@@ -1325,11 +1323,17 @@ impl webhooks::IncomingWebhook for Chargebee {
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let subscription_id = webhook.content.invoice.subscription_id;
+        Ok(api_models::webhooks::ObjectReferenceId::SubscriptionId(
+            subscription_id.into(),
+        ))
     }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1339,13 +1343,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
