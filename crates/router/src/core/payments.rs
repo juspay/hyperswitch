@@ -6415,6 +6415,7 @@ where
                     &connector,
                     customer,
                     payment_data.get_payment_attempt(),
+                    &label,
                 );
 
             if should_call_connector {
