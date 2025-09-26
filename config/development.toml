@@ -1381,3 +1381,9 @@ encryption_key = ""
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+[proxy]
+http_url = "http://127.0.0.1:8081"     # Proxy all HTTP traffic via this proxy
+https_url = "http://127.0.0.1:8081"                 # Proxy all HTTPS traffic via this proxy
+idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
+bypass_proxy_urls = ""

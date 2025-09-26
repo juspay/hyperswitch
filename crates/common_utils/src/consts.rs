@@ -157,6 +157,12 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
 
+/// Flow name
+pub const X_FLOW: &str = "x-flow";
+
+/// Connector name
+pub const X_CONNECTOR: &str = "x-connector";
+
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
 
