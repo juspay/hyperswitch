@@ -10,11 +10,11 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
-use common_types::{payments as common_payments_types,primitive_wrappers};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+use common_types::{payments as common_payments_types, primitive_wrappers};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -313,8 +313,7 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
-    pub enable_partial_authorization:
-        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -1277,8 +1276,7 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
-    pub enable_partial_authorization:
-        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
@@ -5656,8 +5654,7 @@ pub struct PaymentsResponse {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
-    pub enable_partial_authorization:
-        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
@@ -6092,8 +6089,7 @@ pub struct PaymentsRequest {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
-    pub enable_partial_authorization:
-        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -9781,8 +9777,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
-    pub enable_partial_authorization:
-        Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
