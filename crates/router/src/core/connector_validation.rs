@@ -155,6 +155,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 breadpay::transformers::BreadpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Cardinal => Ok(()),
             api_enums::Connector::Cashtocode => {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -260,6 +261,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Getnet => {
                 getnet::transformers::GetnetAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Gigadat => {
+                gigadat::transformers::GigadatAuthType::try_from(self.auth_type)?;
+                gigadat::transformers::GigadatConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Globalpay => {
@@ -485,6 +493,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Trustpayments => {
+                trustpayments::transformers::TrustpaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Tokenex => {
+                tokenex::transformers::TokenexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Tokenio => {

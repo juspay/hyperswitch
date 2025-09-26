@@ -182,6 +182,13 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
+impl ApiEventMetric for payments::GiftCardBalanceCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
@@ -224,6 +231,22 @@ impl ApiEventMetric for PaymentsIntentResponse {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payments::PaymentsResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentsCancelRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentsCancelResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),

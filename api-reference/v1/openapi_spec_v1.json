@@ -8169,7 +8169,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationCreateRequest": {
@@ -12049,6 +12050,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -12075,6 +12077,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -12129,8 +12132,10 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -15235,6 +15240,31 @@
           }
         }
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ExternalVaultEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
@@ -17175,6 +17205,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -24098,6 +24132,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -24294,6 +24334,11 @@
           "challenge_request": {
             "type": "string",
             "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
             "nullable": true
           },
           "acs_reference_number": {
@@ -25515,6 +25560,12 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "capture_before": {
@@ -28608,6 +28659,27 @@
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28943,6 +29015,27 @@
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
@@ -30187,6 +30280,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -30238,6 +30332,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
@@ -32007,7 +32102,7 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_key"
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
               "three_ds_method_data_submission": {
@@ -32025,17 +32120,27 @@
                 "nullable": true
               },
               "three_ds_method_key": {
-                "type": "string",
-                "enum": [
-                  "threeDSMethodData"
-                ]
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
+                  }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
-        ],
-        "discriminator": {
-          "propertyName": "three_ds_method_key"
-        }
+        ]
+      },
+      "ThreeDsMethodKey": {
+        "type": "string",
+        "enum": [
+          "threeDSMethodData",
+          "JWT"
+        ]
       },
       "TimeRange": {
         "type": "object",
@@ -32679,6 +32784,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
       },
       "Venmo": {
         "type": "object",
