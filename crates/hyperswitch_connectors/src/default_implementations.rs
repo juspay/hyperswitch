@@ -1534,7 +1534,6 @@ default_imp_for_create_customer!(
     connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
-    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
