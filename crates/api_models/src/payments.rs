@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::ProductType;
+use common_enums::{GooglePayCardFundingSource, ProductType};
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
@@ -4258,15 +4258,6 @@ pub struct GooglePayAssuranceDetails {
     pub card_holder_authenticated: bool,
     /// indicates that identification and verifications (ID&V) was performed
     pub account_verified: bool,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum GooglePayCardFundingSource {
-    Unknown,
-    Credit,
-    Debit,
-    Prepaid,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

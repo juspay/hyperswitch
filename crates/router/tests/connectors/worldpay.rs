@@ -1,5 +1,5 @@
+use common_enums::GooglePayCardFundingSource;
 use futures::future::OptionFuture;
-use hyperswitch_domain_models::payment_method_data::GooglePayCardFundingSource;
 use router::types::{self, domain, storage::enums};
 use serde_json::json;
 use serial_test::serial;

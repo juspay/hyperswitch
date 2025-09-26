@@ -16152,15 +16152,6 @@
           }
         }
       },
-      "GooglePayCardFundingSource": {
-        "type": "string",
-        "enum": [
-          "UNKNOWN",
-          "CREDIT",
-          "DEBIT",
-          "PREPAID"
-        ]
-      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [

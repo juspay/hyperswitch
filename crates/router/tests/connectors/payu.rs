@@ -1,4 +1,4 @@
-use hyperswitch_domain_models::payment_method_data::GooglePayCardFundingSource;
+use common_enums::GooglePayCardFundingSource;
 use masking::PeekInterface;
 use router::types::{self, domain, storage::enums, AccessToken, ConnectorAuthType};
 

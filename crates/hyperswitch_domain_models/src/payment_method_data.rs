@@ -6,7 +6,7 @@ use api_models::{
     payment_methods::{self},
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
-use common_enums::enums as api_enums;
+use common_enums::{enums as api_enums, GooglePayCardFundingSource};
 use common_utils::{
     ext_traits::{OptionExt, StringExt},
     id_type,
@@ -481,15 +481,6 @@ pub struct GooglePayAssuranceDetails {
     pub card_holder_authenticated: bool,
     /// indicates that identification and verifications (ID&V) was performed
     pub account_verified: bool,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum GooglePayCardFundingSource {
-    Unknown,
-    Credit,
-    Debit,
-    Prepaid,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1262,17 +1253,6 @@ impl From<api_models::payments::WalletData> for WalletData {
     }
 }
 
-impl From<api_models::payments::GooglePayCardFundingSource> for GooglePayCardFundingSource {
-    fn from(value: api_models::payments::GooglePayCardFundingSource) -> Self {
-        match value {
-            api_models::payments::GooglePayCardFundingSource::Unknown => Self::Unknown,
-            api_models::payments::GooglePayCardFundingSource::Credit => Self::Credit,
-            api_models::payments::GooglePayCardFundingSource::Debit => Self::Debit,
-            api_models::payments::GooglePayCardFundingSource::Prepaid => Self::Prepaid,
-        }
-    }
-}
-
 impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
     fn from(value: api_models::payments::GooglePayWalletData) -> Self {
         Self {
@@ -1287,7 +1267,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                         account_verified: info.account_verified,
                     }
                 }),
-                card_funding_source: value.info.card_funding_source.map(Into::into),
+                card_funding_source: value.info.card_funding_source,
             },
             tokenization_data: value.tokenization_data,
         }

@@ -1,4 +1,4 @@
-use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
+use common_enums::{enums, CaptureMethod, FutureUsage, GooglePayCardFundingSource, PaymentChannel};
 use common_types::payments::{
     ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
 };
@@ -17,8 +17,7 @@ use hyperswitch_domain_models::{
     address::Address,
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
-        GooglePayCardFundingSource, GooglePayWalletData, PayLaterData, PaymentMethodData,
-        WalletData,
+        GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
