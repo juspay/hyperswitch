@@ -142,6 +142,7 @@ stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
+tesouro.base_url = "https://api.sandbox.tesouro.com"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
@@ -866,6 +867,9 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
+
+[l2_l3_data_config]  
+enabled = "true"
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal"         # List of connectors which has additional source verification api-call
