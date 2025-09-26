@@ -23,6 +23,7 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
+use router_env::RequestId;
 use serde_urlencoded;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
@@ -156,6 +157,8 @@ pub struct GrpcHeaders {
 pub struct GrpcHeadersUcs {
     /// Tenant id
     tenant_id: String,
+    /// Request id
+    request_id: Option<RequestId>,
     /// Lineage ids
     lineage_ids: LineageIds,
     /// External vault proxy metadata
@@ -165,10 +168,12 @@ pub struct GrpcHeadersUcs {
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), (), ())>;
+pub type GrpcHeadersUcsBuilderInitial =
+    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), ())>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
     (String,),
+    (Option<RequestId>,),
     (),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
