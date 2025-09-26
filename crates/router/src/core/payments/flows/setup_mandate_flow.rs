@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use common_types::payments as common_payments_types;
 use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
+use external_services::grpc_client;
+use hyperswitch_domain_models::payments as domain_payments;
 use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -45,7 +47,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -81,7 +83,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(
             transformers::construct_payment_router_data_for_setup_mandate(
@@ -108,7 +110,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
-        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _header_payload: domain_payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -262,6 +264,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
+        header_payload: &domain_payments::HeaderPayload,
+        lineage_ids: grpc_client::LineageIds,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
@@ -285,10 +289,9 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         )
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = self
-            .header_payload
-            .as_ref()
-            .and_then(|payload| payload.x_reference_id.clone())
+        let merchant_reference_id = header_payload
+            .x_reference_id
+            .clone()
             .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
             .transpose()
             .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
@@ -298,7 +301,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         let header_payload = state
             .get_grpc_headers_ucs()
             .external_vault_proxy_metadata(None)
-            .merchant_reference_id(merchant_reference_id);
+            .merchant_reference_id(merchant_reference_id)
+            .lineage_ids(lineage_ids);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
