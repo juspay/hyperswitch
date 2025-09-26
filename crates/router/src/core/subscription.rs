@@ -155,7 +155,7 @@ pub async fn confirm_subscription(
         .await?;
 
     // invoice_handler
-    //     .create_invoice_record_back_job(
+    //     .create_invoice_sync_job(
     //         &handler.state,
     //         payment_response,
     //         &invoice_entry,
@@ -421,7 +421,7 @@ impl InvoiceHandler {
         todo!("Create a CIT payment for the invoice")
     }
 
-    pub async fn create_invoice_record_back_job(
+    pub async fn create_invoice_sync_job(
         &self,
         state: &SessionState,
         payment_response: &subscription_types::PaymentResponseData,
@@ -429,7 +429,7 @@ impl InvoiceHandler {
         connector_invoice_id: String,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
-        workflows::invoice_sync::create_invoice_record_back_job(
+        workflows::invoice_sync::create_invoice_sync_job(
             state,
             payment_response.payment_id.to_owned(),
             self.subscription.id.to_owned(),

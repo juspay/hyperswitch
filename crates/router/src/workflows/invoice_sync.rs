@@ -17,10 +17,10 @@ use crate::{
     routes::SessionState,
     types::{domain, storage},
 };
-pub struct InvoiceRecordBackWorkflow;
+pub struct InvoiceSyncWorkflow;
 
 #[async_trait]
-impl ProcessTrackerWorkflow<SessionState> for InvoiceRecordBackWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
     #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
@@ -223,7 +223,7 @@ pub async fn perform_billing_processor_record_back(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_invoice_record_back_job(
+pub async fn create_invoice_sync_job(
     state: &SessionState,
     payment_id: common_utils::id_type::PaymentId,
     subscription_id: common_utils::id_type::SubscriptionId,
@@ -256,7 +256,7 @@ pub async fn create_invoice_record_back_job(
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
         "INVOICE_SYNC".to_string(),
-        common_enums::ProcessTrackerRunner::InvoiceRecordBackflow,
+        common_enums::ProcessTrackerRunner::InvoiceSyncflow,
         vec!["INVOICE".to_string()],
         tracking_data,
         Some(0),
