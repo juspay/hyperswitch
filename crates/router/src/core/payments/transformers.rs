@@ -3962,7 +3962,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
-            is_stored_credential:pa.is_stored_credential
+            is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
         }
     }
