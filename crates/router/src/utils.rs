@@ -500,7 +500,7 @@ pub async fn get_mca_from_subscription_id(
             }
             #[cfg(feature = "v2")]
             {
-                 //get mca using id
+                //get mca using id
                 let _id = merchant_connector_id;
                 let _ = key_store;
                 let _ = key_manager_state;

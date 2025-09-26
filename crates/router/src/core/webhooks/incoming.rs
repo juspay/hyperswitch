@@ -2629,7 +2629,7 @@ async fn subscription_incoming_webhook_flow(
                 .to_string(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError{
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Subscription not found".to_string(),
         })
         .attach_printable("Failed to find subscription by merchant ID and subscription ID")?;

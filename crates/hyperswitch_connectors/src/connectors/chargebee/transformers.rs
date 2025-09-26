@@ -5,7 +5,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::{CustomerId, SubscriptionId, InvoiceId},
+    id_type::{CustomerId, InvoiceId, SubscriptionId},
     pii::{self, Email},
     types::MinorUnit,
 };
