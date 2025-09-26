@@ -259,7 +259,7 @@ pub async fn create_invoice_record_back_job(
         common_enums::ProcessTrackerRunner::InvoiceRecordBackflow,
         vec!["INVOICE".to_string()],
         tracking_data,
-        Some(5),
+        Some(0),
         common_utils::date_time::now(),
         common_types::consts::API_VERSION,
     )
