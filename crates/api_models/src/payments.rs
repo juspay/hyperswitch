@@ -2665,6 +2665,16 @@ pub struct PaymentMethodDataRequest {
     pub billing: Option<Address>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SplitPaymentMethodDataRequest {
+    pub payment_method_data: PaymentMethodData,
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method_type: api_enums::PaymentMethod,
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+}
+
 /// The payment method information provided for making a payment
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct RecordAttemptPaymentMethodDataRequest {
@@ -5818,6 +5828,9 @@ pub struct PaymentsConfirmIntentRequest {
     /// The payment instrument data to be used for the payment
     pub payment_method_data: PaymentMethodDataRequest,
 
+    /// The payment instrument data to be used for the payment in case of split payments
+    pub split_payment_method_data: Option<Vec<SplitPaymentMethodDataRequest>>,
+
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
@@ -6139,6 +6152,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             payment_token: None,
             merchant_connector_details: request.merchant_connector_details.clone(),
             return_raw_connector_response: request.return_raw_connector_response,
+            split_payment_method_data: None,
         }
     }
 }

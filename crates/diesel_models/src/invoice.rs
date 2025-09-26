@@ -34,21 +34,21 @@ pub struct InvoiceNew {
     check_for_backend(diesel::pg::Pg)
 )]
 pub struct Invoice {
-    id: common_utils::id_type::InvoiceId,
-    subscription_id: common_utils::id_type::SubscriptionId,
-    merchant_id: common_utils::id_type::MerchantId,
-    profile_id: common_utils::id_type::ProfileId,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    payment_intent_id: Option<common_utils::id_type::PaymentId>,
-    payment_method_id: Option<String>,
-    customer_id: common_utils::id_type::CustomerId,
-    amount: MinorUnit,
-    currency: String,
-    status: String,
-    provider_name: Connector,
-    metadata: Option<SecretSerdeValue>,
-    created_at: time::PrimitiveDateTime,
-    modified_at: time::PrimitiveDateTime,
+    pub id: common_utils::id_type::InvoiceId,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub payment_method_id: Option<String>,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub status: String,
+    pub provider_name: Connector,
+    pub metadata: Option<SecretSerdeValue>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
