@@ -57,11 +57,14 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: rust:latest
+    image: debian:trixie-slim
+    pull_policy: always
     command: >
       bash -c "
-      curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &&
-      cargo binstall diesel_cli just --no-confirm &&
+      apt-get update && apt-get install -y curl xz-utils &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
+      curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin &&
+      export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
       just migrate"
     working_dir: /app
     networks:
@@ -71,7 +74,7 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
-  
+
   mailhog:
     image: mailhog/mailhog
     networks:
@@ -215,12 +218,12 @@ services:
     container_name: create-default-user
     depends_on:
       hyperswitch-server:
-        condition: service_healthy 
+        condition: service_healthy
       hyperswitch-control-center:
         condition: service_started
     environment:
       - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
-      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000  
+      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000
     entrypoint:
       [
         "/bin/sh",
@@ -231,7 +234,7 @@ services:
       - ./scripts/create_default_user.sh:/create_default_user.sh
     networks:
       - router_net
-  
+
   poststart-hook:
     image: curlimages/curl-base:latest
     container_name: poststart-hook
