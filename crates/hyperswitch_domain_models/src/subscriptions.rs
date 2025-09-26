@@ -1,5 +1,5 @@
-use common_utils::events::ApiEventMetric;
 use masking::Secret;
+use std::str::FromStr;
 use utoipa::ToSchema;
 
 // use crate::{
@@ -11,7 +11,6 @@ use utoipa::ToSchema;
 ///
 /// This struct captures details required to create a subscription,
 /// including plan, profile, merchant connector, and optional customer info.
-//
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// Merchant specific Unique identifier.
@@ -77,6 +76,17 @@ pub enum SubscriptionStatus {
     Pending,
 }
 
+impl std::fmt::Display for SubscriptionStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Active => write!(f, "Active"),
+            Self::Created => write!(f, "Created"),
+            Self::InActive => write!(f, "InActive"),
+            Self::Pending => write!(f, "Pending"),
+        }
+    }
+}
+
 impl CreateSubscriptionResponse {
     /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
     ///
@@ -105,9 +115,6 @@ impl CreateSubscriptionResponse {
         }
     }
 }
-
-impl ApiEventMetric for CreateSubscriptionResponse {}
-impl ApiEventMetric for CreateSubscriptionRequest {}
 
 // Type conversions between API models and domain models
 
@@ -189,6 +196,67 @@ impl From<api_models::subscription::SubscriptionStatus> for SubscriptionStatus {
             api_models::subscription::SubscriptionStatus::Created => Self::Created,
             api_models::subscription::SubscriptionStatus::InActive => Self::InActive,
             api_models::subscription::SubscriptionStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+impl CreateSubscriptionRequest {
+    /// Convert domain request with context to SubscriptionNew for database operations
+    pub fn to_subscription_new(
+        self,
+        id: common_utils::id_type::SubscriptionId,
+        profile_id: common_utils::id_type::ProfileId,
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> diesel_models::subscription::SubscriptionNew {
+        diesel_models::subscription::SubscriptionNew::new(
+            id,
+            SubscriptionStatus::Created.to_string(),
+            None, // billing_processor
+            None, // payment_method_id
+            None, // merchant_connector_id
+            None, // client_secret
+            None, // connector_subscription_id
+            merchant_id,
+            self.customer_id,
+            None, // metadata
+            profile_id,
+            self.merchant_reference_id,
+        )
+    }
+}
+
+impl CreateSubscriptionResponse {
+    /// Convert from database subscription model to domain response
+    pub fn from_subscription_db(
+        subscription: diesel_models::subscription::Subscription,
+        customer_id: common_utils::id_type::CustomerId,
+    ) -> Self {
+        Self {
+            id: subscription.id,
+            merchant_reference_id: subscription.merchant_reference_id,
+            status: SubscriptionStatus::from_str(&subscription.status)
+                .unwrap_or(SubscriptionStatus::Created),
+            plan_id: None, // Not stored in the current DB schema
+            profile_id: subscription.profile_id,
+            client_secret: subscription.client_secret.map(Secret::new),
+            merchant_id: subscription.merchant_id,
+            coupon_code: None, // Not stored in the current DB schema
+            customer_id,
+        }
+    }
+}
+
+/// Add FromStr implementation for SubscriptionStatus if not already present
+impl FromStr for SubscriptionStatus {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Active" => Ok(Self::Active),
+            "Created" => Ok(Self::Created),
+            "InActive" => Ok(Self::InActive),
+            "Pending" => Ok(Self::Pending),
+            _ => Err(()),
         }
     }
 }

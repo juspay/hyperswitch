@@ -1,13 +1,13 @@
 use std::str::FromStr;
 
-use api_models::subscription::{
-    self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
-};
+use api_models::subscription::{self as subscription_types, CreateSubscriptionResponse};
 use common_utils::id_type::GenerateId;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
-use masking::Secret;
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    subscriptions::CreateSubscriptionRequest,
+};
 
 use super::errors::{self, RouterResponse};
 use crate::routes::SessionState;
@@ -27,20 +27,10 @@ pub async fn create_subscription(
         },
     )?;
 
-    let mut subscription = SubscriptionNew::new(
-        id,
-        SubscriptionStatus::Created.to_string(),
-        None,
-        None,
-        None,
-        None,
-        None,
-        merchant_context.get_merchant_account().get_id().clone(),
-        request.customer_id.clone(),
-        None,
-        profile_id,
-        request.merchant_reference_id,
-    );
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let domain_request: CreateSubscriptionRequest = request.clone().into();
+    let mut subscription: SubscriptionNew =
+        domain_request.to_subscription_new(id.clone(), profile_id.clone(), merchant_id.clone());
 
     subscription.generate_and_set_client_secret();
     let subscription_response = db
@@ -49,17 +39,13 @@ pub async fn create_subscription(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("subscriptions: unable to insert subscription entry to database")?;
 
-    let response = CreateSubscriptionResponse::new(
-        subscription_response.id.clone(),
-        subscription_response.merchant_reference_id,
-        SubscriptionStatus::from_str(&subscription_response.status)
-            .unwrap_or(SubscriptionStatus::Created),
-        None,
-        subscription_response.profile_id,
-        subscription_response.merchant_id,
-        subscription_response.client_secret.map(Secret::new),
-        request.customer_id,
-    );
+    let domain_response =
+        hyperswitch_domain_models::subscriptions::CreateSubscriptionResponse::from_subscription_db(
+            subscription_response,
+            request.customer_id,
+        );
+        
+    let response = CreateSubscriptionResponse::from(domain_response);
 
     Ok(ApplicationResponse::Json(response))
 }
