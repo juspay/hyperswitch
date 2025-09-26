@@ -146,6 +146,7 @@ stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
+tesouro.base_url = "https://api.sandbox.tesouro.com"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
@@ -866,7 +867,7 @@ redsys = { payment_method = "card" }
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 braintree = { long_lived_token = false, payment_method = "card" }
-checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
+checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization" }
 gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 hipay = { long_lived_token = false, payment_method = "card" }
 mollie = { long_lived_token = false, payment_method = "card" }
