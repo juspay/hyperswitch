@@ -29,6 +29,7 @@ pub(crate) enum GlobalEntity {
     Refund,
     PaymentMethodSession,
     Token,
+    PaymentMethodToken,
 }
 
 impl GlobalEntity {
@@ -41,6 +42,7 @@ impl GlobalEntity {
             Self::Refund => "ref",
             Self::PaymentMethodSession => "pms",
             Self::Token => "tok",
+            Self::PaymentMethodToken => "pmt",
         }
     }
 }
