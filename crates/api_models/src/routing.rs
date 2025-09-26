@@ -73,7 +73,7 @@ impl RoutingConfigRequest {
         if let Some(name) = &self.name {
             if name.len() > 64 {
                 return Err(ValidationError::InvalidValue {
-                    message: "Name length must not exceed 64 characters".to_string()
+                    message: "Name length must not exceed 64 characters".to_string(),
                 });
             }
         }
