@@ -1271,3 +1271,8 @@ encryption_key = ""                            # Key to encrypt and decrypt chat
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
+
+# Authentication to communicate between internal services using common_api_key, merchant id and profile id
+[internal_merchant_id_profile_id_auth]
+enabled = false # Enable or disable internal api key, merchant id and profile id based authentication
+internal_api_key = "test_internal_api_key" # API key for internal merchant id and profile id based authentication
