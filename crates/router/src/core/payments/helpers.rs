@@ -6891,6 +6891,8 @@ pub fn get_connector_data_with_token(
     let connector_type =
         decide_session_token_flow(&connector_data_result?.connector, payment_method_type);
 
+    crate::logger::debug!(session_token_flow=?connector_type, "Session token flow decided for payment method type: {:?}", payment_method_type);
+
     api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_name.to_string(),
@@ -6908,6 +6910,7 @@ pub fn decide_session_token_flow(
     payment_method_type: api_models::enums::PaymentMethodType,
 ) -> api::GetToken {
     if connector.validate_sdk_session_token_for_payment_method(&payment_method_type) {
+        crate::logger::debug!("`validate_sdk_session_token_for_payment_method` returned true, using `Connector` token flow");
         return api::GetToken::Connector;
     }
 

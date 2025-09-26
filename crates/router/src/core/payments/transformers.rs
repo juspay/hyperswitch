@@ -1246,6 +1246,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     let apple_pay_recurring_details = payment_data
         .payment_intent
         .feature_metadata
+        .clone()
         .and_then(|feature_metadata| feature_metadata.apple_pay_recurring_details)
         .map(|apple_pay_recurring_details| {
             ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
@@ -1257,6 +1258,10 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .tax_details
         .clone()
         .and_then(|tax| tax.get_default_tax_amount());
+
+    let payment_attempt = payment_data.get_payment_attempt();
+    let payment_method = Some(payment_attempt.payment_method_type);
+    let payment_method_type = Some(payment_attempt.payment_method_subtype);
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
@@ -1286,8 +1291,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         metadata: payment_data.payment_intent.metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        payment_method: None,
-        payment_method_type: None,
+        payment_method,
+        payment_method_type,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1628,12 +1633,16 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let payment_method = payment_method
-        .or(payment_data.payment_attempt.payment_method)
+    let payment_method = payment_data
+        .payment_attempt
+        .payment_method
+        .or(payment_method)
         .get_required_value("payment_method")?;
 
-    let payment_method_type =
-        payment_method_type.or(payment_data.payment_attempt.payment_method_type);
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method_type
+        .or(payment_method_type);
 
     let resource_id = match payment_data
         .payment_attempt

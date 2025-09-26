@@ -427,12 +427,10 @@ pub trait ConnectorSpecifications {
         &self,
         current_core_payment_method_type: &PaymentMethodType,
     ) -> bool {
-        if self.is_sdk_client_token_generation_enabled() {
-            self.supported_payment_method_types_for_sdk_client_token_generation()
+        self.is_sdk_client_token_generation_enabled()
+            && self
+                .supported_payment_method_types_for_sdk_client_token_generation()
                 .contains(current_core_payment_method_type)
-        } else {
-            false
-        }
     }
 
     #[cfg(not(feature = "v2"))]
