@@ -30,6 +30,8 @@ COPY --chown=app:app ./diesel.toml ./diesel.toml
 COPY --chown=app:app ./crates/diesel_models/src/schema.rs ./crates/diesel_models/src/schema.rs
 COPY --chown=app:app ./crates/diesel_models/drop_id.patch ./crates/diesel_models/drop_id.patch
 
+# Copy the migration runner script
+COPY --chown=app:app ./scripts/migration_runner_entrypoint.sh ./migration_runner_entrypoint.sh
+
 # Default command to run migrations
-# Supports both DATABASE_URL or individual POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then if [ -z \"$POSTGRES_HOST\" ] || [ -z \"$POSTGRES_USER\" ] || [ -z \"$POSTGRES_PASSWORD\" ] || [ -z \"$POSTGRES_DB\" ]; then echo 'Error: Either DATABASE_URL or all of POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB must be provided'; exit 1; fi; export DATABASE_URL=\"postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_HOST:5432/$POSTGRES_DB\"; fi; diesel migration run"]
+CMD ["./migration_runner_entrypoint.sh"]
