@@ -9206,10 +9206,10 @@ pub struct PaymentsEligibilityRequest {
     pub client_secret: Secret<String>,
     /// The payment method to be used for the payment
     #[schema(value_type = PaymentMethod, example = "wallet")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
     /// The payment method type to be used for the payment
     #[schema(value_type = Option<PaymentMethodType>)]
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data to be used for the payment
     pub payment_method_data: PaymentMethodDataRequest,
 }

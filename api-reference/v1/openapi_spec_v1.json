@@ -1656,7 +1656,7 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields",
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -24350,7 +24350,7 @@
         "type": "object",
         "required": [
           "client_secret",
-          "payment_method",
+          "payment_method_type",
           "payment_method_data"
         ],
         "properties": {
@@ -24359,10 +24359,10 @@
             "description": "Token used for client side verification",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
           },
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_type": {
+          "payment_method_subtype": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodType"
