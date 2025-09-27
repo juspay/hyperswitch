@@ -13,7 +13,7 @@ pub struct SubscriptionCreateResponse {
     pub created_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum SubscriptionStatus {
     Pending,
     Trial,
@@ -23,6 +23,22 @@ pub enum SubscriptionStatus {
     Onetime,
     Cancelled,
     Failed,
+}
+
+#[cfg(feature = "v1")]
+impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+    fn from(status: SubscriptionStatus) -> Self {
+        match status {
+            SubscriptionStatus::Pending => Self::Pending,
+            SubscriptionStatus::Trial => Self::Trial,
+            SubscriptionStatus::Active => Self::Active,
+            SubscriptionStatus::Paused => Self::Paused,
+            SubscriptionStatus::Unpaid => Self::Unpaid,
+            SubscriptionStatus::Onetime => Self::Onetime,
+            SubscriptionStatus::Cancelled => Self::Cancelled,
+            SubscriptionStatus::Failed => Self::Failed,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
