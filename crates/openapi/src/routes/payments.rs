@@ -1012,6 +1012,24 @@ pub fn payments_post_session_tokens() {}
 )]
 pub fn payments_update_metadata() {}
 
+/// Payments - Submit Eligibility Data
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/eligibility",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    request_body=PaymentsEligibilityRequest,
+    responses(
+        (status = 200, description = "Eligbility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Submit Eligibility data for a Payment",
+    security(("publishable_key" = []))
+)]
+pub fn payments_submit_eligibility() {}
+
 /// Payments - Create Intent
 ///
 /// **Creates a payment intent object when amount_details are passed.**

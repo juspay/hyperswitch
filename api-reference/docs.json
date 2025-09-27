@@ -50,7 +50,8 @@
                       "v1/payments/payments--list",
                       "v1/payments/payments--external-3ds-authentication",
                       "v1/payments/payments--complete-authorize",
-                      "v1/payments/payments--update-metadata"
+                      "v1/payments/payments--update-metadata",
+                      "v1/payments/payments--submit-eligibility-data"
                     ]
                   },
                   {
