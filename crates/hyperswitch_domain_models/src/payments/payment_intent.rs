@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
@@ -250,8 +251,8 @@ pub struct PaymentIntentUpdateFields {
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub feature_metadata: Option<Secret<serde_json::Value>>,
-    pub enable_partial_authorization: Option<bool>,
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -452,8 +453,8 @@ pub struct PaymentIntentUpdateInternal {
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
-    pub enable_partial_authorization: Option<bool>,
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1741,6 +1742,7 @@ impl behaviour::Conversion for PaymentIntent {
             created_by,
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            enable_partial_authorization,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1836,7 +1838,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization: None,
+            enable_partial_authorization,
             enable_overcapture: None,
         })
     }
@@ -1983,6 +1985,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                enable_partial_authorization: storage_model.enable_partial_authorization,
             })
         }
         .await
@@ -2078,7 +2081,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
-            enable_partial_authorization: None,
+            enable_partial_authorization: self.enable_partial_authorization,
         })
     }
 }

@@ -10,11 +10,11 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
-use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+use common_types::{payments as common_payments_types, primitive_wrappers};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -310,6 +310,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -1271,12 +1275,13 @@ pub struct PaymentsRequest {
     pub order_date: Option<PrimitiveDateTime>,
 
     /// Allow partial authorization for this payment
-    pub enable_partial_authorization: Option<bool>,
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5664,15 +5669,16 @@ pub struct PaymentsResponse {
     pub whole_connector_response: Option<Secret<String>>,
 
     /// Allow partial authorization for this payment
-    pub enable_partial_authorization: Option<bool>,
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 
     /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
-    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
 
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
@@ -6099,6 +6105,10 @@ pub struct PaymentsRequest {
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
     pub return_raw_connector_response: Option<bool>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6133,6 +6143,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication,
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
+            enable_partial_authorization: request.enable_partial_authorization,
         }
     }
 }
@@ -9783,6 +9794,10 @@ pub struct RecoveryPaymentsCreate {
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
