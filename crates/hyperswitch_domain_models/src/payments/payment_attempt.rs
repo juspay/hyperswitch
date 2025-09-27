@@ -1038,6 +1038,7 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1336,6 +1337,7 @@ pub struct PaymentAttemptNew {
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -1369,6 +1371,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
+        is_stored_credential: Option<bool>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -1407,6 +1410,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     RejectUpdate {
@@ -1600,6 +1604,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 merchant_connector_id,
                 routing_approach,
+                is_stored_credential,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -1617,6 +1622,7 @@ impl PaymentAttemptUpdate {
                     }
                     _ => approach,
                 }),
+                is_stored_credential,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1683,6 +1689,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
                 request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
@@ -1728,6 +1735,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                is_stored_credential,
                 request_extended_authorization,
             },
             Self::VoidUpdate {
@@ -2178,6 +2186,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_id: self.network_transaction_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 
@@ -2279,6 +2288,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 network_transaction_id: storage_model.network_transaction_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
+                is_stored_credential: storage_model.is_stored_credential,
             })
         }
         .await
@@ -2371,6 +2381,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         })
     }
 }
@@ -2544,6 +2555,7 @@ impl behaviour::Conversion for PaymentAttempt {
             is_overcapture_enabled: None,
             network_details: None,
             attempts_group_id,
+            is_stored_credential: None,
         })
     }
 
@@ -2825,6 +2837,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_details: None,
             attempts_group_id,
+            is_stored_credential: None,
         })
     }
 }

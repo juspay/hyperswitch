@@ -6759,6 +6759,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: data.request.is_stored_credential,
     }
 }
 

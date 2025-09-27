@@ -1025,6 +1025,7 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         is_overcapture_enabled -> Nullable<Bool>,
         network_details -> Nullable<Jsonb>,
+        is_stored_credential -> Nullable<Bool>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,

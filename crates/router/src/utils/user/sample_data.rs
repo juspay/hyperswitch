@@ -394,6 +394,7 @@ pub async fn generate_sample_data(
             connector_request_reference_id: None,
             network_transaction_id: None,
             network_details: None,
+            is_stored_credential: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

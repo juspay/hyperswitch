@@ -233,6 +233,7 @@ async fn payments_create_core() {
         is_overcapture_enabled: None,
         enable_overcapture: None,
         network_details: None,
+        is_stored_credential: None,
         request_extended_authorization: None,
     };
 
@@ -526,6 +527,7 @@ async fn payments_create_core_adyen_no_redirect() {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
             request_extended_authorization: None,
         },
         vec![],

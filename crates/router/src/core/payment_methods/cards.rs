@@ -3043,6 +3043,7 @@ pub async fn list_payment_methods(
             surcharge_amount: None,
             tax_amount: None,
             routing_approach,
+            is_stored_credential: None,
         };
 
         state
