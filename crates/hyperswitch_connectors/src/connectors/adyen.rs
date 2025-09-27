@@ -2056,8 +2056,42 @@ impl IncomingWebhook for Adyen {
                 });
         Ok(optional_network_txn_id)
     }
-}
 
+    #[cfg(feature = "v1")]
+    fn get_additional_payment_method_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<api_models::payment_methods::PaymentMethodUpdate>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let (month_str, year_str) = notif
+            .additional_data
+            .expiry_date
+            .map(|date| transformers::parse_expiry_date(&date.expose()))
+            .transpose()?
+            .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            card: Some(api_models::payment_methods::CardDetailUpdate {
+                card_exp_month: Some(month_str),
+                card_exp_year: Some(year_str),
+                card_holder_name: None,
+                nick_name: None,
+                issuer_country: notif.additional_data.card_issuing_country.clone(),
+                card_issuer: notif.additional_data.card_issuing_bank.clone(),
+                last4_digits: notif
+                    .additional_data
+                    .card_summary
+                    .map(|last4| last4.expose().to_string()),
+            }),
+            client_secret: None,
+        }))
+    }
+}
 impl Dispute for Adyen {}
 impl DefendDispute for Adyen {}
 impl AcceptDispute for Adyen {}

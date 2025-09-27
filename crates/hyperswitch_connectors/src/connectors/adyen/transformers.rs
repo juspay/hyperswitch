@@ -5025,6 +5025,10 @@ pub struct AdyenAdditionalDataWH {
     pub shopper_email: Option<String>,
     #[serde(rename = "shopperReference")]
     pub shopper_reference: Option<String>,
+    pub expiry_date: Option<Secret<String>>,
+    pub card_summary: Option<Secret<String>>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_bank: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -6302,4 +6306,35 @@ impl AdditionalData {
             Some(first_part.to_string())
         })
     }
+}
+
+pub fn parse_expiry_date(
+    raw: &str,
+) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError> {
+    let cleaned = raw.replace('\\', "");
+    let parts: Vec<&str> = cleaned.split('/').collect();
+
+    let (month_str_raw, year_str_raw) = match (parts.first(), parts.get(1)) {
+        (Some(m), Some(y)) => (*m, *y),
+        _ => return Err(errors::ConnectorError::ParsingFailed),
+    };
+
+    let month: u32 = month_str_raw
+        .parse()
+        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+    if !(1..=12).contains(&month) {
+        return Err(errors::ConnectorError::ParsingFailed);
+    }
+    let month_str = Secret::new(format!("{:02}", month));
+
+    let year: u32 = year_str_raw
+        .parse()
+        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+    let year_str = if year_str_raw.len() == 2 {
+        Secret::new(format!("{:02}", year))
+    } else {
+        Secret::new(format!("{:02}", year % 100))
+    };
+
+    Ok((month_str, year_str))
 }
