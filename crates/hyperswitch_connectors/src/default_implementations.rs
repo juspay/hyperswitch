@@ -1818,9 +1818,11 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
+    connectors::Peachpayments,
     connectors::Phonepe,
     connectors::Placetopay,
     connectors::Plaid,
@@ -1964,9 +1966,11 @@ default_imp_for_authenticate_steps!(
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
+    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
+    connectors::Peachpayments,
     connectors::Phonepe,
     connectors::Placetopay,
     connectors::Plaid,
@@ -2111,8 +2115,10 @@ default_imp_for_post_authenticate_steps!(
     connectors::Payone,
     connectors::Paypal,
     connectors::Paystack,
+    connectors::Paysafe,
     connectors::Paytm,
     connectors::Payu,
+    connectors::Peachpayments,
     connectors::Phonepe,
     connectors::Placetopay,
     connectors::Plaid,
@@ -9031,6 +9037,32 @@ impl<const T: u8> ConnectorIntegration<Fetch, FetchDisputesRequestData, FetchDis
 impl<const T: u8> DisputeSync for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> ConnectorIntegration<Dsync, DisputeSyncData, DisputeSyncResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPreAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPostAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsAuthenticate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }
