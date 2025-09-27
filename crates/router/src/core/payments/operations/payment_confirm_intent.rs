@@ -204,7 +204,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
-        let payment_attempt_domain_model =
+        let (payment_attempt, payment_method_data, split_payment_attempts_data) = if request
+            .split_payment_method_data
+            .is_none()
+        {
+            let payment_attempt_domain_model =
             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_model(
                 &payment_intent,
                 cell_id,
@@ -214,7 +218,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             )
             .await?;
 
-        let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+            let payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
             db.insert_payment_attempt(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
@@ -225,27 +229,73 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
 
-        let payment_method_data = request
-            .payment_method_data
-            .payment_method_data
-            .clone()
-            .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
+            let payment_method_data = request
+                .payment_method_data
+                .payment_method_data
+                .clone()
+                .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
-        if request.payment_token.is_some() {
-            when(
-                !matches!(
-                    payment_method_data,
-                    Some(domain::payment_method_data::PaymentMethodData::CardToken(_))
-                ),
-                || {
-                    Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data",
-                    })
-                    .attach_printable(
-                        "payment_method_data should be card_token when a token is passed",
+            if request.payment_token.is_some() {
+                when(
+                    !matches!(
+                        payment_method_data,
+                        Some(domain::payment_method_data::PaymentMethodData::CardToken(_))
+                    ),
+                    || {
+                        Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "payment_method_data",
+                        })
+                        .attach_printable(
+                            "payment_method_data should be card_token when a token is passed",
+                        )
+                    },
+                )?;
+            };
+
+            (payment_attempt, payment_method_data, None)
+        } else {
+            let ((first_payment_attempt, first_attempt_pm_data), additional_payment_attempt_data) =
+             hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::create_domain_models_for_split_attempts(
+                &payment_intent,
+                cell_id,
+                storage_scheme,
+                request,
+                encrypted_data
+            )
+            .await?;
+
+            let primary_payment_attempt = db
+                .insert_payment_attempt(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    first_payment_attempt,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not insert payment attempt")?;
+
+            let mut values = Vec::new();
+
+            for item in additional_payment_attempt_data {
+                let payment_attempt = db
+                    .insert_payment_attempt(
+                        key_manager_state,
+                        merchant_context.get_merchant_key_store(),
+                        item.0,
+                        storage_scheme,
                     )
-                },
-            )?;
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not insert payment attempt")?;
+
+                values.push((payment_attempt, item.1));
+            }
+            (
+                primary_payment_attempt,
+                Some(first_attempt_pm_data),
+                Some(values),
+            )
         };
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -276,6 +326,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method: None,
             merchant_connector_details,
             external_vault_pmd: None,
+            split_payment_details: split_payment_attempts_data,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
