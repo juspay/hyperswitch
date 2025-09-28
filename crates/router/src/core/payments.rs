@@ -528,7 +528,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-pub async fn payments_operation_core<F, Req, Op, FData, D>(
+pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_context: &domain::MerchantContext,
@@ -541,7 +541,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static + 'a,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -556,7 +556,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone + router_types::Capturable,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -2081,7 +2081,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData, D>(
+pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
@@ -2094,8 +2094,8 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
-    FData: Send + Sync + Clone + router_types::Capturable,
+    F: Send + Clone + Sync + 'static + 'a,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4213,20 +4213,20 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>(
-    state: &SessionState,
+pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest, D>(
+    state: &'a SessionState,
     req_state: ReqState,
-    merchant_context: &domain::MerchantContext,
+    merchant_context: &'a domain::MerchantContext,
     connector: api::ConnectorData,
-    operation: &BoxedOperation<'_, F, ApiRequest, D>,
-    payment_data: &mut D,
+    operation: &'a BoxedOperation<'a, F, ApiRequest, D>,
+    payment_data: &'a mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    validate_result: &operations::ValidateResult,
+    validate_result: &'a operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    business_profile: &domain::Profile,
+    business_profile: &'a domain::Profile,
     is_retry_payment: bool,
     all_keys_required: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
@@ -4237,8 +4237,8 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync,
-    RouterDReq: Send + Sync + Clone,
+    F: Send + Clone + Sync + 'static + 'a,
+    RouterDReq: Send + Sync + Clone + 'static + 'a,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4326,16 +4326,21 @@ where
                     .get_string_repr(),
                 payment_data.get_payment_attempt().attempt_id
             );
+            let ucs_merchant_connector_account = merchant_connector_account.clone();
+            let ucs_merchant_context = merchant_context.clone();
 
             // Update feature metadata to track Direct routing usage for stickiness
             update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-            let _result = rd
-                .call_unified_connector_service(
-                    state,
-                    merchant_connector_account.clone(),
-                    merchant_context,
-                )
-                .await?;
+            let ucs_state = state.clone();
+            tokio::spawn(async move {
+                let _result = rd
+                    .call_unified_connector_service(
+                        &ucs_state,
+                        ucs_merchant_connector_account,
+                        &ucs_merchant_context,
+                    )
+                    .await;
+            });
 
             call_connector_service(
                 state,
