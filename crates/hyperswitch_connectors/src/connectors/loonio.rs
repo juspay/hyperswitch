@@ -104,7 +104,7 @@ impl ConnectorCommon for Loonio {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Basec
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
