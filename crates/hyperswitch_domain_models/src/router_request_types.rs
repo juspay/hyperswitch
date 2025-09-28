@@ -1,8 +1,9 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -14,9 +15,11 @@ use serde_with::serde_as;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
-    errors::api_error_response::ApiErrorResponse,
-    mandates, payments,
-    router_data::{self, RouterData},
+    errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
+    mandates,
+    payment_method_data::ExternalVaultPaymentMethodData,
+    payments,
+    router_data::{self, AccessTokenAuthenticationResponse, RouterData},
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodVaultingData,
 };
@@ -81,6 +84,109 @@ pub struct PaymentsAuthorizeData {
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
     pub locale: Option<String>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalVaultProxyPaymentsData {
+    pub payment_method_data: ExternalVaultPaymentMethodData,
+    /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
+    /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
+    /// ```text
+    /// get_original_amount()
+    /// get_surcharge_amount()
+    /// get_tax_on_surcharge_amount()
+    /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
+    /// ```
+    pub amount: i64,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub email: Option<pii::Email>,
+    pub customer_name: Option<Secret<String>>,
+    pub currency: storage_enums::Currency,
+    pub confirm: bool,
+    pub statement_descriptor_suffix: Option<String>,
+    pub statement_descriptor: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub off_session: Option<bool>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub browser_info: Option<BrowserInformation>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_category: Option<String>,
+    pub session_token: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<SurchargeDetails>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub request_incremental_authorization: bool,
+    pub metadata: Option<serde_json::Value>,
+    pub authentication_data: Option<AuthenticationData>,
+    pub request_extended_authorization:
+        Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    // New amount for amount frame work
+    pub minor_amount: MinorUnit,
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
+    pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    pub merchant_account_id: Option<Secret<String>>,
+    pub merchant_config_currency: Option<storage_enums::Currency>,
+    pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub order_id: Option<String>,
+}
+
+// Note: Integrity traits for ExternalVaultProxyPaymentsData are not implemented
+// as they are not mandatory for this flow. The integrity_check field in RouterData
+// will use Ok(()) as default, similar to other flows.
+
+// Implement ConnectorCustomerData conversion for ExternalVaultProxy RouterData
+impl
+    TryFrom<
+        &RouterData<
+            flows::ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            response_types::PaymentsResponseData,
+        >,
+    > for ConnectorCustomerData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: &RouterData<
+            flows::ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            response_types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.request.email.clone(),
+            payment_method_data: None, // External vault proxy doesn't use regular payment method data
+            description: None,
+            phone: None,
+            name: data.request.customer_name.clone(),
+            preprocessing_id: data.preprocessing_id.clone(),
+            split_payments: data.request.split_payments.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
+        })
+    }
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -182,6 +288,11 @@ pub struct ConnectorCustomerData {
     pub preprocessing_id: Option<String>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub billing_address: Option<AddressDetails>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -195,6 +306,42 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            setup_future_usage: data.setup_future_usage,
+            customer_acceptance: data.customer_acceptance,
+            customer_id: None,
+            billing_address: None,
+        })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: data.amount,
+            minor_amount: data.minor_amount,
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: None,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            surcharge_details: None,
+            connector_transaction_id: None,
+            mandate_id: data.mandate_id,
+            related_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: false,
+            split_payments: None,
+            metadata: data.metadata,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -220,6 +367,10 @@ impl
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: data.request.split_payments.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -244,6 +395,10 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
             split_payments: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -255,6 +410,10 @@ pub struct PaymentMethodTokenizationData {
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_mandate_details: Option<mandates::MandateData>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -267,6 +426,10 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: data.amount,
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -282,6 +445,10 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             currency: data.request.currency,
             amount: Some(data.request.amount),
             split_payments: data.request.split_payments.clone(),
+            customer_acceptance: data.request.customer_acceptance.clone(),
+            setup_future_usage: data.request.setup_future_usage,
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
+            mandate_id: data.request.mandate_id.clone(),
         }
     }
 }
@@ -296,6 +463,10 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: data.split_payments.clone(),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
     }
 }
@@ -315,7 +486,26 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: None,
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+            setup_mandate_details: data.setup_mandate_details,
+            mandate_id: data.mandate_id,
         })
+    }
+}
+
+impl TryFrom<ExternalVaultProxyPaymentsData> for PaymentMethodTokenizationData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
+        // TODO: External vault proxy payments should not use regular payment method tokenization
+        // This needs to be implemented separately for external vault flows
+        Err(ApiErrorResponse::NotImplemented {
+            message: NotImplementedMessage::Reason(
+                "External vault proxy tokenization not implemented".to_string(),
+            ),
+        }
+        .into())
     }
 }
 
@@ -329,6 +519,17 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: data.minor_amount,
+            currency: data.currency,
+        })
+    }
+}
+
+impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
         Ok(Self {
             minor_amount: data.minor_amount,
             currency: data.currency,
@@ -358,8 +559,16 @@ pub struct PaymentsPreProcessingData {
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub metadata: Option<Secret<serde_json::Value>>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckRequestData {
+    pub payment_method_data: PaymentMethodData,
+    pub currency: Option<storage_enums::Currency>,
     pub minor_amount: Option<MinorUnit>,
 }
 
@@ -389,6 +598,125 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             enrolled_for_3ds: data.enrolled_for_3ds,
             split_payments: data.split_payments,
             metadata: data.metadata.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPreAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostAuthenticateData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub amount: Option<i64>,
+    pub email: Option<pii::Email>,
+    pub currency: Option<storage_enums::Currency>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub router_return_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
+
+    // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentsPostAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            connector_transaction_id: None,
+            redirect_response: None,
+            enrolled_for_3ds: data.enrolled_for_3ds,
         })
     }
 }
@@ -419,6 +747,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             split_payments: None,
             enrolled_for_3ds: true,
             metadata: data.connector_meta.map(Secret::new),
+            customer_acceptance: data.customer_acceptance,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -511,6 +841,7 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -535,6 +866,16 @@ pub struct PaymentsCancelData {
     pub minor_amount: Option<MinorUnit>,
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsCancelPostCaptureData {
+    pub currency: Option<storage_enums::Currency>,
+    pub connector_transaction_id: String,
+    pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
+    // minor amount data for amount framework
+    pub minor_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -565,6 +906,7 @@ pub struct BrowserInformation {
     pub os_version: Option<String>,
     pub device_model: Option<String>,
     pub accept_language: Option<String>,
+    pub referer: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -585,6 +927,7 @@ impl From<common_utils::types::BrowserInformation> for BrowserInformation {
             os_version: value.os_version,
             device_model: value.device_model,
             accept_language: value.accept_language,
+            referer: value.referer,
         }
     }
 }
@@ -683,6 +1026,12 @@ pub struct AuthenticationData {
     pub message_version: Option<common_utils::types::SemanticVersion>,
     pub ds_trans_id: Option<String>,
     pub created_at: time::PrimitiveDateTime,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub acs_trans_id: Option<String>,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[derive(Debug, Clone)]
@@ -767,12 +1116,28 @@ pub struct DestinationChargeRefund {
 }
 
 #[derive(Debug, Clone)]
+pub struct AccessTokenAuthenticationRequestData {
+    pub auth_creds: router_data::ConnectorAuthType,
+}
+
+impl TryFrom<router_data::ConnectorAuthType> for AccessTokenAuthenticationRequestData {
+    type Error = ApiErrorResponse;
+    fn try_from(connector_auth: router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
+        Ok(Self {
+            auth_creds: connector_auth,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
+    pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     // Add more keys if required
 }
 
+// This is for backward compatibility
 impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     type Error = ApiErrorResponse;
     fn try_from(connector_auth: router_data::ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -780,18 +1145,22 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             router_data::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
                 id: None,
+                authentication_token: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -801,10 +1170,30 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     }
 }
 
+impl
+    TryFrom<(
+        router_data::ConnectorAuthType,
+        Option<AccessTokenAuthenticationResponse>,
+    )> for AccessTokenRequestData
+{
+    type Error = ApiErrorResponse;
+    fn try_from(
+        (connector_auth, authentication_token): (
+            router_data::ConnectorAuthType,
+            Option<AccessTokenAuthenticationResponse>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mut access_token_request_data = Self::try_from(connector_auth)?;
+        access_token_request_data.authentication_token = authentication_token;
+        Ok(access_token_request_data)
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct AcceptDisputeRequestData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -816,6 +1205,7 @@ pub struct DefendDisputeRequestData {
 #[derive(Default, Debug, Clone)]
 pub struct SubmitEvidenceRequestData {
     pub dispute_id: String,
+    pub dispute_status: storage_enums::DisputeStatus,
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
@@ -875,9 +1265,17 @@ pub struct SubmitEvidenceRequestData {
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FetchDisputesRequestData {
+    pub created_from: time::PrimitiveDateTime,
+    pub created_till: time::PrimitiveDateTime,
+}
+
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,
+    pub connector_dispute_id: Option<String>,
 }
 
 #[serde_as]
@@ -889,6 +1287,8 @@ pub struct UploadFileRequestData {
     #[serde_as(as = "serde_with::DisplayFromStr")]
     pub file_type: mime::Mime,
     pub file_size: i32,
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -917,6 +1317,7 @@ pub struct CustomerDetails {
     pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
 }
 
 #[derive(Debug, Clone)]
@@ -944,6 +1345,9 @@ pub struct PaymentsSessionData {
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
     pub customer_name: Option<Secret<String>>,
+    pub order_tax_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub metadata: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -990,12 +1394,16 @@ pub struct SetupMandateRequestData {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub enable_partial_authorization: Option<bool>,
+    pub payment_channel: Option<storage_enums::PaymentChannel>,
 }
 
 #[derive(Debug, Clone)]
@@ -1003,4 +1411,10 @@ pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct DisputeSyncData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
 }

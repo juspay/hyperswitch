@@ -45,6 +45,12 @@ pub struct PaymentFilters {
     pub first_attempt: Vec<bool>,
     #[serde(default)]
     pub routing_approach: Vec<RoutingApproach>,
+    #[serde(default)]
+    pub signature_network: Vec<String>,
+    #[serde(default)]
+    pub is_issuer_regulated: Vec<bool>,
+    #[serde(default)]
+    pub is_debit_routed: Vec<bool>,
 }
 
 #[derive(
@@ -87,6 +93,9 @@ pub enum PaymentDimensions {
     CardIssuer,
     ErrorReason,
     RoutingApproach,
+    SignatureNetwork,
+    IsIssuerRegulated,
+    IsDebitRouted,
 }
 
 #[derive(
@@ -208,6 +217,9 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
     pub routing_approach: Option<RoutingApproach>,
+    pub signature_network: Option<String>,
+    pub is_issuer_regulated: Option<bool>,
+    pub is_debit_routed: Option<bool>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -234,6 +246,9 @@ impl PaymentMetricsBucketIdentifier {
         card_issuer: Option<String>,
         error_reason: Option<String>,
         routing_approach: Option<RoutingApproach>,
+        signature_network: Option<String>,
+        is_issuer_regulated: Option<bool>,
+        is_debit_routed: Option<bool>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -252,6 +267,9 @@ impl PaymentMetricsBucketIdentifier {
             card_issuer,
             error_reason,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -274,7 +292,13 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
-        self.routing_approach.map(|i| i.to_string()).hash(state);
+        self.routing_approach
+            .clone()
+            .map(|i| i.to_string())
+            .hash(state);
+        self.signature_network.hash(state);
+        self.is_issuer_regulated.hash(state);
+        self.is_debit_routed.hash(state);
         self.time_bucket.hash(state);
     }
 }

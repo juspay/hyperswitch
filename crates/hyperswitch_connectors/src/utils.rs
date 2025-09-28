@@ -13,21 +13,24 @@ use common_enums::{
     enums,
     enums::{
         AlbaniaStatesAbbreviation, AndorraStatesAbbreviation, AttemptStatus,
-        AustriaStatesAbbreviation, BelarusStatesAbbreviation, BelgiumStatesAbbreviation,
-        BosniaAndHerzegovinaStatesAbbreviation, BrazilStatesAbbreviation,
-        BulgariaStatesAbbreviation, CanadaStatesAbbreviation, CroatiaStatesAbbreviation,
-        CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation, FinlandStatesAbbreviation,
-        FranceStatesAbbreviation, FutureUsage, GermanyStatesAbbreviation, GreeceStatesAbbreviation,
-        HungaryStatesAbbreviation, IcelandStatesAbbreviation, IrelandStatesAbbreviation,
-        ItalyStatesAbbreviation, LatviaStatesAbbreviation, LiechtensteinStatesAbbreviation,
-        LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation, MaltaStatesAbbreviation,
-        MoldovaStatesAbbreviation, MonacoStatesAbbreviation, MontenegroStatesAbbreviation,
-        NetherlandsStatesAbbreviation, NorthMacedoniaStatesAbbreviation, NorwayStatesAbbreviation,
+        AustraliaStatesAbbreviation, AustriaStatesAbbreviation, BelarusStatesAbbreviation,
+        BelgiumStatesAbbreviation, BosniaAndHerzegovinaStatesAbbreviation,
+        BrazilStatesAbbreviation, BulgariaStatesAbbreviation, CanadaStatesAbbreviation,
+        CroatiaStatesAbbreviation, CzechRepublicStatesAbbreviation, DenmarkStatesAbbreviation,
+        FinlandStatesAbbreviation, FranceStatesAbbreviation, FutureUsage,
+        GermanyStatesAbbreviation, GreeceStatesAbbreviation, HungaryStatesAbbreviation,
+        IcelandStatesAbbreviation, IndiaStatesAbbreviation, IrelandStatesAbbreviation,
+        ItalyStatesAbbreviation, JapanStatesAbbreviation, LatviaStatesAbbreviation,
+        LiechtensteinStatesAbbreviation, LithuaniaStatesAbbreviation, LuxembourgStatesAbbreviation,
+        MaltaStatesAbbreviation, MoldovaStatesAbbreviation, MonacoStatesAbbreviation,
+        MontenegroStatesAbbreviation, NetherlandsStatesAbbreviation, NewZealandStatesAbbreviation,
+        NorthMacedoniaStatesAbbreviation, NorwayStatesAbbreviation, PhilippinesStatesAbbreviation,
         PolandStatesAbbreviation, PortugalStatesAbbreviation, RomaniaStatesAbbreviation,
         RussiaStatesAbbreviation, SanMarinoStatesAbbreviation, SerbiaStatesAbbreviation,
-        SlovakiaStatesAbbreviation, SloveniaStatesAbbreviation, SpainStatesAbbreviation,
-        SwedenStatesAbbreviation, SwitzerlandStatesAbbreviation, UkraineStatesAbbreviation,
-        UnitedKingdomStatesAbbreviation, UsStatesAbbreviation,
+        SingaporeStatesAbbreviation, SlovakiaStatesAbbreviation, SloveniaStatesAbbreviation,
+        SpainStatesAbbreviation, SwedenStatesAbbreviation, SwitzerlandStatesAbbreviation,
+        ThailandStatesAbbreviation, UkraineStatesAbbreviation, UnitedKingdomStatesAbbreviation,
+        UsStatesAbbreviation,
     },
 };
 use common_utils::{
@@ -50,16 +53,16 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
     payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
     router_data::{
-        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+        ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
-        SyncIntegrityObject,
+        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
+        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -232,7 +235,7 @@ pub struct GooglePayWalletData {
     pub pm_type: String,
     pub description: String,
     pub info: GooglePayPaymentMethodInfo,
-    pub tokenization_data: GpayTokenizationData,
+    pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -248,27 +251,35 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct GpayTokenizationData {
-    #[serde(rename = "type")]
-    pub token_type: String,
-    pub token: Secret<String>,
-}
+impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
+    type Error = common_utils::errors::ValidationError;
 
-impl From<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
-    fn from(data: payment_method_data::GooglePayWalletData) -> Self {
-        Self {
+    fn try_from(data: payment_method_data::GooglePayWalletData) -> Result<Self, Self::Error> {
+        let tokenization_data = match data.tokenization_data {
+            common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => {
+                common_types::payments::GpayTokenizationData::Encrypted(
+                    common_types::payments::GpayEcryptedTokenizationData {
+                        token_type: encrypted_data.token_type,
+                        token: encrypted_data.token,
+                    },
+                )
+            }
+            common_types::payments::GpayTokenizationData::Decrypted(_) => {
+                return Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Expected encrypted tokenization data, got decrypted".to_string(),
+                });
+            }
+        };
+
+        Ok(Self {
             pm_type: data.pm_type,
             description: data.description,
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
             },
-            tokenization_data: GpayTokenizationData {
-                token_type: data.tokenization_data.token_type,
-                token: Secret::new(data.tokenization_data.token),
-            },
-        }
+            tokenization_data,
+        })
     }
 }
 pub(crate) fn get_amount_as_f64(
@@ -356,6 +367,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
@@ -425,7 +437,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::CaptureFailed
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Failure => true,
+        | AttemptStatus::Failure
+        | AttemptStatus::Expired => true,
         AttemptStatus::Started
         | AttemptStatus::RouterDeclined
         | AttemptStatus::AuthenticationPending
@@ -435,6 +448,7 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Authorizing
         | AttemptStatus::CodInitiated
         | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
         | AttemptStatus::VoidInitiated
         | AttemptStatus::CaptureInitiated
         | AttemptStatus::AutoRefunded
@@ -445,7 +459,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
-        | AttemptStatus::IntegrityFailure => false,
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::PartiallyAuthorized => false,
     }
 }
 
@@ -487,6 +502,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<id_type::CustomerId, Error>;
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
     fn get_recurring_mandate_payment_data(&self) -> Result<RecurringMandatePaymentData, Error>;
@@ -499,6 +515,7 @@ pub trait RouterData {
     fn get_optional_shipping(&self) -> Option<&Address>;
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_city(&self) -> Option<String>;
     fn get_optional_shipping_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_shipping_zip(&self) -> Option<Secret<String>>;
@@ -507,7 +524,15 @@ pub trait RouterData {
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
+
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_city(&self) -> Result<String, Error>;
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error>;
 
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
@@ -522,6 +547,7 @@ pub trait RouterData {
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_billing_email(&self) -> Option<Email>;
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data>;
 }
 
 impl<Flow, Request, Response> RouterData
@@ -600,6 +626,15 @@ impl<Flow, Request, Response> RouterData
         })
     }
 
+    fn get_optional_shipping_line3(&self) -> Option<Secret<String>> {
+        self.address.get_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line3)
+        })
+    }
+
     fn get_optional_shipping_city(&self) -> Option<String> {
         self.address.get_shipping().and_then(|shipping_address| {
             shipping_address
@@ -647,6 +682,13 @@ impl<Flow, Request, Response> RouterData
             .get_shipping()
             .and_then(|shipping_address| shipping_address.clone().phone)
             .and_then(|phone_details| phone_details.get_number_with_country_code().ok())
+    }
+
+    fn get_optional_shipping_phone_number_without_country_code(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.get_number().ok())
     }
 
     fn get_description(&self) -> Result<String, Error> {
@@ -987,6 +1029,38 @@ impl<Flow, Request, Response> RouterData
             .and_then(|billing_address| billing_address.get_optional_full_name())
     }
 
+    fn get_required_shipping_full_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_full_name()
+            .ok_or_else(missing_field_err(
+                "shipping.address.first_name or shipping.address.last_name",
+            ))
+    }
+
+    fn get_required_shipping_line1(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_line1()
+            .ok_or_else(missing_field_err("shipping.address.line1"))
+    }
+
+    fn get_required_shipping_city(&self) -> Result<String, Error> {
+        self.get_optional_shipping_city()
+            .ok_or_else(missing_field_err("shipping.address.city"))
+    }
+
+    fn get_required_shipping_state(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_state()
+            .ok_or_else(missing_field_err("shipping.address.state"))
+    }
+
+    fn get_required_shipping_zip(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_zip()
+            .ok_or_else(missing_field_err("shipping.address.zip"))
+    }
+
+    fn get_required_shipping_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_phone_number_without_country_code()
+            .ok_or_else(missing_field_err("shipping.phone.number"))
+    }
+
     #[cfg(feature = "payouts")]
     fn get_payout_method_data(&self) -> Result<api_models::payouts::PayoutMethodData, Error> {
         self.payout_method_data
@@ -998,6 +1072,14 @@ impl<Flow, Request, Response> RouterData
         self.quote_id
             .to_owned()
             .ok_or_else(missing_field_err("quote_id"))
+    }
+
+    fn get_optional_l2_l3_data(&self) -> Option<L2L3Data> {
+        self.l2_l3_data.clone()
+    }
+
+    fn get_optional_customer_id(&self) -> Option<id_type::CustomerId> {
+        self.customer_id.clone()
     }
 }
 
@@ -1013,40 +1095,6 @@ impl AccessTokenRequestInfo for RefreshTokenRouterData {
             .ok_or_else(missing_field_err("request.id"))
     }
 }
-pub trait ApplePayDecrypt {
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
-}
-
-impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
-    fn get_two_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
-        ))
-    }
-
-    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(format!(
-            "20{}",
-            self.application_expiration_date
-                .get(0..2)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        )))
-    }
-
-    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
-        Ok(Secret::new(
-            self.application_expiration_date
-                .get(2..4)
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_owned(),
-        ))
-    }
-}
 
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
@@ -1059,6 +1107,7 @@ pub enum CardIssuer {
     JCB,
     CarteBlanche,
     CartesBancaires,
+    UnionPay,
 }
 
 pub trait CardData {
@@ -1317,20 +1366,21 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = 
         map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
         map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
         map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+        map.insert(CardIssuer::Discover, Regex::new(r"^65[0-9]{14}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
         map.insert(
             CardIssuer::Maestro,
             Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
         );
         map.insert(
             CardIssuer::DinersClub,
-            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+            Regex::new(r"^3(?:0[0-5][0-9]{11}|[68][0-9][0-9]{11,13})$"),
         );
         map.insert(
             CardIssuer::JCB,
             Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
         );
         map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+        map.insert(CardIssuer::UnionPay, Regex::new(r"^(62[0-9]{14,17})$"));
         map
     },
 );
@@ -1494,6 +1544,9 @@ impl AddressDetailsData for AddressDetails {
             api_models::enums::CountryAlpha2::IT => Ok(Secret::new(
                 ItalyStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
             )),
+            api_models::enums::CountryAlpha2::JP => Ok(Secret::new(
+                JapanStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
             api_models::enums::CountryAlpha2::LI => Ok(Secret::new(
                 LiechtensteinStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
@@ -1519,6 +1572,10 @@ impl AddressDetailsData for AddressDetails {
                 NetherlandsStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
             )),
+            api_models::enums::CountryAlpha2::NZ => Ok(Secret::new(
+                NewZealandStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
             api_models::enums::CountryAlpha2::MK => Ok(Secret::new(
                 NorthMacedoniaStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
@@ -1542,6 +1599,27 @@ impl AddressDetailsData for AddressDetails {
             api_models::enums::CountryAlpha2::GB => Ok(Secret::new(
                 UnitedKingdomStatesAbbreviation::foreign_try_from(state.peek().to_string())?
                     .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::BR => Ok(Secret::new(
+                BrazilStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::AU => Ok(Secret::new(
+                AustraliaStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::SG => Ok(Secret::new(
+                SingaporeStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::TH => Ok(Secret::new(
+                ThailandStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::PH => Ok(Secret::new(
+                PhilippinesStatesAbbreviation::foreign_try_from(state.peek().to_string())?
+                    .to_string(),
+            )),
+            api_models::enums::CountryAlpha2::IN => Ok(Secret::new(
+                IndiaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
             )),
             _ => Ok(state.clone()),
         }
@@ -1676,13 +1754,21 @@ impl PayoutFulfillRequestData for hyperswitch_domain_models::router_request_type
 
 pub trait CustomerData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl CustomerData for ConnectorCustomerData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
+    fn is_mandate_payment(&self) -> bool {
+        // We only need to check if the customer acceptance or setup mandate details are present and if the setup future usage is OffSession.
+        // mandate_reference_id is not needed here as we do not need to check for existing mandates.
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -1701,6 +1787,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
     fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -1822,6 +1909,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.ip_address);
+
+        let val = ip_address.ok_or_else(missing_field_err("browser_info.ip_address"))?;
+
+        Ok(Secret::new(val.to_string()))
     }
     fn get_optional_user_agent(&self) -> Option<String> {
         self.browser_info
@@ -2010,6 +2107,8 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+    fn is_mandate_payment(&self) -> bool;
+    fn get_optional_connector_transaction_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2032,6 +2131,16 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             )
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+    fn is_mandate_payment(&self) -> bool {
+        matches!(self.setup_future_usage, Some(FutureUsage::OffSession))
+    }
+
+    fn get_optional_connector_transaction_id(&self) -> Option<String> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
+            _ => None,
         }
     }
 }
@@ -2138,6 +2247,7 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -2186,10 +2296,15 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
 }
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -2197,6 +2312,15 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && (self.setup_future_usage == Some(FutureUsage::OffSession)))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 
@@ -2332,6 +2456,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
@@ -2342,6 +2467,11 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
+        self.payment_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_data"))
     }
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
@@ -2692,6 +2822,28 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
     }
 }
 
+impl ForeignTryFrom<String> for AustraliaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state =
+            parse_state_enum::<Self>(value, "AustraliaStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "newsouthwales" => Ok(Self::NSW),
+            "queensland" => Ok(Self::QLD),
+            "southaustralia" => Ok(Self::SA),
+            "westernaustralia" => Ok(Self::WA),
+            "victoria" => Ok(Self::VIC),
+            "northernterritory" => Ok(Self::NT),
+            "australiancapitalterritory" => Ok(Self::ACT),
+            "tasmania" => Ok(Self::TAS),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
 impl ForeignTryFrom<String> for PolandStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
@@ -3033,6 +3185,157 @@ impl ForeignTryFrom<String> for ItalyStatesAbbreviation {
                 }
                 .into()),
             },
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for JapanStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state = parse_state_enum::<Self>(value, "JapanStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "aichi" => Ok(Self::Aichi),
+            "akita" => Ok(Self::Akita),
+            "aomori" => Ok(Self::Aomori),
+            "chiba" => Ok(Self::Chiba),
+            "ehime" => Ok(Self::Ehime),
+            "fukui" => Ok(Self::Fukui),
+            "fukuoka" => Ok(Self::Fukuoka),
+            "fukushima" | "hukusima" => Ok(Self::Fukushima),
+            "gifu" => Ok(Self::Gifu),
+            "gunma" => Ok(Self::Gunma),
+            "hiroshima" => Ok(Self::Hiroshima),
+            "hokkaido" => Ok(Self::Hokkaido),
+            "hyogo" => Ok(Self::Hyogo),
+            "ibaraki" => Ok(Self::Ibaraki),
+            "ishikawa" => Ok(Self::Ishikawa),
+            "iwate" => Ok(Self::Iwate),
+            "kagawa" => Ok(Self::Kagawa),
+            "kagoshima" => Ok(Self::Kagoshima),
+            "kanagawa" => Ok(Self::Kanagawa),
+            "kochi" => Ok(Self::Kochi),
+            "kumamoto" => Ok(Self::Kumamoto),
+            "kyoto" => Ok(Self::Kyoto),
+            "mie" => Ok(Self::Mie),
+            "miyagi" => Ok(Self::Miyagi),
+            "miyazaki" => Ok(Self::Miyazaki),
+            "nagano" => Ok(Self::Nagano),
+            "nagasaki" => Ok(Self::Nagasaki),
+            "nara" => Ok(Self::Nara),
+            "niigata" => Ok(Self::Niigata),
+            "oita" => Ok(Self::Oita),
+            "okayama" => Ok(Self::Okayama),
+            "okinawa" => Ok(Self::Okinawa),
+            "osaka" => Ok(Self::Osaka),
+            "saga" => Ok(Self::Saga),
+            "saitama" => Ok(Self::Saitama),
+            "shiga" => Ok(Self::Shiga),
+            "shimane" => Ok(Self::Shimane),
+            "shizuoka" => Ok(Self::Shizuoka),
+            "tochigi" => Ok(Self::Tochigi),
+            "tokushima" | "tokusima" => Ok(Self::Tokusima),
+            "tokyo" => Ok(Self::Tokyo),
+            "tottori" => Ok(Self::Tottori),
+            "toyama" => Ok(Self::Toyama),
+            "wakayama" => Ok(Self::Wakayama),
+            "yamagata" => Ok(Self::Yamagata),
+            "yamaguchi" => Ok(Self::Yamaguchi),
+            "yamanashi" => Ok(Self::Yamanashi),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state = parse_state_enum::<Self>(value, "ThailandStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "amnatcharoen" => Ok(Self::AmnatCharoen),
+            "angthong" => Ok(Self::AngThong),
+            "bangkok" => Ok(Self::Bangkok),
+            "buengkan" => Ok(Self::BuengKan),
+            "buriram" => Ok(Self::BuriRam),
+            "chachoengsao" => Ok(Self::Chachoengsao),
+            "chainat" => Ok(Self::ChaiNat),
+            "chaiyaphum" => Ok(Self::Chaiyaphum),
+            "chanthaburi" => Ok(Self::Chanthaburi),
+            "chiangmai" => Ok(Self::ChiangMai),
+            "chiangrai" => Ok(Self::ChiangRai),
+            "chonburi" => Ok(Self::ChonBuri),
+            "chumphon" => Ok(Self::Chumphon),
+            "kalasin" => Ok(Self::Kalasin),
+            "kamphaengphet" => Ok(Self::KamphaengPhet),
+            "kanchanaburi" => Ok(Self::Kanchanaburi),
+            "khonkaen" => Ok(Self::KhonKaen),
+            "krabi" => Ok(Self::Krabi),
+            "lampang" => Ok(Self::Lampang),
+            "lamphun" => Ok(Self::Lamphun),
+            "loei" => Ok(Self::Loei),
+            "lopburi" => Ok(Self::LopBuri),
+            "maehongson" => Ok(Self::MaeHongSon),
+            "mahasarakham" => Ok(Self::MahaSarakham),
+            "mukdahan" => Ok(Self::Mukdahan),
+            "nakhonnayok" => Ok(Self::NakhonNayok),
+            "nakhonpathom" => Ok(Self::NakhonPathom),
+            "nakhonphanom" => Ok(Self::NakhonPhanom),
+            "nakhonratchasima" => Ok(Self::NakhonRatchasima),
+            "nakhonsawan" => Ok(Self::NakhonSawan),
+            "nakhonsithammarat" => Ok(Self::NakhonSiThammarat),
+            "nan" => Ok(Self::Nan),
+            "narathiwat" => Ok(Self::Narathiwat),
+            "nongbualamphu" => Ok(Self::NongBuaLamPhu),
+            "nongkhai" => Ok(Self::NongKhai),
+            "nonthaburi" => Ok(Self::Nonthaburi),
+            "pathumthani" => Ok(Self::PathumThani),
+            "pattani" => Ok(Self::Pattani),
+            "phangnga" => Ok(Self::Phangnga),
+            "phatthalung" => Ok(Self::Phatthalung),
+            "phayao" => Ok(Self::Phayao),
+            "phatthaya" => Ok(Self::Phatthaya),
+            "phetchabun" => Ok(Self::Phetchabun),
+            "phetchaburi" => Ok(Self::Phetchaburi),
+            "phichit" => Ok(Self::Phichit),
+            "phitsanulok" => Ok(Self::Phitsanulok),
+            "phrae" => Ok(Self::Phrae),
+            "phuket" => Ok(Self::Phuket),
+            "prachinburi" => Ok(Self::PrachinBuri),
+            "phranakhonsiayutthaya" => Ok(Self::PhraNakhonSiAyutthaya),
+            "prachuapkhirikhan" => Ok(Self::PrachuapKhiriKhan),
+            "ranong" => Ok(Self::Ranong),
+            "ratchaburi" => Ok(Self::Ratchaburi),
+            "rayong" => Ok(Self::Rayong),
+            "roiet" => Ok(Self::RoiEt),
+            "sakaeo" => Ok(Self::SaKaeo),
+            "sakonnakhon" => Ok(Self::SakonNakhon),
+            "samutprakan" => Ok(Self::SamutPrakan),
+            "samutsakhon" => Ok(Self::SamutSakhon),
+            "samutsongkhram" => Ok(Self::SamutSongkhram),
+            "saraburi" => Ok(Self::Saraburi),
+            "satun" => Ok(Self::Satun),
+            "sisaket" => Ok(Self::SiSaKet),
+            "singburi" => Ok(Self::SingBuri),
+            "songkhla" => Ok(Self::Songkhla),
+            "sukhothai" => Ok(Self::Sukhothai),
+            "suphanburi" => Ok(Self::SuphanBuri),
+            "suratthani" => Ok(Self::SuratThani),
+            "surin" => Ok(Self::Surin),
+            "tak" => Ok(Self::Tak),
+            "trang" => Ok(Self::Trang),
+            "trat" => Ok(Self::Trat),
+            "ubonratchathani" => Ok(Self::UbonRatchathani),
+            "udonthani" => Ok(Self::UdonThani),
+            "uthaithani" => Ok(Self::UthaiThani),
+            "uttaradit" => Ok(Self::Uttaradit),
+            "yala" => Ok(Self::Yala),
+            "yasothon" => Ok(Self::Yasothon),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
         }
     }
 }
@@ -3475,6 +3778,224 @@ impl ForeignTryFrom<String> for NetherlandsStatesAbbreviation {
                 }
                 .into()),
             },
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state =
+            parse_state_enum::<Self>(value, "NewZealandStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "auckland" | "tamakimakaurau" => Ok(Self::Auckland),
+            "bayofplenty" | "toimoana" => Ok(Self::BayOfPlenty),
+            "canterbury" | "waitaha" => Ok(Self::Canterbury),
+            "chathamislandsterritory" | "wharekauri" => Ok(Self::ChathamIslandsTerritory),
+            "gisborne" | "tetairawhiti" => Ok(Self::Gisborne),
+            "hawkesbay" | "tematauamaui" => Ok(Self::HawkesBay),
+            "manawatuwanganui" => Ok(Self::ManawatūWhanganui),
+            "marlborough" => Ok(Self::Marlborough),
+            "nelson" | "whakatu" => Ok(Self::Nelson),
+            "northland" | "tetaitokerau" => Ok(Self::Northland),
+            "otago" | "otakou" => Ok(Self::Otago),
+            "southland" | "tetaiaotonga" => Ok(Self::Southland),
+            "taranaki" => Ok(Self::Taranaki),
+            "tasman" | "tetaioaorere" => Ok(Self::Tasman),
+            "waikato" => Ok(Self::Waikato),
+            "greaterwellington" | "tepanematuataiao" => Ok(Self::GreaterWellington),
+            "westcoast" | "tetaiopoutini" => Ok(Self::WestCoast),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state =
+            parse_state_enum::<Self>(value, "SingaporeStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "centralsingapore" => Ok(Self::CentralSingapore),
+            "northeast" => Ok(Self::NorthEast),
+            "northwest" => Ok(Self::NorthWest),
+            "southeast" => Ok(Self::SouthEast),
+            "southwest" => Ok(Self::SouthWest),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state =
+            parse_state_enum::<Self>(value, "PhilippinesStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "abra" => Ok(Self::Abra),
+            "agusandelnorte" | "hilagangagusan" => Ok(Self::AgusanDelNorte),
+            "agusandelsur" | "timogagusan" => Ok(Self::AgusanDelSur),
+            "aklan" => Ok(Self::Aklan),
+            "albay" => Ok(Self::Albay),
+            "antique" | "antike" => Ok(Self::Antique),
+            "apayao" | "apayaw" => Ok(Self::Apayao),
+            "aurora" => Ok(Self::Aurora),
+            "autonomousregioninmuslimmindanao" | "nagsasarilingrehiyonngmuslimsamindanaw" => {
+                Ok(Self::AutonomousRegionInMuslimMindanao)
+            }
+            "basilan" => Ok(Self::Basilan),
+            "bataan" => Ok(Self::Bataan),
+            "batanes" => Ok(Self::Batanes),
+            "batangas" => Ok(Self::Batangas),
+            "benguet" | "benget" => Ok(Self::Benguet),
+            "bicol" | "rehiyonngbikol" => Ok(Self::Bicol),
+            "biliran" => Ok(Self::Biliran),
+            "bohol" => Ok(Self::Bohol),
+            "bukidnon" => Ok(Self::Bukidnon),
+            "bulacan" | "bulakan" => Ok(Self::Bulacan),
+            "cagayan" | "kagayan" => Ok(Self::Cagayan),
+            "cagayanvalley" | "rehiyonnglambakngkagayan" => Ok(Self::CagayanValley),
+            "calabarzon" | "rehiyonngcalabarzon" => Ok(Self::Calabarzon),
+            "camarinesnorte" | "hilagangkamarines" => Ok(Self::CamarinesNorte),
+            "camarinessur" | "timogkamarines" => Ok(Self::CamarinesSur),
+            "camiguin" | "kamigin" => Ok(Self::Camiguin),
+            "capiz" | "kapis" => Ok(Self::Capiz),
+            "caraga" | "rehiyonngkaraga" => Ok(Self::Caraga),
+            "catanduanes" | "katanduanes" => Ok(Self::Catanduanes),
+            "cavite" | "kabite" => Ok(Self::Cavite),
+            "cebu" | "sebu" => Ok(Self::Cebu),
+            "centralluzon" | "rehiyonnggitnangluzon" => Ok(Self::CentralLuzon),
+            "centralvisayas" | "rehiyonnggitnangbisaya" => Ok(Self::CentralVisayas),
+            "cordilleraadministrativeregion" | "rehiyonngadministratibongkordilyera" => {
+                Ok(Self::CordilleraAdministrativeRegion)
+            }
+            "cotabato" | "kotabato" => Ok(Self::Cotabato),
+            "davao" | "rehiyonngdabaw" => Ok(Self::Davao),
+            "davaooccidental" | "kanlurangdabaw" => Ok(Self::DavaoOccidental),
+            "davaooriental" | "silangangdabaw" => Ok(Self::DavaoOriental),
+            "davaodeoro" => Ok(Self::DavaoDeOro),
+            "davaodelnorte" | "hilagangdabaw" => Ok(Self::DavaoDelNorte),
+            "davaodelsur" | "timogdabaw" => Ok(Self::DavaoDelSur),
+            "dinagatislands" | "pulongdinagat" => Ok(Self::DinagatIslands),
+            "easternsamar" | "silangangsamar" => Ok(Self::EasternSamar),
+            "easternvisayas" | "rehiyonngsilangangbisaya" => Ok(Self::EasternVisayas),
+            "guimaras" | "gimaras" => Ok(Self::Guimaras),
+            "hilagangiloko" | "ilocosnorte" => Ok(Self::HilagangIloko),
+            "hilaganglanaw" | "lanaodelnorte" => Ok(Self::HilagangLanaw),
+            "hilagangmagindanaw" | "maguindanaodelnorte" => Ok(Self::HilagangMagindanaw),
+            "hilagangsamar" | "northernsamar" => Ok(Self::HilagangSamar),
+            "hilagangsambuwangga" | "zamboangadelnorte" => Ok(Self::HilagangSambuwangga),
+            "hilagangsurigaw" | "surigaodelnorte" => Ok(Self::HilagangSurigaw),
+            "ifugao" | "ipugaw" => Ok(Self::Ifugao),
+            "ilocos" | "rehiyonngiloko" => Ok(Self::Ilocos),
+            "ilocossur" | "timogiloko" => Ok(Self::IlocosSur),
+            "iloilo" | "iloylo" => Ok(Self::Iloilo),
+            "isabela" => Ok(Self::Isabela),
+            "kalinga" => Ok(Self::Kalinga),
+            "kanlurangmindoro" | "mindorooccidental" => Ok(Self::KanlurangMindoro),
+            "kanlurangmisamis" | "misamisoriental" => Ok(Self::KanlurangMisamis),
+            "kanlurangnegros" | "negrosoccidental" => Ok(Self::KanlurangNegros),
+            "katimogangleyte" | "southernleyte" => Ok(Self::KatimogangLeyte),
+            "keson" | "quezon" => Ok(Self::Keson),
+            "kirino" | "quirino" => Ok(Self::Kirino),
+            "launion" => Ok(Self::LaUnion),
+            "laguna" => Ok(Self::Laguna),
+            "lalawigangbulubundukin" | "mountainprovince" => Ok(Self::LalawigangBulubundukin),
+            "lanaodelsur" | "timoglanaw" => Ok(Self::LanaoDelSur),
+            "leyte" => Ok(Self::Leyte),
+            "maguidanaodelsur" | "timogmaguindanao" => Ok(Self::MaguindanaoDelSur),
+            "marinduque" => Ok(Self::Marinduque),
+            "masbate" => Ok(Self::Masbate),
+            "mimaropa" | "rehiyonngmimaropa" => Ok(Self::Mimaropa),
+            "mindorooriental" | "silingangmindoro" => Ok(Self::MindoroOriental),
+            "misamisoccidental" | "silingangmisamis" => Ok(Self::MisamisOccidental),
+            "nationalcapitalregion" | "pambansangpunonglungsod" => Ok(Self::NationalCapitalRegion),
+            "negrosoriental" | "silingangnegros" => Ok(Self::NegrosOriental),
+            "northernmindanao" | "rehiyonnghilagangmindanao" => Ok(Self::NorthernMindanao),
+            "nuevaecija" | "nuwevaesiha" => Ok(Self::NuevaEcija),
+            "nuevavizcaya" => Ok(Self::NuevaVizcaya),
+            "palawan" => Ok(Self::Palawan),
+            "pampanga" => Ok(Self::Pampanga),
+            "pangasinan" => Ok(Self::Pangasinan),
+            "rehiyonngkanlurangbisaya" | "westernvisayas" => Ok(Self::RehiyonNgKanlurangBisaya),
+            "rehiyonngsoccsksargen" | "soccsksargen" => Ok(Self::RehiyonNgSoccsksargen),
+            "rehiyonngtangwayngsambuwangga" | "zamboangapeninsula" => {
+                Ok(Self::RehiyonNgTangwayNgSambuwangga)
+            }
+            "risal" | "rizal" => Ok(Self::Risal),
+            "romblon" => Ok(Self::Romblon),
+            "samar" => Ok(Self::Samar),
+            "sambales" | "zambales" => Ok(Self::Sambales),
+            "sambuwanggasibugay" | "zamboangasibugay" => Ok(Self::SambuwanggaSibugay),
+            "sarangani" => Ok(Self::Sarangani),
+            "siquijor" | "sikihor" => Ok(Self::Sikihor),
+            "sorsogon" => Ok(Self::Sorsogon),
+            "southcotabato" | "timogkotabato" => Ok(Self::SouthCotabato),
+            "sultankudarat" => Ok(Self::SultanKudarat),
+            "sulu" => Ok(Self::Sulu),
+            "surigaodelsur" | "timogsurigaw" => Ok(Self::SurigaoDelSur),
+            "tarlac" => Ok(Self::Tarlac),
+            "tawitawi" => Ok(Self::TawiTawi),
+            "timogsambuwangga" | "zamboangadelsur" => Ok(Self::TimogSambuwangga),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for IndiaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let state = parse_state_enum::<Self>(value, "IndiaStatesAbbreviation", "address.state")?;
+        match state.as_str() {
+            "andamanandnicobarislands" => Ok(Self::AndamanAndNicobarIslands),
+            "andhrapradesh" => Ok(Self::AndhraPradesh),
+            "arunachalpradesh" => Ok(Self::ArunachalPradesh),
+            "assam" => Ok(Self::Assam),
+            "bihar" => Ok(Self::Bihar),
+            "chandigarh" => Ok(Self::Chandigarh),
+            "chhattisgarh" => Ok(Self::Chhattisgarh),
+            "dadraandnagarhavelianddamananddiu" => Ok(Self::DadraAndNagarHaveliAndDamanAndDiu),
+            "delhi" => Ok(Self::Delhi),
+            "goa" => Ok(Self::Goa),
+            "gujarat" => Ok(Self::Gujarat),
+            "haryana" => Ok(Self::Haryana),
+            "himachalpradesh" => Ok(Self::HimachalPradesh),
+            "jammuandkashmir" => Ok(Self::JammuAndKashmir),
+            "jharkhand" => Ok(Self::Jharkhand),
+            "karnataka" => Ok(Self::Karnataka),
+            "kerala" => Ok(Self::Kerala),
+            "ladakh" => Ok(Self::Ladakh),
+            "lakshadweep" => Ok(Self::Lakshadweep),
+            "madhyapradesh" => Ok(Self::MadhyaPradesh),
+            "maharashtra" => Ok(Self::Maharashtra),
+            "manipur" => Ok(Self::Manipur),
+            "meghalaya" => Ok(Self::Meghalaya),
+            "mizoram" => Ok(Self::Mizoram),
+            "nagaland" => Ok(Self::Nagaland),
+            "odisha" => Ok(Self::Odisha),
+            "puducherry" | "pondicherry" => Ok(Self::Puducherry),
+            "punjab" => Ok(Self::Punjab),
+            "rajasthan" => Ok(Self::Rajasthan),
+            "sikkim" => Ok(Self::Sikkim),
+            "tamilnadu" => Ok(Self::TamilNadu),
+            "telangana" => Ok(Self::Telangana),
+            "tripura" => Ok(Self::Tripura),
+            "uttarpradesh" => Ok(Self::UttarPradesh),
+            "uttarakhand" => Ok(Self::Uttarakhand),
+            "westbengal" => Ok(Self::WestBengal),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
         }
     }
 }
@@ -5438,6 +5959,7 @@ pub enum PaymentMethodDataType {
     AliPayQr,
     AliPayRedirect,
     AliPayHkRedirect,
+    AmazonPay,
     AmazonPayRedirect,
     Skrill,
     Paysera,
@@ -5451,6 +5973,7 @@ pub enum PaymentMethodDataType {
     DanaRedirect,
     DuitNow,
     GooglePay,
+    Bluecode,
     GooglePayRedirect,
     GooglePayThirdPartySdk,
     MbWayRedirect,
@@ -5475,6 +5998,7 @@ pub enum PaymentMethodDataType {
     AlmaRedirect,
     AtomeRedirect,
     Breadpay,
+    FlexitiRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -5505,6 +6029,7 @@ pub enum PaymentMethodDataType {
     PermataBankTransfer,
     BcaBankTransfer,
     BniVaBankTransfer,
+    BhnCardNetwork,
     BriVaBankTransfer,
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
@@ -5573,6 +6098,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::AmazonPay(_) => Self::AmazonPay,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
@@ -5580,6 +6106,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::BluecodeRedirect {} => Self::Bluecode,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
@@ -5607,6 +6134,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
+                payment_method_data::PayLaterData::FlexitiRedirect { .. } => Self::FlexitiRedirect,
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
@@ -5739,6 +6267,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
                 payment_method_data::GiftCardData::Givex(_) => Self::Givex,
                 payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+                payment_method_data::GiftCardData::BhnCardNetwork(_) => Self::BhnCardNetwork,
             },
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
@@ -5752,18 +6281,42 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         }
     }
 }
+pub trait GooglePay {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl GooglePay for payment_method_data::GooglePayWalletData {
+    fn get_googlepay_encrypted_payment_data(&self) -> Result<Secret<String>, Error> {
+        let encrypted_data = self
+            .tokenization_data
+            .get_encrypted_google_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Google Pay".to_string(),
+            })?;
+
+        Ok(Secret::new(encrypted_data.token.clone()))
+    }
+}
 pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePay for payment_method_data::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let apple_pay_encrypted_data = self
+            .payment_data
+            .get_encrypted_apple_pay_payment_data_mandatory()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "Apple pay encrypted data",
+            })?;
         let token = Secret::new(
-            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
-                errors::ConnectorError::InvalidWalletToken {
-                    wallet_name: "Apple Pay".to_string(),
-                },
-            )?)
+            String::from_utf8(
+                BASE64_ENGINE
+                    .decode(apple_pay_encrypted_data)
+                    .change_context(errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Apple Pay".to_string(),
+                    })?,
+            )
             .change_context(errors::ConnectorError::InvalidWalletToken {
                 wallet_name: "Apple Pay".to_string(),
             })?,
@@ -5783,7 +6336,7 @@ pub trait WalletData {
 impl WalletData for payment_method_data::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
@@ -6203,6 +6756,9 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         connector_testing_data: data.request.connector_testing_data.clone(),
         order_id: None,
         locale: None,
+        payment_channel: data.request.payment_channel.clone(),
+        enable_partial_authorization: data.request.enable_partial_authorization,
+        enable_overcapture: None,
     }
 }
 
@@ -6262,6 +6818,8 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         raw_connector_response: data.raw_connector_response.clone(),
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
+        l2_l3_data: data.l2_l3_data.clone(),
+        minor_amount_capturable: data.minor_amount_capturable,
     }
 }
 
@@ -6280,6 +6838,32 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
 }
+
+fn normalize_state(value: String) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    normalize_string(value).map_err(|_e| {
+        error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
+            field_name: "address.state",
+        })
+    })
+}
+
+pub fn parse_state_enum<T>(
+    value: String,
+    enum_name: &'static str,
+    field_name: &'static str,
+) -> Result<String, error_stack::Report<errors::ConnectorError>>
+where
+    T: FromStr,
+    <T as FromStr>::Err: std::error::Error + Send + Sync + 'static,
+{
+    match StringExt::<T>::parse_enum(value.clone(), enum_name) {
+        Ok(_) => Ok(value),
+        Err(_) => normalize_state(value).map_err(|_e| {
+            error_stack::Report::new(errors::ConnectorError::InvalidDataFormat { field_name })
+        }),
+    }
+}
+
 #[cfg(feature = "frm")]
 pub trait FrmTransactionRouterDataRequest {
     fn is_payment_successful(&self) -> Option<bool>;
@@ -6293,15 +6877,18 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthorizationFailed
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure
-            | AttemptStatus::AutoRefunded => Some(false),
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Some(false),
 
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
             | AttemptStatus::Charged
-            | AttemptStatus::IntegrityFailure => Some(true),
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::PartiallyAuthorized => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
@@ -6560,6 +7147,11 @@ impl SplitPaymentData for SetupMandateRequestData {
         None
     }
 }
+impl SplitPaymentData for ExternalVaultProxyPaymentsData {
+    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
+        None
+    }
+}
 
 pub struct XmlSerializer;
 impl XmlSerializer {
@@ -6599,5 +7191,18 @@ impl XmlSerializer {
             .attach_printable("Failed to serialize the XML body")?;
 
         Ok(xml_bytes)
+    }
+}
+
+pub fn deserialize_zero_minor_amount_as_none<'de, D>(
+    deserializer: D,
+) -> Result<Option<MinorUnit>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let amount = Option::<MinorUnit>::deserialize(deserializer)?;
+    match amount {
+        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        _ => Ok(amount),
     }
 }

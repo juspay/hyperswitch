@@ -100,6 +100,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -124,6 +128,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
+                    challenge_request_key: authn_flow_type.get_challenge_request_key(),
                     acs_reference_number: authn_flow_type.get_acs_reference_number(),
                     acs_trans_id: authn_flow_type.get_acs_trans_id(),
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
@@ -132,12 +137,18 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_metadata,
                     ds_trans_id,
                     eci,
+                    challenge_code,
+                    challenge_cancel,
+                    challenge_code_reason,
+                    message_extension,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
+                challenge_cancel,
+                challenge_code_reason,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -160,6 +171,8 @@ pub async fn update_trackers<F: Clone, Req>(
                     ),
                     trans_status,
                     eci,
+                    challenge_cancel,
+                    challenge_code_reason,
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
@@ -262,6 +275,7 @@ pub async fn create_new_authentication(
         three_ds_method_url: None,
         acs_url: None,
         challenge_request: None,
+        challenge_request_key: None,
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
@@ -284,6 +298,10 @@ pub async fn create_new_authentication(
         browser_info: None,
         email: None,
         profile_acquirer_id: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
     };
     state
         .store

@@ -41,9 +41,10 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v1")]
-use euclid::dssa::graph::{AnalysisContext, CgraphExt};
-use euclid::frontend::dir;
+use euclid::{
+    dssa::graph::{AnalysisContext, CgraphExt},
+    frontend::dir,
+};
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -130,6 +131,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -189,6 +191,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_requestor_reference_id,
                     network_token_locker_id,
                     network_token_payment_method_data,
+                    vault_source_details: vault_source_details
+                        .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -319,6 +323,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
+                        Default::default(),
                     )
                     .await
                 } else {
@@ -463,6 +468,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = resp.card.clone().map(|card| {
             PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
@@ -496,6 +502,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_requestor_reference_id,
             network_token_locker_id,
             network_token_payment_method_data,
+            vault_source_details,
         )
         .await
     }
@@ -1297,6 +1304,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
+                        Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
                     )
                     .await?;
 
@@ -1371,6 +1379,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 None,
+                Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
             )
             .await?;
 
@@ -3970,25 +3979,6 @@ pub async fn filter_payment_methods(
     Ok(())
 }
 
-// v2 type for PaymentMethodListRequest will not have the installment_payment_enabled field,
-// need to re-evaluate filter logic
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn filter_payment_methods(
-    _graph: &cgraph::ConstraintGraph<dir::DirValue>,
-    _mca_id: String,
-    _payment_methods: &[Secret<serde_json::Value>],
-    _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut [ResponsePaymentMethodIntermediate],
-    _payment_intent: Option<&storage::PaymentIntent>,
-    _payment_attempt: Option<&storage::PaymentAttempt>,
-    _address: Option<&domain::Address>,
-    _connector: String,
-    _configs: &settings::Settings<RawSecret>,
-) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-    todo!()
-}
-
 fn filter_amount_based(
     payment_method: &RequestPaymentMethodTypes,
     amount: Option<MinorUnit>,
@@ -4006,9 +3996,8 @@ fn filter_installment_based(
     payment_method: &RequestPaymentMethodTypes,
     installment_payment_enabled: Option<bool>,
 ) -> bool {
-    installment_payment_enabled.map_or(true, |enabled| {
-        payment_method.installment_payment_enabled == Some(enabled)
-    })
+    installment_payment_enabled
+        .is_none_or(|enabled| payment_method.installment_payment_enabled == Some(enabled))
 }
 
 fn filter_pm_card_network_based(
@@ -4034,16 +4023,14 @@ fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
     payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
+    allowed_types.is_none_or(|pm| pm.contains(&payment_method_type))
 }
 
 fn filter_recurring_based(
     payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
-    recurring_enabled.map_or(true, |enabled| {
-        payment_method.recurring_enabled == Some(enabled)
-    })
+    recurring_enabled.is_none_or(|enabled| payment_method.recurring_enabled == Some(enabled))
 }
 
 #[cfg(feature = "v1")]

@@ -8,8 +8,8 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Evidence, PSync,
-        PostProcessing, PreProcessing, Retrieve, Session, Upload, Void,
+        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence, Fetch,
+        PSync, PostProcessing, PreProcessing, Retrieve, Session, Upload, Void,
     },
     router_request_types::{
         authentication::{
@@ -17,15 +17,15 @@ use hyperswitch_domain_models::{
             PreAuthNRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, CreateOrderRequestData,
-        DefendDisputeRequestData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse,
+        DisputeSyncResponse, FetchDisputesResponse, PaymentsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
     },
 };
 #[cfg(feature = "frm")]
@@ -67,6 +67,9 @@ pub(crate) type UploadFileRouterData =
     RouterData<Upload, UploadFileRequestData, UploadFileResponse>;
 pub(crate) type DefendDisputeRouterData =
     RouterData<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+pub(crate) type FetchDisputeRouterData =
+    RouterData<Fetch, FetchDisputesRequestData, FetchDisputesResponse>;
+pub(crate) type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncResponse>;
 
 #[cfg(feature = "payouts")]
 pub(crate) type PayoutsResponseRouterData<F, R> =

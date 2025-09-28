@@ -29,9 +29,9 @@ pub struct KafkaDisputeEvent<'a> {
     pub connector_created_at: Option<OffsetDateTime>,
     #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub connector_updated_at: Option<OffsetDateTime>,
-    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,

@@ -1083,6 +1083,67 @@
         ]
       }
     },
+    "/payments/{payment_id}/cancel_post_capture": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture",
+        "description": "A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.",
+        "operationId": "Cancel a Payment Post Capture",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsCancelPostCaptureRequest"
+              },
+              "examples": {
+                "Cancel the payment post capture with cancellation reason": {
+                  "value": {
+                    "cancellation_reason": "requested_by_customer"
+                  }
+                },
+                "Cancel the payment post capture with minimal fields": {
+                  "value": {}
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture"
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payments/list": {
       "get": {
         "tags": [
@@ -4079,6 +4140,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "Decider to enable or disable the connector call for dispute retrieve request",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -5170,6 +5241,162 @@
           },
           {
             "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/routing/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenRouterDecideGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecideGatewayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/feedback": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Feedback",
+        "description": "Update gateway scores for dynamic routing",
+        "operationId": "Update gateway scores",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScorePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway score updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateScoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/routing/rule/evaluate": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Rule Evaluate",
+        "description": "Evaluate routing rules",
+        "operationId": "Evaluate routing rules (alternative)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rules evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingEvaluateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
           }
         ]
       }
@@ -6481,6 +6708,66 @@
           }
         ]
       }
+    },
+    "/user/create_platform": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform - Create",
+        "description": "Create a new platform account",
+        "operationId": "Create a Platform Account",
+        "requestBody": {
+          "description": "Create a platform account with organization_name",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAccountCreateRequest"
+              },
+              "examples": {
+                "Create a platform account with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Platform Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAccountCreateResponse"
+                },
+                "examples": {
+                  "Successful Platform Account Creation": {
+                    "description": "Return values for a successfully created platform account",
+                    "value": {
+                      "merchant_account_type": "platform",
+                      "merchant_id": "merchant_abc",
+                      "org_id": "org_abc",
+                      "org_name": "organization_abc",
+                      "org_type": "platform"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6865,19 +7152,19 @@
       "AcquirerDetails": {
         "type": "object",
         "properties": {
-          "bin": {
+          "acquirer_bin": {
             "type": "string",
             "description": "The bin of the card.",
             "example": "123456",
             "nullable": true
           },
-          "merchant_id": {
+          "acquirer_merchant_id": {
             "type": "string",
             "description": "The merchant id of the card.",
             "example": "merchant_abc",
             "nullable": true
           },
-          "country_code": {
+          "merchant_country_code": {
             "type": "string",
             "description": "The country code of the card.",
             "example": "US/34456",
@@ -6961,8 +7248,7 @@
             "type": "string",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AddressDetails": {
         "type": "object",
@@ -7030,9 +7316,15 @@
             "example": "Doe",
             "nullable": true,
             "maxLength": 255
+          },
+          "origin_zip": {
+            "type": "string",
+            "description": "The zip/postal code of the origin",
+            "example": "08807",
+            "nullable": true,
+            "maxLength": 50
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AdyenConnectorMetadata": {
         "type": "object",
@@ -7172,8 +7464,161 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AmazonPayDeliveryOptions": {
+        "type": "object",
+        "required": [
+          "id",
+          "price",
+          "shipping_method",
+          "is_default"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Delivery Option identifier"
+          },
+          "price": {
+            "$ref": "#/components/schemas/AmazonPayDeliveryPrice"
+          },
+          "shipping_method": {
+            "$ref": "#/components/schemas/AmazonPayShippingMethod"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Specifies if this delivery option is the default"
+          }
+        }
+      },
+      "AmazonPayDeliveryPrice": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency_code"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "AmazonPayMerchantCredentials": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "store_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          }
+        }
+      },
+      "AmazonPayPaymentIntent": {
+        "type": "string",
+        "enum": [
+          "Confirm",
+          "Authorize",
+          "AuthorizeWithCapture"
+        ]
+      },
       "AmazonPayRedirectData": {
         "type": "object"
+      },
+      "AmazonPaySessionTokenData": {
+        "type": "object",
+        "required": [
+          "amazon_pay"
+        ],
+        "properties": {
+          "amazon_pay": {
+            "$ref": "#/components/schemas/AmazonPayMerchantCredentials"
+          }
+        }
+      },
+      "AmazonPaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "ledger_currency",
+          "store_id",
+          "payment_intent",
+          "total_shipping_amount",
+          "total_tax_amount",
+          "total_base_amount",
+          "delivery_options"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "Amazon Pay merchant account identifier"
+          },
+          "ledger_currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "store_id": {
+            "type": "string",
+            "description": "Amazon Pay store ID"
+          },
+          "payment_intent": {
+            "$ref": "#/components/schemas/AmazonPayPaymentIntent"
+          },
+          "total_shipping_amount": {
+            "type": "string",
+            "description": "The total shipping costs"
+          },
+          "total_tax_amount": {
+            "type": "string",
+            "description": "The total tax amount for the order"
+          },
+          "total_base_amount": {
+            "type": "string",
+            "description": "The total amount for items in the cart"
+          },
+          "delivery_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AmazonPayDeliveryOptions"
+            },
+            "description": "The delivery options available for the provided address"
+          }
+        }
+      },
+      "AmazonPayShippingMethod": {
+        "type": "object",
+        "required": [
+          "shipping_method_name",
+          "shipping_method_code"
+        ],
+        "properties": {
+          "shipping_method_name": {
+            "type": "string",
+            "description": "Name of the shipping method"
+          },
+          "shipping_method_code": {
+            "type": "string",
+            "description": "Code of the shipping method"
+          }
+        }
+      },
+      "AmazonPayWalletData": {
+        "type": "object",
+        "required": [
+          "checkout_session_id"
+        ],
+        "properties": {
+          "checkout_session_id": {
+            "type": "string",
+            "description": "Checkout Session identifier"
+          }
+        }
       },
       "AmountFilter": {
         "type": "object",
@@ -7242,6 +7687,38 @@
         "items": {
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
+      },
+      "ApplePayCryptogramData": {
+        "type": "object",
+        "description": "This struct represents the cryptogram data for Apple Pay transactions",
+        "required": [
+          "online_payment_cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "online_payment_cryptogram": {
+            "type": "string",
+            "description": "The online payment cryptogram",
+            "example": "A1B2C3D4E5F6G7H8"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "The ECI (Electronic Commerce Indicator) value",
+            "example": "05"
+          }
+        }
+      },
+      "ApplePayPaymentData": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          {
+            "type": "string",
+            "description": "This variant contains the encrypted Apple Pay payment data as a string."
+          }
+        ],
+        "description": "This enum is used to represent the Apple Pay payment data, which can either be encrypted or decrypted."
       },
       "ApplePayPaymentRequest": {
         "type": "object",
@@ -7312,6 +7789,36 @@
           "immediate",
           "recurring"
         ]
+      },
+      "ApplePayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Apple Pay payment data",
+        "required": [
+          "application_primary_account_number",
+          "application_expiration_month",
+          "application_expiration_year",
+          "payment_data"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The primary account number",
+            "example": "4242424242424242"
+          },
+          "application_expiration_month": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry month)",
+            "example": "12"
+          },
+          "application_expiration_year": {
+            "type": "string",
+            "description": "The application expiration date (PAN expiry year)",
+            "example": "24"
+          },
+          "payment_data": {
+            "$ref": "#/components/schemas/ApplePayCryptogramData"
+          }
+        }
       },
       "ApplePayRecurringDetails": {
         "type": "object",
@@ -7489,8 +7996,7 @@
         ],
         "properties": {
           "payment_data": {
-            "type": "string",
-            "description": "The payment data of Apple pay"
+            "$ref": "#/components/schemas/ApplePayPaymentData"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -7610,12 +8116,14 @@
           "authorizing",
           "cod_initiated",
           "voided",
+          "voided_post_charge",
           "void_initiated",
           "capture_initiated",
           "capture_failed",
           "void_failed",
           "auto_refunded",
           "partial_charged",
+          "partially_authorized",
           "partial_charged_and_chargeable",
           "unresolved",
           "pending",
@@ -7623,7 +8131,8 @@
           "payment_method_awaited",
           "confirmation_awaited",
           "device_data_collection_pending",
-          "integrity_failure"
+          "integrity_failure",
+          "expired"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -7660,15 +8169,15 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationCreateRequest": {
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7710,14 +8219,6 @@
             "example": "https://example.com/redirect",
             "nullable": true
           },
-          "acquirer_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcquirerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Force 3DS challenge.",
@@ -7733,7 +8234,16 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7873,6 +8383,14 @@
             "type": "string",
             "description": "Email",
             "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -7883,8 +8401,7 @@
           "merchant_id",
           "status",
           "amount",
-          "currency",
-          "profile_acquirer_id"
+          "currency"
         ],
         "properties": {
           "authentication_id": {
@@ -7970,7 +8487,8 @@
           },
           "profile_acquirer_id": {
             "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration"
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
+            "nullable": true
           }
         }
       },
@@ -7982,6 +8500,235 @@
           "success",
           "failed"
         ]
+      },
+      "AuthenticationSyncRequest": {
+        "type": "object",
+        "required": [
+          "client_secret"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication."
+          }
+        }
+      },
+      "AuthenticationSyncResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "merchant_id",
+          "status",
+          "amount",
+          "currency",
+          "created_at",
+          "profile_id"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account.",
+            "example": "merchant_abc"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication.",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this authentication."
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "threeds_server_transaction_id": {
+            "type": "string",
+            "description": "The unique identifier from the 3DS server.",
+            "nullable": true
+          },
+          "maximum_supported_3ds_version": {
+            "type": "string",
+            "description": "The maximum supported 3DS version.",
+            "nullable": true
+          },
+          "connector_authentication_id": {
+            "type": "string",
+            "description": "The unique identifier from the connector.",
+            "nullable": true
+          },
+          "three_ds_method_data": {
+            "type": "string",
+            "description": "The data required to perform the 3DS method.",
+            "nullable": true
+          },
+          "three_ds_method_url": {
+            "type": "string",
+            "description": "The URL for the 3DS method.",
+            "nullable": true
+          },
+          "message_version": {
+            "type": "string",
+            "description": "The version of the message.",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "The metadata for this authentication.",
+            "nullable": true
+          },
+          "directory_server_id": {
+            "type": "string",
+            "description": "The unique identifier for the directory server.",
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_information": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email.",
+            "nullable": true
+          },
+          "trans_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "acs_url": {
+            "type": "string",
+            "description": "Access Server URL for challenge submission.",
+            "nullable": true
+          },
+          "challenge_request": {
+            "type": "string",
+            "description": "Challenge request to be sent to acs_url.",
+            "nullable": true
+          },
+          "acs_reference_number": {
+            "type": "string",
+            "description": "Unique identifier assigned by EMVCo.",
+            "nullable": true
+          },
+          "acs_trans_id": {
+            "type": "string",
+            "description": "Unique identifier assigned by the ACS.",
+            "nullable": true
+          },
+          "acs_signed_content": {
+            "type": "string",
+            "description": "JWS object created by the ACS for the ARes message.",
+            "nullable": true
+          },
+          "three_ds_requestor_url": {
+            "type": "string",
+            "description": "Three DS Requestor URL.",
+            "nullable": true
+          },
+          "three_ds_requestor_app_url": {
+            "type": "string",
+            "description": "Merchant app URL for OOB authentication.",
+            "nullable": true
+          },
+          "authentication_value": {
+            "type": "string",
+            "description": "The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "eci": {
+            "type": "string",
+            "description": "ECI value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message if any.",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code if any.",
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID",
+            "nullable": true
+          }
+        }
       },
       "AuthenticationType": {
         "type": "string",
@@ -7999,6 +8746,33 @@
           "processing",
           "unresolved"
         ]
+      },
+      "BHNGiftCardDetails": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "pin",
+          "cvv2",
+          "expiration_date"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "The gift card or account number"
+          },
+          "pin": {
+            "type": "string",
+            "description": "The security PIN for gift cards requiring it"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "The CVV2 code for Open Loop/VPLN products"
+          },
+          "expiration_date": {
+            "type": "string",
+            "description": "The expiration date in MMYYYY format for Open Loop/VPLN products"
+          }
+        }
       },
       "BacsBankDebitAdditionalData": {
         "type": "object",
@@ -10019,7 +10793,55 @@
         "properties": {
           "social_security_number": {
             "type": "string",
-            "description": "The shopper's social security number",
+            "description": "The shopper's social security number (CPF or CNPJ)",
+            "nullable": true
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The shopper's bank account number associated with the boleto",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "default": "Cnpj",
+            "nullable": true
+          },
+          "fine_percentage": {
+            "type": "string",
+            "description": "The fine percentage charged if payment is overdue",
+            "nullable": true
+          },
+          "fine_quantity_days": {
+            "type": "string",
+            "description": "The number of days after the due date when the fine is applied",
+            "nullable": true
+          },
+          "interest_percentage": {
+            "type": "string",
+            "description": "The interest percentage charged on late payments",
+            "nullable": true
+          },
+          "write_off_quantity_days": {
+            "type": "string",
+            "description": "The number of days after which the boleto is written off (canceled)",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Custom messages or instructions to display on the boleto",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-08-22",
             "nullable": true
           }
         }
@@ -11211,7 +12033,9 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bambora",
@@ -11221,12 +12045,16 @@
           "billwerk",
           "bitpay",
           "bluesnap",
+          "blackhawknetwork",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
+          "checkbook",
           "checkout",
           "coinbase",
           "coingate",
@@ -11239,14 +12067,17 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -11270,6 +12101,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -11278,8 +12110,12 @@
           "payme",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
+          "paytm",
           "payu",
+          "peachpayments",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -11289,14 +12125,17 @@
           "redsys",
           "santander",
           "shift4",
+          "silverflow",
           "square",
           "stax",
           "stripe",
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -11356,7 +12195,10 @@
         "type": "object",
         "required": [
           "name",
-          "supported_payment_methods"
+          "display_name",
+          "description",
+          "category",
+          "integration_status"
         ],
         "properties": {
           "name": {
@@ -11365,28 +12207,25 @@
           },
           "display_name": {
             "type": "string",
-            "description": "The display name of the connector",
-            "nullable": true
+            "description": "The display name of the connector"
           },
           "description": {
             "type": "string",
-            "description": "The description of the connector",
-            "nullable": true
+            "description": "The description of the connector"
           },
           "category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentConnectorCategory"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/HyperswitchConnectorCategory"
+          },
+          "integration_status": {
+            "$ref": "#/components/schemas/ConnectorIntegrationStatus"
           },
           "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethod"
             },
-            "description": "The list of payment methods supported by the connector"
+            "description": "The list of payment methods supported by the connector",
+            "nullable": true
           },
           "supported_webhook_flows": {
             "type": "array",
@@ -11397,6 +12236,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",
@@ -11547,6 +12396,11 @@
           "apple_pay": {
             "type": "object",
             "description": "This field is for our legacy Apple Pay flow that contains the Apple Pay certificates and credentials for only iOS Apple Pay flow",
+            "nullable": true
+          },
+          "amazon_pay": {
+            "type": "object",
+            "description": "This field contains the Amazon Pay certificates and credentials",
             "nullable": true
           },
           "samsung_pay": {
@@ -12842,6 +13696,12 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 2
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The tax registration identifier of the customer.",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13185,6 +14045,13 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "Customer's tax registration ID",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13262,6 +14129,13 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "The customer's tax registration number.",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -13315,6 +14189,87 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
+            "nullable": true
+          },
+          "tax_registration_id": {
+            "type": "string",
+            "description": "Customer's tax registration ID",
+            "example": "123456789",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
+      "DeRoutableConnectorChoice": {
+        "type": "object",
+        "description": "Routable Connector chosen for a payment",
+        "required": [
+          "gateway_name",
+          "gateway_id"
+        ],
+        "properties": {
+          "gateway_name": {
+            "$ref": "#/components/schemas/RoutableConnectors"
+          },
+          "gateway_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DecideGatewayResponse": {
+        "type": "object",
+        "properties": {
+          "decided_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_priority_map": {
+            "nullable": true
+          },
+          "filter_wise_gateways": {
+            "nullable": true
+          },
+          "priority_logic_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway_before_evaluation": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority_logic_output": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicOutput"
+              }
+            ],
+            "nullable": true
+          },
+          "reset_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_dimension_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_scheduled_outage": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gateway_mga_id_map": {
             "nullable": true
           }
         }
@@ -13658,7 +14613,9 @@
         "enum": [
           "pre_dispute",
           "dispute",
-          "pre_arbitration"
+          "pre_arbitration",
+          "arbitration",
+          "dispute_reversal"
         ]
       },
       "DisputeStatus": {
@@ -13672,6 +14629,13 @@
           "dispute_challenged",
           "dispute_won",
           "dispute_lost"
+        ]
+      },
+      "DocumentKind": {
+        "type": "string",
+        "enum": [
+          "CNPJ",
+          "CPF"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -13927,7 +14891,9 @@
           "processor_downtime",
           "processor_decline_unauthorized",
           "issue_with_payment_method",
-          "processor_decline_incorrect_data"
+          "processor_decline_incorrect_data",
+          "hard_decline",
+          "soft_decline"
         ]
       },
       "EventClass": {
@@ -14106,8 +15072,11 @@
           "payment_failed",
           "payment_processing",
           "payment_cancelled",
+          "payment_cancelled_post_capture",
           "payment_authorized",
+          "payment_partially_authorized",
           "payment_captured",
+          "payment_expired",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -14270,6 +15239,31 @@
             "nullable": true
           }
         }
+      },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ExternalVaultEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
       },
       "FeatureMatrixListResponse": {
         "type": "object",
@@ -14726,6 +15720,34 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "user_bank_type"
+            ],
+            "properties": {
+              "user_bank_type": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_account_holder_name"
+            ]
+          },
+          {
             "type": "string",
             "enum": [
               "user_msisdn"
@@ -14880,6 +15902,42 @@
           "on_session"
         ]
       },
+      "GPayPredecryptData": {
+        "type": "object",
+        "description": "This struct represents the decrypted Google Pay payment data",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "application_primary_account_number",
+          "cryptogram",
+          "eci_indicator"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The Primary Account Number (PAN) of the card",
+            "example": "4242424242424242"
+          },
+          "cryptogram": {
+            "type": "string",
+            "description": "Cryptogram generated by the Network",
+            "example": "AgAAAAAAAIR8CQrXcIhbQAAAAAA"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator",
+            "example": "07"
+          }
+        }
+      },
       "GcashRedirection": {
         "type": "object"
       },
@@ -14955,6 +16013,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -14979,6 +16048,17 @@
             "properties": {
               "pay_safe_card": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bhn_card_network"
+            ],
+            "properties": {
+              "bhn_card_network": {
+                "$ref": "#/components/schemas/BHNGiftCardDetails"
               }
             }
           }
@@ -15292,6 +16372,24 @@
           }
         }
       },
+      "GpayEcryptedTokenizationData": {
+        "type": "object",
+        "description": "This struct represents the encrypted Gpay payment data",
+        "required": [
+          "type",
+          "token"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the token"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token generated for the wallet"
+          }
+        }
+      },
       "GpayMerchantInfo": {
         "type": "object",
         "required": [
@@ -15365,21 +16463,15 @@
         }
       },
       "GpayTokenizationData": {
-        "type": "object",
-        "required": [
-          "type",
-          "token"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "The type of the token"
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/GPayPredecryptData"
           },
-          "token": {
-            "type": "string",
-            "description": "Token generated for the wallet"
+          {
+            "$ref": "#/components/schemas/GpayEcryptedTokenizationData"
           }
-        }
+        ],
+        "description": "This enum is used to represent the Gpay payment data, which can either be encrypted or decrypted."
       },
       "GpayTokenizationSpecification": {
         "type": "object",
@@ -15470,7 +16562,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15492,7 +16585,24 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15500,7 +16610,6 @@
         "type": "string",
         "enum": [
           "retry",
-          "requeue",
           "do_default"
         ]
       },
@@ -15567,6 +16676,28 @@
           }
         }
       },
+      "GsmFeature": {
+        "type": "string",
+        "enum": [
+          "retry"
+        ]
+      },
+      "GsmFeatureData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "retry"
+            ],
+            "properties": {
+              "retry": {
+                "$ref": "#/components/schemas/RetryFeatureData"
+              }
+            }
+          }
+        ],
+        "description": "Contains the data relevant to the specified GSM feature, if applicable.\nFor example, if the `feature` is `Retry`, this will include configuration\ndetails specific to the retry behavior."
+      },
       "GsmResponse": {
         "type": "object",
         "required": [
@@ -15578,7 +16709,9 @@
           "status",
           "decision",
           "step_up_possible",
-          "clear_pan_possible"
+          "clear_pan_possible",
+          "feature",
+          "feature_data"
         ],
         "properties": {
           "connector": {
@@ -15611,12 +16744,12 @@
             "nullable": true
           },
           "decision": {
-            "type": "string",
-            "description": "decision to be taken for auto retries flow"
+            "$ref": "#/components/schemas/GsmDecision"
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible"
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
           },
           "unified_code": {
             "type": "string",
@@ -15638,7 +16771,14 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible"
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true
+          },
+          "feature": {
+            "$ref": "#/components/schemas/GsmFeature"
+          },
+          "feature_data": {
+            "$ref": "#/components/schemas/GsmFeatureData"
           }
         }
       },
@@ -15723,7 +16863,8 @@
           },
           "step_up_possible": {
             "type": "boolean",
-            "description": "indicates if step_up retry is possible",
+            "description": "indicates if step_up retry is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
             "nullable": true
           },
           "unified_code": {
@@ -15746,10 +16887,41 @@
           },
           "clear_pan_possible": {
             "type": "boolean",
-            "description": "indicates if retry with pan is possible",
+            "description": "indicates if retry with pan is possible\n**Deprecated**: This field is now included as part of `feature_data` under the `Retry` variant.",
+            "deprecated": true,
+            "nullable": true
+          },
+          "feature": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeature"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GsmFeatureData"
+              }
+            ],
             "nullable": true
           }
         }
+      },
+      "HyperswitchConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer",
+          "payout_processor",
+          "authentication_provider",
+          "fraud_and_risk_management_provider",
+          "tax_calculation_provider",
+          "revenue_growth_management_platform"
+        ]
       },
       "IfStatement": {
         "type": "object",
@@ -15886,6 +17058,7 @@
           "succeeded",
           "failed",
           "cancelled",
+          "cancelled_post_capture",
           "processing",
           "requires_customer_action",
           "requires_merchant_action",
@@ -15894,7 +17067,9 @@
           "requires_capture",
           "partially_captured",
           "partially_captured_and_capturable",
-          "conflicted"
+          "partially_authorized_and_requires_capture",
+          "conflicted",
+          "expired"
         ]
       },
       "IssuerData": {
@@ -16030,6 +17205,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -17854,6 +19033,11 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_tax_registration_id": {
+            "type": "string",
+            "example": "123456789",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18091,6 +19275,15 @@
           "entity": {
             "type": "string",
             "example": "12345"
+          }
+        }
+      },
+      "NetworkDetails": {
+        "type": "object",
+        "properties": {
+          "network_advice_code": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -18635,6 +19828,40 @@
           }
         }
       },
+      "OpenRouterDecideGatewayRequest": {
+        "type": "object",
+        "required": [
+          "paymentInfo",
+          "merchantId"
+        ],
+        "properties": {
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "eligibleGatewayList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "rankingAlgorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RankingAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "eliminationEnabled": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -18713,6 +19940,43 @@
           "product_tax_code": {
             "type": "string",
             "description": "The tax code for the product",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description for the item",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock Keeping Unit (SKU) or the item identifier for this item.",
+            "nullable": true
+          },
+          "upc": {
+            "type": "string",
+            "description": "Universal Product Code for the item.",
+            "nullable": true
+          },
+          "commodity_code": {
+            "type": "string",
+            "description": "Code describing a commodity or a group of commodities pertaining to goods classification.",
+            "nullable": true
+          },
+          "unit_of_measure": {
+            "type": "string",
+            "description": "Unit of measure used for the item quantity.",
+            "nullable": true
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount for the item.",
+            "nullable": true
+          },
+          "unit_discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Discount amount applied to this item.",
             "nullable": true
           }
         }
@@ -19150,6 +20414,18 @@
           {
             "type": "object",
             "required": [
+              "flexiti_redirect"
+            ],
+            "properties": {
+              "flexiti_redirect": {
+                "type": "object",
+                "description": "For Flexiti Redirect as PayLater long term finance Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "walley_redirect"
             ],
             "properties": {
@@ -19378,6 +20654,40 @@
           }
         }
       },
+      "PaymentChannel": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "ecommerce"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "mail_order"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "telephone_order"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "other"
+            ],
+            "properties": {
+              "other": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "Describes the channel through which the payment was initiated."
+      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -19391,15 +20701,6 @@
               }
             }
           }
-        ]
-      },
-      "PaymentConnectorCategory": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
         ]
       },
       "PaymentCreatePaymentLinkConfig": {
@@ -19474,6 +20775,49 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentId": {
+        "type": "string",
+        "description": "A type for payment_id that can be used for payment ids"
+      },
+      "PaymentInfo": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "paymentType",
+          "paymentMethodType",
+          "paymentMethod"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "paymentType": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethodType": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "cardIsin": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -20972,11 +22316,13 @@
           "benefit",
           "bizum",
           "blik",
+          "bluecode",
           "boleto",
           "bca_bank_transfer",
           "bni_va",
           "breadpay",
           "bri_va",
+          "bhn_card_network",
           "card_redirect",
           "cimb_va",
           "classic",
@@ -20990,6 +22336,7 @@
           "efecty",
           "eft",
           "eps",
+          "flexiti",
           "fps",
           "evoucher",
           "giropay",
@@ -21210,6 +22557,17 @@
           "setup_mandate",
           "recurring_mandate"
         ]
+      },
+      "PaymentsCancelPostCaptureRequest": {
+        "type": "object",
+        "description": "Request to cancel a payment when the payment is already captured",
+        "properties": {
+          "cancellation_reason": {
+            "type": "string",
+            "description": "The reason for the payment cancel",
+            "nullable": true
+          }
+        }
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -21707,6 +23065,56 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
           }
         }
       },
@@ -22129,6 +23537,62 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
@@ -22617,9 +24081,22 @@
             ],
             "nullable": true
           },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
           "payment_method_status": {
@@ -22653,6 +24130,12 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "capture_before": {
@@ -22717,6 +24200,29 @@
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -22828,6 +24334,11 @@
           "challenge_request": {
             "type": "string",
             "description": "Challenge request which should be sent to acs_url",
+            "nullable": true
+          },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
             "nullable": true
           },
           "acs_reference_number": {
@@ -23431,6 +24942,62 @@
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
             "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -23944,9 +25511,22 @@
             ],
             "nullable": true
           },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_id": {
             "type": "string",
             "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
           "payment_method_status": {
@@ -23980,6 +25560,12 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "capture_before": {
@@ -24044,6 +25630,29 @@
           "whole_connector_response": {
             "type": "string",
             "description": "Contains whole connector response",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for this payment",
+            "nullable": true
+          },
+          "is_overcapture_enabled": {
+            "type": "boolean",
+            "description": "Boolean indicating whether overcapture is effectively enabled for this payment",
+            "nullable": true
+          },
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24600,6 +26209,62 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "payment_channel": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentChannel"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total amount of the discount you have applied to the order or transaction.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_amount_tax": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "duty_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the payer placed the order.",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "nullable": true
+          },
+          "enable_overcapture": {
+            "type": "boolean",
+            "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
             "nullable": true
           }
         }
@@ -26363,6 +28028,51 @@
           }
         }
       },
+      "PlatformAccountCreateRequest": {
+        "type": "object",
+        "required": [
+          "organization_name"
+        ],
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "maxLength": 64
+          }
+        }
+      },
+      "PlatformAccountCreateResponse": {
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_type",
+          "merchant_id",
+          "merchant_account_type"
+        ],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "example": "org_abc",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "org_name": {
+            "type": "string",
+            "example": "organization_abc",
+            "nullable": true
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrganizationType"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_abc"
+          },
+          "merchant_account_type": {
+            "$ref": "#/components/schemas/MerchantAccountType"
+          }
+        }
+      },
       "PollConfig": {
         "type": "object",
         "required": [
@@ -26448,6 +28158,66 @@
           }
         },
         "additionalProperties": false
+      },
+      "PriorityLogicData": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "failure_reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PriorityLogicOutput": {
+        "type": "object",
+        "properties": {
+          "isEnforcement": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gws": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "priorityLogicTag": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayReferenceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "primaryLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          },
+          "fallbackLogic": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriorityLogicData"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ProcessorPaymentToken": {
         "type": "object",
@@ -26872,6 +28642,44 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check  for new disputes",
+            "example": 2,
+            "nullable": true
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26893,6 +28701,10 @@
             }
           }
         }
+      },
+      "ProfileId": {
+        "type": "string",
+        "description": "A type for profile_id that can be used for business profile ids"
       },
       "ProfileResponse": {
         "type": "object",
@@ -27186,6 +28998,45 @@
               }
             ],
             "nullable": true
+          },
+          "dispute_polling_interval": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time interval (in hours) for polling the connector to check dispute statuses",
+            "example": 2,
+            "nullable": true,
+            "minimum": 0
+          },
+          "is_manual_retry_enabled": {
+            "type": "boolean",
+            "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "always_enable_overcapture": {
+            "type": "boolean",
+            "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         }
       },
@@ -27229,6 +29080,14 @@
             "additionalProperties": {}
           }
         }
+      },
+      "RankingAlgorithm": {
+        "type": "string",
+        "enum": [
+          "SR_BASED_ROUTING",
+          "PL_BASED_ROUTING",
+          "NTW_BASED_ROUTING"
+        ]
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -28075,7 +29934,8 @@
             "items": {
               "$ref": "#/components/schemas/BankCodeResponse"
             },
-            "description": "The list of banks enabled, if applicable for a payment method type",
+            "description": "The list of banks enabled, if applicable for a payment method type . To be deprecated soon.",
+            "deprecated": true,
             "nullable": true
           },
           "bank_debits": {
@@ -28270,6 +30130,33 @@
           "requeue"
         ]
       },
+      "RetryFeatureData": {
+        "type": "object",
+        "description": "Represents the data associated with a retry feature in GSM.",
+        "required": [
+          "step_up_possible",
+          "clear_pan_possible",
+          "alternate_network_possible",
+          "decision"
+        ],
+        "properties": {
+          "step_up_possible": {
+            "type": "boolean",
+            "description": "indicates if step_up retry is possible"
+          },
+          "clear_pan_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with pan is possible"
+          },
+          "alternate_network_possible": {
+            "type": "boolean",
+            "description": "indicates if retry with alternate network possible"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/GsmDecision"
+          }
+        }
+      },
       "RevokeApiKeyResponse": {
         "type": "object",
         "description": "The response body for revoking an API Key.",
@@ -28352,7 +30239,9 @@
           "paypal_test",
           "aci",
           "adyen",
+          "affirm",
           "airwallex",
+          "amazonpay",
           "archipel",
           "authorizedotnet",
           "bankofamerica",
@@ -28360,8 +30249,10 @@
           "billwerk",
           "bitpay",
           "bambora",
+          "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
+          "bluecode",
           "boku",
           "braintree",
           "breadpay",
@@ -28369,6 +30260,7 @@
           "celero",
           "chargebee",
           "custombilling",
+          "checkbook",
           "checkout",
           "coinbase",
           "coingate",
@@ -28378,14 +30270,17 @@
           "deutschebank",
           "digitalvirgo",
           "dlocal",
+          "dwolla",
           "ebanx",
           "elavon",
           "facilitapay",
           "fiserv",
           "fiservemea",
           "fiuu",
+          "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -28405,6 +30300,7 @@
           "nmi",
           "nomupay",
           "noon",
+          "nordea",
           "novalnet",
           "nuvei",
           "opennode",
@@ -28413,8 +30309,12 @@
           "payload",
           "payone",
           "paypal",
+          "paysafe",
           "paystack",
+          "paytm",
           "payu",
+          "peachpayments",
+          "phonepe",
           "placetopay",
           "powertranz",
           "prophetpay",
@@ -28426,11 +30326,13 @@
           "santander",
           "shift4",
           "signifyd",
+          "silverflow",
           "square",
           "stax",
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
@@ -28568,6 +30470,56 @@
           "decision_engine_routing_id": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "RoutingEvaluateRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "parameters",
+          "fallback_output"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+          },
+          "fallback_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeRoutableConnectorChoice"
+            }
+          }
+        }
+      },
+      "RoutingEvaluateResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "output",
+          "evaluated_output",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "output": {},
+          "evaluated_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutableConnectorChoice"
+            }
           }
         }
       },
@@ -29319,6 +31271,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AmazonPaySessionTokenResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "amazon_pay"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -29967,6 +31940,13 @@
       "SwishQrData": {
         "type": "object"
       },
+      "TaxStatus": {
+        "type": "string",
+        "enum": [
+          "taxable",
+          "exempt"
+        ]
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -30122,7 +32102,7 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_key"
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
               "three_ds_method_data_submission": {
@@ -30140,17 +32120,27 @@
                 "nullable": true
               },
               "three_ds_method_key": {
-                "type": "string",
-                "enum": [
-                  "threeDSMethodData"
-                ]
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
+                  }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
-        ],
-        "discriminator": {
-          "propertyName": "three_ds_method_key"
-        }
+        ]
+      },
+      "ThreeDsMethodKey": {
+        "type": "string",
+        "enum": [
+          "threeDSMethodData",
+          "JWT"
+        ]
       },
       "TimeRange": {
         "type": "object",
@@ -30434,6 +32424,34 @@
           "external"
         ]
       },
+      "TxnStatus": {
+        "type": "string",
+        "enum": [
+          "STARTED",
+          "AUTHENTICATION_FAILED",
+          "JUSPAY_DECLINED",
+          "PENDING_VBV",
+          "V_B_V_SUCCESSFUL",
+          "AUTHORIZED",
+          "AUTHORIZATION_FAILED",
+          "CHARGED",
+          "AUTHORIZING",
+          "C_O_D_INITIATED",
+          "VOIDED",
+          "VOIDED_POST_CHARGE",
+          "VOID_INITIATED",
+          "NOP",
+          "CAPTURE_INITIATED",
+          "CAPTURE_FAILED",
+          "VOID_FAILED",
+          "AUTO_REFUNDED",
+          "PARTIAL_CHARGED",
+          "TO_BE_CHARGED",
+          "PENDING",
+          "FAILURE",
+          "DECLINED"
+        ]
+      },
       "UIWidgetFormLayout": {
         "type": "string",
         "enum": [
@@ -30469,6 +32487,40 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateScorePayload": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "gateway",
+          "status",
+          "paymentId"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TxnStatus"
+          },
+          "paymentId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateScoreResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "UpiAdditionalData": {
         "oneOf": [
@@ -30577,7 +32629,10 @@
                 ]
               },
               "value": {
-                "$ref": "#/components/schemas/MinorUnit"
+                "type": "integer",
+                "format": "int64",
+                "description": "Represents a number literal",
+                "minimum": 0
               }
             }
           },
@@ -30647,13 +32702,34 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "global_ref"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Represents a global reference, which is a reference to a global variable"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "number_array"
                 ]
               },
               "value": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/MinorUnit"
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
                 },
                 "description": "Represents an array of numbers. This is basically used for\n\"one of the given numbers\" operations\neg: payment.method.amount = (1, 2, 3)"
               }
@@ -30708,6 +32784,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
       },
       "Venmo": {
         "type": "object",
@@ -30945,28 +33028,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "ali_pay_qr"
-            ],
-            "properties": {
-              "ali_pay_qr": {
-                "$ref": "#/components/schemas/AliPayQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ali_pay_redirect"
-            ],
-            "properties": {
-              "ali_pay_redirect": {
-                "$ref": "#/components/schemas/AliPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "AliPayHkRedirect",
             "required": [
               "ali_pay_hk_redirect"
             ],
@@ -30978,6 +33040,43 @@
           },
           {
             "type": "object",
+            "title": "AliPayQr",
+            "required": [
+              "ali_pay_qr"
+            ],
+            "properties": {
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AliPayRedirect",
+            "required": [
+              "ali_pay_redirect"
+            ],
+            "properties": {
+              "ali_pay_redirect": {
+                "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPay",
+            "required": [
+              "amazon_pay"
+            ],
+            "properties": {
+              "amazon_pay": {
+                "$ref": "#/components/schemas/AmazonPayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "AmazonPayRedirect",
             "required": [
               "amazon_pay_redirect"
             ],
@@ -30989,72 +33088,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "skrill"
-            ],
-            "properties": {
-              "skrill": {
-                "$ref": "#/components/schemas/SkrillData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "paysera"
-            ],
-            "properties": {
-              "paysera": {
-                "$ref": "#/components/schemas/PayseraData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "momo_redirect"
-            ],
-            "properties": {
-              "momo_redirect": {
-                "$ref": "#/components/schemas/MomoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "ApplePay",
             "required": [
               "apple_pay"
             ],
@@ -31066,6 +33100,7 @@
           },
           {
             "type": "object",
+            "title": "ApplePayRedirect",
             "required": [
               "apple_pay_redirect"
             ],
@@ -31077,6 +33112,7 @@
           },
           {
             "type": "object",
+            "title": "ApplePayThirdPartySdk",
             "required": [
               "apple_pay_third_party_sdk"
             ],
@@ -31088,6 +33124,32 @@
           },
           {
             "type": "object",
+            "title": "BluecodeRedirect",
+            "required": [
+              "bluecode_redirect"
+            ],
+            "properties": {
+              "bluecode_redirect": {
+                "type": "object",
+                "description": "The wallet data for Bluecode QR Code Redirect"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CashappQr",
+            "required": [
+              "cashapp_qr"
+            ],
+            "properties": {
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "DanaRedirect",
             "required": [
               "dana_redirect"
             ],
@@ -31100,6 +33162,31 @@
           },
           {
             "type": "object",
+            "title": "GcashRedirect",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GoPayRedirect",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GooglePay",
             "required": [
               "google_pay"
             ],
@@ -31111,6 +33198,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayRedirect",
             "required": [
               "google_pay_redirect"
             ],
@@ -31122,6 +33210,7 @@
           },
           {
             "type": "object",
+            "title": "GooglePayThirdPartySdk",
             "required": [
               "google_pay_third_party_sdk"
             ],
@@ -31133,6 +33222,19 @@
           },
           {
             "type": "object",
+            "title": "KakaoPayRedirect",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MbWayRedirect",
             "required": [
               "mb_way_redirect"
             ],
@@ -31144,6 +33246,19 @@
           },
           {
             "type": "object",
+            "title": "Mifinity",
+            "required": [
+              "mifinity"
+            ],
+            "properties": {
+              "mifinity": {
+                "$ref": "#/components/schemas/MifinityData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayRedirect",
             "required": [
               "mobile_pay_redirect"
             ],
@@ -31155,6 +33270,19 @@
           },
           {
             "type": "object",
+            "title": "MomoRedirect",
+            "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PaypalRedirect",
             "required": [
               "paypal_redirect"
             ],
@@ -31166,6 +33294,7 @@
           },
           {
             "type": "object",
+            "title": "PaypalSdk",
             "required": [
               "paypal_sdk"
             ],
@@ -31177,6 +33306,19 @@
           },
           {
             "type": "object",
+            "title": "Paysera",
+            "required": [
+              "paysera"
+            ],
+            "properties": {
+              "paysera": {
+                "$ref": "#/components/schemas/PayseraData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Paze",
             "required": [
               "paze"
             ],
@@ -31188,6 +33330,19 @@
           },
           {
             "type": "object",
+            "title": "RevolutPay",
+            "required": [
+              "revolut_pay"
+            ],
+            "properties": {
+              "revolut_pay": {
+                "$ref": "#/components/schemas/RevolutPayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SamsungPay",
             "required": [
               "samsung_pay"
             ],
@@ -31199,6 +33354,43 @@
           },
           {
             "type": "object",
+            "title": "Skrill",
+            "required": [
+              "skrill"
+            ],
+            "properties": {
+              "skrill": {
+                "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "SwishQr",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TouchNGoRedirect",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "TwintRedirect",
             "required": [
               "twint_redirect"
             ],
@@ -31211,6 +33403,7 @@
           },
           {
             "type": "object",
+            "title": "VippsRedirect",
             "required": [
               "vipps_redirect"
             ],
@@ -31223,28 +33416,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "touch_n_go_redirect"
-            ],
-            "properties": {
-              "touch_n_go_redirect": {
-                "$ref": "#/components/schemas/TouchNGoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "we_chat_pay_redirect"
-            ],
-            "properties": {
-              "we_chat_pay_redirect": {
-                "$ref": "#/components/schemas/WeChatPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
+            "title": "WeChatPayQr",
             "required": [
               "we_chat_pay_qr"
             ],
@@ -31256,45 +33428,13 @@
           },
           {
             "type": "object",
+            "title": "WeChatPayRedirect",
             "required": [
-              "cashapp_qr"
+              "we_chat_pay_redirect"
             ],
             "properties": {
-              "cashapp_qr": {
-                "$ref": "#/components/schemas/CashappQr"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish_qr"
-            ],
-            "properties": {
-              "swish_qr": {
-                "$ref": "#/components/schemas/SwishQrData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mifinity"
-            ],
-            "properties": {
-              "mifinity": {
-                "$ref": "#/components/schemas/MifinityData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "revolut_pay"
-            ],
-            "properties": {
-              "revolut_pay": {
-                "$ref": "#/components/schemas/RevolutPayData"
+              "we_chat_pay_redirect": {
+                "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
           }

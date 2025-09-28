@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 
@@ -40,14 +42,17 @@ use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
+        RouterData,
+    },
     router_data_v2::{
-        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
-        UasFlowData,
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -55,7 +60,8 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
@@ -75,8 +81,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -87,6 +93,7 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + webhooks::IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAuthenticationToken
     + disputes::Dispute
     + files::FileUpload
     + ConnectorTransactionId
@@ -99,6 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + Subscriptions
 {
 }
 
@@ -109,6 +117,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAuthenticationToken
             + disputes::Dispute
             + files::FileUpload
             + ConnectorTransactionId
@@ -120,7 +129,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + Subscriptions,
     > Connector for T
 {
 }
@@ -271,6 +281,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -362,6 +373,7 @@ pub trait ConnectorCommon {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -381,6 +393,12 @@ pub trait ConnectorSpecifications {
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
+    }
+
+    /// Check if connector should make another request to create an access token
+    /// Connectors should override this method if they require an authentication token to create a new access token
+    fn authentication_token_for_token_creation(&self) -> bool {
+        false
     }
 
     #[cfg(not(feature = "v2"))]
@@ -441,6 +459,27 @@ pub trait ConnectorMandateRevokeV2:
     MandateRevokeFlowData,
     MandateRevokeRequestData,
     MandateRevokeResponseData,
+>
+{
+}
+
+/// trait ConnectorAuthenticationToken
+pub trait ConnectorAuthenticationToken:
+    ConnectorIntegration<
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
+>
+{
+}
+
+/// trait ConnectorAuthenticationTokenV2
+pub trait ConnectorAuthenticationTokenV2:
+    ConnectorIntegrationV2<
+    AccessTokenAuthentication,
+    AuthenticationTokenFlowData,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
 >
 {
 }

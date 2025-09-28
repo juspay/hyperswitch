@@ -60,9 +60,9 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
 
     let connector_customer_id = match resp.response {
         Ok(response) => match response {
-            types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id,
-            } => Some(connector_customer_id),
+            types::PaymentsResponseData::ConnectorCustomerResponse(customer_data) => {
+                Some(customer_data.connector_customer_id)
+            }
             _ => None,
         },
         Err(err) => {
@@ -87,15 +87,16 @@ pub fn should_call_connector_create_customer<'a>(
         .connector_customer
         .connector_list
         .contains(&connector.connector_name);
-
+    let connector_customer_details = customer
+        .as_ref()
+        .and_then(|customer| customer.get_connector_customer_id(connector_label));
     if connector_needs_customer {
-        let connector_customer_details = customer
-            .as_ref()
-            .and_then(|customer| customer.get_connector_customer_id(connector_label));
         let should_call_connector = connector_customer_details.is_none();
         (should_call_connector, connector_customer_details)
     } else {
-        (false, None)
+        // Populates connector_customer_id if it is present after data migration
+        // For connector which does not have create connector customer flow
+        (false, connector_customer_details)
     }
 }
 

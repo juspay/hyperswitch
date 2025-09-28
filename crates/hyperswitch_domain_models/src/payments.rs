@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use api_models::payments::{SessionToken, VaultSessionDetails};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
+    AlwaysRequestExtendedAuthorization, EnableOvercaptureBool, RequestExtendedAuthorizationBool,
 };
 use common_utils::{
     self,
@@ -116,6 +116,14 @@ pub struct PaymentIntent {
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_payment_id_from_merchant: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub tax_status: Option<storage_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<bool>,
+    pub enable_overcapture: Option<EnableOvercaptureBool>,
 }
 
 impl PaymentIntent {
@@ -181,16 +189,45 @@ impl PaymentIntent {
             }
         };
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
-        if always_request_extended_authorization_optional.is_some_and(
-            |always_request_extended_authorization| *always_request_extended_authorization,
-        ) || intent_request_extended_authorization_optional.is_some_and(
-            |intent_request_extended_authorization| *intent_request_extended_authorization,
-        ) {
-            Some(is_extended_authorization_supported_by_connector())
+
+        let is_extended_authorization_requested = intent_request_extended_authorization_optional
+            .map(|should_request_extended_authorization| *should_request_extended_authorization)
+            .or(always_request_extended_authorization_optional.map(
+                |should_always_request_extended_authorization| {
+                    *should_always_request_extended_authorization
+                },
+            ));
+
+        is_extended_authorization_requested
+            .map(|requested| {
+                if requested {
+                    is_extended_authorization_supported_by_connector()
+                } else {
+                    false
+                }
+            })
+            .map(RequestExtendedAuthorizationBool::from)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_enable_overcapture_bool_if_connector_supports(
+        &self,
+        connector: common_enums::connector_enums::Connector,
+        always_enable_overcapture: Option<
+            common_types::primitive_wrappers::AlwaysEnableOvercaptureBool,
+        >,
+        capture_method: &Option<common_enums::CaptureMethod>,
+    ) -> Option<EnableOvercaptureBool> {
+        let is_overcapture_supported_by_connector =
+            connector.is_overcapture_supported_by_connector();
+        if matches!(capture_method, Some(common_enums::CaptureMethod::Manual))
+            && is_overcapture_supported_by_connector
+        {
+            self.enable_overcapture
+                .or_else(|| always_enable_overcapture.map(EnableOvercaptureBool::from))
         } else {
             None
         }
-        .map(RequestExtendedAuthorizationBool::from)
     }
 
     #[cfg(feature = "v2")]
@@ -432,6 +469,10 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
+    /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    /// The ID of the active attempt group for the payment intent
+    pub active_attempts_group_id: Option<String>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -453,6 +494,8 @@ pub struct PaymentIntent {
     pub updated_by: String,
     /// Denotes whether merchant requested for incremental authorization to be enabled for this payment.
     pub request_incremental_authorization: storage_enums::RequestIncrementalAuthorization,
+    /// Denotes whether merchant requested for split payments to be enabled for this payment
+    pub split_txns_enabled: storage_enums::SplitTxnsEnabled,
     /// Denotes the number of authorizations that have been made for the payment.
     pub authorization_count: Option<i32>,
     /// Denotes the client secret expiry for the payment. This is the time at which the client secret will expire.
@@ -511,6 +554,26 @@ pub struct PaymentIntent {
 
 #[cfg(feature = "v2")]
 impl PaymentIntent {
+    /// Extract customer_id from payment intent feature metadata
+    pub fn extract_connector_customer_id_from_payment_intent(
+        &self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery| {
+                recovery
+                    .billing_connector_payment_details
+                    .connector_customer_id
+                    .clone()
+            })
+            .ok_or(
+                common_utils::errors::ValidationError::MissingRequiredField {
+                    field_name: "connector_customer_id".to_string(),
+                },
+            )
+    }
+
     fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
         self.feature_metadata
             .as_ref()
@@ -610,6 +673,8 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
+            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
+            active_attempts_group_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -630,6 +695,7 @@ impl PaymentIntent {
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .unwrap_or_default(),
+            split_txns_enabled: profile.split_txns_enabled,
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,
@@ -693,6 +759,8 @@ impl PaymentIntent {
         &self,
         revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
         billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        card_info: api_models::payments::AdditionalCardInfo,
+        payment_processor_token: &str,
     ) -> CustomResult<
         revenue_recovery::RevenueRecoveryAttemptData,
         errors::api_error_response::ApiErrorResponse,
@@ -724,9 +792,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
-                .billing_connector_payment_details
-                .payment_processor_token,
+            processor_payment_method_token: payment_processor_token.to_string(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -745,10 +811,9 @@ impl PaymentIntent {
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: None,
-            card_isin: None,
-            card_network: None,
             // No charge id is present here since it is an internal payment and we didn't call connector yet.
             charge_id: None,
+            card_info: card_info.clone(),
         })
     }
 
@@ -793,6 +858,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -823,6 +889,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 impl HeaderPayload {
@@ -873,6 +940,7 @@ where
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v2")]
@@ -912,7 +980,7 @@ impl<F: Clone> PaymentConfirmData<F> {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PaymentStatusData<F>
 where
     F: Clone,
@@ -931,6 +999,17 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCancelData<F>
 where
     F: Clone,
 {

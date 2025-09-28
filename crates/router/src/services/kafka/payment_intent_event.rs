@@ -74,15 +74,17 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a common_types::Url>,
     pub metadata: Option<&'a Secret<Value>>,
     pub statement_descriptor: Option<&'a common_types::StatementDescriptor>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    pub active_attempts_group_id: Option<&'a String>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -96,8 +98,9 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub authorization_count: Option<i32>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub session_expiry: OffsetDateTime,
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     pub frm_metadata: Option<Secret<&'a Value>>,
@@ -211,6 +214,8 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             last_synced,
             setup_future_usage,
             active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -221,6 +226,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -265,6 +271,8 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             setup_future_usage: *setup_future_usage,
             off_session: setup_future_usage.is_off_session(),
             active_attempt_id: active_attempt_id.as_ref(),
+            active_attempt_id_type: *active_attempt_id_type,
+            active_attempts_group_id: active_attempts_group_id.as_ref(),
             attempt_count: *attempt_count,
             profile_id,
             customer_email: None,
@@ -277,6 +285,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             updated_by,
             surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
+            split_txns_enabled: *split_txns_enabled,
             authorization_count: *authorization_count,
             session_expiry: session_expiry.assume_utc(),
             request_external_three_ds_authentication: *request_external_three_ds_authentication,

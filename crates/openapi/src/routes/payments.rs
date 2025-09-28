@@ -812,6 +812,40 @@ pub fn payments_connector_session() {}
 )]
 pub fn payments_cancel() {}
 
+/// Payments - Cancel Post Capture
+///
+/// A Payment could can be cancelled when it is in one of these statuses: `succeeded`, `partially_captured`, `partially_captured_and_capturable`.
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    request_body (
+        content = PaymentsCancelPostCaptureRequest,
+        examples(
+            (
+                "Cancel the payment post capture with minimal fields" = (
+                    value = json!({})
+                )
+            ),
+            (
+                "Cancel the payment post capture with cancellation reason" = (
+                    value = json!({"cancellation_reason": "requested_by_customer"})
+                )
+            ),
+        )
+    ),
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture"),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture() {}
+
 /// Payments - List
 ///
 /// To list the *payments*
@@ -1234,3 +1268,30 @@ pub fn list_payment_methods() {}
     security(("api_key" = []), ("jwt_key" = []))
 )]
 pub fn payments_list() {}
+
+/// Payments - Gift Card Balance Check
+///
+/// Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed
+#[cfg(feature = "v2")]
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/check-gift-card-balance",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        (
+          "X-Profile-Id" = String, Header,
+          description = "Profile ID associated to the payment intent",
+          example = "pro_abcdefghijklmnop"
+        ),
+    ),
+    request_body(
+      content = PaymentsGiftCardBalanceCheckRequest,
+    ),
+    responses(
+        (status = 200, description = "Get the Gift Card Balance", body = GiftCardBalanceCheckResponse),
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve Gift Card Balance",
+    security(("publishable_key" = []))
+)]
+pub fn payment_check_gift_card_balance() {}

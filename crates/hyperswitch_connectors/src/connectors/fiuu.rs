@@ -242,6 +242,7 @@ impl ConnectorCommon for Fiuu {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -1114,7 +1115,8 @@ static FIUU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Fiuu",
     description:
         "Fiuu, formerly known as Razer Merchant Services, is a leading online payment gateway in Southeast Asia, offering secure and seamless payment solutions for businesses of all sizes, including credit and debit cards, e-wallets, and bank transfers.",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Live,
 };
 
 static FIUU_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 2] = [

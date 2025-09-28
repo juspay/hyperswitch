@@ -61,7 +61,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, CustomResult},
-        payments,
+        payments, unified_connector_service,
     },
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
@@ -98,12 +98,20 @@ pub type BoxedWebhookSourceVerificationConnectorIntegrationInterface<T, Req, Res
     BoxedConnectorIntegrationInterface<T, common_types::WebhookSourceVerifyData, Req, Resp>;
 pub type BoxedExternalAuthenticationConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::ExternalAuthenticationFlowData, Req, Resp>;
+pub type BoxedAuthenticationTokenConnectorIntegrationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::AuthenticationTokenFlowData, Req, Resp>;
 pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
-    BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
+    BoxedConnectorIntegrationInterface<T, common_types::InvoiceRecordBackData, Req, Res>;
+pub type BoxedGetSubscriptionPlansInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlansData, Req, Res>;
+pub type BoxedGetSubscriptionPlanPricesInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionPlanPricesData, Req, Res>;
+pub type BoxedGetSubscriptionEstimateInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GetSubscriptionEstimateData, Req, Res>;
 pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<
         T,
@@ -124,6 +132,95 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
     >;
 pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
+
+pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::GiftCardBalanceCheckFlowData, Req, Res>;
+
+/// Handle UCS webhook response processing
+fn handle_ucs_response<T, Req, Resp>(
+    router_data: types::RouterData<T, Req, Resp>,
+    transform_data_bytes: Vec<u8>,
+) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+where
+    T: Clone + Debug + 'static,
+    Req: Debug + Clone + 'static,
+    Resp: Debug + Clone + 'static,
+{
+    let webhook_transform_data: unified_connector_service::WebhookTransformData =
+        serde_json::from_slice(&transform_data_bytes)
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .attach_printable("Failed to deserialize UCS webhook transform data")?;
+
+    let webhook_content = webhook_transform_data
+        .webhook_content
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+        .attach_printable("UCS webhook transform data missing webhook_content")?;
+
+    let payment_get_response = match webhook_content.content {
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
+            Ok(payments_response)
+        },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains refund response but payment processing was expected".to_string().into())).into())
+        },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains dispute response but payment processing was expected".to_string().into())).into())
+        },
+        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+            Err(errors::ConnectorError::ProcessingStepFailed(Some("UCS webhook contains incomplete transformation but payment processing was expected".to_string().into())).into())
+        },
+        None => {
+            Err(errors::ConnectorError::ResponseDeserializationFailed)
+                .attach_printable("UCS webhook content missing payments_response")
+        }
+    }?;
+
+    let (router_data_response, status_code) =
+        unified_connector_service::handle_unified_connector_service_response_for_payment_get(
+            payment_get_response.clone(),
+        )
+        .change_context(errors::ConnectorError::ProcessingStepFailed(None))
+        .attach_printable("Failed to process UCS webhook response using PSync handler")?;
+
+    let mut updated_router_data = router_data;
+    let router_data_response = router_data_response.map(|(response, status)| {
+        updated_router_data.status = status;
+        response
+    });
+
+    let _ = router_data_response.map_err(|error_response| {
+        updated_router_data.response = Err(error_response);
+    });
+    updated_router_data.raw_connector_response =
+        payment_get_response.raw_connector_response.map(Secret::new);
+    updated_router_data.connector_http_status_code = Some(status_code);
+
+    Ok(updated_router_data)
+}
+
+fn store_raw_connector_response_if_required<T, Req, Resp>(
+    return_raw_connector_response: Option<bool>,
+    router_data: &mut types::RouterData<T, Req, Resp>,
+    body: &types::Response,
+) -> CustomResult<(), errors::ConnectorError>
+where
+    T: Clone + Debug + 'static,
+    Req: Debug + Clone + 'static,
+    Resp: Debug + Clone + 'static,
+{
+    if return_raw_connector_response == Some(true) {
+        let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if decoded.starts_with('\u{feff}') {
+            decoded = decoded.trim_start_matches('\u{feff}').to_string();
+        }
+        router_data.raw_connector_response = Some(Secret::new(decoded));
+    }
+    Ok(())
+}
+
+pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -163,6 +260,9 @@ where
             };
             connector_integration.handle_response(req, None, response)
         }
+        payments::CallConnectorAction::UCSHandleResponse(transform_data_bytes) => {
+            handle_ucs_response(router_data, transform_data_bytes)
+        }
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
             status,
@@ -181,6 +281,7 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             } else {
                 None
@@ -302,17 +403,13 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if return_raw_connector_response == Some(true) {
-                                                let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
-                                                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                                                if decoded.starts_with('\u{feff}') {
-                                                    decoded = decoded
-                                                        .trim_start_matches('\u{feff}')
-                                                        .to_string();
-                                                }
-                                                data.raw_connector_response =
-                                                    Some(Secret::new(decoded));
-                                            }
+
+                                            store_raw_connector_response_if_required(
+                                                return_raw_connector_response,
+                                                &mut data,
+                                                &body,
+                                            )?;
+
                                             Ok(data)
                                         }
                                         Err(err) => {
@@ -338,6 +435,12 @@ where
                                             req.connector.clone(),
                                         )),
                                     );
+
+                                    store_raw_connector_response_if_required(
+                                        return_raw_connector_response,
+                                        &mut router_data,
+                                        &body,
+                                    )?;
 
                                     let error = match body.status_code {
                                         500..=511 => {
@@ -384,6 +487,7 @@ where
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
+                                    connector_metadata: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -452,7 +556,6 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
-
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line
@@ -701,7 +804,11 @@ where
         }
     };
 
-    let infra = state.infra_components.clone();
+    let infra = extract_mapped_fields(
+        &serialized_request,
+        state.enhancement.as_ref(),
+        state.infra_components.as_ref(),
+    );
 
     let api_event = ApiEvent::new(
         tenant_id,
@@ -894,8 +1001,45 @@ where
                     None
                 }
             });
+            let proxy_connector_http_status_code = if state
+                .conf
+                .proxy_status_mapping
+                .proxy_connector_http_status_code
+            {
+                headers
+                    .iter()
+                    .find(|(key, _)| key == headers::X_CONNECTOR_HTTP_STATUS_CODE)
+                    .and_then(|(_, value)| {
+                        match value.clone().into_inner().parse::<u16>() {
+                            Ok(code) => match http::StatusCode::from_u16(code) {
+                                Ok(status_code) => Some(status_code),
+                                Err(err) => {
+                                    logger::error!(
+                                        "Invalid HTTP status code parsed from connector_http_status_code: {:?}",
+                                        err
+                                    );
+                                    None
+                                }
+                            },
+                            Err(err) => {
+                                logger::error!(
+                                    "Failed to parse connector_http_status_code from header: {:?}",
+                                    err
+                                );
+                                None
+                            }
+                        }
+                    })
+            } else {
+                None
+            };
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
+                Ok(res) => http_response_json_with_headers(
+                    res,
+                    headers,
+                    request_elapsed_time,
+                    proxy_connector_http_status_code,
+                ),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -987,8 +1131,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
     headers: Vec<(String, Maskable<String>)>,
     request_duration: Option<Duration>,
+    status_code: Option<http::StatusCode>,
 ) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
+    let mut response_builder = HttpResponse::build(status_code.unwrap_or(http::StatusCode::OK));
     for (header_name, header_value) in headers {
         let is_sensitive_header = header_value.is_masked();
         let mut header_value = header_value.into_inner();
@@ -1091,6 +1236,9 @@ impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::ExternalVaultProxyPaymentsRequest {}
+
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -1104,6 +1252,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1143,6 +1292,7 @@ impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
     }
 }
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelPostCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
@@ -1181,7 +1331,7 @@ pub fn build_redirection_form(
                     #loader1 {
                         width: 500px,
                     }
-                    @media max-width: 600px {
+                    @media (max-width: 600px) {
                         #loader1 {
                             width: 200px
                         }
@@ -1237,6 +1387,105 @@ pub fn build_redirection_form(
         },
         RedirectForm::Html { html_data } => {
             PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
+        }
+        RedirectForm::BarclaycardAuthSetup {
+            access_token,
+            ddc_url,
+            reference_id,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                (PreEscaped(r#"<iframe id="cardinal_collection_iframe" name="collectionIframe" height="10" width="10" style="display: none;"></iframe>"#))
+                (PreEscaped(format!("<form id=\"cardinal_collection_form\" method=\"POST\" target=\"collectionIframe\" action=\"{ddc_url}\">
+                <input id=\"cardinal_collection_form_input\" type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(r#"<script>
+              window.onload = function() {
+              var cardinalCollectionForm = document.querySelector('#cardinal_collection_form'); if(cardinalCollectionForm) cardinalCollectionForm.submit();
+              }
+              </script>"#))
+              (PreEscaped(format!("<script>
+                {logging_template}
+                window.addEventListener(\"message\", function(event) {{
+                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                    }}
+                  }}, false);
+                </script>
+                ")))
+            }}
+        }
+        RedirectForm::BarclaycardConsumerAuth {
+            access_token,
+            step_up_url,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                // This is the iframe recommended by cybersource but the redirection happens inside this iframe once otp
+                // is received and we lose control of the redirection on user client browser, so to avoid that we have removed this iframe and directly consumed it.
+                // (PreEscaped(r#"<iframe id="step_up_iframe" style="border: none; margin-left: auto; margin-right: auto; display: block" height="800px" width="400px" name="stepUpIframe"></iframe>"#))
+                (PreEscaped(format!("<form id=\"step-up-form\" method=\"POST\" action=\"{step_up_url}\">
+                <input type=\"hidden\" name=\"JWT\" value=\"{access_token}\">
+              </form>")))
+              (PreEscaped(format!("<script>
+              {logging_template}
+              window.onload = function() {{
+              var stepUpForm = document.querySelector('#step-up-form'); if(stepUpForm) stepUpForm.submit();
+              }}
+              </script>")))
+            }}
         }
         RedirectForm::BlueSnap {
             payment_fields_token,
@@ -1748,7 +1997,7 @@ pub fn build_redirection_form(
                                 #loader1 {
                                     width: 500px;
                                 }
-                                @media max-width: 600px {
+                                @media (max-width: 600px) {
                                     #loader1 {
                                         width: 200px;
                                     }
@@ -1777,7 +2026,21 @@ pub fn build_redirection_form(
                     script {
                         (PreEscaped(format!(
                             r#"
+                                var ddcProcessed = false;
+                                var timeoutHandle = null;
+                                
                                 function submitCollectionReference(collectionReference) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring duplicate submission");
+                                        return;
+                                    }}
+                                    ddcProcessed = true;
+                                    
+                                    if (timeoutHandle) {{
+                                        clearTimeout(timeoutHandle);
+                                        timeoutHandle = null;
+                                    }}
+                                    
                                     var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
@@ -1796,12 +2059,17 @@ pub fn build_redirection_form(
                                             window.location.replace(redirectUrl);
                                         }}
                                     }} catch (error) {{
+                                        console.error("Error submitting DDC:", error);
                                         window.location.replace(redirectUrl);
                                     }}
                                 }}
                                 var allowedHost = "{}";
                                 var collectionField = "{}";
                                 window.addEventListener("message", function(event) {{
+                                    if (ddcProcessed) {{
+                                        console.log("DDC already processed, ignoring message event");
+                                        return;
+                                    }}
                                     if (event.origin === allowedHost) {{
                                         try {{
                                             var data = JSON.parse(event.data);
@@ -1821,8 +2089,13 @@ pub fn build_redirection_form(
                                     submitCollectionReference("");
                                 }});
 
-                                // Redirect within 8 seconds if no collection reference is received
-                                window.setTimeout(submitCollectionReference, 8000);
+                                // Timeout after 10 seconds and will submit empty collection reference
+                                timeoutHandle = window.setTimeout(function() {{
+                                    if (!ddcProcessed) {{
+                                        console.log("DDC timeout reached, submitting empty collection reference");
+                                        submitCollectionReference("");
+                                    }}
+                                }}, 10000);
                             "#,
                             endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
                             collection_id.clone().unwrap_or("".to_string())))
@@ -2063,6 +2336,64 @@ pub fn get_payment_link_status(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
+}
+
+pub fn extract_mapped_fields(
+    value: &serde_json::Value,
+    mapping: Option<&HashMap<String, String>>,
+    existing_enhancement: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let mapping = mapping?;
+
+    if mapping.is_empty() {
+        return existing_enhancement.cloned();
+    }
+
+    let mut enhancement = match existing_enhancement {
+        Some(existing) if existing.is_object() => existing.clone(),
+        _ => serde_json::json!({}),
+    };
+
+    for (dot_path, output_key) in mapping {
+        if let Some(extracted_value) = extract_field_by_dot_path(value, dot_path) {
+            if let Some(obj) = enhancement.as_object_mut() {
+                obj.insert(output_key.clone(), extracted_value);
+            }
+        }
+    }
+
+    if enhancement.as_object().is_some_and(|obj| !obj.is_empty()) {
+        Some(enhancement)
+    } else {
+        None
+    }
+}
+
+pub fn extract_field_by_dot_path(
+    value: &serde_json::Value,
+    path: &str,
+) -> Option<serde_json::Value> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = value;
+
+    for part in parts {
+        match current {
+            serde_json::Value::Object(obj) => {
+                current = obj.get(part)?;
+            }
+            serde_json::Value::Array(arr) => {
+                // Try to parse part as array index
+                if let Ok(index) = part.parse::<usize>() {
+                    current = arr.get(index)?;
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+
+    Some(current.clone())
 }
 
 #[cfg(test)]
