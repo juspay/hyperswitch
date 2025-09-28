@@ -277,6 +277,7 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
+    pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
