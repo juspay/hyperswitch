@@ -1309,7 +1309,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Started,
         payment_method: enums::PaymentMethod::Wallet,
-        payment_method_type: None,
+        payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
