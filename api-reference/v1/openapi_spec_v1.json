@@ -24134,6 +24134,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -25558,6 +25564,12 @@
           "extended_authorization_applied": {
             "type": "boolean",
             "description": "flag that indicates if extended authorization is applied on this payment or not",
+            "nullable": true
+          },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
             "nullable": true
           },
           "capture_before": {

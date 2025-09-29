@@ -190,16 +190,24 @@ impl PaymentIntent {
             }
         };
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
-        if always_request_extended_authorization_optional.is_some_and(
-            |always_request_extended_authorization| *always_request_extended_authorization,
-        ) || intent_request_extended_authorization_optional.is_some_and(
-            |intent_request_extended_authorization| *intent_request_extended_authorization,
-        ) {
-            Some(is_extended_authorization_supported_by_connector())
-        } else {
-            None
-        }
-        .map(RequestExtendedAuthorizationBool::from)
+
+        let is_extended_authorization_requested = intent_request_extended_authorization_optional
+            .map(|should_request_extended_authorization| *should_request_extended_authorization)
+            .or(always_request_extended_authorization_optional.map(
+                |should_always_request_extended_authorization| {
+                    *should_always_request_extended_authorization
+                },
+            ));
+
+        is_extended_authorization_requested
+            .map(|requested| {
+                if requested {
+                    is_extended_authorization_supported_by_connector()
+                } else {
+                    false
+                }
+            })
+            .map(RequestExtendedAuthorizationBool::from)
     }
 
     #[cfg(feature = "v1")]

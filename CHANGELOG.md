@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.29.0
+
+### Features
+
+- **connector:** [Checkout] Add Google Pay Predecrypt Flow ([#9130](https://github.com/juspay/hyperswitch/pull/9130)) ([`96e44a7`](https://github.com/juspay/hyperswitch/commit/96e44a75dcaaaf870dab551602195ef010494c01))
+- **core:** Update additional payment method data in psync response ([#9519](https://github.com/juspay/hyperswitch/pull/9519)) ([`407be56`](https://github.com/juspay/hyperswitch/commit/407be56ed368d543b440bfffa6704518e487dced))
+- **cypress:** Add cypress test-cases for manual retry ([#9505](https://github.com/juspay/hyperswitch/pull/9505)) ([`1ff66a7`](https://github.com/juspay/hyperswitch/commit/1ff66a720b29a169870b2141e6ffd585b4d5b640))
+- **finix:** Template code ([#9557](https://github.com/juspay/hyperswitch/pull/9557)) ([`e45bad3`](https://github.com/juspay/hyperswitch/commit/e45bad38d602634c1bf9019978545f28ba19db23))
+- **framework:** Added smithy, smithy-core and smithy-generator crates ([#9249](https://github.com/juspay/hyperswitch/pull/9249)) ([`0baae33`](https://github.com/juspay/hyperswitch/commit/0baae338d32cf12f303739c347bba98f100ac3d5))
+
+### Bug Fixes
+
+- **core:** Add request_extended_authorization in the payment attempt and populate it in the payment response ([#9492](https://github.com/juspay/hyperswitch/pull/9492)) ([`8e629ab`](https://github.com/juspay/hyperswitch/commit/8e629abc92aeb31b64fe347548ec158d3b00f214))
+
+**Full Changelog:** [`2025.09.26.0...2025.09.29.0`](https://github.com/juspay/hyperswitch/compare/2025.09.26.0...2025.09.29.0)
+
+- - -
+
+## 2025.09.26.0
+
+### Features
+
+- **connector:** [Tesouro] Add template code ([#9555](https://github.com/juspay/hyperswitch/pull/9555)) ([`239b6d3`](https://github.com/juspay/hyperswitch/commit/239b6d37c6ba35117179ee37159963e9808cbf11))
+- **router:** Add Confirm-Intent API contract changes for split payments (v2) ([#9469](https://github.com/juspay/hyperswitch/pull/9469)) ([`46090ea`](https://github.com/juspay/hyperswitch/commit/46090ea06d44e0e37960c9e27b5bf5d921fd7374))
+- **subscriptions:** Add Subscription confirm handler ([#9353](https://github.com/juspay/hyperswitch/pull/9353)) ([`f02d180`](https://github.com/juspay/hyperswitch/commit/f02d18038c854466907ef7d296f97bc921c60a90))
+
+### Bug Fixes
+
+- **connector:** [Tokenex] fix tokenize flow response handling for tokenex ([#9528](https://github.com/juspay/hyperswitch/pull/9528)) ([`84f3013`](https://github.com/juspay/hyperswitch/commit/84f3013c886caa5ed16f9855cb5200d7cb5925b9))
+- **l2l3:** Enable l2l3 for integ ([#9538](https://github.com/juspay/hyperswitch/pull/9538)) ([`4c61d7e`](https://github.com/juspay/hyperswitch/commit/4c61d7e20152a939d38a0944ce2574f9e0d82cbe))
+- **nuvei:** Update countries list for nuvei ([#9563](https://github.com/juspay/hyperswitch/pull/9563)) ([`30909be`](https://github.com/juspay/hyperswitch/commit/30909beae0f7208302c964b039520e13b145dc9c))
+- **routing:** Update_gateway_score_condition ([#9452](https://github.com/juspay/hyperswitch/pull/9452)) ([`31f1cd7`](https://github.com/juspay/hyperswitch/commit/31f1cd77c2f883ff03b4407177417a0d5074682f))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.90.0 clippy lints ([#9511](https://github.com/juspay/hyperswitch/pull/9511)) ([`198fe07`](https://github.com/juspay/hyperswitch/commit/198fe07891a16d492c4f399672bc787e29379d2c))
+
+**Full Changelog:** [`2025.09.25.1...2025.09.26.0`](https://github.com/juspay/hyperswitch/compare/2025.09.25.1...2025.09.26.0)
+
+- - -
+
 ## 2025.09.25.1
 
 ### Features
