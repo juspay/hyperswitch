@@ -101,19 +101,17 @@ pub fn should_call_connector_create_customer<'a>(
 
 #[cfg(feature = "v2")]
 pub fn should_call_connector_create_customer<'a>(
-    state: &SessionState,
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
-            let connector_needs_customer = state
-                .conf
-                .connector_customer
-                .connector_list
-                .contains(&connector.connector_name);
+            let connector_needs_customer = connector
+            .connector
+            .should_call_connector_customer(payment_attempt);
 
             if connector_needs_customer {
                 let connector_customer_details = customer
