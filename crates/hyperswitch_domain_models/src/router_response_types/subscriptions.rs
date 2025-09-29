@@ -70,12 +70,38 @@ pub struct SubscriptionPlanPrices {
     pub trial_period_unit: Option<PeriodUnit>,
 }
 
+impl From<SubscriptionPlanPrices> for api_models::subscription::SubscriptionPlanPrices {
+    fn from(item: SubscriptionPlanPrices) -> Self {
+        Self {
+            price_id: item.price_id,
+            plan_id: item.plan_id,
+            amount: item.amount,
+            currency: item.currency,
+            interval: item.interval.into(),
+            interval_count: item.interval_count,
+            trial_period: item.trial_period,
+            trial_period_unit: item.trial_period_unit.map(Into::into),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum PeriodUnit {
     Day,
     Week,
     Month,
     Year,
+}
+
+impl From<PeriodUnit> for api_models::subscription::PeriodUnit {
+    fn from(unit: PeriodUnit) -> Self {
+        match unit {
+            PeriodUnit::Day => Self::Day,
+            PeriodUnit::Week => Self::Week,
+            PeriodUnit::Month => Self::Month,
+            PeriodUnit::Year => Self::Year,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

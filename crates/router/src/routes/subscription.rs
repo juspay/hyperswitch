@@ -130,6 +130,17 @@ pub async fn get_subscription_plans(
     let flow = Flow::GetPlansForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
 
+    let profile_id = match req.headers().get(X_PROFILE_ID) {
+        Some(val) => val.to_str().unwrap_or_default().to_string(),
+        None => {
+            return HttpResponse::BadRequest().json(
+                errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                    field_name: "x-profile-id",
+                },
+            );
+        }
+    };
+
     let auth_data = match auth::is_ephemeral_auth(req.headers(), api_auth) {
         Ok(auth) => auth,
         Err(err) => return crate::services::api::log_and_return_error_response(err),
@@ -144,7 +155,7 @@ pub async fn get_subscription_plans(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_subscription_plans(state, merchant_context, auth.profile_id, query)
+            subscription::get_subscription_plans(state, merchant_context, profile_id.clone(), query)
         },
         &*auth_data,
         api_locking::LockAction::NotApplicable,
