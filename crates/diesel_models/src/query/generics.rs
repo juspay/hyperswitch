@@ -458,17 +458,14 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    let count_i64: i64 = track_database_call::<T, _, _>(
-        query.get_result_async(conn),
-        DatabaseOperation::Count,
-    )
-    .await
-    .change_context(errors::DatabaseError::Others)
-    .attach_printable("Error counting records by predicate")?;
+    let count_i64: i64 =
+        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error counting records by predicate")?;
 
     let count_usize = usize::try_from(count_i64).map_err(|_| {
-        report!(errors::DatabaseError::Others)
-            .attach_printable("Count value does not fit in usize")
+        report!(errors::DatabaseError::Others).attach_printable("Count value does not fit in usize")
     })?;
 
     Ok(count_usize)
