@@ -11058,6 +11058,11 @@
             "type": "string",
             "description": "The error message"
           },
+          "reason": {
+            "type": "string",
+            "description": "The detailed error reason that was returned by the connector.",
+            "nullable": true
+          },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
