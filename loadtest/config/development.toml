@@ -861,3 +861,6 @@ max_retry_count_for_thirty_day = 20
 [internal_merchant_id_profile_id_auth]
 enabled = false # Enable or disable internal api key, merchant id and profile id based authentication
 internal_api_key = "test_internal_api_key" # API key for internal merchant id and profile id based authentication
+
+[internal_services] # Internal services base urls and configs
+payments_base_url = "http://localhost:8080"

@@ -109,7 +109,7 @@ impl PaymentsApiClient {
         merchant_id: &str,
         profile_id: &str,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
-        let base_url = &state.conf.subscriptions.payments_base_url;
+        let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments", base_url);
 
         Self::make_payment_api_call(
@@ -130,7 +130,7 @@ impl PaymentsApiClient {
         merchant_id: &str,
         profile_id: &str,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
-        let base_url = &state.conf.subscriptions.payments_base_url;
+        let base_url = &state.conf.internal_services.payments_base_url;
         let url = format!("{}/payments/{}", base_url, payment_id);
 
         Self::make_payment_api_call(

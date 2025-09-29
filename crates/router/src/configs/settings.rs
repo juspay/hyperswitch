@@ -169,7 +169,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
-    pub subscriptions: SubscriptionConfig,
+    pub internal_services: InternalServicesConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -968,7 +968,7 @@ pub struct NetworkTokenizationSupportedConnectors {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct SubscriptionConfig {
+pub struct InternalServicesConfig {
     pub payments_base_url: String,
 }
 

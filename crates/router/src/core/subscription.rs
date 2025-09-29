@@ -425,7 +425,7 @@ impl InvoiceHandler {
 
     pub fn generate_payment_id() -> Option<common_utils::id_type::PaymentId> {
         common_utils::id_type::PaymentId::wrap(common_utils::generate_id_with_default_len(
-            "subs_pay",
+            "sub_pay",
         ))
         .ok()
     }
