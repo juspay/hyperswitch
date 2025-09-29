@@ -2659,23 +2659,26 @@ async fn subscription_incoming_webhook_flow(
         };
 
     // Create process tracker entry for subscription MIT payment
-    let process_tracker_entry = diesel_models::ProcessTrackerNew {
-        id: generate_id(consts::ID_LENGTH, "proc"),
-        name: Some("SUBSCRIPTION_MIT_PAYMENT".to_string()),
-        tag: vec!["SUBSCRIPTION".to_string()],
-        runner: Some(ProcessTrackerRunner::SubscriptionsWorkflow.to_string()),
-        retry_count: 0,
-        schedule_time: Some(common_utils::date_time::now()),
-        rule: String::new(),
-        tracking_data: serde_json::to_value(&tracking_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        business_status: "Pending".to_string(),
-        status: diesel_models::enums::ProcessTrackerStatus::New,
-        event: vec![],
-        created_at: common_utils::date_time::now(),
-        updated_at: common_utils::date_time::now(),
-        version: common_types::consts::API_VERSION,
-    };
+    let process_tracker_id = generate_id(consts::ID_LENGTH, "proc");
+    let task = "SUBSCRIPTION_MIT_PAYMENT";
+    let runner = ProcessTrackerRunner::SubscriptionsWorkflow;
+    let tag = vec!["SUBSCRIPTION".to_string()];
+    let retry_count = Some(0);
+    let schedule_time = common_utils::date_time::now();
+    let api_version = common_types::consts::API_VERSION;
+
+    // Create process tracker entry for subscription MIT payment
+    let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        &tracking_data,
+        retry_count,
+        schedule_time,
+        api_version,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     state
         .store
