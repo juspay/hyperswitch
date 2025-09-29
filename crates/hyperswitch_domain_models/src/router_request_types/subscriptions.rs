@@ -33,3 +33,8 @@ pub struct GetSubscriptionPlansRequest {
 pub struct GetSubscriptionPlanPricesRequest {
     pub plan_price_id: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateRequest {
+    pub price_id: String,
+}

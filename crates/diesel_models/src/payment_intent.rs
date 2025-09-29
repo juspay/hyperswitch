@@ -97,6 +97,8 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub active_attempts_group_id: Option<String>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
 }
 
 #[cfg(feature = "v1")]
@@ -808,6 +810,8 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization: None,
             split_txns_enabled: source.split_txns_enabled,
             enable_overcapture: None,
+            active_attempt_id_type: source.active_attempt_id_type,
+            active_attempts_group_id: source.active_attempts_group_id,
         }
     }
 }
