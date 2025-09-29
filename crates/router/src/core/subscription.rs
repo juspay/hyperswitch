@@ -44,8 +44,11 @@ pub async fn create_subscription(
         profile_id,
         &request.customer_id,
         request.merchant_reference_id,
-    ).await
-    .attach_printable("subscriptions: failed to create subscription entry in create_subscription")?;
+    )
+    .await
+    .attach_printable(
+        "subscriptions: failed to create subscription entry in create_subscription",
+    )?;
 
     let response = CreateSubscriptionResponse::new(
         subscription_response.id.clone(),
@@ -71,7 +74,7 @@ pub async fn create_and_confirm_subscription(
     request: subscription_types::ConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
-    
+
     let subscription = SubscriptionHandler::create_subscription_entry(
         &state,
         &merchant_context,
@@ -79,14 +82,25 @@ pub async fn create_and_confirm_subscription(
         profile_id.clone(),
         &request.customer_id,
         None, // merchant_reference_id can be derived from plan_id if needed
-    ).await
-    .attach_printable("subscriptions: failed to create subscription entry in create_and_confirm_subscription")?;
+    )
+    .await
+    .attach_printable(
+        "subscriptions: failed to create subscription entry in create_and_confirm_subscription",
+    )?;
 
     // Use the same confirmation flow but with the subscription we just created (no DB fetch needed)
-    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
-        .attach_printable("subscriptions: failed to find business profile in create_and_confirm_subscription")?;
-    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
-        .attach_printable("subscriptions: failed to find customer in create_and_confirm_subscription")?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in create_and_confirm_subscription",
+            )?;
+    let customer =
+        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find customer in create_and_confirm_subscription",
+            )?;
 
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile.clone());
     let subscription_entry = SubscriptionWithHandler {
@@ -107,10 +121,16 @@ pub async fn confirm_subscription(
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     // Find the subscription from database
-    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
-        .attach_printable("subscriptions: failed to find business profile in confirm_subscription")?;
-    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
-        .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in confirm_subscription",
+            )?;
+    let customer =
+        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
+            .await
+            .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
 
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
     let subscription_entry = handler
@@ -119,7 +139,6 @@ pub async fn confirm_subscription(
 
     execute_subscription_confirmation(subscription_entry, customer).await
 }
-
 
 async fn execute_subscription_confirmation(
     mut subscription_entry: SubscriptionWithHandler<'_>,
@@ -137,7 +156,10 @@ async fn execute_subscription_confirmation(
         .await?;
 
     let _payment_response = invoice_handler
-        .create_cit_payment(&subscription_entry.handler.state, &subscription_entry.handler.request)
+        .create_cit_payment(
+            &subscription_entry.handler.state,
+            &subscription_entry.handler.request,
+        )
         .await?;
 
     let invoice_entry = invoice_handler
@@ -219,7 +241,7 @@ impl SubscriptionHandler {
         );
 
         subscription.generate_and_set_client_secret();
-        
+
         db.insert_subscription_entry(subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
