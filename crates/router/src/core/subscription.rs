@@ -32,39 +32,20 @@ pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<CreateSubscriptionResponse> {
-    let store = state.store.clone();
-    let db = store.as_ref();
-    let id = common_utils::id_type::SubscriptionId::generate();
-    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "X-Profile-Id",
-        },
-    )?;
+    let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
-    let mut subscription = SubscriptionNew::new(
-        id,
-        SubscriptionStatus::Created.to_string(),
-        None,
-        None,
-        None,
-        None,
-        None,
-        merchant_context.get_merchant_account().get_id().clone(),
-        request.customer_id.clone(),
-        None,
+    let subscription_response = SubscriptionHandler::create_subscription_entry(
+        &state,
+        &merchant_context,
+        subscription_id,
         profile_id,
+        &request.customer_id,
         request.merchant_reference_id,
-    );
-
-    subscription.generate_and_set_client_secret();
-    let subscription_response = db
-        .insert_subscription_entry(subscription)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("subscriptions: unable to insert subscription entry to database")?;
+    ).await
+    .attach_printable("subscriptions: failed to create subscription entry in create_subscription")?;
 
     let response = CreateSubscriptionResponse::new(
         subscription_response.id.clone(),
@@ -81,70 +62,89 @@ pub async fn create_subscription(
     Ok(ApplicationResponse::Json(response))
 }
 
+/// Creates and confirms a subscription in one operation.
+/// This method combines the creation and confirmation flow to reduce API calls
+pub async fn create_and_confirm_subscription(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    request: subscription_types::ConfirmSubscriptionRequest,
+) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+    let subscription_id = common_utils::id_type::SubscriptionId::generate();
+    
+    let subscription = SubscriptionHandler::create_subscription_entry(
+        &state,
+        &merchant_context,
+        subscription_id.clone(),
+        profile_id.clone(),
+        &request.customer_id,
+        None, // merchant_reference_id can be derived from plan_id if needed
+    ).await
+    .attach_printable("subscriptions: failed to create subscription entry in create_and_confirm_subscription")?;
+
+    // Use the same confirmation flow but with the subscription we just created (no DB fetch needed)
+    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
+        .attach_printable("subscriptions: failed to find business profile in create_and_confirm_subscription")?;
+    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
+        .attach_printable("subscriptions: failed to find customer in create_and_confirm_subscription")?;
+
+    let handler = SubscriptionHandler::new(state, merchant_context, request, profile.clone());
+    let subscription_entry = SubscriptionWithHandler {
+        handler: &handler,
+        subscription,
+        profile,
+        merchant_account: handler.merchant_context.get_merchant_account().clone(),
+    };
+
+    execute_subscription_confirmation(subscription_entry, customer).await
+}
+
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "X-Profile-Id",
-        },
-    )?;
-
-    let key_manager_state = &(&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
-
-    let profile = state
-        .store
-        .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, &profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_string(),
-        })?;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-
-    let customer = state
-        .store
-        .find_customer_by_customer_id_merchant_id(
-            key_manager_state,
-            &request.customer_id,
-            merchant_id,
-            merchant_key_store,
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("subscriptions: unable to fetch customer from database")?;
+    // Find the subscription from database
+    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
+        .attach_printable("subscriptions: failed to find business profile in confirm_subscription")?;
+    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
+        .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
 
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
-
-    let mut subscription_entry = handler
+    let subscription_entry = handler
         .find_subscription(subscription_id.get_string_repr().to_string())
         .await?;
 
+    execute_subscription_confirmation(subscription_entry, customer).await
+}
+
+
+async fn execute_subscription_confirmation(
+    mut subscription_entry: SubscriptionWithHandler<'_>,
+    customer: hyperswitch_domain_models::customer::Customer,
+) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let billing_handler = subscription_entry.get_billing_handler(customer).await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
     let _customer_create_response = billing_handler
-        .create_customer_on_connector(&handler.state)
+        .create_customer_on_connector(&subscription_entry.handler.state)
         .await?;
 
     let subscription_create_response = billing_handler
-        .create_subscription_on_connector(&handler.state)
+        .create_subscription_on_connector(&subscription_entry.handler.state)
         .await?;
 
-    let payment_response = invoice_handler
-        .create_cit_payment(&handler.state, &handler.request)
+    let _payment_response = invoice_handler
+        .create_cit_payment(&subscription_entry.handler.state, &subscription_entry.handler.request)
         .await?;
 
     let invoice_entry = invoice_handler
         .create_invoice_entry(
-            &handler.state,
+            &subscription_entry.handler.state,
             subscription_entry.profile.get_billing_processor_id()?,
-            Some(payment_response.payment_id),
+            Some(_payment_response.payment_id),
             billing_handler.request.amount,
             billing_handler.request.currency.to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
@@ -190,6 +190,84 @@ impl SubscriptionHandler {
             profile,
         }
     }
+
+    /// Helper function to create a subscription entry in the database.
+    pub async fn create_subscription_entry(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        subscription_id: common_utils::id_type::SubscriptionId,
+        profile_id: common_utils::id_type::ProfileId,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_reference_id: Option<String>,
+    ) -> errors::RouterResult<diesel_models::subscription::Subscription> {
+        let store = state.store.clone();
+        let db = store.as_ref();
+
+        let mut subscription = SubscriptionNew::new(
+            subscription_id,
+            SubscriptionStatus::Created.to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            merchant_context.get_merchant_account().get_id().clone(),
+            customer_id.clone(),
+            None,
+            profile_id,
+            merchant_reference_id,
+        );
+
+        subscription.generate_and_set_client_secret();
+        
+        db.insert_subscription_entry(subscription)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to insert subscription entry to database")
+    }
+
+    /// Helper function to find and validate customer.
+    pub async fn find_customer(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        customer_id: &common_utils::id_type::CustomerId,
+    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        let key_manager_state = &(state).into();
+        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+
+        state
+            .store
+            .find_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                customer_id,
+                merchant_id,
+                merchant_key_store,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("subscriptions: unable to fetch customer from database")
+    }
+
+    /// Helper function to find business profile.
+    pub async fn find_business_profile(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> errors::RouterResult<hyperswitch_domain_models::business_profile::Profile> {
+        let key_manager_state = &(state).into();
+        let merchant_key_store = merchant_context.get_merchant_key_store();
+
+        state
+            .store
+            .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+            .await
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_string(),
+            })
+    }
+
     pub async fn find_subscription(
         &self,
         subscription_id: String,
