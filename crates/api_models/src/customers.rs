@@ -52,6 +52,9 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
+    /// Search by customer_id, email
+    #[schema(example = "customer@example.com")]
+    pub customer_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -385,4 +388,12 @@ pub struct CustomerUpdateRequestInternal {
 pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CustomerListResponse {
+    /// List of customers
+    pub data: Vec<CustomerResponse>,
+    /// Total count of customers
+    pub count: i64,
 }

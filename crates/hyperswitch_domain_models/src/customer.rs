@@ -13,7 +13,7 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
+    customers as storage_types, customers::CustomerUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
@@ -538,13 +538,21 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
 pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
+    pub customer_id: Option<String>,
 }
 
-impl From<CustomerListConstraints> for query::CustomerListConstraints {
+pub struct QueryCustomerListConstraints {
+    pub limit: i64,
+    pub offset: Option<i64>,
+    pub search: Option<String>,
+}
+
+impl From<CustomerListConstraints> for QueryCustomerListConstraints {
     fn from(value: CustomerListConstraints) -> Self {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
+            search: value.customer_id.filter(|s| !s.trim().is_empty()), 
         }
     }
 }
@@ -635,6 +643,14 @@ where
         key_store: &MerchantKeyStore,
         constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<Customer>, Self::Error>;
+
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: CustomerListConstraints,
+    ) -> CustomResult<(Vec<Customer>, i64), Self::Error>;
 
     async fn insert_customer(
         &self,

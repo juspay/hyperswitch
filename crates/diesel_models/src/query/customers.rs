@@ -20,6 +20,7 @@ impl CustomerNew {
 pub struct CustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
+    pub search: Option<String>,
 }
 
 impl Customer {
@@ -59,12 +60,49 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+        use diesel::prelude::*;
+        use crate::schema::customers::dsl;
+
+        println!("Constraints: {:?}", constraints.search);
+
+        // Handle search constraints
+        if let Some(search) = &constraints.search {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::customer_id.eq(search.clone()));
+
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        } else {
+            let predicate = dsl::merchant_id.eq(merchant_id.to_owned());
+
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
+    }
+
+
+
+    pub async fn count_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+    ) -> StorageResult<i64> {
+
+        generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
-            Some(constraints.limit),
-            constraints.offset,
-            Some(dsl::created_at),
         )
         .await
     }
