@@ -24,6 +24,8 @@ use crate::{
     core::payments as payments_core, routes::SessionState, services, types::api as api_types,
 };
 
+pub mod payments_api_client;
+
 pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
 pub const SUBSCRIPTION_PAYMENT_ID: &str = "DefaultSubscriptionPaymentId";
 
@@ -102,13 +104,14 @@ pub async fn confirm_subscription(
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_string(),
         })?;
+    let merchant_id = merchant_context.get_merchant_account().get_id();
 
     let customer = state
         .store
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &request.customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_id,
             merchant_key_store,
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -133,13 +136,15 @@ pub async fn confirm_subscription(
         .create_subscription_on_connector(&handler.state)
         .await?;
 
-    // let payment_response = invoice_handler.create_cit_payment().await?;
+    let payment_response = invoice_handler
+        .create_cit_payment(&handler.state, &handler.request)
+        .await?;
 
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &handler.state,
             subscription_entry.profile.get_billing_processor_id()?,
-            None,
+            Some(payment_response.payment_id),
             billing_handler.request.amount,
             billing_handler.request.currency.to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
@@ -205,6 +210,7 @@ impl SubscriptionHandler {
             handler: self,
             subscription,
             profile: self.profile.clone(),
+            merchant_account: self.merchant_context.get_merchant_account().clone(),
         })
     }
 }
@@ -212,6 +218,7 @@ pub struct SubscriptionWithHandler<'a> {
     handler: &'a SubscriptionHandler,
     subscription: diesel_models::subscription::Subscription,
     profile: hyperswitch_domain_models::business_profile::Profile,
+    merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
 }
 
 impl<'a> SubscriptionWithHandler<'a> {
@@ -353,6 +360,8 @@ impl<'a> SubscriptionWithHandler<'a> {
     pub async fn get_invoice_handler(&self) -> errors::RouterResult<InvoiceHandler> {
         Ok(InvoiceHandler {
             subscription: self.subscription.clone(),
+            merchant_account: self.merchant_account.clone(),
+            profile: self.profile.clone(),
         })
     }
 }
@@ -369,6 +378,8 @@ pub struct BillingHandler {
 
 pub struct InvoiceHandler {
     subscription: diesel_models::subscription::Subscription,
+    merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
+    profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 #[allow(clippy::todo)]
@@ -412,11 +423,33 @@ impl InvoiceHandler {
         Ok(invoice)
     }
 
+    pub fn generate_payment_id() -> Option<common_utils::id_type::PaymentId> {
+        common_utils::id_type::PaymentId::wrap(common_utils::generate_id_with_default_len(
+            "subs_pay",
+        ))
+        .ok()
+    }
+
     pub async fn create_cit_payment(
         &self,
+        state: &SessionState,
+        request: &subscription_types::ConfirmSubscriptionRequest,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
-        // Create a CIT payment for the invoice
-        todo!("Create a CIT payment for the invoice")
+        let cit_payment_request = subscription_types::PaymentsRequestData {
+            amount: Some(request.amount),
+            currency: Some(request.currency),
+            confirm: true,
+            customer_id: Some(self.subscription.customer_id.clone()),
+            payment_id: Self::generate_payment_id(),
+            payment_details: request.payment_details.clone(),
+        };
+        payments_api_client::PaymentsApiClient::create_cit_payment(
+            state,
+            cit_payment_request,
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
     }
 
     pub async fn create_invoice_record_back_job(

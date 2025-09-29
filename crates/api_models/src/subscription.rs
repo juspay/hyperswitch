@@ -8,11 +8,6 @@ use crate::{
     payments::{Address, PaymentMethodDataRequest},
 };
 
-// use crate::{
-//     customers::{CustomerRequest, CustomerResponse},
-//     payments::CustomerDetailsResponse,
-// };
-
 /// Request payload for creating a subscription.
 ///
 /// This struct captures details required to create a subscription,
@@ -140,6 +135,22 @@ pub struct PaymentDetails {
     pub payment_method_data: PaymentMethodDataRequest,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub return_url: Option<common_utils::types::Url>,
+    pub capture_method: Option<api_enums::CaptureMethod>,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+}
+
+// Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
+// Eg: Amount will be serialized as { amount: {Value: 100 }}
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsRequestData {
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<api_enums::Currency>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub confirm: bool,
+    #[serde(flatten)]
+    pub payment_details: PaymentDetails,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

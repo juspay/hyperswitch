@@ -1388,3 +1388,6 @@ connector_list = "worldpayvantiv"
 [internal_merchant_id_profile_id_auth]
 enabled = false
 internal_api_key = "test_internal_api_key"
+
+[subscriptions]
+payments_base_url = "http://localhost.proxyman.io:8080"
