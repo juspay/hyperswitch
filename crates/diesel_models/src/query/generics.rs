@@ -1,6 +1,6 @@
 use std::fmt::Debug;
+
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::query_dsl::methods::SelectDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -13,7 +13,7 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl},
+        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl, SelectDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
@@ -445,19 +445,21 @@ where
         .attach_printable("Error filtering records by predicate")
 }
 
-
-
-pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<i64>
+pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
     Filter<T, P>: SelectDsl<count_star>,
-    diesel::dsl::Select<Filter<T, P>, count_star>: LoadQuery<'static, PgConnection, i64> + QueryFragment<Pg> + Send + 'static,
+    diesel::dsl::Select<Filter<T, P>, count_star>:
+        LoadQuery<'static, PgConnection, i64> + QueryFragment<Pg> + Send + 'static,
 {
-    let query = <T as HasTable>::table().filter(predicate).select(count_star());
+    let query = <T as HasTable>::table()
+        .filter(predicate)
+        .select(count_star());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
     track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
         .await
+        .map(|count: i64| count as usize)
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error counting records by predicate")
 }

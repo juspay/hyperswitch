@@ -1,5 +1,5 @@
 use common_utils::id_type;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, prelude::*, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -60,44 +60,26 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        use diesel::prelude::*;
-        use crate::schema::customers::dsl;
+        let customer_id = constraints.customer_id.unwrap_or_else(|| "%".to_string());
 
-        // Handle search constraints
-        if let Some(customer_id) = &constraints.customer_id {
-            let predicate = dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::customer_id.eq(customer_id.clone()));
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::customer_id.like(customer_id.clone()));
 
-            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                conn,
-                predicate,
-                Some(constraints.limit),
-                constraints.offset,
-                Some(dsl::created_at),
-            )
-            .await
-        } else {
-            let predicate = dsl::merchant_id.eq(merchant_id.to_owned());
-
-            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                conn,
-                predicate,
-                Some(constraints.limit),
-                constraints.offset,
-                Some(dsl::created_at),
-            )
-            .await
-        }
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            predicate,
+            Some(constraints.limit),
+            constraints.offset,
+            Some(dsl::created_at),
+        )
+        .await
     }
-
-
 
     pub async fn count_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
-    ) -> StorageResult<i64> {
-
+    ) -> StorageResult<usize> {
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),

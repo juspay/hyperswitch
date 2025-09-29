@@ -52,8 +52,7 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
-    /// Search by customer_id, email
-    #[schema(example = "customer@example.com")]
+    /// Search by customer_id
     pub customer_id: Option<String>,
 }
 
@@ -395,5 +394,5 @@ pub struct CustomerListResponse {
     /// List of customers
     pub data: Vec<CustomerResponse>,
     /// Total count of customers
-    pub count: i64,
+    pub count: usize,
 }

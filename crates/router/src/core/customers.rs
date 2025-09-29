@@ -23,6 +23,7 @@ use crate::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
     },
+    db,
     db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, SessionState},
@@ -585,7 +586,7 @@ pub async fn list_customers(
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
 
-    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+    let customer_list_constraints = db::customers::CustomerListConstraints {
         limit: request
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
@@ -618,7 +619,6 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-
 #[instrument(skip(state))]
 pub async fn list_customers_with_count(
     state: SessionState,
@@ -629,7 +629,7 @@ pub async fn list_customers_with_count(
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
 
-    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+    let customer_list_constraints = db::customers::CustomerListConstraints {
         limit: request
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
@@ -647,21 +647,25 @@ pub async fn list_customers_with_count(
         .switch()?;
 
     #[cfg(feature = "v1")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers.0
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
         .collect();
 
     #[cfg(feature = "v2")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers.0
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
         .into_iter()
         .map(customers::CustomerResponse::foreign_from)
         .collect();
 
-    Ok(services::ApplicationResponse::Json(customers::CustomerListResponse {
-        data: customers.into_iter().map(|c| c.0).collect(),
-        count: domain_customers.1,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            count: domain_customers.1,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]

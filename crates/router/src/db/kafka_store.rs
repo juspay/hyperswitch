@@ -510,7 +510,7 @@ impl CustomerInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         constraints: super::customers::CustomerListConstraints,
-    ) -> CustomResult<(Vec<domain::Customer>, i64), errors::StorageError> {
+    ) -> CustomResult<(Vec<domain::Customer>, usize), errors::StorageError> {
         self.diesel_store
             .list_customers_by_merchant_id_with_count(state, merchant_id, key_store, constraints)
             .await

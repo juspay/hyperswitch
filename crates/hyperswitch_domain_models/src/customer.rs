@@ -12,9 +12,7 @@ use common_utils::{
         Description,
     },
 };
-use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal,
-};
+use diesel_models::{customers as storage_types, customers::CustomerUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
@@ -552,7 +550,7 @@ impl From<CustomerListConstraints> for QueryCustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
-            customer_id: value.customer_id.filter(|s| !s.trim().is_empty()), 
+            customer_id: value.customer_id.filter(|s| !s.trim().is_empty()),
         }
     }
 }
@@ -650,7 +648,7 @@ where
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: CustomerListConstraints,
-    ) -> CustomResult<(Vec<Customer>, i64), Self::Error>;
+    ) -> CustomResult<(Vec<Customer>, usize), Self::Error>;
 
     async fn insert_customer(
         &self,
