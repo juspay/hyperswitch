@@ -157,4 +157,58 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 
         Ok((request, true))
     }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()> {
+        use crate::core::unified_connector_service::{
+            self, build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_capture,
+        };
+        use crate::types::transformers::ForeignTryFrom;
+        use external_services::grpc_client::unified_connector_service::{
+            payments as payments_grpc, ConnectorAuthMetadata,
+        };
+        use router_env::tracing;
+
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+        let payment_capture_request =
+            payments_grpc::PaymentServiceCaptureRequest::foreign_try_from(&*self)?;
+
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )?;
+
+        let grpc_headers = unified_connector_service::GrpcHeadersUcs {
+            merchant_reference_id: merchant_context.get_merchant_reference_id(),
+        };
+
+        let response = unified_connector_service::ucs_logging_wrapper(
+            || async {
+                client
+                    .payment_capture(payment_capture_request, connector_auth_metadata, grpc_headers)
+                    .await
+            },
+            "payment_capture",
+            &self.connector,
+        )
+        .await?;
+
+        let (router_data_response, status_code) =
+            handle_unified_connector_service_response_for_payment_capture(response.into_inner())?;
+
+        self.response = router_data_response?;
+        self.connector_http_status_code = Some(status_code);
+
+        Ok(())
+    }
 }

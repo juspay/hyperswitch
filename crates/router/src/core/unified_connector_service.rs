@@ -21,7 +21,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -617,6 +617,44 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
 
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_capture(
+    response: payments_grpc::PaymentServiceCaptureResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_void(
+    response: payments_grpc::PaymentServiceVoidResponse,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_refund_execute(
+    response: payments_grpc::PaymentServiceRefundResponse,
+) -> CustomResult<
+    (
+        Result<(RefundsResponseData, common_enums::RefundStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+> {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<(RefundsResponseData, common_enums::RefundStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
 }

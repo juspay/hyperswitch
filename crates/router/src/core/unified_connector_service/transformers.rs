@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::payments::QrCodeInformation;
-use common_enums::{AttemptStatus, AuthenticationType};
+use common_enums::{AttemptStatus, AuthenticationType, RefundStatus};
 use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -10,14 +10,16 @@ use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
-        payments::{Authorize, PSync, SetupMandate},
+        payments::{Authorize, Capture, PSync, SetupMandate, Void},
+        refunds::{Execute, RSync},
         ExternalVaultProxy,
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsSyncData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
@@ -515,6 +517,144 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
     }
 }
 
+impl ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceCaptureRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let transaction_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.request.connector_transaction_id.clone(),
+            )),
+        });
+
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        let multiple_capture_data = router_data
+            .request
+            .multiple_capture_data
+            .as_ref()
+            .map(|data| payments_grpc::MultipleCaptureRequestData {
+                capture_sequence: data.capture_sequence,
+                capture_reference: data.capture_reference.clone(),
+            });
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            transaction_id,
+            amount_to_capture: router_data.request.minor_amount_to_capture.get_amount_as_i64(),
+            currency: Some(currency),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
+            multiple_capture_data,
+            browser_info,
+            access_token: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<&RouterData<Void, PaymentsCancelData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceVoidRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let transaction_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.request.connector_transaction_id.clone(),
+            )),
+        });
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            transaction_id,
+            cancellation_reason: router_data.request.cancellation_reason.clone(),
+            access_token: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
+    for payments_grpc::PaymentServiceRefundRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Execute, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let transaction_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.request.connector_transaction_id.clone(),
+            )),
+        });
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            transaction_id,
+            refund_id: router_data.request.refund_id.clone(),
+            currency: Some(currency),
+            refund_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
+            minor_refund_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
+            reason: router_data.request.reason.clone(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|id| id.expose()),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            access_token: None,
+        })
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -844,6 +984,209 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
                 incremental_authorization_allowed: None,
                 charges: None,
             }, status))
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceCaptureResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceCaptureResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
+            id.id_type.clone().and_then(|id_type| match id_type {
+                payments_grpc::identifier::IdType::Id(connector_transaction_id) => {
+                    Some(connector_transaction_id)
+                }
+                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+            })
+        });
+
+        let status = AttemptStatus::foreign_try_from(response.payment_status())?;
+
+        let response = match response.error {
+            Some(error_details) => Err(ErrorResponse {
+                code: error_details.error_code,
+                message: error_details.error_message.clone(),
+                reason: Some(error_details.error_message),
+                status_code: response.status_code as u16,
+                attempt_status: Some(status),
+                connector_transaction_id: transaction_id,
+            }),
+            None => Ok((PaymentsResponseData::TransactionResponse {
+                resource_id: hyperswitch_domain_models::router_response_types::ResponseId::ConnectorTransactionId(
+                    transaction_id.unwrap_or_default(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: response.connector_meta.and_then(|val| {
+                    serde_json::from_str(&val)
+                        .map_err(|error| {
+                            tracing::error!(
+                                capture_response_connector_metadata_deserialization_error=?error,
+                                "Failed to deserialize connector metadata from UCS capture response"
+                            );
+                            error
+                        })
+                        .ok()
+                }),
+                network_transaction_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }, status))
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceVoidResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceVoidResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let transaction_id = response.transaction_id.as_ref().and_then(|id| {
+            id.id_type.clone().and_then(|id_type| match id_type {
+                payments_grpc::identifier::IdType::Id(connector_transaction_id) => {
+                    Some(connector_transaction_id)
+                }
+                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+            })
+        });
+
+        let status = AttemptStatus::foreign_try_from(response.payment_status())?;
+
+        let response = match response.error {
+            Some(error_details) => Err(ErrorResponse {
+                code: error_details.error_code,
+                message: error_details.error_message.clone(),
+                reason: Some(error_details.error_message),
+                status_code: response.status_code as u16,
+                attempt_status: Some(status),
+                connector_transaction_id: transaction_id,
+            }),
+            None => Ok((PaymentsResponseData::TransactionResponse {
+                resource_id: hyperswitch_domain_models::router_response_types::ResponseId::ConnectorTransactionId(
+                    transaction_id.unwrap_or_default(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: response.connector_meta.and_then(|val| {
+                    serde_json::from_str(&val)
+                        .map_err(|error| {
+                            tracing::error!(
+                                void_response_connector_metadata_deserialization_error=?error,
+                                "Failed to deserialize connector metadata from UCS void response"
+                            );
+                            error
+                        })
+                        .ok()
+                }),
+                network_transaction_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }, status))
+        };
+
+        Ok(response)
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentServiceRefundResponse>
+    for Result<(RefundsResponseData, RefundStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceRefundResponse,
+    ) -> Result<Self, Self::Error> {
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
+
+        let connector_refund_id = response.refund_id
+            .as_ref()
+            .and_then(|id| {
+                id.id_type.clone().and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(refund_id) => Some(refund_id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+            })
+            .unwrap_or_default();
+
+        // Convert gRPC refund status to RefundStatus
+        let refund_status = match response.refund_status() {
+            payments_grpc::RefundStatus::Pending => RefundStatus::Pending,
+            payments_grpc::RefundStatus::Success => RefundStatus::Success,
+            payments_grpc::RefundStatus::Failure => RefundStatus::Failure,
+            payments_grpc::RefundStatus::ManualReview => RefundStatus::ManualReview,
+            payments_grpc::RefundStatus::TransactionFailure => RefundStatus::TransactionFailure,
+        };
+
+        let response = match response.error {
+            Some(error_details) => Err(ErrorResponse {
+                code: error_details.error_code,
+                message: error_details.error_message.clone(),
+                reason: Some(error_details.error_message),
+                status_code: response.status_code as u16,
+                attempt_status: None,
+                connector_transaction_id: connector_response_reference_id,
+            }),
+            None => Ok((RefundsResponseData {
+                connector_refund_id,
+                refund_status: refund_status.clone(),
+            }, refund_status))
         };
 
         Ok(response)
