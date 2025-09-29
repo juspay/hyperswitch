@@ -88,7 +88,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
 
-            Flow::CreateSubscription => Self::Subscription,
+            Flow::CreateSubscription | Flow::ConfirmSubscription => Self::Subscription,
 
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,

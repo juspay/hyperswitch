@@ -533,8 +533,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -638,6 +636,7 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,
     pub flow: Option<PaymentFlow>,
 }
 
@@ -650,6 +649,14 @@ pub enum PaymentFlow {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
     NetworkTokenization,

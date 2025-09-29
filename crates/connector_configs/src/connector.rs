@@ -277,6 +277,7 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
+    pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
@@ -365,6 +366,7 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub tesouro: Option<ConnectorTomlConfig>,
     pub ctp_mastercard: Option<ConnectorTomlConfig>,
     pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
