@@ -1395,6 +1395,7 @@ impl PaymentCreate {
                 connector_request_reference_id: None,
                 network_transaction_id:None,
                 network_details:None,
+                authorized_amount: None,
             },
             additional_pm_data,
 

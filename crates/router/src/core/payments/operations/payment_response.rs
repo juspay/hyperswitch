@@ -1955,6 +1955,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         debit_routing_savings,
                                         network_transaction_id: resp_network_transaction_id,
                                         is_overcapture_enabled,
+                                        authorized_amount: router_data.authorized_amount,
                                     }),
                                 ),
                             };
@@ -2047,7 +2048,18 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 multiple_capture_data.update_capture(updated_capture);
             }
 
-            let authorized_amount = payment_data.payment_attempt.get_total_amount();
+            let authorized_amount = if payment_data
+                .payment_intent
+                .enable_partial_authorization
+                .unwrap_or(false)
+            {
+                payment_data
+                    .payment_attempt
+                    .authorized_amount
+                    .unwrap_or_else(|| payment_data.payment_attempt.get_total_amount())
+            } else {
+                payment_data.payment_attempt.get_total_amount()
+            };
 
             payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
