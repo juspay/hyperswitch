@@ -111,7 +111,7 @@ pub async fn create_and_confirm_subscription(
         merchant_account: handler.merchant_context.get_merchant_account().clone(),
     };
 
-    execute_subscription_confirmation(subscription_entry, customer).await
+    Box::pin(execute_subscription_confirmation(subscription_entry, customer)).await
 }
 
 pub async fn confirm_subscription(
@@ -138,7 +138,7 @@ pub async fn confirm_subscription(
         .find_subscription(subscription_id.get_string_repr().to_string())
         .await?;
 
-    execute_subscription_confirmation(subscription_entry, customer).await
+    Box::pin(execute_subscription_confirmation(subscription_entry, customer)).await
 }
 
 async fn execute_subscription_confirmation(
@@ -165,7 +165,7 @@ async fn execute_subscription_confirmation(
         .unwrap_or(
             invoice_details
                 .clone()
-                .and_then(|invoice| Some((invoice.total, invoice.currency_code)))
+                .map(|invoice| (invoice.total, invoice.currency_code))
                 .unwrap_or((MinorUnit::new(0), api_enums::Currency::default())), // Default to 0 and a default currency if not provided
         );
 
@@ -349,7 +349,7 @@ pub struct SubscriptionWithHandler<'a> {
     merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
 }
 
-impl<'a> SubscriptionWithHandler<'a> {
+impl SubscriptionWithHandler<'_> {
     fn generate_response(
         &self,
         invoice: &diesel_models::invoice::Invoice,
