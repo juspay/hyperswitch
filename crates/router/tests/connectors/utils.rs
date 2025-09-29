@@ -3,6 +3,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Durati
 use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
+use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -117,7 +118,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::ConnectorCustomerData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
-        let integration = self.get_data().connector.get_connector_integration();
+        let integration: BoxedConnectorIntegrationInterface<_, PaymentFlowData, _, _> =
+            self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::ConnectorCustomerData {
                 ..(payment_data.unwrap_or(CustomerType::default().0))

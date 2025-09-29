@@ -535,6 +535,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -1093,6 +1094,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub authorized_amount: Option<MinorUnit>,
 }
 
@@ -1288,6 +1290,7 @@ impl PaymentAttemptUpdate {
             network_transaction_id,
             is_overcapture_enabled,
             network_details,
+            request_extended_authorization,
             authorized_amount,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -1361,6 +1364,8 @@ impl PaymentAttemptUpdate {
             network_transaction_id: network_transaction_id.or(source.network_transaction_id),
             is_overcapture_enabled: is_overcapture_enabled.or(source.is_overcapture_enabled),
             network_details: network_details.or(source.network_details),
+            request_extended_authorization: request_extended_authorization
+                .or(source.request_extended_authorization),
             authorized_amount: authorized_amount.or(source.authorized_amount),
             ..source
         }
@@ -2702,6 +2707,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -2770,6 +2776,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -2809,6 +2816,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                request_extended_authorization,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2872,6 +2880,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -2941,6 +2950,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
@@ -3011,6 +3021,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
@@ -3081,6 +3092,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
@@ -3149,6 +3161,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
@@ -3217,6 +3230,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -3316,6 +3330,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id,
                     is_overcapture_enabled,
                     network_details: None,
+                    request_extended_authorization: None,
                     authorized_amount,
                 }
             }
@@ -3404,6 +3419,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details,
+                    request_extended_authorization: None,
                     authorized_amount: None,
                 }
             }
@@ -3470,6 +3486,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
@@ -3545,6 +3562,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -3626,6 +3644,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    request_extended_authorization: None,
                     authorized_amount: None,
                 }
             }
@@ -3706,6 +3725,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    request_extended_authorization: None,
                     authorized_amount: None,
                 }
             }
@@ -3776,6 +3796,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
@@ -3845,6 +3866,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
@@ -3923,6 +3945,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    request_extended_authorization: None,
                     authorized_amount: None,
                 }
             }
@@ -3992,6 +4015,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
@@ -4063,6 +4087,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
@@ -4143,6 +4168,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     network_transaction_id: None,
                     is_overcapture_enabled: None,
                     network_details: None,
+                    request_extended_authorization: None,
                     authorized_amount: None,
                 }
             }
@@ -4212,6 +4238,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 network_transaction_id: None,
                 is_overcapture_enabled: None,
                 network_details: None,
+                request_extended_authorization: None,
                 authorized_amount: None,
             },
         }

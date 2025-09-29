@@ -2512,10 +2512,30 @@ pub async fn fetch_card_details_from_external_vault(
     )
     .await?;
 
+    let payment_methods_data = payment_method_info.get_payment_methods_data();
+
     match vault_resp {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
             domain::Card::from((card, card_token_data, co_badged_card_data)),
         ),
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(card_number) => {
+            let payment_methods_data = payment_methods_data
+                .get_required_value("PaymentMethodsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payment methods data not present")?;
+
+            let card = payment_methods_data
+                .get_card_details()
+                .get_required_value("CardDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Card details not present")?;
+
+            Ok(
+                domain::Card::try_from((card_number, card_token_data, co_badged_card_data, card))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to generate card data")?,
+            )
+        }
     }
 }
 #[cfg(feature = "v1")]
