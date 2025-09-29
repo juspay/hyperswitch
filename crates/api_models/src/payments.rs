@@ -671,6 +671,10 @@ pub struct PaymentsIntentResponse {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = PaymentType)]
     pub payment_type: api_enums::PaymentType,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
