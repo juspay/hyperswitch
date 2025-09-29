@@ -2876,7 +2876,7 @@ where
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id.clone(),
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -2936,7 +2936,7 @@ where
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3138,7 +3138,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3183,7 +3183,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3265,7 +3265,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: profile.as_ref().map(|p| p.id.clone()),
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3332,7 +3332,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3369,7 +3369,7 @@ where
             (),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3436,7 +3436,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: payload.user_id,
             },
         ))
@@ -3511,7 +3511,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: payload.user_id,
             },
         ))
@@ -3573,7 +3573,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: payload.user_id,
             },
         ))
@@ -3722,7 +3722,7 @@ where
                 auth.clone(),
                 AuthenticationType::MerchantJwtWithProfileId {
                     merchant_id: auth.merchant_account.get_id().clone(),
-                    profile_id: None,
+                    profile_id: auth.profile_id.clone(),
                     user_id: payload.user_id,
                 },
             ))
@@ -3795,7 +3795,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: payload.user_id,
             },
         ))
@@ -3887,7 +3887,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -3963,7 +3963,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -4027,7 +4027,7 @@ where
             (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: None,
             },
         ))
@@ -4068,7 +4068,7 @@ where
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
@@ -4148,7 +4148,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: None,
+                profile_id: auth.profile_id.clone(),
                 user_id: payload.user_id,
             },
         ))
@@ -4522,8 +4522,8 @@ where
 
         let auth_type = AuthenticationType::MerchantJwtWithProfileId {
             merchant_id: auth.merchant_account.get_id().clone(),
-            profile_id: None,
-            user_id: user_id,
+            profile_id: auth.profile_id.clone(),
+            user_id,
         };
 
         Ok((auth, auth_type))
@@ -4654,7 +4654,7 @@ where
             UserFromTokenWithRoleInfo { user, role_info },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: None,
+                profile_id: payload.profile_id,
                 user_id: payload.user_id,
             },
         ))
