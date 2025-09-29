@@ -1,10 +1,7 @@
-use common_utils::{
-    ext_traits::{Encode, StringExt},
-    types::StringMinorUnit,
-};
+use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{ExternalVaultInsertFlow, ExternalVaultRetrieveFlow},
     router_request_types::VaultRequestData,
     router_response_types::VaultResponseData,
@@ -12,7 +9,7 @@ use hyperswitch_domain_models::{
     vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -24,7 +21,6 @@ pub struct TokenexRouterData<T> {
 
 impl<T> From<(StringMinorUnit, T)> for TokenexRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -34,21 +30,16 @@ impl<T> From<(StringMinorUnit, T)> for TokenexRouterData<T> {
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TokenexInsertRequest {
-    data: Secret<String>,
+    data: cards::CardNumber, //Currently only card number is tokenized. Data can be stringified and can be tokenized
 }
 
 impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodVaultingData::Card(req_card)) => {
-                let stringified_card = req_card
-                    .encode_to_string_of_json()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Self {
-                    data: Secret::new(stringified_card),
-                })
-            }
+            Some(PaymentMethodVaultingData::Card(req_card)) => Ok(Self {
+                data: req_card.card_number.clone(),
+            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method apart from card".to_string(),
             )
@@ -56,9 +47,6 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
         }
     }
 }
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct TokenexAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) tokenex_id: Secret<String>,
@@ -78,10 +66,14 @@ impl TryFrom<&ConnectorAuthType> for TokenexAuthType {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenexInsertResponse {
-    token: String,
-    first_six: String,
+    token: Option<String>,
+    first_six: Option<String>,
+    last_four: Option<String>,
     success: bool,
+    error: String,
+    message: Option<String>,
 }
 impl
     TryFrom<
@@ -103,20 +95,49 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let resp = item.response;
+        match resp.success && resp.error.is_empty() {
+            true => {
+                let token = resp
+                    .token
+                    .clone()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Token is missing in tokenex response")?;
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                        connector_vault_id: token.clone(),
+                        //fingerprint is not provided by tokenex, using token as fingerprint
+                        fingerprint_id: token.clone(),
+                    }),
+                    ..item.data
+                })
+            }
+            false => {
+                let (code, message) = resp.error.split_once(':').unwrap_or(("", ""));
 
-        Ok(Self {
-            status: common_enums::AttemptStatus::Started,
-            response: Ok(VaultResponseData::ExternalVaultInsertResponse {
-                connector_vault_id: resp.token.clone(),
-                //fingerprint is not provided by tokenex, using token as fingerprint
-                fingerprint_id: resp.token.clone(),
-            }),
-            ..item.data
-        })
+                let response = Err(ErrorResponse {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                    reason: resp.message,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+        }
     }
 }
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenexRetrieveRequest {
     token: Secret<String>, //Currently only card number is tokenized. Data can be stringified and can be tokenized
     cache_cvv: bool,
@@ -124,8 +145,10 @@ pub struct TokenexRetrieveRequest {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenexRetrieveResponse {
-    value: Secret<String>,
+    value: Option<cards::CardNumber>,
     success: bool,
+    error: String,
+    message: Option<String>,
 }
 
 impl<F> TryFrom<&VaultRouterData<F>> for TokenexRetrieveRequest {
@@ -164,30 +187,48 @@ impl
     ) -> Result<Self, Self::Error> {
         let resp = item.response;
 
-        let card_detail: api_models::payment_methods::CardDetail = resp
-            .value
-            .clone()
-            .expose()
-            .parse_struct("CardDetail")
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+        match resp.success && resp.error.is_empty() {
+            true => {
+                let data = resp
+                    .value
+                    .clone()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Card number is missing in tokenex response")?;
+                Ok(Self {
+                    status: common_enums::AttemptStatus::Started,
+                    response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
+                        vault_data: PaymentMethodVaultingData::CardNumber(data),
+                    }),
+                    ..item.data
+                })
+            }
+            false => {
+                let (code, message) = resp.error.split_once(':').unwrap_or(("", ""));
 
-        Ok(Self {
-            status: common_enums::AttemptStatus::Started,
-            response: Ok(VaultResponseData::ExternalVaultRetrieveResponse {
-                vault_data: PaymentMethodVaultingData::Card(card_detail),
-            }),
-            ..item.data
-        })
+                let response = Err(ErrorResponse {
+                    code: code.to_string(),
+                    message: message.to_string(),
+                    reason: resp.message,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                });
+
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TokenexErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub error: String,
     pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
 }

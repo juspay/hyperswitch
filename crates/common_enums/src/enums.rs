@@ -9487,9 +9487,8 @@ impl RoutingApproach {
     pub fn from_decision_engine_approach(approach: &str) -> Self {
         match approach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
-            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "SR_V3_HEDGING" | "DEFAULT" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
-            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }

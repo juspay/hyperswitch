@@ -1,13 +1,13 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -24,11 +24,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -37,25 +38,27 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts as api_consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use lazy_static::lazy_static;
+use masking::{Mask, PeekInterface};
 use transformers as gigadat;
+use uuid::Uuid;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Gigadat {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Gigadat {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -121,9 +124,11 @@ impl ConnectorCommon for Gigadat {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = gigadat::GigadatAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
+        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth_header.into_masked(),
         )])
     }
 
@@ -142,9 +147,9 @@ impl ConnectorCommon for Gigadat {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.err.clone(),
+            message: response.err.clone(),
+            reason: Some(response.err).clone(),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -204,10 +209,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "{}api/payment-token/{}",
+            self.base_url(connectors),
+            auth.campaign_id.peek()
+        ))
     }
 
     fn get_request_body(
@@ -222,7 +233,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = gigadat::GigadatRouterData::from((amount, req));
-        let connector_req = gigadat::GigadatPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = gigadat::GigadatCpiRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -254,12 +265,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatPaymentsResponse = res
+        let response: gigadat::GigadatPaymentResponse = res
             .response
-            .parse_struct("Gigadat PaymentsAuthorizeResponse")
+            .parse_struct("GigadatPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -291,10 +304,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let transaction_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}api/transactions/{transaction_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(
@@ -318,7 +339,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatPaymentsResponse = res
+        let response: gigadat::GigadatTransactionStatusResponse = res
             .response
             .parse_struct("gigadat PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -395,7 +416,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatPaymentsResponse = res
+        let response: gigadat::GigadatTransactionStatusResponse = res
             .response
             .parse_struct("Gigadat PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -423,9 +444,22 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
+        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth_header.into_masked(),
+            ),
+            (
+                headers::IDEMPOTENCY_KEY.to_string(),
+                Uuid::new_v4().to_string().into_masked(),
+            ),
+        ])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -435,9 +469,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}refunds", self.base_url(connectors),))
     }
 
     fn get_request_body(
@@ -499,75 +533,41 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        let response: gigadat::GigadatRefundErrorResponse = res
+            .response
+            .parse_struct("GigadatRefundErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        let code = response
+            .error
+            .first()
+            .and_then(|error_detail| error_detail.code.clone())
+            .unwrap_or(api_consts::NO_ERROR_CODE.to_string());
+        let message = response
+            .error
+            .first()
+            .map(|error_detail| error_detail.detail.clone())
+            .unwrap_or(api_consts::NO_ERROR_MESSAGE.to_string());
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code,
+            message,
+            reason: Some(response.message).clone(),
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
     }
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Gigadat {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: gigadat::RefundResponse = res
-            .response
-            .parse_struct("gigadat RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    //Gigadat does not support Refund Sync
 }
 
 #[async_trait::async_trait]
@@ -594,21 +594,36 @@ impl webhooks::IncomingWebhook for Gigadat {
     }
 }
 
-static GIGADAT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static GIGADAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Gigadat",
-    description: "Gigadat connector",
-    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
-};
+        let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
+        gigadat_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Interac,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
 
-static GIGADAT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        gigadat_supported_payment_methods
+    };
+    static ref GIGADAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Gigadat",
+        description: "Gigadat is a financial services product that offers a single API for payment integration. It provides Canadian businesses with a secure payment gateway and various pay-in and pay-out solutions, including Interac e-Transfer",
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    };
+    static ref GIGADAT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
 
 impl ConnectorSpecifications for Gigadat {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&GIGADAT_CONNECTOR_INFO)
+        Some(&*GIGADAT_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -616,6 +631,6 @@ impl ConnectorSpecifications for Gigadat {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
