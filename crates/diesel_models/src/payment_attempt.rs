@@ -107,6 +107,8 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
+    /// stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -131,8 +133,6 @@ pub struct PaymentAttempt {
     pub network_error_message: Option<String>,
     /// A string indicating the group of the payment attempt. Used in split payments flow
     pub attempts_group_id: Option<String>,
-    /// stores the authorized amount in case of partial authorization
-    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
