@@ -477,7 +477,7 @@ pub async fn get_mca_from_subscription_id(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!(
                 "Subscription with id: {} not found",
-                subscription_id.get_string_repr().to_string()
+                subscription_id.get_string_repr()
             ),
         })?;
 
