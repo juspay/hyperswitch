@@ -563,6 +563,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::Eps { .. } => Type::Redirect,
                 BankRedirectData::Sofort { .. } => Type::Redirect,
                 BankRedirectData::BancontactCard { .. }
+                | BankRedirectData::Stitch { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
                 | BankRedirectData::Eft { .. }
@@ -646,6 +647,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::Stitch { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
@@ -860,6 +862,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
+                | BankRedirectData::Stitch { .. }
                 | BankRedirectData::LocalBankRedirect {} => None,
             },
             PaymentMethodData::MandatePayment => None,

@@ -2663,6 +2663,7 @@ pub enum PaymentMethodDataType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    Stitch,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2744,6 +2745,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::Eps { .. } => Self::Eps,
                     domain::payments::BankRedirectData::Giropay { .. } => Self::Giropay,
                     domain::payments::BankRedirectData::Ideal { .. } => Self::Ideal,
+                    domain::payments::BankRedirectData::Stitch { .. } => Self::Stitch,
                     domain::payments::BankRedirectData::Interac { .. } => Self::Interac,
                     domain::payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
                         Self::OnlineBankingCzechRepublic

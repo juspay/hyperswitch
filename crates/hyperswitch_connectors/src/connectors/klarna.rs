@@ -562,6 +562,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Becs
                         | common_enums::PaymentMethodType::Benefit
                         | common_enums::PaymentMethodType::Bizum
+                        | common_enums::PaymentMethodType::Stitch
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
                         | common_enums::PaymentMethodType::BcaBankTransfer
@@ -819,6 +820,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Bizum
                         | common_enums::PaymentMethodType::Blik
                         | common_enums::PaymentMethodType::Boleto
+                        | common_enums::PaymentMethodType::Stitch
                         | common_enums::PaymentMethodType::BhnCardNetwork
                         | common_enums::PaymentMethodType::BcaBankTransfer
                         | common_enums::PaymentMethodType::BniVa

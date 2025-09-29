@@ -289,6 +289,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::MiniStop
                 | PaymentMethodType::Lawson
                 | PaymentMethodType::SevenEleven
+                | PaymentMethodType::Stitch
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
                 | PaymentMethodType::PermataBankTransfer => match capture_method {

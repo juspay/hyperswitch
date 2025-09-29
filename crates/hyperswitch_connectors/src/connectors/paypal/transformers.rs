@@ -802,6 +802,7 @@ fn get_payment_source(
         | BankRedirectData::Trustly { .. }
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
+        | BankRedirectData::Stitch { .. }
         | BankRedirectData::LocalBankRedirect {} => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
         ))?,
@@ -1269,6 +1270,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Paze
                     | enums::PaymentMethodType::IndonesianBankTransfer
                     | enums::PaymentMethodType::Flexiti
+                    | enums::PaymentMethodType::Stitch
                     | enums::PaymentMethodType::RevolutPay
                     | enums::PaymentMethodType::Breadpay => {
                         Err(errors::ConnectorError::NotImplemented(

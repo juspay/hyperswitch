@@ -609,6 +609,9 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
+    Stitch {
+        south_african_identity_card: Secret<String>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2110,6 +2113,7 @@ impl GetPaymentMethodType for BankRedirectData {
             Self::OpenBankingUk { .. } => api_enums::PaymentMethodType::OpenBankingUk,
             Self::Przelewy24 { .. } => api_enums::PaymentMethodType::Przelewy24,
             Self::Sofort { .. } => api_enums::PaymentMethodType::Sofort,
+            Self::Stitch { .. } => api_enums::PaymentMethodType::Stitch,
             Self::Trustly { .. } => api_enums::PaymentMethodType::Trustly,
             Self::OnlineBankingFpx { .. } => api_enums::PaymentMethodType::OnlineBankingFpx,
             Self::OnlineBankingThailand { .. } => {

@@ -175,6 +175,7 @@ impl
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::Sofort { .. }
+                | BankRedirectData::Stitch { .. }
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. } => {

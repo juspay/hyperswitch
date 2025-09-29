@@ -100,6 +100,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             }
             global_enums::PaymentMethodType::Swish => Ok(dirval!(WalletType = Swish)),
             global_enums::PaymentMethodType::Trustly => Ok(dirval!(BankRedirectType = Trustly)),
+            global_enums::PaymentMethodType::Stitch => Ok(dirval!(BankRedirectType = Stitch)),
             global_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
 
             global_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
