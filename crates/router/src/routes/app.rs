@@ -2988,7 +2988,7 @@ impl Authentication {
             )
             .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
-                    .route(web::post().to(authentication::authentication_sync))
+                    .route(web::post().to(authentication::authentication_sync)),
             )
     }
 }
