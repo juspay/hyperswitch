@@ -650,9 +650,10 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
     fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
         let amount = item.content.transaction.amount;
         let currency = item.content.transaction.currency_code.to_owned();
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(item.content.invoice.id.get_string_repr())
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let connector_transaction_id = item
             .content
             .transaction
@@ -797,9 +798,10 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
 impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(item.content.invoice.id.get_string_repr())
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
         #[allow(clippy::as_conversions)]
