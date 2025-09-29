@@ -894,6 +894,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::VietQr
             | enums::PaymentMethodType::IndonesianBankTransfer
             | enums::PaymentMethodType::Flexiti
+            | enums::PaymentMethodType::Stitch
             | enums::PaymentMethodType::Mifinity
             | enums::PaymentMethodType::Breadpay => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
@@ -1163,6 +1164,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
+            | BankRedirectData::Stitch { .. }
             | BankRedirectData::LocalBankRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
@@ -1765,6 +1767,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Sofort { .. }
+            | BankRedirectData::Stitch { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {} => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),

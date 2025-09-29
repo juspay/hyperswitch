@@ -1874,6 +1874,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Sepa => Self::BankDebit,
             PaymentMethodType::SepaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Sofort => Self::BankRedirect,
+            PaymentMethodType::Stitch => Self::BankRedirect,
             PaymentMethodType::Swish => Self::BankRedirect,
             PaymentMethodType::Trustly => Self::BankRedirect,
             PaymentMethodType::Twint => Self::Wallet,

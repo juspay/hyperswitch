@@ -2654,6 +2654,7 @@ impl TryFrom<(&BankRedirectData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankRedirectData::Interac { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::Przelewy24 { .. }
+            | BankRedirectData::Stitch { .. }
             | BankRedirectData::Sofort { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )

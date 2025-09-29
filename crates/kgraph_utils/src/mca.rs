@@ -78,6 +78,7 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::Swish => Ok(dirval!(WalletType = Swish)),
         api_enums::PaymentMethodType::Trustly => Ok(dirval!(BankRedirectType = Trustly)),
+        api_enums::PaymentMethodType::Stitch => Ok(dirval!(BankRedirectType = Stitch)),
         api_enums::PaymentMethodType::Bizum => Ok(dirval!(BankRedirectType = Bizum)),
 
         api_enums::PaymentMethodType::PayBright => Ok(dirval!(PayLaterType = PayBright)),
