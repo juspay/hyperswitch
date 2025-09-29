@@ -3018,5 +3018,15 @@ impl RecoveryDataBackfill {
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
                 ),
             ))
+            .service(web::resource("/redis-data/{token_id}").route(
+                web::get().to(
+                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
+                ),
+            ))
+            .service(web::resource("/update-token").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
     }
 }

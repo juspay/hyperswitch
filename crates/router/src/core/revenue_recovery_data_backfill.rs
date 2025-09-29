@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
-    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
+    BackfillError, ComprehensiveCardData, RedisKeyType, RevenueRecoveryBackfillRequest,
+    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse, GetRedisDataQuery, RedisDataResponse,
+    UpdateTokenStatusRequest, UpdateTokenStatusResponse
 };
+use error_stack::ResultExt; 
 use common_enums::{CardNetwork, PaymentMethodType};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
@@ -82,6 +84,139 @@ pub async fn unlock_connector_customer_status(
         "Unlock operation completed for connector customer {}: {}",
         connector_customer_id,
         unlocked
+    );
+
+    Ok(ApplicationResponse::Json(response))
+}
+pub async fn get_redis_data(
+    state: SessionState,
+    connector_customer_id: &str,
+    key_type: &RedisKeyType,
+) -> RouterResult<ApplicationResponse<RedisDataResponse>> {
+    match storage::revenue_recovery_redis_operation::
+        RedisTokenManager::get_redis_key_data_raw(&state, connector_customer_id, key_type)
+        .await
+    {
+        Ok((exists, ttl_seconds, data)) => {
+            let response = RedisDataResponse {
+                exists,
+                ttl_seconds,
+                data,
+            };
+
+            logger::info!(
+                "Retrieved Redis data for connector customer {}, exists={}, ttl={}",
+                connector_customer_id,
+                exists,
+                ttl_seconds
+            );
+
+            Ok(ApplicationResponse::Json(response))
+        }
+        Err(error) => Err(error.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!("Redis data not found for connector customer id:- '{}'", connector_customer_id),
+        }))
+    }
+}
+
+pub async fn redis_update_additional_details_for_revenue_recovery(
+    state: SessionState,
+    request: UpdateTokenStatusRequest,
+) -> RouterResult<ApplicationResponse<UpdateTokenStatusResponse>> {
+    // Get existing token
+    let existing_token = storage::revenue_recovery_redis_operation::
+        RedisTokenManager::get_payment_processor_token_using_token_id(
+            &state,
+            &request.connector_customer_id,
+            &request.payment_processor_token.clone().expose(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve existing token data")?;
+
+    // Check if token exists
+    let mut token_status = existing_token.ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Token '{:?}' not found for connector customer id:- '{}'",
+                request.payment_processor_token, request.connector_customer_id
+            ),
+        })
+    })?;
+
+    let mut updated_fields = Vec::new();
+
+    // Update scheduled_at field
+    request.scheduled_at.as_ref().map(|scheduled_at_str| {
+        (scheduled_at_str.to_lowercase() == "null")
+            .then(|| {
+                token_status.scheduled_at = None;
+                updated_fields.push("scheduled_at: set to null".to_string());
+                logger::info!("Set scheduled_at to null for token '{:?}'", request.payment_processor_token);
+            })
+            .or_else(|| {
+                // Parse datetime
+                time::PrimitiveDateTime::parse(scheduled_at_str, &time::format_description::well_known::Iso8601::DEFAULT)
+                    .map(|parsed_datetime| {
+                        token_status.scheduled_at = Some(parsed_datetime);
+                        updated_fields.push(format!("scheduled_at: {}", scheduled_at_str));
+                        logger::info!("Set scheduled_at to '{}' for token '{:?}'", scheduled_at_str, request.payment_processor_token);
+                    })
+                    .unwrap_or_else(|parse_error| {
+                        logger::warn!(
+                            "Failed to parse scheduled_at '{}': {}. Skipping scheduled_at update.",
+                            scheduled_at_str,
+                            parse_error
+                        );
+                    });
+                Some(())
+            });
+    });
+
+    // Update is_hard_decline field
+    request.is_hard_decline.map(|is_hard_decline| {
+        token_status.is_hard_decline = Some(is_hard_decline);
+        updated_fields.push(format!("is_hard_decline: {}", is_hard_decline));
+    });
+
+    // Update error_code field
+    request.error_code.as_ref().map(|error_code| {
+        token_status.error_code = Some(error_code.clone());
+        updated_fields.push(format!("error_code: {}", error_code));
+    });
+
+    // Update Redis with modified token
+    let mut tokens_map = HashMap::new();
+    tokens_map.insert(request.payment_processor_token.clone().expose(), token_status);
+
+    storage::revenue_recovery_redis_operation::
+        RedisTokenManager::update_or_add_connector_customer_payment_processor_tokens(
+            &state,
+            &request.connector_customer_id,
+            tokens_map,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update token status in Redis")?;
+
+    let updated_fields_str = if updated_fields.is_empty() {
+        "no fields were updated".to_string()
+    } else {
+        updated_fields.join(", ")
+    };
+
+    let response = UpdateTokenStatusResponse {
+        updated: true,
+        message: format!(
+            "Successfully updated token '{:?}' for connector customer '{}'. Updated fields: {}",
+            request.payment_processor_token, request.connector_customer_id, updated_fields_str
+        ),
+    };
+
+    logger::info!(
+        "Updated token status for connector customer {}, token: {:?}",
+        request.connector_customer_id,
+        request.payment_processor_token
     );
 
     Ok(ApplicationResponse::Json(response))
