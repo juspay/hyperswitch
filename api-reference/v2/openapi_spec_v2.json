@@ -18566,6 +18566,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/CardSpecificFeatures"
+          },
+          {
+            "$ref": "#/components/schemas/WalletSpecificFeatures"
           }
         ]
       },
