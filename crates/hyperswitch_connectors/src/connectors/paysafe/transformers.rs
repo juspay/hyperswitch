@@ -105,7 +105,6 @@ impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
 impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(customer_data: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-
         let merchant_customer_id = match customer_data.customer_id.as_ref() {
             Some(customer_id) if customer_id.get_string_repr().len() <= MAX_ID_LENGTH => {
                 Ok(customer_id.get_string_repr().to_string())
@@ -118,19 +117,15 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "customer_id",
-            })
+            }),
         }?;
 
         Ok(Self {
             merchant_customer_id,
-            first_name: customer_data
-            .get_optional_billing_first_name(),
-            last_name: customer_data
-            .get_optional_billing_last_name(),
-            email: customer_data
-            .get_optional_billing_email(),
-            phone: customer_data
-            .get_optional_billing_phone_number()
+            first_name: customer_data.get_optional_billing_first_name(),
+            last_name: customer_data.get_optional_billing_last_name(),
+            email: customer_data.get_optional_billing_email(),
+            phone: customer_data.get_optional_billing_phone_number(),
         })
     }
 }
@@ -517,12 +512,13 @@ where
             country: item.get_billing_country()?,
             state: item.get_billing_state_code()?,
         }))
-    } 
+    }
     // For normal payments, only send billing details if billing mandatory fields are available
-    else if let (Some(zip), Some(country), Some(state)) = 
-    (item.get_optional_billing_zip(),
-    item.get_optional_billing_country(),
-    item.get_optional_billing_state_code()) {
+    else if let (Some(zip), Some(country), Some(state)) = (
+        item.get_optional_billing_zip(),
+        item.get_optional_billing_country(),
+        item.get_optional_billing_state_code(),
+    ) {
         Ok(Some(PaysafeBillingDetails {
             nick_name: item.get_optional_billing_first_name(),
             street: item.get_optional_billing_line1(),
@@ -817,7 +813,12 @@ impl<F>
         let mandate_reference = item
             .response
             .payment_handle_token
-            .map(|payment_handle_token| format!("{}--{initial_transaction_id}", payment_handle_token.expose()))
+            .map(|payment_handle_token| {
+                format!(
+                    "{}--{initial_transaction_id}",
+                    payment_handle_token.expose()
+                )
+            })
             .map(|mandate_id| MandateReference {
                 connector_mandate_id: Some(mandate_id),
                 payment_method_id: None,

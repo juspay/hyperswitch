@@ -936,7 +936,7 @@ impl<Flow, Request, Response> RouterData
 
     fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
         self.get_billing_state_code().ok()
-     }
+    }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
         self.address
