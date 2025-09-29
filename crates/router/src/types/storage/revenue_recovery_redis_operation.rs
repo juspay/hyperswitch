@@ -762,12 +762,13 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         key_type: &RedisKeyType,
     ) -> CustomResult<(bool, i64, Option<serde_json::Value>), errors::StorageError> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::RedisConnectionError.into(),
-            ))?;
+        let redis_conn =
+            state
+                .store
+                .get_redis_conn()
+                .change_context(errors::StorageError::RedisError(
+                    errors::RedisError::RedisConnectionError.into(),
+                ))?;
 
         let redis_key = match key_type {
             RedisKeyType::Status => Self::get_connector_customer_lock_key(connector_customer_id),
@@ -782,19 +783,17 @@ impl RedisTokenManager {
                 tracing::error!(operation = "check_key_exists", err = ?error);
                 errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into())
             })
-            .and_then(|key_exists| {
-                match key_exists {
-                    true => Ok(key_exists),
-                    false => {
-                        let key_type_str = match key_type {
-                            RedisKeyType::Status => "status",
-                            RedisKeyType::Tokens => "tokens",
-                        };
-                        Err(errors::StorageError::ValueNotFound(format!(
-                            "Redis key '{}' of type '{}' not found for connector customer id:- '{}'",
-                            redis_key, key_type_str, connector_customer_id
-                        )))
-                    }
+            .and_then(|key_exists| match key_exists {
+                true => Ok(key_exists),
+                false => {
+                    let key_type_str = match key_type {
+                        RedisKeyType::Status => "status",
+                        RedisKeyType::Tokens => "tokens",
+                    };
+                    Err(errors::StorageError::ValueNotFound(format!(
+                        "Redis key '{}' of type '{}' not found for connector customer id:- '{}'",
+                        redis_key, key_type_str, connector_customer_id
+                    )))
                 }
             })?;
 
@@ -809,32 +808,28 @@ impl RedisTokenManager {
 
         // Get data based on key type
         let data = match key_type {
-            RedisKeyType::Status => {
-                redis_conn
-                    .get_key::<String>(&redis_key.into())
-                    .await
-                    .map(serde_json::Value::String)
-                    .unwrap_or_else(|error| {
-                        tracing::error!(operation = "get_status_key", err = ?error);
-                        serde_json::Value::String(format!("Error retrieving status key: {}", error))
-                    })
-            }
-            RedisKeyType::Tokens => {
-                redis_conn
-                    .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
-                    .await
-                    .map(|hash_fields| {
-                        if hash_fields.is_empty() {
-                            serde_json::Value::Object(serde_json::Map::new())
-                        } else {
-                            serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
-                        }
-                    })
-                    .unwrap_or_else(|error| {
-                        tracing::error!(operation = "get_tokens_hash", err = ?error);
-                        serde_json::Value::Null
-                    })
-            }
+            RedisKeyType::Status => redis_conn
+                .get_key::<String>(&redis_key.into())
+                .await
+                .map(serde_json::Value::String)
+                .unwrap_or_else(|error| {
+                    tracing::error!(operation = "get_status_key", err = ?error);
+                    serde_json::Value::String(format!("Error retrieving status key: {}", error))
+                }),
+            RedisKeyType::Tokens => redis_conn
+                .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
+                .await
+                .map(|hash_fields| {
+                    if hash_fields.is_empty() {
+                        serde_json::Value::Object(serde_json::Map::new())
+                    } else {
+                        serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
+                    }
+                })
+                .unwrap_or_else(|error| {
+                    tracing::error!(operation = "get_tokens_hash", err = ?error);
+                    serde_json::Value::Null
+                }),
         };
 
         tracing::debug!(

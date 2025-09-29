@@ -25,11 +25,7 @@ pub async fn get_revenue_recovery_redis_data(
         &req,
         (),
         |state, _: (), _, _| {
-            revenue_recovery_data_backfill::get_redis_data(
-                state,
-                &connector_customer_id,
-                key_type,
-            )
+            revenue_recovery_data_backfill::get_redis_data(state, &connector_customer_id, key_type)
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,

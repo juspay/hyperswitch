@@ -82,7 +82,9 @@ pub async fn update_revenue_recovery_additional_redis_data(
         &req,
         json_payload.into_inner(),
         |state, _: (), request, _| {
-            revenue_recovery_data_backfill::redis_update_additional_details_for_revenue_recovery(state, request)
+            revenue_recovery_data_backfill::redis_update_additional_details_for_revenue_recovery(
+                state, request,
+            )
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,

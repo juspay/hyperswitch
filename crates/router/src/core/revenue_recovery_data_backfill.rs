@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, ComprehensiveCardData, RedisKeyType, RevenueRecoveryBackfillRequest,
-    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse, GetRedisDataQuery, RedisDataResponse,
-    UpdateTokenStatusRequest, UpdateTokenStatusResponse
+    BackfillError, ComprehensiveCardData, GetRedisDataQuery, RedisDataResponse, RedisKeyType,
+    RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
+    UpdateTokenStatusRequest, UpdateTokenStatusResponse,
 };
-use error_stack::ResultExt; 
 use common_enums::{CardNetwork, PaymentMethodType};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use router_env::{instrument, logger};
@@ -93,9 +93,12 @@ pub async fn get_redis_data(
     connector_customer_id: &str,
     key_type: &RedisKeyType,
 ) -> RouterResult<ApplicationResponse<RedisDataResponse>> {
-    match storage::revenue_recovery_redis_operation::
-        RedisTokenManager::get_redis_key_data_raw(&state, connector_customer_id, key_type)
-        .await
+    match storage::revenue_recovery_redis_operation::RedisTokenManager::get_redis_key_data_raw(
+        &state,
+        connector_customer_id,
+        key_type,
+    )
+    .await
     {
         Ok((exists, ttl_seconds, data)) => {
             let response = RedisDataResponse {
@@ -113,9 +116,14 @@ pub async fn get_redis_data(
 
             Ok(ApplicationResponse::Json(response))
         }
-        Err(error) => Err(error.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!("Redis data not found for connector customer id:- '{}'", connector_customer_id),
-        }))
+        Err(error) => Err(
+            error.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!(
+                    "Redis data not found for connector customer id:- '{}'",
+                    connector_customer_id
+                ),
+            }),
+        ),
     }
 }
 
@@ -152,23 +160,33 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
             .then(|| {
                 token_status.scheduled_at = None;
                 updated_fields.push("scheduled_at: set to null".to_string());
-                logger::info!("Set scheduled_at to null for token '{:?}'", request.payment_processor_token);
+                logger::info!(
+                    "Set scheduled_at to null for token '{:?}'",
+                    request.payment_processor_token
+                );
             })
             .or_else(|| {
                 // Parse datetime
-                time::PrimitiveDateTime::parse(scheduled_at_str, &time::format_description::well_known::Iso8601::DEFAULT)
-                    .map(|parsed_datetime| {
-                        token_status.scheduled_at = Some(parsed_datetime);
-                        updated_fields.push(format!("scheduled_at: {}", scheduled_at_str));
-                        logger::info!("Set scheduled_at to '{}' for token '{:?}'", scheduled_at_str, request.payment_processor_token);
-                    })
-                    .unwrap_or_else(|parse_error| {
-                        logger::warn!(
-                            "Failed to parse scheduled_at '{}': {}. Skipping scheduled_at update.",
-                            scheduled_at_str,
-                            parse_error
-                        );
-                    });
+                time::PrimitiveDateTime::parse(
+                    scheduled_at_str,
+                    &format_description::well_known::Iso8601::DEFAULT,
+                )
+                .map(|parsed_datetime| {
+                    token_status.scheduled_at = Some(parsed_datetime);
+                    updated_fields.push(format!("scheduled_at: {}", scheduled_at_str));
+                    logger::info!(
+                        "Set scheduled_at to '{}' for token '{:?}'",
+                        scheduled_at_str,
+                        request.payment_processor_token
+                    );
+                })
+                .unwrap_or_else(|parse_error| {
+                    logger::warn!(
+                        "Failed to parse scheduled_at '{}': {}. Skipping scheduled_at update.",
+                        scheduled_at_str,
+                        parse_error
+                    );
+                });
                 Some(())
             });
     });
@@ -187,7 +205,10 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
 
     // Update Redis with modified token
     let mut tokens_map = HashMap::new();
-    tokens_map.insert(request.payment_processor_token.clone().expose(), token_status);
+    tokens_map.insert(
+        request.payment_processor_token.clone().expose(),
+        token_status,
+    );
 
     storage::revenue_recovery_redis_operation::
         RedisTokenManager::update_or_add_connector_customer_payment_processor_tokens(
