@@ -209,6 +209,7 @@ pub struct PaymentIntentUpdateFields {
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v1")]
@@ -505,6 +506,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -550,6 +552,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -593,6 +596,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -636,6 +640,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -682,6 +687,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -718,6 +724,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
+                    enable_partial_authorization,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -763,6 +770,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
+                    enable_partial_authorization,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -808,6 +816,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -847,6 +856,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
             }),
         }
     }

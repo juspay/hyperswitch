@@ -490,6 +490,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<UpdateActiveAttempt>)]
     /// Whether to set / unset the active attempt id
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -522,6 +526,7 @@ impl PaymentsUpdateIntentRequest {
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+            enable_partial_authorization: None,
         }
     }
 }
