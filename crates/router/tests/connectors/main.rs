@@ -43,6 +43,7 @@ mod dwolla;
 mod ebanx;
 mod elavon;
 mod facilitapay;
+mod finix;
 mod fiserv;
 mod fiservemea;
 mod fiuu;
