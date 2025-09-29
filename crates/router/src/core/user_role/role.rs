@@ -1,4 +1,4 @@
-use std::{cmp, collections::HashSet};
+use std::{cmp, collections::HashSet, ops::Not};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
@@ -452,7 +452,7 @@ pub async fn list_roles_with_info(
 
     let mut role_info_vec = PREDEFINED_ROLES
         .values()
-        .filter(|role| !role.is_internal())
+        .filter(|role| role.is_internal().not())
         .cloned()
         .collect::<Vec<_>>();
 
@@ -653,3 +653,4 @@ pub async fn list_roles_at_entity_level(
 
     Ok(ApplicationResponse::Json(list_minimal_role_info))
 }
+

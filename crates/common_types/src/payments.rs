@@ -669,6 +669,13 @@ impl ApplePayPredecryptData {
         let month = self.get_expiry_month()?.expose();
         Ok(Secret::new(format!("{month}{year}")))
     }
+
+    /// Get the expiry date in YYMM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ValidationError> {
+        let year = self.get_two_digit_expiry_year()?.expose();
+        let month = self.get_expiry_month()?.expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
 }
 
 /// type of action that needs to taken after consuming recovery payload

@@ -189,16 +189,24 @@ impl PaymentIntent {
             }
         };
         let intent_request_extended_authorization_optional = self.request_extended_authorization;
-        if always_request_extended_authorization_optional.is_some_and(
-            |always_request_extended_authorization| *always_request_extended_authorization,
-        ) || intent_request_extended_authorization_optional.is_some_and(
-            |intent_request_extended_authorization| *intent_request_extended_authorization,
-        ) {
-            Some(is_extended_authorization_supported_by_connector())
-        } else {
-            None
-        }
-        .map(RequestExtendedAuthorizationBool::from)
+
+        let is_extended_authorization_requested = intent_request_extended_authorization_optional
+            .map(|should_request_extended_authorization| *should_request_extended_authorization)
+            .or(always_request_extended_authorization_optional.map(
+                |should_always_request_extended_authorization| {
+                    *should_always_request_extended_authorization
+                },
+            ));
+
+        is_extended_authorization_requested
+            .map(|requested| {
+                if requested {
+                    is_extended_authorization_supported_by_connector()
+                } else {
+                    false
+                }
+            })
+            .map(RequestExtendedAuthorizationBool::from)
     }
 
     #[cfg(feature = "v1")]
@@ -461,6 +469,10 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
+    /// This field represents whether there are attempt groups for this payment intent. Used in split payments workflow
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    /// The ID of the active attempt group for the payment intent
+    pub active_attempts_group_id: Option<String>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -661,6 +673,8 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             active_attempt_id: None,
+            active_attempt_id_type: common_enums::ActiveAttemptIDType::AttemptID,
+            active_attempts_group_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -844,6 +858,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -874,6 +889,7 @@ pub struct HeaderPayload {
     pub locale: Option<String>,
     pub x_app_id: Option<String>,
     pub x_redirect_uri: Option<String>,
+    pub x_reference_id: Option<String>,
 }
 
 impl HeaderPayload {
@@ -983,6 +999,17 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentCaptureData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentCancelData<F>
 where
     F: Clone,
 {

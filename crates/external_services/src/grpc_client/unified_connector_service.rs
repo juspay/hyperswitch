@@ -446,6 +446,16 @@ pub fn build_unified_connector_service_grpc_headers(
         parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
 
+    if let Some(reference_id) = grpc_headers.merchant_reference_id {
+        metadata.append(
+            consts::UCS_HEADER_REFERENCE_ID,
+            parse(
+                consts::UCS_HEADER_REFERENCE_ID,
+                reference_id.get_string_repr(),
+            )?,
+        );
+    };
+
     if let Err(err) = grpc_headers
         .tenant_id
         .parse()

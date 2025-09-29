@@ -1291,6 +1291,8 @@ mod tests {
             dispute_polling_interval: None,
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            external_vault_details: domain::ExternalVaultDetails::Skip,
+            billing_processor_id: None,
         });
 
         let business_profile = state
@@ -1409,6 +1411,7 @@ mod tests {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            request_extended_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
