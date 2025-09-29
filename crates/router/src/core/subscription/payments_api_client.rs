@@ -1,9 +1,8 @@
-use crate::routes::SessionState;
-use crate::{core::errors, headers, services::api};
 use api_models::subscription as subscription_types;
-use common_utils::ext_traits::BytesExt;
-use common_utils::request as services;
+use common_utils::{ext_traits::BytesExt, request as services};
 use error_stack::ResultExt;
+
+use crate::{core::errors, headers, routes::SessionState, services::api};
 
 pub struct PaymentsApiClient;
 
