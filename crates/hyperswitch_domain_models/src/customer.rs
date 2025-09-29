@@ -544,7 +544,7 @@ pub struct CustomerListConstraints {
 pub struct QueryCustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
-    pub search: Option<String>,
+    pub customer_id: Option<String>,
 }
 
 impl From<CustomerListConstraints> for QueryCustomerListConstraints {
@@ -552,7 +552,7 @@ impl From<CustomerListConstraints> for QueryCustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
-            search: value.customer_id.filter(|s| !s.trim().is_empty()), 
+            customer_id: value.customer_id.filter(|s| !s.trim().is_empty()), 
         }
     }
 }

@@ -20,7 +20,7 @@ impl CustomerNew {
 pub struct CustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
-    pub search: Option<String>,
+    pub customer_id: Option<String>,
 }
 
 impl Customer {
@@ -63,13 +63,11 @@ impl Customer {
         use diesel::prelude::*;
         use crate::schema::customers::dsl;
 
-        println!("Constraints: {:?}", constraints.search);
-
         // Handle search constraints
-        if let Some(search) = &constraints.search {
+        if let Some(customer_id) = &constraints.customer_id {
             let predicate = dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::customer_id.eq(search.clone()));
+                .and(dsl::customer_id.eq(customer_id.clone()));
 
             generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
                 conn,

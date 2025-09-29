@@ -673,7 +673,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let customer_list_constraints = diesel_models::query::customers::CustomerListConstraints {
             limit: query_constraints.limit,
             offset: query_constraints.offset,
-            search: query_constraints.search,
+            customer_id: query_constraints.customer_id,
         };
         self.find_resources(
             state,
@@ -696,9 +696,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let customer_list_constraints = diesel_models::query::customers::CustomerListConstraints {
             limit: query_constraints.limit,
             offset: query_constraints.offset,
-            search: query_constraints.search.clone(),
+            customer_id: query_constraints.customer_id.clone(),
         };
-        let total_count = if query_constraints.search.is_some() {
+        let total_count = if query_constraints.customer_id.is_some() {
             1
         } else {
             customers::Customer::count_by_merchant_id(&conn, merchant_id)

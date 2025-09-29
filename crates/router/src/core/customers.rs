@@ -636,10 +636,6 @@ pub async fn list_customers_with_count(
         offset: request.offset,
         customer_id: request.customer_id,
     };
-
-    println!("\n\n\ncustomer search: {:?}", customer_list_constraints.customer_id);
-
-
     let domain_customers = db
         .list_customers_by_merchant_id_with_count(
             &(&state).into(),
