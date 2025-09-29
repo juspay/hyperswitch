@@ -1008,6 +1008,7 @@ pub async fn construct_cancel_router_data_v2<'a>(
     request: types::PaymentsCancelData,
     connector_request_reference_id: String,
     customer_id: Option<common_utils::id_type::CustomerId>,
+    connector_id: &str,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<
     RouterDataV2<
@@ -1026,6 +1027,7 @@ pub async fn construct_cancel_router_data_v2<'a>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector_customer: None,
+        connector: connector_id.to_owned(),
         payment_id: payment_data
             .payment_attempt
             .payment_id
@@ -1140,6 +1142,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         request,
         connector_request_reference_id.clone(),
         customer_id.clone(),
+        connector_id,
         header_payload.clone(),
     )
     .await?;
@@ -2169,6 +2172,11 @@ where
             .connector
             .as_ref()
             .and_then(|conn| api_enums::Connector::from_str(conn).ok());
+        let error = payment_attempt
+            .error
+            .as_ref()
+            .map(api_models::payments::ErrorDetails::foreign_from);
+
         let response = api_models::payments::PaymentsCancelResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -2181,6 +2189,7 @@ where
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
             attempts: None,
             return_url: payment_intent.return_url.clone(),
+            error,
         };
 
         let headers = connector_http_status_code
@@ -5972,6 +5981,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDet
         Self {
             code: error_details.code.to_owned(),
             message: error_details.message.to_owned(),
+            reason: error_details.reason.clone(),
             unified_code: error_details.unified_code.clone(),
             unified_message: error_details.unified_message.clone(),
             network_advice_code: error_details.network_advice_code.clone(),
