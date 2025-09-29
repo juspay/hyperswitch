@@ -298,7 +298,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .or(payment_intent.allowed_payment_method_types),
             active_attempt_id,
             enable_partial_authorization: enable_partial_authorization
-                .unwrap_or(payment_intent.enable_partial_authorization),
+                .or(payment_intent.enable_partial_authorization),
             ..payment_intent
         };
 
