@@ -391,7 +391,12 @@ impl ObjectReferenceId {
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "PaymentId is required but received InvoiceId",
                 },
-            )
+            ),
+            Self::SubscriptionId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received SubscriptionId",
+                },
+            ),
         }
     }
 }

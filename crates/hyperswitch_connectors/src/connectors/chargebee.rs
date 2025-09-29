@@ -1317,7 +1317,7 @@ impl webhooks::IncomingWebhook for Chargebee {
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id.get_string_repr().to_string()),
         ))
     }
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
@@ -1331,7 +1331,7 @@ impl webhooks::IncomingWebhook for Chargebee {
 
         let subscription_id = webhook.content.invoice.subscription_id;
         Ok(api_models::webhooks::ObjectReferenceId::SubscriptionId(
-            subscription_id.into(),
+            subscription_id,
         ))
     }
     fn get_webhook_event_type(
