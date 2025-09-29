@@ -2848,11 +2848,10 @@ async fn decide_authorize_or_setup_intent_flow(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
-    use hyperswitch_domain_models::{
-        payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
-        router_data::AccessToken,
+     use hyperswitch_domain_models::{
+        payments::PaymentConfirmData,
+        router_flow_types::{Authorize, SetupMandate},
     };
-    use hyperswitch_interfaces::api::ConnectorSpecifications;
 
     if create_intent_response.amount_details.order_amount == MinorUnit::zero() {
         Box::pin(payments_core::<
@@ -7019,7 +7018,7 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_token: Option<&PaymentMethodToken>,
     supported_flows: &[common_enums::TokenizationFlow],
 ) -> bool {
-   if let (
+    if let (
         Some(storage::enums::PaymentMethodType::ApplePay),
         Some(PaymentMethodToken::ApplePayDecrypt(..)),
     ) = (payment_method_type, payment_method_token)

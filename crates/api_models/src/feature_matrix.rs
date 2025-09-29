@@ -101,14 +101,14 @@ impl common_utils::events::ApiEventMetric for FeatureMatrixRequest {}
 impl PaymentMethodSpecificFeatures {
     pub fn as_wallet(&self) -> Option<&WalletSpecificFeatures> {
         match self {
-            PaymentMethodSpecificFeatures::Wallet(w) => Some(w),
+            Self::Wallet(w) => Some(w),
             _ => None,
         }
     }
 
     pub fn as_card(&self) -> Option<&CardSpecificFeatures> {
         match self {
-            PaymentMethodSpecificFeatures::Card(c) => Some(c),
+            Self::Card(c) => Some(c),
             _ => None,
         }
     }
