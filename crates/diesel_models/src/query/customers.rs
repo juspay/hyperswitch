@@ -63,9 +63,6 @@ impl Customer {
         use diesel::prelude::*;
 
         use crate::schema::customers::dsl;
-
-        println!("Constraints: {:?}", constraints.search);
-
         // Handle search constraints
         if let Some(search) = &constraints.search {
             let predicate = dsl::merchant_id
