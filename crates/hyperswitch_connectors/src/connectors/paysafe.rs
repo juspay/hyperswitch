@@ -1242,6 +1242,7 @@ impl ConnectorSpecifications for Paysafe {
         Some(&PAYSAFE_SUPPORTED_WEBHOOK_FLOWS)
     }
 
+    #[cfg(feature = "v1")]
     fn should_call_connector_customer(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
