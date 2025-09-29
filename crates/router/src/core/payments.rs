@@ -2848,7 +2848,7 @@ async fn decide_authorize_or_setup_intent_flow(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
-     use hyperswitch_domain_models::{
+    use hyperswitch_domain_models::{
         payments::PaymentConfirmData,
         router_flow_types::{Authorize, SetupMandate},
     };
