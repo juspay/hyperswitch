@@ -105,29 +105,32 @@ impl TryFrom<&Option<SecretSerdeValue>> for PaysafeConnectorMetadataObject {
 impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(customer_data: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        let billing_address = customer_data
-            .get_optional_billing()
-            .and_then(|billing| billing.address.clone());
 
         let merchant_customer_id = match customer_data.customer_id.as_ref() {
-            Some(cid) if cid.get_string_repr().len() <= MAX_ID_LENGTH => {
-                Ok(cid.get_string_repr().to_string())
+            Some(customer_id) if customer_id.get_string_repr().len() <= MAX_ID_LENGTH => {
+                Ok(customer_id.get_string_repr().to_string())
             }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+            Some(customer_id) => Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Paysafe".to_string(),
+                field_name: "customer_id".to_string(),
+                max_length: MAX_ID_LENGTH,
+                received_length: customer_id.get_string_repr().len(),
             }),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_id",
+            })
         }?;
 
         Ok(Self {
             merchant_customer_id,
-            first_name: billing_address
-                .as_ref()
-                .and_then(|address| address.first_name.clone()),
-            last_name: billing_address
-                .as_ref()
-                .and_then(|address| address.last_name.clone()),
-            email: customer_data.request.email.clone(),
-            phone: customer_data.request.phone.clone(),
+            first_name: customer_data
+            .get_optional_billing_first_name(),
+            last_name: customer_data
+            .get_optional_billing_last_name(),
+            email: customer_data
+            .get_optional_billing_email(),
+            phone: customer_data
+            .get_optional_billing_phone_number()
         })
     }
 }
@@ -205,9 +208,9 @@ pub struct PaysafeBillingDetails {
     pub street: Option<Secret<String>>,
     pub street2: Option<Secret<String>>,
     pub city: Option<String>,
-    pub state: Option<Secret<String>>,
-    pub zip: Option<Secret<String>>,
-    pub country: Option<api_models::enums::CountryAlpha2>,
+    pub state: Secret<String>,
+    pub zip: Secret<String>,
+    pub country: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -503,29 +506,31 @@ fn create_paysafe_billing_details<T>(
 where
     T: RouterDataUtils,
 {
-    let zip = item.get_billing_zip();
-    let country = item.get_billing_country();
-    let state = item.get_billing_state_code();
-
+    // For customer-initiated mandate payments, zip, country and state fields are mandatory
     if is_customer_initiated_mandate_payment {
         Ok(Some(PaysafeBillingDetails {
             nick_name: item.get_optional_billing_first_name(),
             street: item.get_optional_billing_line1(),
             street2: item.get_optional_billing_line2(),
             city: item.get_optional_billing_city(),
-            zip: Some(zip?),
-            country: Some(country?),
-            state: Some(state?),
+            zip: item.get_billing_zip()?,
+            country: item.get_billing_country()?,
+            state: item.get_billing_state_code()?,
         }))
-    } else if let (Ok(zip), Ok(country), Ok(state)) = (zip, country, state) {
+    } 
+    // For normal payments, only send billing details if billing mandatory fields are available
+    else if let (Some(zip), Some(country), Some(state)) = 
+    (item.get_optional_billing_zip(),
+    item.get_optional_billing_country(),
+    item.get_optional_billing_state_code()) {
         Ok(Some(PaysafeBillingDetails {
             nick_name: item.get_optional_billing_first_name(),
             street: item.get_optional_billing_line1(),
             street2: item.get_optional_billing_line2(),
             city: item.get_optional_billing_city(),
-            zip: Some(zip),
-            country: Some(country),
-            state: Some(state),
+            zip: zip,
+            country: country,
+            state: state,
         }))
     } else {
         Ok(None)
@@ -812,7 +817,7 @@ impl<F>
         let mandate_reference = item
             .response
             .payment_handle_token
-            .map(|payment_handle_token| format!("{payment_handle_token}--{initial_transaction_id}"))
+            .map(|payment_handle_token| format!("{}--{initial_transaction_id}", payment_handle_token.expose()))
             .map(|mandate_id| MandateReference {
                 connector_mandate_id: Some(mandate_id),
                 payment_method_id: None,
@@ -1518,7 +1523,7 @@ pub struct PaysafePaymentHandlesSyncResponse {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaymentsResponse {
     pub id: String,
-    pub payment_handle_token: Option<String>,
+    pub payment_handle_token: Option<Secret<String>>,
     pub merchant_ref_num: Option<String>,
     pub status: PaysafePaymentStatus,
     pub error: Option<Error>,
