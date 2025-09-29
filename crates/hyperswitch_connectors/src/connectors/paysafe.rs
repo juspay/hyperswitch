@@ -58,7 +58,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, CustomerData, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+        self, PaymentMethodDataType, PaymentsAuthorizeRequestData,
         PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
