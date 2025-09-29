@@ -27,8 +27,7 @@ use crate::{
     services::authorization::{
         self as authz,
         permission_groups::{ParentGroupExt, PermissionGroupExt},
-        permissions::ResourceExt,
-        roles,
+        permissions, roles,
     },
     types::domain,
 };
@@ -571,15 +570,8 @@ pub fn permission_groups_to_parent_group_info(
                 .into_iter()
                 .collect();
 
-            let filtered_resources: Vec<_> = name
-                .resources()
-                .into_iter()
-                .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                .collect();
-
-            if filtered_resources.is_empty() {
-                return None;
-            }
+            let filtered_resources =
+                permissions::filter_resources_by_entity_type(name.resources(), entity_type)?;
 
             Some(role_api::ParentGroupInfo {
                 name,
@@ -591,18 +583,18 @@ pub fn permission_groups_to_parent_group_info(
 }
 
 pub fn resources_to_description(
-    resources: &[common_enums::Resource],
+    resources: Vec<common_enums::Resource>,
     entity_type: EntityType,
 ) -> Option<String> {
     if resources.is_empty() {
         return None;
     }
 
-    let description = resources
+    let filtered_resources = permissions::filter_resources_by_entity_type(resources, entity_type)?;
+
+    let description = filtered_resources
         .iter()
-        .map(|res| {
-            crate::services::authorization::permissions::get_resource_name(*res, entity_type)
-        })
+        .map(|res| permissions::get_resource_name(*res, entity_type))
         .collect::<Option<Vec<_>>>()?
         .join(", ");
 

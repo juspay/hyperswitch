@@ -274,7 +274,7 @@ pub async fn create_role_v2(
         .into_iter()
         .filter_map(|group_details| {
             let description = utils::user_role::resources_to_description(
-                &group_details.resources,
+                group_details.resources,
                 role.entity_type,
             )?;
             Some(role_api::ParentGroupDescription {
@@ -560,7 +560,7 @@ pub async fn list_roles_with_info(
                             .into_iter()
                             .filter_map(|group_details| {
                                 let description = utils::user_role::resources_to_description(
-                                    &group_details.resources,
+                                    group_details.resources,
                                     role_info.get_entity_type(),
                                 )?;
                                 Some(role_api::ParentGroupDescription {
