@@ -111,7 +111,11 @@ pub async fn create_and_confirm_subscription(
         merchant_account: handler.merchant_context.get_merchant_account().clone(),
     };
 
-    Box::pin(execute_subscription_confirmation(subscription_entry, customer)).await
+    Box::pin(execute_subscription_confirmation(
+        subscription_entry,
+        customer,
+    ))
+    .await
 }
 
 pub async fn confirm_subscription(
@@ -138,7 +142,11 @@ pub async fn confirm_subscription(
         .find_subscription(subscription_id.get_string_repr().to_string())
         .await?;
 
-    Box::pin(execute_subscription_confirmation(subscription_entry, customer)).await
+    Box::pin(execute_subscription_confirmation(
+        subscription_entry,
+        customer,
+    ))
+    .await
 }
 
 async fn execute_subscription_confirmation(
