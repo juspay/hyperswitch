@@ -59,11 +59,13 @@ pub use hyperswitch_domain_models::{
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
     router_request_types::CustomerDetails,
+    router_response_types::SupportedPaymentMethodsExt,
 };
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -108,9 +110,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
-    configs::settings::{
-        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter,
-    },
+    configs::settings::{PaymentFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -2849,9 +2849,10 @@ async fn decide_authorize_or_setup_intent_flow(
     header_payload: HeaderPayload,
 ) -> RouterResponse<payments_api::PaymentsResponse> {
     use hyperswitch_domain_models::{
-        payments::PaymentConfirmData,
-        router_flow_types::{Authorize, SetupMandate},
+        payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
+        router_data::AccessToken,
     };
+    use hyperswitch_interfaces::api::ConnectorSpecifications;
 
     if create_intent_response.amount_details.order_amount == MinorUnit::zero() {
         Box::pin(payments_core::<
@@ -6925,32 +6926,77 @@ fn is_payment_method_tokenization_enabled_for_connector(
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
-    Ok(connector_tokenization_filter
-        .map(|connector_filter| {
-            connector_filter
-                .payment_method
-                .clone()
-                .contains(&payment_method)
-                && is_payment_method_type_allowed_for_connector(
-                    payment_method_type,
-                    connector_filter.payment_method_type.clone(),
-                )
-                && is_apple_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
-                    payment_method_token,
-                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
-                )
-                && is_google_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
-                    payment_method_token,
-                    connector_filter.google_pay_pre_decrypt_flow.clone(),
-                )
-                && is_payment_flow_allowed_for_connector(
-                    mandate_flow_enabled,
-                    connector_filter.flow.clone(),
-                )
-        })
-        .unwrap_or(false))
+    if let Some(connector_filter) = connector_tokenization_filter {
+        let connector = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+            None,
+        )?;
+
+        let supported_payment_methods = connector
+            .connector
+            .get_supported_payment_methods()
+            .ok_or_else(|| {
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector details not found in payment data")
+            })?;
+
+        let google_pay_supported_flows = if let (
+            supported_payment_methods,
+            Some(pm_type @ storage::enums::PaymentMethodType::GooglePay),
+        ) = (supported_payment_methods, payment_method_type)
+        {
+            supported_payment_methods
+                .get_payment_method_details(&payment_method, &pm_type)
+                .and_then(|details| details.specific_features.as_ref())
+                .and_then(|features| features.as_wallet())
+                .map(|wallet_features| wallet_features.supported_tokenization_flows.as_slice())
+                .unwrap_or(&[])
+        } else {
+            &[]
+        };
+
+        let apple_pay_supported_flows = if let (
+            supported_payment_methods,
+            Some(pm_type @ storage::enums::PaymentMethodType::ApplePay),
+        ) = (supported_payment_methods, payment_method_type)
+        {
+            supported_payment_methods
+                .get_payment_method_details(&payment_method, &pm_type)
+                .and_then(|details| details.specific_features.as_ref())
+                .and_then(|features| features.as_wallet())
+                .map(|wallet_features| wallet_features.supported_tokenization_flows.as_slice())
+                .unwrap_or(&[])
+        } else {
+            &[]
+        };
+
+        Ok(connector_filter
+            .payment_method
+            .clone()
+            .contains(&payment_method)
+            && is_payment_method_type_allowed_for_connector(
+                payment_method_type,
+                connector_filter.payment_method_type.clone(),
+            )
+            && is_apple_pay_pre_decrypt_type_connector_tokenization(
+                payment_method_type,
+                payment_method_token,
+                apple_pay_supported_flows,
+            )
+            && is_google_pay_pre_decrypt_type_connector_tokenization(
+                payment_method_type,
+                payment_method_token,
+                google_pay_supported_flows,
+            )
+            && is_payment_flow_allowed_for_connector(
+                mandate_flow_enabled,
+                connector_filter.flow.clone(),
+            ))
+    } else {
+        Ok(false)
+    }
 }
 
 fn is_payment_flow_allowed_for_connector(
@@ -6971,34 +7017,33 @@ fn is_payment_flow_allowed_for_connector(
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
-    apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
+    supported_flows: &[common_enums::TokenizationFlow],
 ) -> bool {
-    match (payment_method_type, payment_method_token) {
-        (
-            Some(storage::enums::PaymentMethodType::ApplePay),
-            Some(PaymentMethodToken::ApplePayDecrypt(..)),
-        ) => !matches!(
-            apple_pay_pre_decrypt_flow_filter,
-            Some(ApplePayPreDecryptFlow::NetworkTokenization)
-        ),
-        _ => true,
+   if let (
+        Some(storage::enums::PaymentMethodType::ApplePay),
+        Some(PaymentMethodToken::ApplePayDecrypt(..)),
+    ) = (payment_method_type, payment_method_token)
+    {
+        !supported_flows.contains(&common_enums::TokenizationFlow::NetworkTokenization)
+    } else {
+        // Always return true for non–Apple Pay pre-decrypt cases,
+        // because the filter is only relevant for Apple Pay pre-decrypt tokenization.
+        // Returning true ensures that other payment methods or token types are not blocked.
+        true
     }
 }
 
 fn is_google_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
-    google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
+    supported_flows: &[common_enums::TokenizationFlow],
 ) -> bool {
     if let (
         Some(storage::enums::PaymentMethodType::GooglePay),
         Some(PaymentMethodToken::GooglePayDecrypt(..)),
     ) = (payment_method_type, payment_method_token)
     {
-        !matches!(
-            google_pay_pre_decrypt_flow_filter,
-            Some(GooglePayPreDecryptFlow::NetworkTokenization)
-        )
+        !supported_flows.contains(&common_enums::TokenizationFlow::NetworkTokenization)
     } else {
         // Always return true for non–Google Pay pre-decrypt cases,
         // because the filter is only relevant for Google Pay pre-decrypt tokenization.

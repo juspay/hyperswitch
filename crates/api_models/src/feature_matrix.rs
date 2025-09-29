@@ -24,10 +24,17 @@ pub struct CardSpecificFeatures {
 }
 
 #[derive(Debug, Clone, ToSchema, Serialize)]
+pub struct WalletSpecificFeatures {
+    #[schema(value_type = Vec<TokenizationFlow>)]
+    pub supported_tokenization_flows: Vec<common_enums::TokenizationFlow>,
+}
+
+#[derive(Debug, Clone, ToSchema, Serialize)]
 #[serde(untagged)]
 pub enum PaymentMethodSpecificFeatures {
     /// Card specific features
     Card(CardSpecificFeatures),
+    Wallet(WalletSpecificFeatures),
 }
 
 #[derive(Debug, ToSchema, Serialize)]
@@ -91,3 +98,18 @@ pub struct FeatureMatrixListResponse {
 
 impl common_utils::events::ApiEventMetric for FeatureMatrixListResponse {}
 impl common_utils::events::ApiEventMetric for FeatureMatrixRequest {}
+impl PaymentMethodSpecificFeatures {
+    pub fn as_wallet(&self) -> Option<&WalletSpecificFeatures> {
+        match self {
+            PaymentMethodSpecificFeatures::Wallet(w) => Some(w),
+            _ => None,
+        }
+    }
+
+    pub fn as_card(&self) -> Option<&CardSpecificFeatures> {
+        match self {
+            PaymentMethodSpecificFeatures::Card(c) => Some(c),
+            _ => None,
+        }
+    }
+}
