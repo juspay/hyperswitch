@@ -110,8 +110,8 @@ pub fn should_call_connector_create_customer<'a>(
     match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
             let connector_needs_customer = connector
-            .connector
-            .should_call_connector_customer(payment_attempt);
+                .connector
+                .should_call_connector_customer(payment_attempt);
 
             if connector_needs_customer {
                 let connector_customer_details = customer
