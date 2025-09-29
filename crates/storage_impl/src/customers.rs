@@ -709,16 +709,19 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 })?
         };
 
-        
-        let customers = self.find_resources(
-            state,
-            key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
-        )
-        .await?;
+        let customers = self
+            .find_resources(
+                state,
+                key_store,
+                customers::Customer::list_by_merchant_id(
+                    &conn,
+                    merchant_id,
+                    customer_list_constraints,
+                ),
+            )
+            .await?;
         Ok((customers, total_count))
     }
-
 
     #[instrument(skip_all)]
     async fn insert_customer(

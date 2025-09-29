@@ -618,7 +618,6 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-
 #[instrument(skip(state))]
 pub async fn list_customers_with_count(
     state: SessionState,
@@ -637,8 +636,10 @@ pub async fn list_customers_with_count(
         customer_id: request.customer_id,
     };
 
-    println!("\n\n\ncustomer search: {:?}", customer_list_constraints.customer_id);
-
+    println!(
+        "\n\n\ncustomer search: {:?}",
+        customer_list_constraints.customer_id
+    );
 
     let domain_customers = db
         .list_customers_by_merchant_id_with_count(
@@ -651,21 +652,25 @@ pub async fn list_customers_with_count(
         .switch()?;
 
     #[cfg(feature = "v1")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers.0
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
         .collect();
 
     #[cfg(feature = "v2")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers.0
+    let customers: Vec<customers::CustomerResponse> = domain_customers
+        .0
         .into_iter()
         .map(customers::CustomerResponse::foreign_from)
         .collect();
 
-    Ok(services::ApplicationResponse::Json(customers::CustomerListResponse {
-        data: customers.into_iter().map(|c| c.0).collect(),
-        count: domain_customers.1,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerListResponse {
+            data: customers.into_iter().map(|c| c.0).collect(),
+            count: domain_customers.1,
+        },
+    ))
 }
 
 #[cfg(feature = "v2")]

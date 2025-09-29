@@ -653,4 +653,3 @@ pub async fn list_roles_at_entity_level(
 
     Ok(ApplicationResponse::Json(list_minimal_role_info))
 }
-

@@ -1218,7 +1218,10 @@ impl Customers {
                     web::resource("/{customer_id}/mandates")
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
-                .service(web::resource("/list_with_count").route(web::get().to(customers::customers_list_with_count)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
         }
 
         #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -1251,7 +1254,6 @@ impl Customers {
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
         }
 
-
         #[cfg(feature = "olap")]
         {
             route = route
@@ -1259,7 +1261,10 @@ impl Customers {
                     web::resource("/{customer_id}/mandates")
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
-                .service(web::resource("/list_with_count").route(web::get().to(customers::customers_list_with_count)))
+                .service(
+                    web::resource("/list_with_count")
+                        .route(web::get().to(customers::customers_list_with_count)),
+                )
         }
 
         #[cfg(feature = "oltp")]
@@ -1289,7 +1294,6 @@ impl Customers {
 
         route
     }
-    
 }
 
 pub struct Refunds;

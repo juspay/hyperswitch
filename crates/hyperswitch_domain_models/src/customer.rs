@@ -12,9 +12,7 @@ use common_utils::{
         Description,
     },
 };
-use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal,
-};
+use diesel_models::{customers as storage_types, customers::CustomerUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
@@ -552,7 +550,7 @@ impl From<CustomerListConstraints> for QueryCustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
-            search: value.customer_id.filter(|s| !s.trim().is_empty()), 
+            search: value.customer_id.filter(|s| !s.trim().is_empty()),
         }
     }
 }

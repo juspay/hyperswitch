@@ -61,6 +61,7 @@ impl Customer {
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
         use diesel::prelude::*;
+
         use crate::schema::customers::dsl;
 
         println!("Constraints: {:?}", constraints.search);
@@ -93,13 +94,10 @@ impl Customer {
         }
     }
 
-
-
     pub async fn count_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<i64> {
-
         generics::generic_count::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
