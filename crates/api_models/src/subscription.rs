@@ -73,6 +73,7 @@ pub struct CreateSubscriptionResponse {
 /// - `Cancelled`: Subscription has been cancelled.
 /// - `Failed`: Subscription has failed.
 #[derive(Debug, Clone, serde::Serialize, strum::EnumString, strum::Display, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SubscriptionStatus {
     /// Subscription is active.
     Active,
@@ -149,6 +150,8 @@ pub struct PaymentsRequestData {
     pub currency: Option<api_enums::Currency>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub confirm: bool,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
     #[serde(flatten)]
     pub payment_details: PaymentDetails,
 }
@@ -160,6 +163,10 @@ pub struct PaymentResponseData {
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
     pub connector: Option<String>,
+    pub payment_method_id: Option<Secret<String>>,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {
@@ -167,10 +174,10 @@ pub struct ConfirmSubscriptionRequest {
     pub client_secret: Option<String>,
 
     /// Amount to be charged for the invoice.
-    pub amount: MinorUnit,
+    pub amount: Option<MinorUnit>,
 
     /// Currency for the amount.
-    pub currency: api_enums::Currency,
+    pub currency: Option<api_enums::Currency>,
 
     /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
@@ -185,7 +192,10 @@ pub struct ConfirmSubscriptionRequest {
     pub customer_id: common_utils::id_type::CustomerId,
 
     /// Billing address for the subscription.
-    pub billing_address: Option<Address>,
+    pub billing: Option<Address>,
+
+    /// Shipping address for the subscription.
+    pub shipping: Option<Address>,
 
     /// Payment details for the invoice.
     pub payment_details: PaymentDetails,
@@ -201,9 +211,9 @@ impl ConfirmSubscriptionRequest {
     }
 
     pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
-        self.billing_address.clone().ok_or(error_stack::report!(
+        self.billing.clone().ok_or(error_stack::report!(
             ValidationError::MissingRequiredField {
-                field_name: "billing_address".to_string()
+                field_name: "billing".to_string()
             }
         ))
     }
@@ -242,6 +252,9 @@ pub struct ConfirmSubscriptionResponse {
 
     /// Invoice Details for the subscription.
     pub invoice: Option<Invoice>,
+
+    /// Billing Processor subscription ID.
+    pub billing_processor_subscription_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]

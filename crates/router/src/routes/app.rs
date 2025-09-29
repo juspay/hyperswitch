@@ -1178,11 +1178,9 @@ impl Subscription {
 
         route
             .service(
-                web::resource("").route(web::post().to(
-                    |state, req, payload| {
-                        subscription::create_and_confirm_subscription(state, req, payload)
-                    },
-                )),
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
             )
             .service(web::resource("/create").route(
                 web::post().to(|state, req, payload| {

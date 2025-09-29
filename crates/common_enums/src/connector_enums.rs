@@ -883,7 +883,8 @@ impl TryFrom<Connector> for RoutableConnectors {
 }
 
 // Enum representing different status an invoice can have.
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,
     PaymentPending,
@@ -893,4 +894,5 @@ pub enum InvoiceStatus {
     PaymentCanceled,
     InvoicePaid,
     ManualReview,
+    Voided,
 }

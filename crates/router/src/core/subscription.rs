@@ -4,7 +4,8 @@ use api_models::{
     enums as api_enums,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
-use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
+use common_enums::connector_enums;
+use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii, types::MinorUnit};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -44,8 +45,11 @@ pub async fn create_subscription(
         profile_id,
         &request.customer_id,
         request.merchant_reference_id,
-    ).await
-    .attach_printable("subscriptions: failed to create subscription entry in create_subscription")?;
+    )
+    .await
+    .attach_printable(
+        "subscriptions: failed to create subscription entry in create_subscription",
+    )?;
 
     let response = CreateSubscriptionResponse::new(
         subscription_response.id.clone(),
@@ -71,7 +75,7 @@ pub async fn create_and_confirm_subscription(
     request: subscription_types::ConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
-    
+
     let subscription = SubscriptionHandler::create_subscription_entry(
         &state,
         &merchant_context,
@@ -79,14 +83,25 @@ pub async fn create_and_confirm_subscription(
         profile_id.clone(),
         &request.customer_id,
         None, // merchant_reference_id can be derived from plan_id if needed
-    ).await
-    .attach_printable("subscriptions: failed to create subscription entry in create_and_confirm_subscription")?;
+    )
+    .await
+    .attach_printable(
+        "subscriptions: failed to create subscription entry in create_and_confirm_subscription",
+    )?;
 
     // Use the same confirmation flow but with the subscription we just created (no DB fetch needed)
-    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
-        .attach_printable("subscriptions: failed to find business profile in create_and_confirm_subscription")?;
-    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
-        .attach_printable("subscriptions: failed to find customer in create_and_confirm_subscription")?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in create_and_confirm_subscription",
+            )?;
+    let customer =
+        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find customer in create_and_confirm_subscription",
+            )?;
 
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile.clone());
     let subscription_entry = SubscriptionWithHandler {
@@ -107,10 +122,16 @@ pub async fn confirm_subscription(
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     // Find the subscription from database
-    let profile = SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id).await
-        .attach_printable("subscriptions: failed to find business profile in confirm_subscription")?;
-    let customer = SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id).await
-        .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in confirm_subscription",
+            )?;
+    let customer =
+        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
+            .await
+            .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
 
     let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
     let subscription_entry = handler
@@ -119,7 +140,6 @@ pub async fn confirm_subscription(
 
     execute_subscription_confirmation(subscription_entry, customer).await
 }
-
 
 async fn execute_subscription_confirmation(
     mut subscription_entry: SubscriptionWithHandler<'_>,
@@ -136,18 +156,38 @@ async fn execute_subscription_confirmation(
         .create_subscription_on_connector(&subscription_entry.handler.state)
         .await?;
 
-    let _payment_response = invoice_handler
-        .create_cit_payment(&subscription_entry.handler.state, &subscription_entry.handler.request)
+    let invoice_details = subscription_create_response.invoice_details;
+    // Use request amount and currency if provided, else fallback to invoice details from connector response
+    let (amount, currency) = billing_handler
+        .request
+        .amount
+        .zip(billing_handler.request.currency)
+        .unwrap_or(
+            invoice_details
+                .clone()
+                .and_then(|invoice| Some((invoice.total, invoice.currency_code)))
+                .unwrap_or((MinorUnit::new(0), api_enums::Currency::default())), // Default to 0 and a default currency if not provided
+        );
+
+    let payment_response = invoice_handler
+        .create_cit_payment(
+            &subscription_entry.handler.state,
+            &subscription_entry.handler.request,
+            amount,
+            currency,
+        )
         .await?;
 
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &subscription_entry.handler.state,
             subscription_entry.profile.get_billing_processor_id()?,
-            Some(_payment_response.payment_id),
-            billing_handler.request.amount,
-            billing_handler.request.currency.to_string(),
-            common_enums::connector_enums::InvoiceStatus::InvoiceCreated,
+            Some(payment_response.payment_id.clone()),
+            amount,
+            currency,
+            invoice_details
+                .and_then(|invoice| invoice.status)
+                .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
             None,
         )
@@ -158,13 +198,23 @@ async fn execute_subscription_confirmation(
     //     .await?;
 
     subscription_entry
-        .update_subscription_status(
-            SubscriptionStatus::from(subscription_create_response.status).to_string(),
-        )
+        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
+            payment_response.payment_method_id.clone(),
+            Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+            Some(
+                subscription_create_response
+                    .subscription_id
+                    .get_string_repr()
+                    .to_string(),
+            ),
+        ))
         .await?;
 
-    let response = subscription_entry
-        .generate_response(&invoice_entry, subscription_create_response.status)?;
+    let response = subscription_entry.generate_response(
+        &invoice_entry,
+        &payment_response,
+        subscription_create_response.status,
+    )?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -219,7 +269,7 @@ impl SubscriptionHandler {
         );
 
         subscription.generate_and_set_client_secret();
-        
+
         db.insert_subscription_entry(subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -303,7 +353,7 @@ impl<'a> SubscriptionWithHandler<'a> {
     fn generate_response(
         &self,
         invoice: &diesel_models::invoice::Invoice,
-        // _payment_response: &subscription_types::PaymentResponseData,
+        payment_response: &subscription_types::PaymentResponseData,
         status: subscription_response_types::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
@@ -312,10 +362,11 @@ impl<'a> SubscriptionWithHandler<'a> {
             status: SubscriptionStatus::from(status),
             plan_id: None,
             profile_id: self.subscription.profile_id.to_owned(),
-            payment: None,
+            payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
             price_id: None,
             coupon: None,
+            billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice {
                 id: invoice.id.clone(),
                 subscription_id: invoice.subscription_id.clone(),
@@ -339,7 +390,10 @@ impl<'a> SubscriptionWithHandler<'a> {
         })
     }
 
-    async fn update_subscription_status(&mut self, status: String) -> errors::RouterResult<()> {
+    async fn update_subscription(
+        &mut self,
+        subscription_update: diesel_models::subscription::SubscriptionUpdate,
+    ) -> errors::RouterResult<()> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
@@ -348,7 +402,7 @@ impl<'a> SubscriptionWithHandler<'a> {
                     .get_merchant_account()
                     .get_id(),
                 self.subscription.id.get_string_repr().to_string(),
-                diesel_models::subscription::SubscriptionUpdate::new(None, Some(status)),
+                subscription_update,
             )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
@@ -409,10 +463,9 @@ impl<'a> SubscriptionWithHandler<'a> {
             "invalid connector name received in billing merchant connector account",
         )?;
 
-        let connector_enum =
-            common_enums::connector_enums::Connector::from_str(connector_name.as_str())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("unable to parse connector name {connector_name:?}"))?;
+        let connector_enum = connector_enums::Connector::from_str(connector_name.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("unable to parse connector name {connector_name:?}"))?;
 
         let connector_params =
             hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
@@ -468,10 +521,10 @@ impl InvoiceHandler {
         state: &SessionState,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
-        amount: common_utils::types::MinorUnit,
-        currency: String,
-        status: common_enums::connector_enums::InvoiceStatus,
-        provider_name: common_enums::connector_enums::Connector,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+        status: connector_enums::InvoiceStatus,
+        provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
@@ -483,7 +536,7 @@ impl InvoiceHandler {
             self.subscription.payment_method_id.clone(),
             self.subscription.customer_id.to_owned(),
             amount,
-            currency,
+            currency.to_string(),
             status,
             provider_name,
             metadata,
@@ -512,13 +565,17 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         request: &subscription_types::ConfirmSubscriptionRequest,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         let cit_payment_request = subscription_types::PaymentsRequestData {
-            amount: Some(request.amount),
-            currency: Some(request.currency),
+            amount: Some(amount),
+            currency: Some(currency),
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
             payment_id: Self::generate_payment_id(),
+            billing: request.billing.clone(),
+            shipping: request.shipping.clone(),
             payment_details: request.payment_details.clone(),
         };
         payments_api_client::PaymentsApiClient::create_cit_payment(
@@ -565,7 +622,7 @@ impl BillingHandler {
             customer_id: Some(self.subscription.customer_id.to_owned()),
             billing_address: self
                 .request
-                .billing_address
+                .billing
                 .as_ref()
                 .and_then(|add| add.address.clone())
                 .and_then(|addr| addr.into()),
@@ -625,7 +682,7 @@ impl BillingHandler {
             subscription_items: vec![subscription_item],
             billing_address: self.request.get_billing_address().change_context(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_address",
+                    field_name: "billing",
                 },
             )?,
             auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
