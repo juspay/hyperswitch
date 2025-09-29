@@ -378,10 +378,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        if req.request.is_mandate_payment()
-            && matches!(req.payment_method, enums::PaymentMethod::Card)
-            && !req.is_three_ds()
-        {
             Ok(Some(
                 RequestBuilder::new()
                     .method(Method::Post)
@@ -397,9 +393,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
                     )?)
                     .build(),
             ))
-        } else {
-            Ok(None)
-        }
     }
 
     fn handle_response(
@@ -1247,5 +1240,15 @@ impl ConnectorSpecifications for Paysafe {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PAYSAFE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        matches!(payment_attempt.setup_future_usage_applied, Some(enums::FutureUsage::OffSession))
+        && payment_attempt.customer_acceptance.is_some()
+        && matches!(payment_attempt.payment_method, Some(enums::PaymentMethod::Card))
+        && matches!(payment_attempt.authentication_type, Some(enums::AuthenticationType::NoThreeDs)| None )
     }
 }
