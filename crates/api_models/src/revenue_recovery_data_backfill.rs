@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::File, io::BufReader};
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_enums::{CardNetwork, PaymentMethodType};
-use common_utils::events::ApiEventMetric;
+use common_utils::{events::ApiEventMetric, pii::PhoneNumberStrategy};
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -82,6 +82,24 @@ impl ApiEventMetric for CsvParsingError {
     }
 }
 
+impl ApiEventMetric for RedisDataResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UpdateTokenStatusRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UpdateTokenStatusResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub enum BackfillError {
     InvalidCardType(String),
@@ -94,6 +112,39 @@ pub enum BackfillError {
 #[derive(serde::Deserialize)]
 pub struct BackfillQuery {
     pub cutoff_time: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RedisKeyType {
+    Status, // for customer:{id}:status
+    Tokens, // for customer:{id}:tokens
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetRedisDataQuery {
+    pub key_type: RedisKeyType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RedisDataResponse {
+    pub exists: bool,
+    pub ttl_seconds: i64,
+    pub data: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateTokenStatusRequest {
+    pub connector_customer_id: String,
+    pub payment_processor_token: Secret<String, PhoneNumberStrategy>,
+    pub scheduled_at: Option<String>,
+    pub is_hard_decline: Option<bool>,
+    pub error_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpdateTokenStatusResponse {
+    pub updated: bool,
+    pub message: String,
 }
 
 impl std::fmt::Display for BackfillError {

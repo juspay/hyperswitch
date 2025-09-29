@@ -658,6 +658,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Revenue recovery Redis operations flow
+    RevenueRecoveryRedis,
     /// Gift card balance check flow
     GiftCardBalanceCheck,
 }
