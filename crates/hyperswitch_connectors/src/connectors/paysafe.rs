@@ -378,21 +378,21 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-            Ok(Some(
-                RequestBuilder::new()
-                    .method(Method::Post)
-                    .url(&types::ConnectorCustomerType::get_url(
-                        self, req, connectors,
-                    )?)
-                    .attach_default_headers()
-                    .headers(types::ConnectorCustomerType::get_headers(
-                        self, req, connectors,
-                    )?)
-                    .set_body(types::ConnectorCustomerType::get_request_body(
-                        self, req, connectors,
-                    )?)
-                    .build(),
-            ))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -1246,9 +1246,17 @@ impl ConnectorSpecifications for Paysafe {
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
-        matches!(payment_attempt.setup_future_usage_applied, Some(enums::FutureUsage::OffSession))
-        && payment_attempt.customer_acceptance.is_some()
-        && matches!(payment_attempt.payment_method, Some(enums::PaymentMethod::Card))
-        && matches!(payment_attempt.authentication_type, Some(enums::AuthenticationType::NoThreeDs)| None )
+        matches!(
+            payment_attempt.setup_future_usage_applied,
+            Some(enums::FutureUsage::OffSession)
+        ) && payment_attempt.customer_acceptance.is_some()
+            && matches!(
+                payment_attempt.payment_method,
+                Some(enums::PaymentMethod::Card)
+            )
+            && matches!(
+                payment_attempt.authentication_type,
+                Some(enums::AuthenticationType::NoThreeDs) | None
+            )
     }
 }
