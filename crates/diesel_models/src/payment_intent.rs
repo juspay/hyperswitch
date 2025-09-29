@@ -689,6 +689,7 @@ pub struct PaymentIntentUpdateInternal {
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -732,6 +733,7 @@ impl PaymentIntentUpdateInternal {
             updated_by,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            enable_partial_authorization,
         } = self;
 
         PaymentIntent {
@@ -809,7 +811,7 @@ impl PaymentIntentUpdateInternal {
             shipping_amount_tax: source.shipping_amount_tax,
             duty_amount: source.duty_amount,
             order_date: source.order_date,
-            enable_partial_authorization: None,
+            enable_partial_authorization: source.enable_partial_authorization,
             split_txns_enabled: source.split_txns_enabled,
             enable_overcapture: None,
             active_attempt_id_type: source.active_attempt_id_type,
