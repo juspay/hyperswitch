@@ -1215,7 +1215,6 @@ impl Customers {
                         .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
         }
-
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
             route = route
