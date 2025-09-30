@@ -10,8 +10,8 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-use crate::diesel_error_to_data_error;
 use crate::{
+    diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -288,7 +288,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
             .await
     }
-
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
@@ -826,7 +825,6 @@ impl domain::CustomerInterface for MockDb {
         Ok(customers)
     }
 
-    
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(

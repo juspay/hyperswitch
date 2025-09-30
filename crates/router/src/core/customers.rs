@@ -619,7 +619,6 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
