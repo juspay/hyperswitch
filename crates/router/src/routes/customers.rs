@@ -238,8 +238,7 @@ pub async fn customers_list(
     ))
     .await
 }
-//new End point for the list with count
-#[cfg(feature = "v1")]
+
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list_with_count(
     state: web::Data<AppState>,
@@ -277,6 +276,7 @@ pub async fn customers_list_with_count(
     ))
     .await
 }
+
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]

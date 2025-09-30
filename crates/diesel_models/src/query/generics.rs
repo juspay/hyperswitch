@@ -455,13 +455,23 @@ where
     let query = <T as HasTable>::table()
         .filter(predicate)
         .select(count_star());
+
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
-        .await
-        .map(|count: i64| count as usize)
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error counting records by predicate")
+    let count_i64: i64 = track_database_call::<T, _, _>(
+        query.get_result_async(conn),
+        DatabaseOperation::Count,
+    )
+    .await
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable("Error counting records by predicate")?;
+
+    let count_usize = usize::try_from(count_i64).map_err(|_| {
+        report!(errors::DatabaseError::Others)
+            .attach_printable("Count value does not fit in usize")
+    })?;
+
+    Ok(count_usize)
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

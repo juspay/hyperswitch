@@ -55,6 +55,7 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
@@ -66,7 +67,7 @@ impl Customer {
             .eq(merchant_id.to_owned())
             .and(dsl::customer_id.like(customer_id.clone()));
 
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
             conn,
             predicate,
             Some(constraints.limit),
@@ -75,6 +76,29 @@ impl Customer {
         )
         .await
     }
+
+    #[cfg(feature = "v2")]
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        constraints: CustomerListConstraints,
+    ) -> StorageResult<Vec<Self>> {
+        let customer_id = constraints.customer_id.unwrap_or_else(|| "%".to_string());
+
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::id.like(customer_id.clone())); // use id instead of customer_id
+
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            predicate,
+            Some(constraints.limit),
+            constraints.offset,
+            Some(dsl::created_at),
+        )
+        .await
+    }
+
 
     pub async fn count_by_merchant_id(
         conn: &PgPooledConn,
