@@ -388,4 +388,3 @@ pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
 }
-
