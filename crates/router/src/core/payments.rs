@@ -94,8 +94,10 @@ use self::{
 #[cfg(feature = "v1")]
 use super::unified_connector_service::update_gateway_system_in_feature_metadata;
 use super::{
-    errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
-    unified_connector_service::should_call_unified_connector_service,
+    errors::StorageErrorExt,
+    payment_methods::surcharge_decision_configs,
+    routing::TransactionData,
+    unified_connector_service::{should_call_unified_connector_service, Execution},
 };
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -4251,6 +4253,13 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    let should_call_unified_connector_service = should_call_unified_connector_service(
+        state,
+        merchant_context,
+        &router_data,
+        Some(payment_data),
+    )
+    .await?;
     let mut rd = router_data.clone();
     record_time_taken_with(|| async {
         if !matches!(
@@ -4259,13 +4268,7 @@ where
         ) && !matches!(
             call_connector_action,
             CallConnectorAction::HandleResponse(_),
-        ) && should_call_unified_connector_service(
-            state,
-            merchant_context,
-            &router_data,
-            Some(payment_data),
-        )
-        .await?
+        ) && should_call_unified_connector_service == Execution::UCS
         {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
@@ -4320,7 +4323,9 @@ where
 
             Ok((router_data, merchant_connector_account))
         } else {
-            router_env::logger::info!(
+            match should_call_unified_connector_service {
+                Execution::Direct => {
+                    router_env::logger::info!(
                 "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
                 payment_data
                     .get_payment_intent()
@@ -4328,43 +4333,83 @@ where
                     .get_string_repr(),
                 payment_data.get_payment_attempt().attempt_id
             );
-            let ucs_merchant_connector_account = merchant_connector_account.clone();
-            let ucs_merchant_context = merchant_context.clone();
 
-            // Update feature metadata to track Direct routing usage for stickiness
-            update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
-            let ucs_state = state.clone();
-            tokio::spawn(async move {
-                let _result = rd
-                    .call_unified_connector_service(
-                        &ucs_state,
-                        ucs_merchant_connector_account,
-                        &ucs_merchant_context,
+                    // Update feature metadata to track Direct routing usage for stickiness
+                    update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+
+                    let result = call_connector_service(
+                        state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
                     )
-                    .await;
-            });
+                    .await?;
+                    Ok(result)
+                }
+                _ => {
+                    router_env::logger::info!(
+                "Processing payment through Direct gateway system - and UCS in shadow mode payment_id={}, attempt_id={}",
+                payment_data
+                    .get_payment_intent()
+                    .payment_id
+                    .get_string_repr(),
+                payment_data.get_payment_attempt().attempt_id
+            );
+                    let ucs_merchant_connector_account = merchant_connector_account.clone();
+                    let ucs_merchant_context = merchant_context.clone();
 
-            call_connector_service(
-                state,
-                req_state,
-                merchant_context,
-                connector,
-                operation,
-                payment_data,
-                customer,
-                call_connector_action,
-                validate_result,
-                schedule_time,
-                header_payload,
-                frm_suggestion,
-                business_profile,
-                is_retry_payment,
-                all_keys_required,
-                merchant_connector_account,
-                router_data,
-                tokenization_action,
-            )
-            .await
+                    // Update feature metadata to track Direct routing usage for stickiness
+                    update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
+
+                    let result = call_connector_service(
+                        state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        validate_result,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        all_keys_required,
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                    )
+                    .await?;
+
+                    let ucs_state = state.clone();
+                    tokio::spawn(async move {
+                        let _result = rd
+                            .call_unified_connector_service(
+                                &ucs_state,
+                                ucs_merchant_connector_account,
+                                &ucs_merchant_context,
+                            )
+                            .await;
+                    });
+                    Ok(result)
+                }
+            }
         }
     })
     .await

@@ -346,7 +346,7 @@ where
 
                     request.headers.insert((
                         X_FLOW.to_string(),
-                        Maskable::Masked(Secret::new(flow_name.clone().to_string())),
+                        Maskable::Masked(Secret::new(flow_name.to_string())),
                     ));
 
                     let connector_name = req.connector.clone();
