@@ -19036,6 +19036,14 @@
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
           },
+          "split_payment_method_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitPaymentMethodDataRequest"
+            },
+            "description": "The payment instrument data to be used for the payment in case of split payments",
+            "nullable": true
+          },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -19292,6 +19300,12 @@
                 "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -19664,6 +19678,12 @@
           },
           "payment_type": {
             "$ref": "#/components/schemas/PaymentType"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20122,6 +20142,12 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -20595,6 +20621,12 @@
                 "$ref": "#/components/schemas/UpdateActiveAttempt"
               }
             ],
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -24981,6 +25013,25 @@
           "amount",
           "created"
         ]
+      },
+      "SplitPaymentMethodDataRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
       },
       "SplitPaymentsRequest": {
         "oneOf": [

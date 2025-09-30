@@ -247,7 +247,7 @@ pub struct PaysafeApplePayDecryptedData {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayDecryptedPaymentData {
     pub online_payment_cryptogram: Secret<String>,
-    pub eci_indicator: String,
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -839,13 +839,7 @@ fn get_apple_pay_decrypt_data(
                 .payment_data
                 .online_payment_cryptogram
                 .clone(),
-            eci_indicator: apple_pay_predecrypt_data
-                .payment_data
-                .eci_indicator
-                .clone()
-                .ok_or_else(missing_field_err(
-                    "payment_method_data.wallet.apple_pay.payment_data.eci_indicator",
-                ))?,
+            eci_indicator: apple_pay_predecrypt_data.payment_data.eci_indicator.clone(),
         },
     })
 }

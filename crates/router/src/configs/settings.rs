@@ -163,6 +163,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
@@ -534,8 +535,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -639,6 +638,7 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
     pub apple_pay_pre_decrypt_flow: Option<ApplePayPreDecryptFlow>,
+    pub google_pay_pre_decrypt_flow: Option<GooglePayPreDecryptFlow>,
     pub flow: Option<PaymentFlow>,
 }
 
@@ -651,6 +651,14 @@ pub enum PaymentFlow {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum ApplePayPreDecryptFlow {
+    #[default]
+    ConnectorTokenization,
+    NetworkTokenization,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
     NetworkTokenization,
@@ -848,6 +856,13 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct MerchantIdAuthSettings {
     pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct InternalMerchantIdProfileIdAuthSettings {
+    pub enabled: bool,
+    pub internal_api_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

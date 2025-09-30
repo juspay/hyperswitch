@@ -7156,3 +7156,16 @@ label = "Site where transaction is initiated"
 placeholder = "Enter site where transaction is initiated"
 required = true
 type = "Text"
+
+
+[finix]
+[finix.connector_auth.HeaderKey]
+api_key = "API Key"
+
+[tesouro]
+[tesouro.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+[loonio]
+[loonio.connector_auth.HeaderKey]
+api_key = "API Key"

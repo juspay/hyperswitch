@@ -171,10 +171,10 @@ pub struct GrpcHeadersUcs {
 pub type GrpcHeadersUcsBuilderInitial =
     GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), ())>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
-pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
+pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
     (Option<RequestId>,),
-    (),
+    (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
 )>;
@@ -183,11 +183,15 @@ pub type GrpcHeadersUcsBuilderIntermediate = GrpcHeadersUcsBuilder<(
 #[derive(Debug, serde::Serialize)]
 pub struct LineageIds {
     merchant_id: id_type::MerchantId,
+    profile_id: id_type::ProfileId,
 }
 impl LineageIds {
     /// constructor for LineageIds
-    pub fn new(merchant_id: id_type::MerchantId) -> Self {
-        Self { merchant_id }
+    pub fn new(merchant_id: id_type::MerchantId, profile_id: id_type::ProfileId) -> Self {
+        Self {
+            merchant_id,
+            profile_id,
+        }
     }
     /// get url encoded string representation of LineageIds
     pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {

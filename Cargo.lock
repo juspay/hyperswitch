@@ -7905,6 +7905,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "smithy"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "smithy-core",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "smithy-core"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "serde",
+ "serde_json",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "smithy-generator"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "common_enums",
+ "common_types",
+ "common_utils",
+ "regex",
+ "router_env",
+ "smithy-core",
+]
+
+[[package]]
 name = "snap"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
