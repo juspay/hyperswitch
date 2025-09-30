@@ -5921,3 +5921,12 @@ type = "Text"
 api_key = "Username"
 api_secret = "Password"
 key1 = "Merchant Id"
+
+
+[tesouro]
+[tesouro.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+[loonio]
+[loonio.connector_auth.HeaderKey]
+api_key = "API Key"

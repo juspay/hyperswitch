@@ -296,6 +296,7 @@ pub struct ConnectorConfig {
     pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
+    pub loonio: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
@@ -366,6 +367,7 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub tesouro: Option<ConnectorTomlConfig>,
     pub ctp_mastercard: Option<ConnectorTomlConfig>,
     pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
