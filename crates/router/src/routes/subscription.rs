@@ -3,6 +3,8 @@
 //! Functions that are used to perform the api level configuration and retrieval
 //! of various types under Subscriptions.
 
+use std::str::FromStr;
+
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
 use hyperswitch_domain_models::errors;
@@ -10,7 +12,6 @@ use router_env::{
     tracing::{self, instrument},
     Flow,
 };
-use std::str::FromStr;
 
 use crate::{
     core::{api_locking, subscription},
