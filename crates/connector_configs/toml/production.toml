@@ -5904,9 +5904,9 @@ api_key = "API Key"
 
 [gigadat]
 [gigadat.connector_auth.SignatureKey]
-api_key = "Username"
-api_secret = "Password"
-key1 = "Compaign Id"
+api_key = "Access Token"
+api_secret = "Security Token"
+key1 = "Campaign ID"
 [[gigadat.bank_redirect]]
 payment_method_type = "interac"
 [gigadat.metadata.site]
