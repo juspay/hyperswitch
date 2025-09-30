@@ -26,6 +26,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{self, access_token, helpers},
         refunds::transformers::SplitRefundInput,
+        unified_connector_service,
         utils::{
             self as core_utils, refunds_transformers as transformers,
             refunds_validator as validator,
@@ -183,6 +184,64 @@ pub async fn trigger_refund_to_gateway(
         split_refunds,
     )
     .await?;
+
+    // Check if we should use UCS for refunds
+    let should_use_ucs =
+        unified_connector_service::should_call_unified_connector_service_for_refunds(
+            state,
+            merchant_context,
+            &routed_through,
+        )
+        .await?;
+
+    if should_use_ucs {
+        router_env::logger::info!(
+            connector = routed_through,
+            refund_id = refund.refund_id,
+            "Executing refund via UCS"
+        );
+
+        // Execute refund via UCS
+        match unified_connector_service::call_unified_connector_service_for_refund_execute(
+            state,
+            &connector,
+            merchant_context,
+            router_data.clone(),
+        )
+        .await
+        {
+            Ok(ucs_router_data) => {
+                // UCS call succeeded, use the response
+                router_data = ucs_router_data;
+                router_env::logger::info!(
+                    connector = routed_through,
+                    refund_id = refund.refund_id,
+                    "UCS refund execution completed successfully"
+                );
+            }
+            Err(ucs_error) => {
+                // UCS call failed, log detailed error information and fall back to direct connector
+                router_env::logger::warn!(
+                    connector = routed_through,
+                    refund_id = refund.refund_id,
+                    ucs_error_message = %ucs_error,
+                    ucs_error_debug = ?ucs_error,
+                    ucs_error_current_context = %ucs_error.current_context(),
+                    ucs_error_frames_count = ucs_error.current_frames().len(),
+                    "UCS refund execution failed, falling back to direct connector"
+                );
+
+                // Log each frame in the error stack for maximum visibility
+                for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+                    router_env::logger::warn!(
+                        frame_index = index,
+                        frame_details = ?frame,
+                        "UCS refund error stack frame"
+                    );
+                }
+            }
+        }
+    }
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
@@ -616,6 +675,64 @@ pub async fn sync_refund_with_gateway(
         split_refunds,
     )
     .await?;
+
+    // Check if we should use UCS for refund sync
+    let should_use_ucs =
+        unified_connector_service::should_call_unified_connector_service_for_refunds(
+            state,
+            merchant_context,
+            &connector_id,
+        )
+        .await?;
+
+    if should_use_ucs {
+        router_env::logger::info!(
+            connector = connector_id,
+            refund_id = refund.refund_id,
+            "Executing refund sync via UCS"
+        );
+
+        // Execute refund sync via UCS
+        match unified_connector_service::call_unified_connector_service_for_refund_sync(
+            state,
+            &connector,
+            merchant_context,
+            router_data.clone(),
+        )
+        .await
+        {
+            Ok(ucs_router_data) => {
+                // UCS call succeeded, use the response
+                router_data = ucs_router_data;
+                router_env::logger::info!(
+                    connector = connector_id,
+                    refund_id = refund.refund_id,
+                    "UCS refund sync execution completed successfully"
+                );
+            }
+            Err(ucs_error) => {
+                // UCS call failed, log detailed error information and fall back to direct connector
+                router_env::logger::warn!(
+                    connector = connector_id,
+                    refund_id = refund.refund_id,
+                    ucs_error_message = %ucs_error,
+                    ucs_error_debug = ?ucs_error,
+                    ucs_error_current_context = %ucs_error.current_context(),
+                    ucs_error_frames_count = ucs_error.current_frames().len(),
+                    "UCS refund sync execution failed, falling back to direct connector"
+                );
+
+                // Log each frame in the error stack for maximum visibility
+                for (index, frame) in ucs_error.current_frames().iter().enumerate() {
+                    router_env::logger::warn!(
+                        frame_index = index,
+                        frame_details = ?frame,
+                        "UCS refund sync error stack frame"
+                    );
+                }
+            }
+        }
+    }
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
