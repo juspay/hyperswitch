@@ -52,7 +52,6 @@ impl TryFrom<&ConnectorAuthType> for LoonioAuthType {
     }
 }
 
-// Payment Form Request Structures
 #[derive(Debug, Serialize)]
 pub struct LoonioPaymentRequest {
     pub currency_code: Currency,
@@ -126,7 +125,6 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
     }
 }
 
-// Payment Form Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoonioPaymentsResponse {
     pub payment_form: String,
@@ -160,7 +158,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResp
     }
 }
 
-// Transaction Status Mappings
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum LoonioTransactionStatus {
@@ -174,7 +171,6 @@ pub enum LoonioTransactionStatus {
     Failed,
     Rollback,
     Returned,
-    #[serde(rename = "NSF")]
     Nsf,
 }
 

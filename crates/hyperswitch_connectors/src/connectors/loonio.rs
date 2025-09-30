@@ -123,11 +123,11 @@ impl ConnectorCommon for Loonio {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (
-                "MerchantID".to_string(),
+                headers::MERCHANTID.to_string(),
                 auth.merchant_id.expose().into_masked(),
             ),
             (
-                "MerchantToken".to_string(),
+                headers::MERCHANT_TOKEN.to_string(),
                 auth.merchant_token.expose().into_masked(),
             ),
         ])
