@@ -65,7 +65,9 @@ use super::{
     profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
-use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+use super::{
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -231,7 +233,7 @@ impl SessionStateInfo for SessionState {
     fn session_state(&self) -> SessionState {
         self.clone()
     }
-    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
     }
 }
@@ -737,7 +739,12 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                ),
+                )
+                .service(
+                    web::resource("/check-gift-card-balance")
+                        .route(web::post().to(payments::payment_check_gift_card_balance)),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
@@ -883,7 +890,9 @@ impl Payments {
                     web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}").route(web::post().to(payments::post_3ds_payments_authorize)),
+                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
+                        .route(web::post().to(payments::post_3ds_payments_authorize))
+                        .route(web::get().to(payments::post_3ds_payments_authorize))
                 )
                 .service(
                     web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
@@ -1156,6 +1165,30 @@ impl Routing {
                     .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
+    }
+}
+
+#[cfg(feature = "oltp")]
+pub struct Subscription;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl Subscription {
+    pub fn server(state: AppState) -> Scope {
+        let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
+
+        route
+            .service(web::resource("/create").route(
+                web::post().to(|state, req, payload| {
+                    subscription::create_subscription(state, req, payload)
+                }),
+            ))
+            .service(
+                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::confirm_subscription(state, req, id, payload)
+                    },
+                )),
+            )
     }
 }
 
@@ -2343,12 +2376,16 @@ pub struct Chat;
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.enabled {
+        if state.conf.chat.get_inner().enabled {
             route = route.service(
-                web::scope("/ai").service(
-                    web::resource("/data")
-                        .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                ),
+                web::scope("/ai")
+                    .service(
+                        web::resource("/data")
+                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
+                    )
+                    .service(
+                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
+                    ),
             );
         }
         route
@@ -2915,8 +2952,16 @@ impl ProcessTracker {
         web::scope("/v2/process-trackers/revenue-recovery-workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/resume")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_resume_api)),
+                    ),
             )
     }
 }
@@ -2960,5 +3005,26 @@ impl ProfileAcquirer {
                 web::resource("/{profile_id}/{profile_acquirer_id}")
                     .route(web::post().to(profile_acquirer::profile_acquirer_update)),
             )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct RecoveryDataBackfill;
+#[cfg(feature = "v2")]
+impl RecoveryDataBackfill {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/data-backfill")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(
+                    web::post()
+                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                ),
+            )
+            .service(web::resource("/status/{token_id}").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
     }
 }
