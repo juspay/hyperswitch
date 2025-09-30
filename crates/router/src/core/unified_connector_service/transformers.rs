@@ -1461,9 +1461,7 @@ impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
                 extract_payment_details_for_refund(router_data.request.connector_metadata.as_ref())
                     .unwrap_or_else(|| {
                         // Provide default metadata when missing to avoid connector errors
-                        HashMap::from([
-                            ("refund_source".to_string(), "hyperswitch".to_string()),
-                        ])
+                        HashMap::from([("refund_source".to_string(), "hyperswitch".to_string())])
                     })
             });
 
@@ -1497,6 +1495,7 @@ impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
             metadata,
             refund_metadata,
             browser_info: None, // TODO: Add browser info transformation
+            access_token: None, // TODO: Add access token if needed
         })
     }
 }
@@ -1528,6 +1527,8 @@ impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
             refund_id: router_data.request.refund_id.clone(),
             refund_reason: router_data.request.reason.clone(),
             browser_info: None, // TODO: Add browser info transformation
+            access_token: None, // TODO: Add access token if needed
+            refund_metadata: HashMap::new(), // TODO: Add refund metadata if needed
         })
     }
 }
@@ -1559,64 +1560,67 @@ impl ForeignTryFrom<payments_grpc::RefundResponse> for RefundsResponseData {
 fn extract_payment_details_for_refund(
     connector_metadata: Option<&serde_json::Value>,
 ) -> Option<HashMap<String, String>> {
-    connector_metadata?
-        .as_object()
-        .and_then(|metadata_obj| {
-            // Look for payment details structures that connectors typically store
-            // For Authorize.Net, this would be the PaymentDetails::CreditCard structure stored by construct_refund_payment_details()
-            
-            // Check if this is a PaymentDetails::CreditCard structure
-            if let Some(credit_card_obj) = metadata_obj.get("CreditCard") {
-                // This matches the PaymentDetails::CreditCard(CreditCardDetails) variant
-                if let (Some(card_number), Some(expiration_date)) = (
-                    credit_card_obj.get("card_number").and_then(|v| v.as_str()),
-                    credit_card_obj.get("expiration_date").and_then(|v| v.as_str()),
-                ) {
-                    // Transform to the format expected by UCS backend
-                    let payment_structure = serde_json::json!({
-                        "payment": {
-                            "creditCard": {
-                                "cardNumber": card_number,
-                                "expirationDate": expiration_date
-                            }
-                        }
-                    });
-                    
-                    return Some(HashMap::from([
-                        ("payment".to_string(), payment_structure.to_string()),
-                    ]));
-                }
-            }
-            
-            // Check for direct credit card structure
-            if let Some(credit_card_obj) = metadata_obj.get("creditCard") {
-                // If we have creditCard details directly, wrap them in payment structure
+    connector_metadata?.as_object().and_then(|metadata_obj| {
+        // Look for payment details structures that connectors typically store
+        // For Authorize.Net, this would be the PaymentDetails::CreditCard structure stored by construct_refund_payment_details()
+
+        // Check if this is a PaymentDetails::CreditCard structure
+        if let Some(credit_card_obj) = metadata_obj.get("CreditCard") {
+            // This matches the PaymentDetails::CreditCard(CreditCardDetails) variant
+            if let (Some(card_number), Some(expiration_date)) = (
+                credit_card_obj.get("card_number").and_then(|v| v.as_str()),
+                credit_card_obj
+                    .get("expiration_date")
+                    .and_then(|v| v.as_str()),
+            ) {
+                // Transform to the format expected by UCS backend
                 let payment_structure = serde_json::json!({
                     "payment": {
-                        "creditCard": credit_card_obj
+                        "creditCard": {
+                            "cardNumber": card_number,
+                            "expirationDate": expiration_date
+                        }
                     }
                 });
-                
-                return Some(HashMap::from([
-                    ("payment".to_string(), payment_structure.to_string()),
-                ]));
+
+                return Some(HashMap::from([(
+                    "payment".to_string(),
+                    payment_structure.to_string(),
+                )]));
             }
-            
-            // Check if we already have a properly formatted payment object
-            if let Some(payment_obj) = metadata_obj.get("payment") {
-                return Some(HashMap::from([
-                    ("payment".to_string(), payment_obj.to_string()),
-                ]));
-            }
-            
-            // For other metadata structures, try to preserve all fields as they might be needed
-            Some(
-                metadata_obj
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.to_string()))
-                    .collect(),
-            )
-        })
+        }
+
+        // Check for direct credit card structure
+        if let Some(credit_card_obj) = metadata_obj.get("creditCard") {
+            // If we have creditCard details directly, wrap them in payment structure
+            let payment_structure = serde_json::json!({
+                "payment": {
+                    "creditCard": credit_card_obj
+                }
+            });
+
+            return Some(HashMap::from([(
+                "payment".to_string(),
+                payment_structure.to_string(),
+            )]));
+        }
+
+        // Check if we already have a properly formatted payment object
+        if let Some(payment_obj) = metadata_obj.get("payment") {
+            return Some(HashMap::from([(
+                "payment".to_string(),
+                payment_obj.to_string(),
+            )]));
+        }
+
+        // For other metadata structures, try to preserve all fields as they might be needed
+        Some(
+            metadata_obj
+                .iter()
+                .map(|(k, v)| (k.clone(), v.to_string()))
+                .collect(),
+        )
+    })
 }
 
 impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>>

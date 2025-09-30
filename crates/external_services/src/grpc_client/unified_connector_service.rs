@@ -14,8 +14,8 @@ use tonic::{
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient,
     refund_service_client::RefundServiceClient, PaymentServiceAuthorizeResponse,
-    PaymentServiceRefundRequest, PaymentServiceTransformRequest,
-    PaymentServiceTransformResponse, RefundResponse, RefundServiceGetRequest,
+    PaymentServiceRefundRequest, PaymentServiceTransformRequest, PaymentServiceTransformResponse,
+    RefundResponse, RefundServiceGetRequest,
 };
 
 use crate::{
@@ -128,7 +128,10 @@ impl UnifiedConnectorServiceClient {
                 match (payment_client_result, refund_client_result) {
                     (Ok(Ok(client)), Ok(Ok(refund_client))) => {
                         logger::info!("Successfully connected to Unified Connector Service");
-                        Some(Self { client, refund_client })
+                        Some(Self {
+                            client,
+                            refund_client,
+                        })
                     }
                     (Ok(Err(err)), _) | (_, Ok(Err(err))) => {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
@@ -362,16 +365,13 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_refund_request: PaymentServiceRefundRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
         let mut request = tonic::Request::new(payment_refund_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata = build_unified_connector_service_grpc_headers(
-            connector_auth_metadata,
-            None,
-            grpc_headers,
-        )?;
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -394,16 +394,13 @@ impl UnifiedConnectorServiceClient {
         &self,
         refund_sync_request: RefundServiceGetRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeaders,
+        grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
         let mut request = tonic::Request::new(refund_sync_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata = build_unified_connector_service_grpc_headers(
-            connector_auth_metadata,
-            None,
-            grpc_headers,
-        )?;
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
         self.refund_client

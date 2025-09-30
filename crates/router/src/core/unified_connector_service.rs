@@ -13,7 +13,7 @@ use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
     consts::X_FLOW_NAME,
     errors::CustomResult,
-    ext_traits::ValueExt,
+    ext_traits::ValueExt, id_type,
     request::{Method, RequestBuilder, RequestContent},
 };
 use diesel_models::types::FeatureMetadata;
@@ -53,8 +53,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                self as helpers, is_ucs_enabled, should_execute_based_on_rollout,
-                MerchantConnectorAccountType,
+                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -1322,17 +1321,28 @@ pub async fn call_unified_connector_service_for_refund_execute(
             .attach_printable("Failed to transform router data to UCS refund request")?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "refund_req")),
-    };
+    // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
+    let lineage_ids = LineageIds::new(
+        merchant_id,
+        profile_id,
+    );
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs()
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None);
 
     // Make UCS refund call with logging wrapper
     ucs_logging_wrapper(
         router_data,
         state,
         ucs_refund_request,
-        |router_data, grpc_request| async move {
+        grpc_header_builder,
+        |router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             let response = ucs_client
                 .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
@@ -1381,17 +1391,28 @@ pub async fn call_unified_connector_service_for_refund_sync(
             .attach_printable("Failed to transform router data to UCS refund sync request")?;
 
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "refund_sync_req")),
-    };
+    // Use merchant_id as profile_id fallback since RouterData doesn't have profile_id field
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS refund")?;
+    let lineage_ids = LineageIds::new(
+        merchant_id,
+        profile_id,
+    );
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs()
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None);
 
     // Make UCS refund sync call with logging wrapper
     ucs_logging_wrapper(
         router_data,
         state,
         ucs_refund_sync_request,
-        |router_data, grpc_request| async move {
+        grpc_header_builder,
+        |router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             let response = ucs_client
                 .refund_sync(grpc_request, connector_auth_metadata, grpc_headers)
