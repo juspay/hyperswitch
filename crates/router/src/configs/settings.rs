@@ -168,6 +168,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub trace_header: TraceHeaderConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -853,6 +854,20 @@ pub struct MerchantIdAuthSettings {
 #[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct TraceHeaderConfig {
+    pub header_name: String,
+}
+
+impl Default for TraceHeaderConfig {
+    fn default() -> Self {
+        Self {
+            header_name: "x-request-id".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

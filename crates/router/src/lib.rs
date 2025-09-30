@@ -122,7 +122,7 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
+    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone(), state.conf.trace_header.clone());
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -373,6 +373,7 @@ impl Stop for mpsc::Sender<()> {
 pub fn get_application_builder(
     request_body_limit: usize,
     cors: settings::CorsSettings,
+    trace_header: settings::TraceHeaderConfig,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -407,7 +408,7 @@ pub fn get_application_builder(
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(cors::cors(cors))
         .wrap(
-            router_env::RequestIdentifier::with_uuid()
+            router_env::RequestIdentifier::with_header(&trace_header.header_name)
                 .use_incoming_id(router_env::IdReuse::UseIncoming),
         )
 }

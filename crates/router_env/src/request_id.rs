@@ -200,7 +200,7 @@ impl RequestIdGenerator for UuidV4Generator {
 /// - **Flexibility**: Supports stateful generators with custom logic
 #[derive(Clone, Debug)]
 pub struct RequestIdentifier {
-    header_name: &'static str,
+    header_name: String,
     id_generator: Arc<dyn RequestIdGenerator>,
     use_incoming_id: IdReuse,
 }
@@ -362,9 +362,9 @@ impl RequestIdentifier {
     /// let middleware = RequestIdentifier::with_header("x-trace-id");
     /// ```
     #[must_use]
-    pub fn with_header(header_name: &'static str) -> Self {
+    pub fn with_header(header_name: &str) -> Self {
         Self {
-            header_name,
+            header_name: header_name.to_string(),
             ..Default::default()
         }
     }
@@ -375,9 +375,9 @@ impl RequestIdentifier {
     /// Common alternatives include `x-trace-id`, `x-correlation-id`, or
     /// service-specific headers.
     #[must_use]
-    pub fn header(self, header_name: &'static str) -> Self {
+    pub fn header(self, header_name: &str) -> Self {
         Self {
-            header_name,
+            header_name: header_name.to_string(),
             ..self
         }
     }
@@ -398,7 +398,7 @@ impl RequestIdentifier {
     pub fn with_generator<G: RequestIdGenerator>(generator: G) -> Self {
         Self {
             id_generator: Arc::new(generator),
-            header_name: DEFAULT_HEADER,
+            header_name: DEFAULT_HEADER.to_string(),
             use_incoming_id: IdReuse::default(),
         }
     }
@@ -470,7 +470,7 @@ impl RequestIdentifier {
 impl Default for RequestIdentifier {
     fn default() -> Self {
         Self {
-            header_name: DEFAULT_HEADER,
+            header_name: DEFAULT_HEADER.to_string(),
             id_generator: Arc::new(UuidV7Generator),
             use_incoming_id: IdReuse::default(),
         }
@@ -490,7 +490,7 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        let header_name = HeaderName::from_str(self.header_name).unwrap_or_else(|_| {
+        let header_name = HeaderName::from_str(&self.header_name).unwrap_or_else(|_| {
             tracing::error!("Invalid header name '{}', using default", self.header_name);
             HeaderName::from_static("x-request-id")
         });
