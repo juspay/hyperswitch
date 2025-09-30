@@ -239,8 +239,6 @@ pub async fn customers_list(
     .await
 }
 
-
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
