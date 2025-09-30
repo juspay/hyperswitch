@@ -524,9 +524,9 @@ where
             street: item.get_optional_billing_line1(),
             street2: item.get_optional_billing_line2(),
             city: item.get_optional_billing_city(),
-            zip: zip,
-            country: country,
-            state: state,
+            zip,
+            country,
+            state,
         }))
     } else {
         Ok(None)
