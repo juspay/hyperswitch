@@ -26,7 +26,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self as connector_utils, CardData, PaymentsAuthorizeRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        RouterData as _, RefundsRequestData,
     },
 };
 
@@ -37,6 +37,10 @@ pub mod tesouro_queries {
     pub const REFUND_TRANSACTION: &str = "mutation RefundPreviousPayment($refundPreviousPaymentInput: RefundPreviousPaymentInput!) { refundPreviousPayment(refundPreviousPaymentInput: $refundPreviousPaymentInput) { errors {  ... on InternalServiceError {  message processorResponseCode transactionId } ... on RuleInViolationError { processorResponseCode message transactionId } ... on SyntaxOnNetworkResponseError { message processorResponseCode transactionId } ... on TimeoutOnNetworkResponseError {  processorResponseCode message transactionId } ... on ValidationFailureError {  message processorResponseCode transactionId } ... on PriorPaymentNotFoundError {  message processorResponseCode transactionId } } refundPreviousPaymentResponse { __typename ... on RefundPreviousPaymentApproval { __typename paymentId transactionId } ... on RefundPreviousPaymentDecline { __typename declineType message transactionId paymentId } } } }";
     pub const SYNC_TRANSACTION: &str = "query PaymentTransaction($paymentTransactionId: UUID!) { paymentTransaction(id: $paymentTransactionId) { __typename responseType reference id paymentId ... on AcceptedSale { __typename id processorResponseCode processorResponseMessage } ... on ApprovedAuthorization { __typename id processorResponseCode processorResponseMessage } ... on ApprovedCapture { __typename id processorResponseCode processorResponseMessage } ... on ApprovedReversal { __typename id processorResponseCode processorResponseMessage } ... on DeclinedAuthorization { __typename id processorResponseCode processorResponseMessage } ... on DeclinedCapture { __typename id processorResponseCode processorResponseMessage } ... on DeclinedReversal { __typename id processorResponseCode processorResponseMessage } ... on GenericPaymentTransaction { __typename id processorResponseCode processorResponseMessage } ... on Authorization { __typename id processorResponseCode processorResponseMessage } ... on Capture { __typename id processorResponseCode processorResponseMessage } ... on Reversal { __typename id processorResponseCode processorResponseMessage } ... on Sale { __typename id processorResponseCode processorResponseMessage } } }";
 }
+
+pub mod tesouro_constants {
+    pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 28;
+   }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GenericTesouroRequest<T> {
@@ -468,7 +472,9 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
     ) -> Result<Self, Self::Error> {
         let auth = TesouroAuthType::try_from(&item.router_data.connector_auth_type)?;
         let acceptor_id = auth.get_acceptor_id();
-        let transaction_reference = item.router_data.connector_request_reference_id.clone();
+        let transaction_reference = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone()
+        )?;
         let capture_data = TesouroCaptureData::from(item.router_data.request.is_auto_capture()?);
 
         let payment_method_details = match &item.router_data.request.payment_method_data {
@@ -526,7 +532,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsCaptureRouterData>> for TesouroCaptureR
         let payment_metadata = item
             .router_data
             .request
-            .metadata
+            .connector_meta
             .clone()
             .map(|payment_metadata| {
                 connector_utils::to_connector_meta::<TesouroTransactionMetadata>(Some(
@@ -536,7 +542,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsCaptureRouterData>> for TesouroCaptureR
             .transpose()?;
 
         let payment_id = payment_metadata
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?
             .payment_id;
 
         Ok(Self {
@@ -545,7 +551,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsCaptureRouterData>> for TesouroCaptureR
                 capture_authorization_input: CaptureAuthorizationInput {
                     acceptor_id: auth.get_acceptor_id(),
                     payment_id: payment_id,
-                    transaction_reference: item.router_data.connector_request_reference_id.clone(),
+                    transaction_reference: format!("capture_{}", item.router_data.connector_request_reference_id.clone()),
                     transaction_amount_details: TransactionAmountDetails {
                         total_amount: item.amount,
                         currency: item.router_data.request.currency,
@@ -566,7 +572,7 @@ impl TryFrom<&PaymentsCancelRouterData> for TesouroVoidRequest {
                 reverse_transaction_input: ReverseTransactionInput {
                     acceptor_id: auth.get_acceptor_id(),
                     transaction_id: item.request.connector_transaction_id.clone(),
-                    transaction_reference: item.connector_request_reference_id.clone(),
+                    transaction_reference: format!("rev_{}", item.connector_request_reference_id.clone()),
                 },
             },
         })
@@ -813,6 +819,7 @@ pub struct TesouroGraphQlErrorExtensions {
     pub reason: Option<String>,
 }
 
+
 impl<F>
     TryFrom<
         ResponseRouterData<F, TesouroCaptureResponse, PaymentsCaptureData, PaymentsResponseData>,
@@ -900,9 +907,6 @@ impl<F>
                     let error_message = error_response
                         .as_ref()
                         .map(|error_data| error_data.message.clone());
-                    let connector_transaction_id = error_response
-                        .as_ref()
-                        .and_then(|error_data| error_data.transaction_id.clone());
 
                     Ok(Self {
                         status: enums::AttemptStatus::CaptureFailed,
@@ -914,7 +918,7 @@ impl<F>
                             reason: error_message.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id,
+                            connector_transaction_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1045,9 +1049,6 @@ impl<F>
                     let error_message = error_response
                         .as_ref()
                         .map(|error_data| error_data.message.clone());
-                    let connector_transaction_id = error_response
-                        .as_ref()
-                        .and_then(|error_data| error_data.transaction_id.clone());
 
                     Ok(Self {
                         status: enums::AttemptStatus::VoidFailed,
@@ -1059,7 +1060,7 @@ impl<F>
                             reason: error_message.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id,
+                            connector_transaction_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1129,13 +1130,17 @@ impl<F> TryFrom<&TesouroRouterData<&RefundsRouterData<F>>> for TesouroRefundRequ
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
             .payment_id;
 
+        let transaction_reference = get_valid_transaction_id(
+            item.router_data.connector_request_reference_id.clone()
+        )?;
+
         Ok(Self {
             query: tesouro_queries::REFUND_TRANSACTION.to_string(),
             variables: TesouroRefundInput {
                 refund_previous_payment_input: RefundPreviousPaymentInput {
                     acceptor_id: auth.get_acceptor_id(),
                     payment_id: payment_id,
-                    transaction_reference: item.router_data.connector_request_reference_id.clone(),
+                    transaction_reference,
                     transaction_amount_details: TransactionAmountDetails {
                         total_amount: item.amount,
                         currency: item.router_data.request.currency,
@@ -1166,7 +1171,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                             Ok(Self {
                                 response: Ok(RefundsResponseData {
                                     connector_refund_id: transaction_id,
-                                    refund_status: enums::RefundStatus::Success,
+                                    refund_status: enums::RefundStatus::Pending,
                                 }),
                                 ..item.data
                             })
@@ -1211,9 +1216,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                     let error_message = error_response
                         .as_ref()
                         .map(|error_data| error_data.message.clone());
-                    let connector_transaction_id = error_response
-                        .as_ref()
-                        .and_then(|error_data| error_data.transaction_id.clone());
+
 
                     Ok(Self {
                         response: Err(ErrorResponse {
@@ -1224,7 +1227,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                             reason: error_message.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id,
+                            connector_transaction_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1475,7 +1478,7 @@ impl TryFrom<&RefundSyncRouterData> for TesouroSyncRequest {
         Ok(Self {
             query: tesouro_queries::SYNC_TRANSACTION.to_string(),
             variables: TesouroSyncInput {
-                payment_transaction_id: item.request.connector_transaction_id.clone(),
+                payment_transaction_id: item.request.get_connector_refund_id()?,
             },
         })
     }
@@ -1576,5 +1579,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, TesouroSyncResponse>> for RefundsR
                 })
             }
         }
+    }
+}
+
+fn get_valid_transaction_id(
+    id: String,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    if id.len() <= tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH {
+        Ok(id.clone())
+    } else {
+        Err(errors::ConnectorError::MaxFieldLengthViolated {
+            connector: "Tesouro".to_string(),
+            field_name: "transaction_reference".to_string(),
+            max_length: tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH,
+            received_length: id.len(),
+        }
+        .into())
     }
 }

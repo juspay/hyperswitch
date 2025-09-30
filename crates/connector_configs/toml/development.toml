@@ -7184,6 +7184,23 @@ type = "Text"
 api_key = "API Key"
 
 [tesouro]
-[tesouro.connector_auth.BodyKey]
-api_key="Client ID"
-key1="Client Secret"
+[[paysafe.credit]]
+payment_method_type = "Mastercard"
+[[paysafe.credit]]
+payment_method_type = "Visa"
+[[paysafe.credit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.credit]]
+payment_method_type = "Discover"
+[[paysafe.debit]]
+payment_method_type = "Mastercard"
+[[paysafe.debit]]
+payment_method_type = "Visa"
+[[paysafe.debit]]
+payment_method_type = "AmericanExpress"
+[[paysafe.debit]]
+payment_method_type = "Discover"
+[tesouro.connector_auth.SignatureKey]
+api_key = "Client ID"
+api_secret = "Client Secret"
+key1 = "Acceptor ID"

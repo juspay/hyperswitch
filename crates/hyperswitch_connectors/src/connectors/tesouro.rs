@@ -792,7 +792,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tesouro {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -931,5 +931,22 @@ impl ConnectorSpecifications for Tesouro {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TESOURO_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
+            && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
+        {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            let max_payment_reference_id_length = tesouro::tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            nanoid::nanoid!(max_payment_reference_id_length)
+        }
     }
 }
