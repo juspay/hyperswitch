@@ -1178,15 +1178,6 @@ impl Customers {
                         .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
         }
-        // #[cfg(all(feature = "olap", feature = "v2"))]
-        // {
-        //     route = route
-        //         .service(
-        //             web::resource("/list_with_count")
-        //                 .route(web::get().to(customers::customers_list_with_count)),
-        //         )
-        // }
-
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
             route = route
@@ -1245,7 +1236,6 @@ impl Customers {
         route
     }
 }
-
 pub struct Refunds;
 
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
