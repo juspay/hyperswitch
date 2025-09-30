@@ -63,7 +63,7 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        let customer_id = constraints.customer_id.unwrap_or_else(|| "%".to_string());
+        let customer_id = constraints.customer_id.unwrap_or("%".to_string());
 
         let predicate = dsl::merchant_id
             .eq(merchant_id.to_owned())
@@ -85,7 +85,7 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        let customer_id = constraints.customer_id.unwrap_or_else(|| "%".to_string());
+        let customer_id = constraints.customer_id.unwrap_or("%".to_string());
 
         let predicate = dsl::merchant_id
             .eq(merchant_id.to_owned())
