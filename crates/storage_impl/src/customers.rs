@@ -9,8 +9,6 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-
-#[cfg(feature = "v1")]
 use crate::diesel_error_to_data_error;
 use crate::{
     errors::StorageError,
