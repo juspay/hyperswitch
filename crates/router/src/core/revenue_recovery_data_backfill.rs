@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
     BackfillError, ComprehensiveCardData, GetRedisDataQuery, RedisDataResponse, RedisKeyType,
-    RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
-    UpdateTokenStatusRequest, UpdateTokenStatusResponse, ScheduledAtUpdate
+    RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, ScheduledAtUpdate,
+    UnlockStatusResponse, UpdateTokenStatusRequest, UpdateTokenStatusResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
 use error_stack::ResultExt;
@@ -160,7 +160,10 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
             if s == "null" || s == "Null" {
                 token_status.scheduled_at = None;
                 updated_fields.push("scheduled_at: set to null".to_string());
-                logger::info!("Set scheduled_at to null for token '{:?}'", request.payment_processor_token);
+                logger::info!(
+                    "Set scheduled_at to null for token '{:?}'",
+                    request.payment_processor_token
+                );
             } else {
                 return Err(error_stack::Report::new(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!("Invalid null value for scheduled_at: '{}'. Only 'null' or 'Null' are accepted.", s)
@@ -170,7 +173,11 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
         Some(ScheduledAtUpdate::SetToDateTime(dt)) => {
             token_status.scheduled_at = Some(dt);
             updated_fields.push(format!("scheduled_at: {}", dt));
-            logger::info!("Set scheduled_at to '{}' for token '{:?}'", dt, request.payment_processor_token);
+            logger::info!(
+                "Set scheduled_at to '{}' for token '{:?}'",
+                dt,
+                request.payment_processor_token
+            );
         }
         None => {
             logger::debug!("scheduled_at not provided in request - leaving unchanged");

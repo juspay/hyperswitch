@@ -21,15 +21,18 @@ where
     D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    
+
     // Try multiple datetime formats
     PrimitiveDateTime::parse(&s, &time::format_description::well_known::Iso8601::DEFAULT)
         .or_else(|_| {
-            let format = time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
+            let format = time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]"
+            );
             PrimitiveDateTime::parse(&s, format)
         })
         .or_else(|_| {
-            let format = time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+            let format =
+                time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
             PrimitiveDateTime::parse(&s, format)
         })
         .map_err(|e| serde::de::Error::custom(format!("Invalid datetime format: {}", e)))
@@ -43,7 +46,6 @@ impl ScheduledAtUpdate {
         }
     }
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {

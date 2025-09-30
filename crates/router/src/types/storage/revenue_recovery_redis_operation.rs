@@ -775,7 +775,6 @@ impl RedisTokenManager {
             RedisKeyType::Tokens => Self::get_connector_customer_tokens_key(connector_customer_id),
         };
 
-
         // Get TTL
         let ttl = redis_conn
             .get_ttl(&redis_key.clone().into())
@@ -787,17 +786,24 @@ impl RedisTokenManager {
 
         // Get data based on key type and determine existence
         let (key_exists, data) = match key_type {
-            RedisKeyType::Status => {
-                match redis_conn.get_key::<String>(&redis_key.into()).await {
-                    Ok(status_value) => (true, serde_json::Value::String(status_value)),
-                    Err(error) => {
-                        tracing::error!(operation = "get_status_key", err = ?error);
-                        (false, serde_json::Value::String(format!("Error retrieving status key: {}", error)))
-                    }
+            RedisKeyType::Status => match redis_conn.get_key::<String>(&redis_key.into()).await {
+                Ok(status_value) => (true, serde_json::Value::String(status_value)),
+                Err(error) => {
+                    tracing::error!(operation = "get_status_key", err = ?error);
+                    (
+                        false,
+                        serde_json::Value::String(format!(
+                            "Error retrieving status key: {}",
+                            error
+                        )),
+                    )
                 }
             },
             RedisKeyType::Tokens => {
-                match redis_conn.get_hash_fields::<HashMap<String, String>>(&redis_key.into()).await {
+                match redis_conn
+                    .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
+                    .await
+                {
                     Ok(hash_fields) => {
                         let exists = !hash_fields.is_empty();
                         let data = if exists {
@@ -806,7 +812,7 @@ impl RedisTokenManager {
                             serde_json::Value::Object(serde_json::Map::new())
                         };
                         (exists, data)
-                    },
+                    }
                     Err(error) => {
                         tracing::error!(operation = "get_tokens_hash", err = ?error);
                         (false, serde_json::Value::Null)
