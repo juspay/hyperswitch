@@ -661,6 +661,7 @@ impl BillingHandler {
         &self,
         state: &SessionState,
         invoice_id: String,
+        payment_id: common_utils::id_type::PaymentId,
     ) -> errors::RouterResult<InvoiceRecordBackResponse> {
         let invoice_record_back_req = InvoiceRecordBackRequest {
             amount: self.amount,
@@ -675,7 +676,9 @@ impl BillingHandler {
                     field_name: "invoice_id",
                 })?,
             connector_params: self.connector_params.clone(),
-            connector_transaction_id: None,
+            connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
+                payment_id.get_string_repr().to_string(),
+            )),
         };
 
         let router_data = self.build_router_data(

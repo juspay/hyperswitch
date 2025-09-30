@@ -224,7 +224,11 @@ pub async fn perform_billing_processor_record_back(
 
     // TODO: Handle retries here on failure
     billing_handler
-        .record_back_to_billing_processor(state, tracking_data.connector_invoice_id.clone())
+        .record_back_to_billing_processor(
+            state,
+            tracking_data.connector_invoice_id.clone(),
+            tracking_data.payment_id.to_owned(),
+        )
         .await?;
 
     invoice_handler
