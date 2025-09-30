@@ -707,7 +707,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
             |enable_partial_authorization| CheckoutPartialAuthorization {
-                enabled: enable_partial_authorization,
+                enabled: *enable_partial_authorization,
             },
         );
 
@@ -1034,10 +1034,12 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
         };
 
-        let authorized_amount = match item.data.request.enable_partial_authorization {
-            Some(true) => item.response.amount,
-            _ => None,
-        };
+        let authorized_amount = item
+            .data
+            .request
+            .enable_partial_authorization
+            .filter(|flag| flag.is_true())
+            .and_then(|_| item.response.amount);
 
         Ok(Self {
             status,
