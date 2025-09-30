@@ -434,7 +434,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
-        enable_partial_authorization: None,
+        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
         is_stored_credential: None,
     };
@@ -480,8 +480,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -2469,6 +2472,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
+                enable_partial_authorization: payment_intent.enable_partial_authorization,
             },
             vec![],
         )))

@@ -22,6 +22,8 @@ use std::{
     vec::IntoIter,
 };
 
+use external_services::grpc_client;
+
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -4306,10 +4308,15 @@ where
                     header_payload.clone(),
                 )
                 .await?;
-
+            let lineage_ids = grpc_client::LineageIds::new(
+                business_profile.merchant_id.clone(),
+                business_profile.get_id().clone(),
+            );
             router_data
                 .call_unified_connector_service(
                     state,
+                    &header_payload,
+                    lineage_ids,
                     merchant_connector_account.clone(),
                     merchant_context,
                 )
@@ -4845,10 +4852,13 @@ where
                 payment_data.get_payment_intent().id.get_string_repr(),
                 payment_data.get_payment_attempt().id.get_string_repr()
             );
+            let lineage_ids = grpc_client::LineageIds::new(business_profile.merchant_id.clone(), business_profile.get_id().clone());
 
             router_data
                 .call_unified_connector_service(
                     state,
+                    &header_payload,
+                    lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
                 )
@@ -4942,10 +4952,15 @@ where
                     header_payload.clone(),
                 )
                 .await?;
-
+            let lineage_ids = grpc_client::LineageIds::new(
+                business_profile.merchant_id.clone(),
+                business_profile.get_id().clone(),
+            );
             router_data
                 .call_unified_connector_service(
                     state,
+                    &header_payload,
+                    lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
                 )
@@ -5000,7 +5015,7 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     _schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
-    _business_profile: &domain::Profile,
+    business_profile: &domain::Profile,
     _is_retry_payment: bool,
     _should_retry_with_pan: bool,
     _return_raw_connector_response: Option<bool>,
@@ -5036,10 +5051,15 @@ where
                 header_payload.clone(),
             )
             .await?;
-
+        let lineage_ids = grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        );
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
+                &header_payload,
+                lineage_ids,
                 merchant_connector_account_type_details.clone(),
                 external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
@@ -6414,7 +6434,10 @@ where
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state, &connector, customer, &label,
+                    &connector,
+                    customer,
+                    payment_data.get_payment_attempt(),
+                    &label,
                 );
 
             if should_call_connector {
@@ -6492,9 +6515,9 @@ where
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state,
                     &connector,
                     customer,
+                    payment_data.get_payment_attempt(),
                     merchant_connector_account,
                 );
 

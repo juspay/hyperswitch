@@ -1,6 +1,9 @@
 use common_enums::{enums, CaptureMethod, FutureUsage, PaymentChannel};
-use common_types::payments::{
-    ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
+use common_types::{
+    payments::{
+        ApplePayPaymentData, ApplePayPredecryptData, GPayPredecryptData, GpayTokenizationData,
+    },
+    primitive_wrappers,
 };
 use common_utils::{
     crypto::{self, GenerateDigest},
@@ -478,9 +481,9 @@ pub enum PartialApprovalFlag {
     Disabled,
 }
 
-impl From<bool> for PartialApprovalFlag {
-    fn from(value: bool) -> Self {
-        if value {
+impl From<primitive_wrappers::EnablePartialAuthorizationBool> for PartialApprovalFlag {
+    fn from(value: primitive_wrappers::EnablePartialAuthorizationBool) -> Self {
+        if value.is_true() {
             Self::Enabled
         } else {
             Self::Disabled
