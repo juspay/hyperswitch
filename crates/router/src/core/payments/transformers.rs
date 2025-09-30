@@ -327,8 +327,20 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            // Connector name is mandatory as MerchantConnectorDetails variant does not have a mca_id
+            let connector_name = merchant_connector_account
+                .get_connector_name()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector name not found for webhook_url construction")?
+                .to_string();
+
+            Some(helpers::create_webhook_url(
+                router_base_url,
+                &attempt.merchant_id,
+                &connector_name,
+            ))
+        }
     };
 
     let router_return_url = payment_data
@@ -573,8 +585,20 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            // Connector name is mandatory as MerchantConnectorDetails variant does not have a mca_id
+            let connector_name = merchant_connector_account
+                .get_connector_name()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector name not found for webhook_url construction")?
+                .to_string();
+
+            Some(helpers::create_webhook_url(
+                router_base_url,
+                &attempt.merchant_id,
+                &connector_name,
+            ))
+        }
     };
 
     let router_return_url = payment_data
@@ -1244,9 +1268,19 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
-            todo!("Add webhook URL to request for this connector")
+            // Connector name is mandatory as MerchantConnectorDetails variant does not have a mca_id
+            let connector_name = merchant_connector_account
+                .get_connector_name()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector name not found for webhook_url construction")?
+                .to_string();
+
+            Some(helpers::create_webhook_url(
+                router_base_url,
+                &attempt.merchant_id,
+                &connector_name,
+            ))
         }
     };
 
