@@ -447,16 +447,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let base_url = self.base_url(connectors);
         match req.payment_method {
             enums::PaymentMethod::Card if !req.is_three_ds() => {
                 Ok(format!("{}v1/payments", self.base_url(connectors)))
-            }
-            enums::PaymentMethod::Card if req.request.is_customer_initiated_mandate_payment() => {
-                let customer_id = req.get_connector_customer_id()?.to_string();
-                Ok(format!(
-                    "{base_url}v1/customers/{customer_id}/paymenthandles"
-                ))
             }
             enums::PaymentMethod::Wallet
                 if req.request.payment_method_type == Some(enums::PaymentMethodType::ApplePay) =>
