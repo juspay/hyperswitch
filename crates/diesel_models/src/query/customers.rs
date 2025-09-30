@@ -98,19 +98,7 @@ impl Customer {
         )
         .await
     }
-
-
-    pub async fn count_by_merchant_id(
-        conn: &PgPooledConn,
-        merchant_id: &id_type::MerchantId,
-    ) -> StorageResult<usize> {
-        generics::generic_count::<<Self as HasTable>::Table, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-        )
-        .await
-    }
-
+    
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
         conn: &PgPooledConn,
