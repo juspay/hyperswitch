@@ -8,7 +8,7 @@ use common_enums::{CallConnectorAction, PaymentAction};
 use common_utils::errors::CustomResult;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -17,12 +17,10 @@ use hyperswitch_domain_models::router_request_types::authentication::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-    InvoiceRecordBackRequest,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    InvoiceRecordBackResponse,
 };
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
@@ -43,11 +41,12 @@ use hyperswitch_domain_models::{
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
-        ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
-        SubscriptionCreate as SubscriptionCreateFlow,
+        ExternalVaultProxy, ExternalVaultRetrieveFlow, InvoiceRecordBack, PostAuthenticate,
+        PreAuthenticate, SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCreateRequest,
@@ -70,6 +69,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
             GetSubscriptionPlansResponse, SubscriptionCreateResponse,
@@ -139,7 +139,7 @@ use hyperswitch_interfaces::{
         revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCreate, Subscriptions,
+            SubscriptionCreate, SubscriptionRecordBackFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -7143,6 +7143,7 @@ macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
         $(  impl Subscriptions for $path::$connector {}
             impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl SubscriptionRecordBackFlow for $path::$connector {}
             impl SubscriptionCreate for $path::$connector {}
             impl
             ConnectorIntegration<
@@ -7150,6 +7151,9 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionPlansRequest,
             GetSubscriptionPlansResponse
             > for $path::$connector
+            {}
+            impl
+           ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse> for $path::$connector
             {}
             impl GetSubscriptionPlanPricesFlow for $path::$connector {}
             impl
@@ -7286,7 +7290,6 @@ default_imp_for_subscriptions!(
     connectors::Stax,
     connectors::Stripe,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
     connectors::Threedsecureio,
@@ -7463,13 +7466,6 @@ default_imp_for_billing_connector_payment_sync!(
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            InvoiceRecordBack,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse
-            > for $path::$connector
-            {}
         )*
     };
 }
@@ -9506,6 +9502,9 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionRecordBackFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
@@ -9513,6 +9512,13 @@ impl<const T: u8>
         GetSubscriptionPlansRequest,
         GetSubscriptionPlansResponse,
     > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+impl<const T: u8>
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+    for connectors::DummyConnector<T>
 {
 }
 

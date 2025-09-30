@@ -1353,10 +1353,11 @@ impl From<ChargebeeInvoiceData> for SubscriptionInvoiceData {
     fn from(item: ChargebeeInvoiceData) -> Self {
         Self {
             billing_address: Some(api_models::payments::Address::from(item.clone())),
-            id: item.id,
+            id: item.id.clone(),
             total: item.total,
             currency_code: item.currency_code,
             status: item.status.map(connector_enums::InvoiceStatus::from),
+            connector_invoice_id: item.id.clone(),
         }
     }
 }

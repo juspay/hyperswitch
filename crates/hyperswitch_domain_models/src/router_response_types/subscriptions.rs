@@ -21,6 +21,7 @@ pub struct SubscriptionInvoiceData {
     pub currency_code: Currency,
     pub status: Option<common_enums::connector_enums::InvoiceStatus>,
     pub billing_address: Option<api_models::payments::Address>,
+    pub connector_invoice_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]

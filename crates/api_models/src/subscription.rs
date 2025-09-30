@@ -98,7 +98,7 @@ pub enum SubscriptionStatus {
 }
 
 impl SubscriptionResponse {
-    /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
+    /// Creates a new [`SubscriptionResponse`] with the given identifiers.
     ///
     /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
     #[allow(clippy::too_many_arguments)]

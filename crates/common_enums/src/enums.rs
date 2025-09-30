@@ -9407,6 +9407,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    InvoiceSyncflow,
 }
 
 #[derive(Debug)]
