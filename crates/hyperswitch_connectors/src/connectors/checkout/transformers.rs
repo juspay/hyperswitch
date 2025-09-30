@@ -1039,7 +1039,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             .request
             .enable_partial_authorization
             .filter(|flag| flag.is_true())
-            .and_then(|_| item.response.amount);
+            .and(item.response.amount);
 
         Ok(Self {
             status,
