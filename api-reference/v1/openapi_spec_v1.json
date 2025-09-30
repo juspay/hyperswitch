@@ -23131,6 +23131,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         }
@@ -23604,6 +23605,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -24149,6 +24151,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -24216,6 +24224,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -25002,6 +25011,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -25573,6 +25583,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -25640,6 +25656,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -26264,6 +26281,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {

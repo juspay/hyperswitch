@@ -434,7 +434,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
-        enable_partial_authorization: None,
+        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
     };
     let connector_mandate_request_reference_id = payment_data
@@ -479,8 +479,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -2467,6 +2470,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
+                enable_partial_authorization: payment_intent.enable_partial_authorization,
             },
             vec![],
         )))
@@ -3658,6 +3662,7 @@ where
             network_details: payment_attempt
                 .network_details
                 .map(NetworkDetails::foreign_from),
+            request_extended_authorization: payment_attempt.request_extended_authorization,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3958,6 +3963,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            request_extended_authorization: pa.request_extended_authorization,
         }
     }
 }

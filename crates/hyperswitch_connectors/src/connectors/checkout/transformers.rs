@@ -231,6 +231,19 @@ pub enum PaymentSource {
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
+    GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayPredecrypt {
+    #[serde(rename = "type")]
+    _type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: String,
+    cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -453,25 +466,47 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => {
-                    let p_source = PaymentSource::Wallets(WalletSource {
-                        source_type: CheckoutSourceTypes::Token,
-                        token: match item.router_data.get_payment_method_token()? {
-                            PaymentMethodToken::Token(token) => token,
-                            PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!(
-                                    "Apple Pay",
-                                    "Simplified",
-                                    "Checkout"
-                                ))?
-                            }
-                            PaymentMethodToken::PazeDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Paze", "Checkout"))?
-                            }
-                            PaymentMethodToken::GooglePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
-                            }
-                        },
-                    });
+                    let p_source = match item.router_data.get_payment_method_token()? {
+                        PaymentMethodToken::Token(token) => PaymentSource::Wallets(WalletSource {
+                            source_type: CheckoutSourceTypes::Token,
+                            token,
+                        }),
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(google_pay_decrypted_data) => {
+                            let token = google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone();
+
+                            let expiry_month = google_pay_decrypted_data
+                                .get_expiry_month()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_month",
+                                })?;
+
+                            let expiry_year = google_pay_decrypted_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_year",
+                                })?;
+
+                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
+
+                            PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
+                                _type: "network_token".to_string(),
+                                token,
+                                token_type: "googlepay".to_string(),
+                                expiry_month,
+                                expiry_year,
+                                eci: "06".to_string(),
+                                cryptogram,
+                            }))
+                        }
+                    };
                     Ok((
                         p_source,
                         None,
