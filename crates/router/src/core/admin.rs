@@ -2891,6 +2891,9 @@ pub async fn update_connector(
             )
         })?;
 
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, profile_id).await?;
+
     let response = updated_mca.foreign_try_into()?;
 
     Ok(service_api::ApplicationResponse::Json(response))
