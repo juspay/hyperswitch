@@ -9,14 +9,16 @@ use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
+        refunds::{Execute, RSync},
         ExternalVaultProxy,
     },
     router_request_types::{
         AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
+
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::{
@@ -26,6 +28,7 @@ pub use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
+use serde_json;
 use unified_connector_service_client::payments::{
     self as payments_grpc, Identifier, PaymentServiceTransformRequest,
     PaymentServiceTransformResponse,
@@ -1391,6 +1394,229 @@ pub fn build_webhook_transform_request(
         webhook_secrets,
         access_token: None,
     })
+}
+
+// ============================================================================
+// REFUND TRANSFORMERS
+// ============================================================================
+
+/// Transform RouterData for Execute refund into UCS PaymentServiceRefundRequest
+impl ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsResponseData>>
+    for payments_grpc::PaymentServiceRefundRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<Execute, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let transaction_id = Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.request.connector_transaction_id.clone(),
+            )),
+        };
+
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
+
+        // Convert metadata to gRPC format
+        let metadata = router_data
+            .request
+            .connector_metadata
+            .as_ref()
+            .map(|metadata| {
+                metadata
+                    .as_object()
+                    .map(|obj| {
+                        obj.iter()
+                            .map(|(k, v)| (k.clone(), v.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+
+        let refund_metadata = router_data
+            .request
+            .refund_connector_metadata
+            .as_ref()
+            .map(|metadata| {
+                metadata
+                    .clone()
+                    .expose()
+                    .as_object()
+                    .map(|obj| {
+                        obj.iter()
+                            .map(|(k, v)| (k.clone(), v.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            })
+            .unwrap_or_else(|| {
+                // Try to extract payment method details from original payment's connector_metadata
+                extract_payment_details_for_refund(router_data.request.connector_metadata.as_ref())
+                    .unwrap_or_else(|| {
+                        // Provide default metadata when missing to avoid connector errors
+                        HashMap::from([
+                            ("refund_source".to_string(), "hyperswitch".to_string()),
+                        ])
+                    })
+            });
+
+        Ok(Self {
+            request_ref_id,
+            refund_id: router_data.request.refund_id.clone(),
+            transaction_id: Some(transaction_id),
+            payment_amount: router_data.request.payment_amount,
+            currency: currency as i32,
+            minor_payment_amount: router_data.request.minor_payment_amount.get_amount_as_i64(),
+            refund_amount: router_data.request.refund_amount,
+            minor_refund_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
+            reason: router_data.request.reason.clone(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|id| id.clone().expose().clone()),
+            capture_method: router_data
+                .request
+                .capture_method
+                .map(|cm| payments_grpc::CaptureMethod::foreign_try_from(cm))
+                .transpose()
+                .map_err(|_| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to convert capture method".to_string(),
+                    )
+                })?
+                .map(|cm| cm as i32),
+            metadata,
+            refund_metadata,
+            browser_info: None, // TODO: Add browser info transformation
+        })
+    }
+}
+
+/// Transform RouterData for RSync refund into UCS RefundServiceGetRequest
+impl ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsResponseData>>
+    for payments_grpc::RefundServiceGetRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<RSync, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let transaction_id = Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.request.connector_transaction_id.clone(),
+            )),
+        };
+
+        let request_ref_id = Some(Identifier {
+            id_type: Some(payments_grpc::identifier::IdType::Id(
+                router_data.connector_request_reference_id.clone(),
+            )),
+        });
+
+        Ok(Self {
+            request_ref_id,
+            transaction_id: Some(transaction_id),
+            refund_id: router_data.request.refund_id.clone(),
+            refund_reason: router_data.request.reason.clone(),
+            browser_info: None, // TODO: Add browser info transformation
+        })
+    }
+}
+
+/// Transform UCS RefundResponse into RefundsResponseData
+impl ForeignTryFrom<payments_grpc::RefundResponse> for RefundsResponseData {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {
+        let refund_status = match response.status {
+            0 => common_enums::RefundStatus::Pending, // REFUND_STATUS_UNSPECIFIED
+            1 => common_enums::RefundStatus::Failure, // REFUND_FAILURE
+            2 => common_enums::RefundStatus::ManualReview, // REFUND_MANUAL_REVIEW
+            3 => common_enums::RefundStatus::Pending, // REFUND_PENDING
+            4 => common_enums::RefundStatus::Success, // REFUND_SUCCESS
+            5 => common_enums::RefundStatus::TransactionFailure, // REFUND_TRANSACTION_FAILURE
+            _ => common_enums::RefundStatus::Pending, // Default fallback
+        };
+
+        Ok(Self {
+            connector_refund_id: response.refund_id,
+            refund_status,
+        })
+    }
+}
+
+/// Extract payment method details from original payment's connector_metadata for refund purposes
+/// This is specifically needed for connectors like Authorize.Net that require original payment details for refunds
+fn extract_payment_details_for_refund(
+    connector_metadata: Option<&serde_json::Value>,
+) -> Option<HashMap<String, String>> {
+    connector_metadata?
+        .as_object()
+        .and_then(|metadata_obj| {
+            // Look for payment details structures that connectors typically store
+            // For Authorize.Net, this would be the PaymentDetails::CreditCard structure stored by construct_refund_payment_details()
+            
+            // Check if this is a PaymentDetails::CreditCard structure
+            if let Some(credit_card_obj) = metadata_obj.get("CreditCard") {
+                // This matches the PaymentDetails::CreditCard(CreditCardDetails) variant
+                if let (Some(card_number), Some(expiration_date)) = (
+                    credit_card_obj.get("card_number").and_then(|v| v.as_str()),
+                    credit_card_obj.get("expiration_date").and_then(|v| v.as_str()),
+                ) {
+                    // Transform to the format expected by UCS backend
+                    let payment_structure = serde_json::json!({
+                        "payment": {
+                            "creditCard": {
+                                "cardNumber": card_number,
+                                "expirationDate": expiration_date
+                            }
+                        }
+                    });
+                    
+                    return Some(HashMap::from([
+                        ("payment".to_string(), payment_structure.to_string()),
+                    ]));
+                }
+            }
+            
+            // Check for direct credit card structure
+            if let Some(credit_card_obj) = metadata_obj.get("creditCard") {
+                // If we have creditCard details directly, wrap them in payment structure
+                let payment_structure = serde_json::json!({
+                    "payment": {
+                        "creditCard": credit_card_obj
+                    }
+                });
+                
+                return Some(HashMap::from([
+                    ("payment".to_string(), payment_structure.to_string()),
+                ]));
+            }
+            
+            // Check if we already have a properly formatted payment object
+            if let Some(payment_obj) = metadata_obj.get("payment") {
+                return Some(HashMap::from([
+                    ("payment".to_string(), payment_obj.to_string()),
+                ]));
+            }
+            
+            // For other metadata structures, try to preserve all fields as they might be needed
+            Some(
+                metadata_obj
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.to_string()))
+                    .collect(),
+            )
+        })
 }
 
 impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>>

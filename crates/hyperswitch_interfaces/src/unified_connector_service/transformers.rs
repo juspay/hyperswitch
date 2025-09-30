@@ -1,6 +1,10 @@
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, RefundStatus};
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse, router_response_types::PaymentsResponseData,
+    router_data::ErrorResponse, 
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::RefundsData,
+    router_data::RouterData,
 };
 
 use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
@@ -92,6 +96,14 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Repeat Payment from gRPC Server
     #[error("Failed to perform Repeat Payment from gRPC Server")]
     PaymentRepeatEverythingFailure,
+
+    /// Failed to perform Payment Refund from gRPC Server
+    #[error("Failed to perform Payment Refund from gRPC Server")]
+    PaymentRefundFailure,
+
+    /// Failed to perform Refund Sync from gRPC Server
+    #[error("Failed to perform Refund Sync from gRPC Server")]
+    RefundSyncFailure,
 
     /// Failed to transform incoming webhook from gRPC Server
     #[error("Failed to transform incoming webhook from gRPC Server")]

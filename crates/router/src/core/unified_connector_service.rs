@@ -33,7 +33,9 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_response_types::PaymentsResponseData,
+    router_flow_types::refunds,
+    router_request_types::RefundsData,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -51,7 +53,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                self as helpers, is_ucs_enabled, should_execute_based_on_rollout,
+                MerchantConnectorAccountType,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -60,7 +63,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
-    types::transformers::ForeignTryFrom,
+    types::{api, transformers::ForeignTryFrom},
 };
 
 pub mod transformers;
@@ -619,6 +622,80 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
         }
     }
 }
+
+/// Builds connector auth metadata from router data
+fn build_connector_auth_metadata_from_router_data<F>(
+    router_data: &RouterData<F, RefundsData, RefundsResponseData>,
+    connector_name: String,
+) -> RouterResult<ConnectorAuthMetadata> {
+    use hyperswitch_domain_models::router_data::ConnectorAuthType;
+
+    let auth_type = &router_data.connector_auth_type;
+
+    let auth_type_string = match auth_type {
+        ConnectorAuthType::HeaderKey { .. } => consts::UCS_AUTH_HEADER_KEY,
+        ConnectorAuthType::BodyKey { .. } => consts::UCS_AUTH_BODY_KEY,
+        ConnectorAuthType::SignatureKey { .. } => consts::UCS_AUTH_SIGNATURE_KEY,
+        ConnectorAuthType::CurrencyAuthKey { .. } => consts::UCS_AUTH_CURRENCY_AUTH_KEY,
+        _ => {
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unsupported auth type for UCS refund"),
+            );
+        }
+    };
+
+    let api_key = match auth_type {
+        ConnectorAuthType::HeaderKey { api_key }
+        | ConnectorAuthType::BodyKey { api_key, .. }
+        | ConnectorAuthType::SignatureKey { api_key, .. } => Some(api_key.clone()),
+        _ => None,
+    };
+
+    let key1 = match auth_type {
+        ConnectorAuthType::BodyKey { key1, .. } | ConnectorAuthType::SignatureKey { key1, .. } => {
+            Some(key1.clone())
+        }
+        _ => None,
+    };
+
+    let api_secret = match auth_type {
+        ConnectorAuthType::SignatureKey { api_secret, .. } => Some(api_secret.clone()),
+        _ => None,
+    };
+
+    let auth_key_map = match auth_type {
+        ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Some(auth_key_map.clone()),
+        _ => None,
+    };
+
+    Ok(ConnectorAuthMetadata {
+        connector_name,
+        auth_type: auth_type_string.to_string(),
+        api_key,
+        key1,
+        api_secret,
+        auth_key_map,
+        merchant_id: Secret::new(router_data.merchant_id.get_string_repr().to_string()),
+    })
+}
+
+/// Gets the UCS client from session state
+fn get_ucs_client(
+    state: &SessionState,
+) -> RouterResult<
+    &external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient,
+> {
+    state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS client is not available")
+        })
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1143,4 +1220,198 @@ pub async fn send_comparison_data(
         });
 
     Ok(())
+}
+
+// ============================================================================
+// REFUND UCS FUNCTIONS
+// ============================================================================
+
+/// Simple UCS decision function for refunds (without stickiness)
+pub async fn should_call_unified_connector_service_for_refunds(
+    state: &SessionState,
+    merchant_context: &MerchantContext,
+    connector_name: &str,
+) -> RouterResult<bool> {
+    // Check if UCS client is available
+    if state.grpc_client.unified_connector_service_client.is_none() {
+        router_env::logger::debug!("UCS client not available for refunds");
+        return Ok(false);
+    }
+
+    // Check if UCS is enabled globally
+    let ucs_config_key = consts::UCS_ENABLED;
+    if !is_ucs_enabled(state, ucs_config_key).await {
+        router_env::logger::debug!("UCS not enabled globally for refunds");
+        return Ok(false);
+    }
+
+    let merchant_id = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_string_repr();
+
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
+    // Check if this is a UCS-only connector
+    let is_ucs_only_connector = state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+
+    if is_ucs_only_connector {
+        router_env::logger::info!(
+            "UCS refund decision: UCS (forced) - merchant_id={}, connector={}, flow=refunds",
+            merchant_id,
+            connector_name
+        );
+        return Ok(true);
+    }
+
+    // Apply rollout percentage logic for refunds
+    let config_key = format!(
+        "{}_{}_{}_Refunds",
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name
+    );
+
+    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+
+    // Log gateway system decision
+    if should_execute {
+        router_env::logger::info!(
+            "UCS refund decision: UCS - merchant_id={}, connector={}, flow=refunds",
+            merchant_id,
+            connector_name
+        );
+    } else {
+        router_env::logger::info!(
+            "UCS refund decision: Direct - merchant_id={}, connector={}, flow=refunds",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    Ok(should_execute)
+}
+
+/// Execute UCS refund request using PaymentService.Refund gRPC method
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_execute(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    merchant_context: &MerchantContext,
+    router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
+) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
+    // Get UCS client
+    let ucs_client = get_ucs_client(state)?;
+
+    // Build auth metadata using helper function
+    let connector_auth_metadata = build_connector_auth_metadata_from_router_data(
+        &router_data,
+        connector.connector_name.to_string(),
+    )?;
+
+    // Transform router data to UCS refund request
+    let ucs_refund_request =
+        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform router data to UCS refund request")?;
+
+    // Build gRPC headers
+    let grpc_headers = external_services::grpc_client::GrpcHeaders {
+        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
+        request_id: Some(utils::generate_id(consts::ID_LENGTH, "refund_req")),
+    };
+
+    // Make UCS refund call with logging wrapper
+    ucs_logging_wrapper(
+        router_data,
+        state,
+        ucs_refund_request,
+        |router_data, grpc_request| async move {
+            // Call UCS payment_refund method
+            let response = ucs_client
+                .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS refund execution failed")?;
+
+            let grpc_response = response.into_inner();
+
+            // Transform UCS response back to RouterData
+            let refund_response_data = RefundsResponseData::foreign_try_from(grpc_response.clone())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to transform UCS refund response")?;
+
+            let mut updated_router_data = router_data;
+            updated_router_data.response = Ok(refund_response_data);
+            updated_router_data.connector_http_status_code = Some(200);
+
+            Ok((updated_router_data, grpc_response))
+        },
+    )
+    .await
+}
+
+/// Execute UCS refund sync request using RefundService.Get gRPC method
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_sync(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    merchant_context: &MerchantContext,
+    router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
+) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
+    // Get UCS client
+    let ucs_client = get_ucs_client(state)?;
+
+    // Build auth metadata using helper function
+    let connector_auth_metadata = build_connector_auth_metadata_from_router_data(
+        &router_data,
+        connector.connector_name.to_string(),
+    )?;
+
+    // Transform router data to UCS refund sync request
+    let ucs_refund_sync_request =
+        payments_grpc::RefundServiceGetRequest::foreign_try_from(&router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform router data to UCS refund sync request")?;
+
+    // Build gRPC headers
+    let grpc_headers = external_services::grpc_client::GrpcHeaders {
+        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
+        request_id: Some(utils::generate_id(consts::ID_LENGTH, "refund_sync_req")),
+    };
+
+    // Make UCS refund sync call with logging wrapper
+    ucs_logging_wrapper(
+        router_data,
+        state,
+        ucs_refund_sync_request,
+        |router_data, grpc_request| async move {
+            // Call UCS refund_sync method
+            let response = ucs_client
+                .refund_sync(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("UCS refund sync execution failed")?;
+
+            let grpc_response = response.into_inner();
+
+            // Transform UCS response back to RouterData
+            let refund_response_data = RefundsResponseData::foreign_try_from(grpc_response.clone())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to transform UCS refund sync response")?;
+
+            let mut updated_router_data = router_data;
+            updated_router_data.response = Ok(refund_response_data);
+            updated_router_data.connector_http_status_code = Some(200);
+
+            Ok((updated_router_data, grpc_response))
+        },
+    )
+    .await
 }
