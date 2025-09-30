@@ -201,7 +201,6 @@ force_cookies = true
 enabled = true
 
 [connector_customer]
-connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [delayed_session_response]

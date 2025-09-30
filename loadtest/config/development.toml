@@ -701,7 +701,6 @@ globalpay = { long_lived_token = false, payment_method = "card", flow = "mandate
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [connector_customer]
-connector_list = "authorizedotnet,dwolla,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,wise"
 
 [dummy_connector]
