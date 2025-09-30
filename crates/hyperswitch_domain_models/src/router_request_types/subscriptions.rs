@@ -23,10 +23,25 @@ pub enum SubscriptionAutoCollection {
     On,
     Off,
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct GetSubscriptionPlansRequest {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+}
+
+impl GetSubscriptionPlansRequest {
+    pub fn new(limit: Option<u32>, offset: Option<u32>) -> Self {
+        Self { limit, offset }
+    }
+}
+
+impl Default for GetSubscriptionPlansRequest {
+    fn default() -> Self {
+        Self {
+            limit: Some(10),
+            offset: Some(0),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

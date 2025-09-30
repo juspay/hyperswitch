@@ -10,6 +10,7 @@ use router_env::{
     tracing::{self, instrument},
     Flow,
 };
+use std::str::FromStr;
 
 use crate::{
     core::{api_locking, subscription},
@@ -130,14 +131,14 @@ pub async fn get_subscription_plans(
     let flow = Flow::GetPlansForSubscription;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let profile_id = match req.headers().get(X_PROFILE_ID) {
-        Some(val) => val.to_str().unwrap_or_default().to_string(),
-        None => {
+    let profile_id = match extract_profile_id(&req) {
+        Ok(profile_id) => profile_id,
+        _ => {
             return HttpResponse::BadRequest().json(
-                errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "x-profile-id",
+                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                    field_name: X_PROFILE_ID,
                 },
-            );
+            )
         }
     };
 
@@ -161,4 +162,29 @@ pub async fn get_subscription_plans(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+fn extract_profile_id(req: &HttpRequest) -> Result<common_utils::id_type::ProfileId, HttpResponse> {
+    let header_value = req.headers().get(X_PROFILE_ID).ok_or_else(|| {
+        HttpResponse::BadRequest().json(
+            errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: X_PROFILE_ID,
+            },
+        )
+    })?;
+    let profile_str = header_value.to_str().unwrap_or_default();
+    if profile_str.is_empty() {
+        return Err(HttpResponse::BadRequest().json(
+            errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: X_PROFILE_ID,
+            },
+        ));
+    }
+    common_utils::id_type::ProfileId::from_str(profile_str).map_err(|_| {
+        HttpResponse::BadRequest().json(
+            errors::api_error_response::ApiErrorResponse::InvalidDataValue {
+                field_name: X_PROFILE_ID,
+            },
+        )
+    })
 }

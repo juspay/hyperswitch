@@ -1,35 +1,16 @@
 use std::str::FromStr;
 
-use api_models::{
-    enums as api_enums,
-    subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
+use api_models::subscription::{
+    self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus,
 };
-use common_utils::{
-    ext_traits::{AsyncExt, ValueExt},
-    id_type::GenerateId,
-    pii,
-};
+use common_utils::id_type::GenerateId;
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse,
-    merchant_context::MerchantContext,
-    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
-    router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
-    router_response_types::{
-        subscriptions as subscription_response_types, ConnectorCustomerResponseData,
-        PaymentsResponseData,
-    },
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use masking::Secret;
 
 use super::errors::{self, RouterResponse};
-use crate::{
-    core::{payments as payments_core, utils::subscription as subscription_utils},
-    routes::SessionState,
-    services,
-    types::api as api_types,
-};
+use crate::{core::utils::subscription as subscription_utils, routes::SessionState};
 
 pub async fn create_subscription(
     state: SessionState,
@@ -86,15 +67,9 @@ pub async fn create_subscription(
 pub async fn get_subscription_plans(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     query: subscription_types::GetPlansQuery,
 ) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
-    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "X-Profile-Id",
-        },
-    )?;
-
     let key_manager_state = &(&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
@@ -124,7 +99,9 @@ pub async fn get_subscription_plans(
     let billing_handler = subscription_with_handler
         .get_billing_handler(None, None)
         .await?;
-    let get_plans_response = billing_handler.get_subscription_plans(&state).await?;
+    let get_plans_response = billing_handler
+        .get_subscription_plans(&state, query.limit)
+        .await?;
 
     let mut response = Vec::new();
 

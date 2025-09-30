@@ -174,7 +174,7 @@ impl ClientSecret {
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct GetPlansQuery {
     pub client_secret: Option<ClientSecret>,
-    pub subscription_id: Option<String>,
+    pub limit: Option<u32>,
 }
 
 impl ApiEventMetric for CreateSubscriptionResponse {}

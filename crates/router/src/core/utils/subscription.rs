@@ -8,13 +8,13 @@ use common_utils::{
 use diesel_models::subscription::{self, Subscription};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    connector_endpoints, customer,
     merchant_context::MerchantContext,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::ConnectorAuthType,
     router_data_v2::flow_common_types::{
         GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
         SubscriptionCustomerData,
     },
-    router_flow_types::subscriptions as subscription_flow,
     router_request_types::{subscriptions as subscription_request, ConnectorCustomerData},
     router_response_types::{
         subscriptions as subscription_response, ConnectorCustomerResponseData, PaymentsResponseData,
@@ -23,8 +23,12 @@ use hyperswitch_domain_models::{
 };
 
 use crate::{
-    consts, core::payments as payments_core, db::errors, routes::SessionState, services,
-    types::api as api_types,
+    consts,
+    core::payments as payments_core,
+    db::errors,
+    routes::SessionState,
+    services,
+    types::{self as router_types, api as api_types},
 };
 
 pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
@@ -38,12 +42,12 @@ pub struct SubscriptionHandler {
 
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler,
-    pub subscription: Option<diesel_models::subscription::Subscription>,
+    pub subscription: Option<Subscription>,
     pub profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 pub struct InvoiceHandler {
-    pub subscription: diesel_models::subscription::Subscription,
+    pub subscription: Subscription,
 }
 
 #[allow(clippy::todo)]
@@ -175,7 +179,7 @@ impl<'a> SubscriptionWithHandler<'a> {
                     .get_merchant_account()
                     .get_id(),
                 subscription.id.get_string_repr().to_string(),
-                diesel_models::subscription::SubscriptionUpdate::new(None, Some(status)),
+                subscription::SubscriptionUpdate::new(None, Some(status)),
             )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
@@ -190,7 +194,7 @@ impl<'a> SubscriptionWithHandler<'a> {
 
     pub async fn get_billing_handler(
         &self,
-        customer: Option<hyperswitch_domain_models::customer::Customer>,
+        customer: Option<customer::Customer>,
         confirm_request: Option<&subscription_types::ConfirmSubscriptionRequest>,
     ) -> errors::RouterResult<BillingHandler> {
         let mca_id = self.profile.get_billing_processor_id()?;
@@ -215,7 +219,7 @@ impl<'a> SubscriptionWithHandler<'a> {
 
         let connector_name = billing_processor_mca.connector_name.clone();
 
-        let auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType =
+        let auth_type: ConnectorAuthType =
             payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
                 billing_processor_mca.clone(),
             ))
@@ -242,15 +246,14 @@ impl<'a> SubscriptionWithHandler<'a> {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!("unable to parse connector name {connector_name:?}"))?;
 
-        let connector_params =
-            hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
-                &self.handler.state.conf.connectors,
-                connector_enum,
-            )
-            .change_context(errors::ApiErrorResponse::ConfigNotFound)
-            .attach_printable(format!(
-                "cannot find connector params for this connector {connector_name} in this flow",
-            ))?;
+        let connector_params = connector_endpoints::Connectors::get_connector_params(
+            &self.handler.state.conf.connectors,
+            connector_enum,
+        )
+        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+        .attach_printable(format!(
+            "cannot find connector params for this connector {connector_name} in this flow",
+        ))?;
 
         Ok(BillingHandler {
             subscription: self.subscription.clone(),
@@ -372,10 +375,10 @@ impl SubscriptionHandler {
 pub struct BillingHandler {
     pub subscription: Option<Subscription>,
     pub auth_type: ConnectorAuthType,
-    pub connector_data: crate::types::api::ConnectorData,
-    pub connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
+    pub connector_data: router_types::api::ConnectorData,
+    pub connector_params: connector_endpoints::ConnectorParams,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub customer: Option<hyperswitch_domain_models::customer::Customer>,
+    pub customer: Option<customer::Customer>,
     pub billing_address: Option<api_models::payments::Address>,
     pub payment_details: Option<subscription_types::PaymentDetails>,
     pub item_price_id: Option<String>,
@@ -386,8 +389,11 @@ impl BillingHandler {
     pub async fn get_subscription_plans(
         &self,
         state: &SessionState,
+        limit: Option<u32>,
     ) -> errors::RouterResult<subscription_response::GetSubscriptionPlansResponse> {
-        let get_plans_request = subscription_request::GetSubscriptionPlansRequest::default();
+        let get_plans_request = limit
+            .map(|lim| subscription_request::GetSubscriptionPlansRequest::new(Some(lim), Some(0)))
+            .unwrap_or_default();
 
         let router_data = self.build_router_data(
             state,
