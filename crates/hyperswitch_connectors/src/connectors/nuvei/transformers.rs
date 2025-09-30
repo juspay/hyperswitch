@@ -36,6 +36,10 @@ use hyperswitch_domain_models::{
     },
     types,
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_response_types::PayoutsResponseData,
+};
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
@@ -46,13 +50,14 @@ use url::Url;
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        self as router_types, PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsPreProcessingRequestData,
-        PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsSetupMandateRequestData, PayoutsData as _, RouterData as _,
     },
 };
 
@@ -2320,6 +2325,143 @@ impl TryFrom<&ConnectorAuthType> for NuveiAuthType {
     }
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: String,
+    pub client_unique_id: String,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub user_token_id: CustomerId,
+    pub time_stamp: String,
+    pub checksum: Secret<String>,
+    pub card_data: NuveiPayoutCardData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutCardData {
+    pub card_number: cards::CardNumber,
+    pub card_holder_name: Secret<String>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiPayoutResponse {
+    pub transaction_id: String,
+    pub user_token_id: CustomerId,
+    pub transaction_status: NuveiTransactionStatus,
+    pub client_unique_id: String,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutCardData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        payout_method_data: api_models::payouts::PayoutMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payout_method_data {
+            api_models::payouts::PayoutMethodData::Card(card_data) => Ok(Self {
+                card_number: card_data.card_number,
+                card_holder_name: card_data.card_holder_name.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "customer_id",
+                    },
+                )?,
+                expiration_month: card_data.expiry_month,
+                expiration_year: card_data.expiry_year,
+            }),
+            api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::Wallet(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected Payout Method is not implemented for Nuvei".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+        let amount = convert_amount(
+            NUVEI_AMOUNT_CONVERTOR,
+            item.request.minor_amount,
+            item.request.destination_currency,
+        )?;
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checksum = encode_payload(&[
+            connector_auth.merchant_id.peek(),
+            connector_auth.merchant_site_id.peek(),
+            &item.connector_request_reference_id,
+            &amount.get_amount_as_string(),
+            &item.request.destination_currency.to_string(),
+            &time_stamp,
+            connector_auth.merchant_secret.peek(),
+        ])?;
+
+        let payout_method_data = item.get_payout_method_data()?;
+
+        let card_data = NuveiPayoutCardData::try_from(payout_method_data)?;
+
+        let customer_details = item.request.get_customer_details()?;
+
+        Ok(Self {
+            merchant_id: connector_auth.merchant_id,
+            merchant_site_id: connector_auth.merchant_site_id,
+            client_request_id: item.connector_request_reference_id.clone(),
+            client_unique_id: item.connector_request_reference_id.clone(),
+            amount,
+            currency: item.request.destination_currency.to_string(),
+            user_token_id: customer_details.customer_id.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                },
+            )?,
+            time_stamp,
+            checksum: Secret::new(checksum),
+            card_data,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<router_types::PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
+    for types::PayoutsRouterData<PoFulfill>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: router_types::PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(enums::PayoutStatus::from(
+                    response.transaction_status.clone(),
+                )),
+                connector_payout_id: Some(response.transaction_id.clone()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NuveiPaymentStatus {
@@ -2354,6 +2496,18 @@ impl From<NuveiTransactionStatus> for enums::AttemptStatus {
             NuveiTransactionStatus::Approved => Self::Charged,
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failure,
             _ => Self::Pending,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<NuveiTransactionStatus> for enums::PayoutStatus {
+    fn from(item: NuveiTransactionStatus) -> Self {
+        match item {
+            NuveiTransactionStatus::Approved => Self::Success,
+            NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failed,
+            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Pending => Self::Pending,
+            NuveiTransactionStatus::Redirect => Self::Ineligible,
         }
     }
 }
