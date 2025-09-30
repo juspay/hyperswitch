@@ -138,6 +138,51 @@ pub async fn confirm_subscription(
     .await
 }
 
+/// Add support for get subscription by id
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn get_subscription(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
+) -> impl Responder {
+    let flow = Flow::GetSubscription;
+    let subscription_id = subscription_id.into_inner();
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::get_subscription(
+                state,
+                merchant_context,
+                profile_id.clone(),
+                subscription_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn create_and_confirm_subscription(

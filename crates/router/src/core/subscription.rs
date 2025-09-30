@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::{
     enums as api_enums,
-    subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
+    subscription::{self as subscription_types, SubscriptionResponse, SubscriptionStatus},
 };
 use common_enums::connector_enums;
 use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii, types::MinorUnit};
@@ -35,35 +35,30 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<CreateSubscriptionResponse> {
+) -> RouterResponse<SubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
-    let subscription_response = SubscriptionHandler::create_subscription_entry(
-        &state,
-        &merchant_context,
-        subscription_id,
-        profile_id,
-        &request.customer_id,
-        request.merchant_reference_id,
-    )
-    .await
-    .attach_printable(
-        "subscriptions: failed to create subscription entry in create_subscription",
-    )?;
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in create_and_confirm_subscription",
+            )?;
+    let subscription_handler = SubscriptionHandler::new(state, merchant_context, profile);
+    let subscription = subscription_handler
+        .create_subscription_entry(
+            subscription_id,
+            &request.customer_id,
+            request.merchant_reference_id.clone(),
+        )
+        .await
+        .attach_printable(
+            "subscriptions: failed to create subscription entry in create_subscription",
+        )?;
 
-    let response = CreateSubscriptionResponse::new(
-        subscription_response.id.clone(),
-        subscription_response.merchant_reference_id,
-        SubscriptionStatus::from_str(&subscription_response.status)
-            .unwrap_or(SubscriptionStatus::Created),
-        None,
-        subscription_response.profile_id,
-        subscription_response.merchant_id,
-        subscription_response.client_secret.map(Secret::new),
-        request.customer_id,
-    );
-
-    Ok(ApplicationResponse::Json(response))
+    Ok(ApplicationResponse::Json(
+        subscription.to_subscription_response(),
+    ))
 }
 
 /// Creates and confirms a subscription in one operation.
@@ -76,20 +71,6 @@ pub async fn create_and_confirm_subscription(
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
-    let subscription = SubscriptionHandler::create_subscription_entry(
-        &state,
-        &merchant_context,
-        subscription_id.clone(),
-        profile_id.clone(),
-        &request.customer_id,
-        None, // merchant_reference_id can be derived from plan_id if needed
-    )
-    .await
-    .attach_printable(
-        "subscriptions: failed to create subscription entry in create_and_confirm_subscription",
-    )?;
-
-    // Use the same confirmation flow but with the subscription we just created (no DB fetch needed)
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
@@ -102,18 +83,22 @@ pub async fn create_and_confirm_subscription(
             .attach_printable(
                 "subscriptions: failed to find customer in create_and_confirm_subscription",
             )?;
-
-    let handler = SubscriptionHandler::new(state, merchant_context, request, profile.clone());
-    let subscription_entry = SubscriptionWithHandler {
-        handler: &handler,
-        subscription,
-        profile,
-        merchant_account: handler.merchant_context.get_merchant_account().clone(),
-    };
+    let subscription_handler = SubscriptionHandler::new(state, merchant_context, profile);
+    let subscription = subscription_handler
+        .create_subscription_entry(
+            subscription_id.clone(),
+            &request.customer_id,
+            request.merchant_reference_id.clone(),
+        )
+        .await
+        .attach_printable(
+            "subscriptions: failed to create subscription entry in create_and_confirm_subscription",
+        )?;
 
     Box::pin(execute_subscription_confirmation(
-        subscription_entry,
+        subscription,
         customer,
+        request,
     ))
     .await
 }
@@ -137,14 +122,13 @@ pub async fn confirm_subscription(
             .await
             .attach_printable("subscriptions: failed to find customer in confirm_subscription")?;
 
-    let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
-    let subscription_entry = handler
-        .find_subscription(subscription_id.get_string_repr().to_string())
-        .await?;
+    let handler = SubscriptionHandler::new(state, merchant_context, profile);
+    let subscription_entry = handler.find_subscription(subscription_id).await?;
 
     Box::pin(execute_subscription_confirmation(
         subscription_entry,
         customer,
+        request,
     ))
     .await
 }
@@ -152,8 +136,11 @@ pub async fn confirm_subscription(
 async fn execute_subscription_confirmation(
     mut subscription_entry: SubscriptionWithHandler<'_>,
     customer: hyperswitch_domain_models::customer::Customer,
+    request: subscription_types::ConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let billing_handler = subscription_entry.get_billing_handler(customer).await?;
+    let billing_handler = subscription_entry
+        .get_billing_handler(customer, request.clone())
+        .await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
 
     let _customer_create_response = billing_handler
@@ -180,7 +167,7 @@ async fn execute_subscription_confirmation(
     let payment_response = invoice_handler
         .create_cit_payment(
             &subscription_entry.handler.state,
-            &subscription_entry.handler.request,
+            &request,
             amount,
             currency,
         )
@@ -227,10 +214,32 @@ async fn execute_subscription_confirmation(
     Ok(ApplicationResponse::Json(response))
 }
 
+pub async fn get_subscription(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    subscription_id: common_utils::id_type::SubscriptionId,
+) -> RouterResponse<SubscriptionResponse> {
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in get_subscription",
+            )?;
+    let handler = SubscriptionHandler::new(state, merchant_context, profile);
+    let subscription = handler
+        .find_subscription(subscription_id)
+        .await
+        .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
+
+    Ok(ApplicationResponse::Json(
+        subscription.to_subscription_response(),
+    ))
+}
+
 pub struct SubscriptionHandler {
     state: SessionState,
     merchant_context: MerchantContext,
-    request: subscription_types::ConfirmSubscriptionRequest,
     profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
@@ -238,27 +247,23 @@ impl SubscriptionHandler {
     pub fn new(
         state: SessionState,
         merchant_context: MerchantContext,
-        request: subscription_types::ConfirmSubscriptionRequest,
         profile: hyperswitch_domain_models::business_profile::Profile,
     ) -> Self {
         Self {
             state,
             merchant_context,
-            request,
             profile,
         }
     }
 
     /// Helper function to create a subscription entry in the database.
     pub async fn create_subscription_entry(
-        state: &SessionState,
-        merchant_context: &MerchantContext,
+        &self,
         subscription_id: common_utils::id_type::SubscriptionId,
-        profile_id: common_utils::id_type::ProfileId,
         customer_id: &common_utils::id_type::CustomerId,
         merchant_reference_id: Option<String>,
-    ) -> errors::RouterResult<diesel_models::subscription::Subscription> {
-        let store = state.store.clone();
+    ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
+        let store = self.state.store.clone();
         let db = store.as_ref();
 
         let mut subscription = SubscriptionNew::new(
@@ -269,19 +274,30 @@ impl SubscriptionHandler {
             None,
             None,
             None,
-            merchant_context.get_merchant_account().get_id().clone(),
+            self.merchant_context
+                .get_merchant_account()
+                .get_id()
+                .clone(),
             customer_id.clone(),
             None,
-            profile_id,
+            self.profile.get_id().clone(),
             merchant_reference_id,
         );
 
         subscription.generate_and_set_client_secret();
 
-        db.insert_subscription_entry(subscription)
+        let new_subscription = db
+            .insert_subscription_entry(subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("subscriptions: unable to insert subscription entry to database")
+            .attach_printable("subscriptions: unable to insert subscription entry to database")?;
+
+        Ok(SubscriptionWithHandler {
+            handler: self,
+            subscription: new_subscription,
+            profile: self.profile.clone(),
+            merchant_account: self.merchant_context.get_merchant_account().clone(),
+        })
     }
 
     /// Helper function to find and validate customer.
@@ -328,18 +344,21 @@ impl SubscriptionHandler {
 
     pub async fn find_subscription(
         &self,
-        subscription_id: String,
+        subscription_id: common_utils::id_type::SubscriptionId,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
                 self.merchant_context.get_merchant_account().get_id(),
-                subscription_id.clone(),
+                subscription_id.get_string_repr().to_string().clone(),
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: format!("subscription not found for id: {subscription_id}"),
+                message: format!(
+                    "subscription not found for id: {}",
+                    subscription_id.get_string_repr()
+                ),
             })?;
 
         Ok(SubscriptionWithHandler {
@@ -398,6 +417,20 @@ impl SubscriptionWithHandler<'_> {
         })
     }
 
+    pub fn to_subscription_response(&self) -> SubscriptionResponse {
+        SubscriptionResponse::new(
+            self.subscription.id.clone(),
+            self.subscription.merchant_reference_id.clone(),
+            SubscriptionStatus::from_str(&self.subscription.status)
+                .unwrap_or(SubscriptionStatus::Created),
+            None,
+            self.subscription.profile_id.to_owned(),
+            self.subscription.merchant_id.to_owned(),
+            self.subscription.client_secret.clone().map(Secret::new),
+            self.subscription.customer_id.clone(),
+        )
+    }
+
     async fn update_subscription(
         &mut self,
         subscription_update: diesel_models::subscription::SubscriptionUpdate,
@@ -426,6 +459,7 @@ impl SubscriptionWithHandler<'_> {
     pub async fn get_billing_handler(
         &self,
         customer: hyperswitch_domain_models::customer::Customer,
+        request: subscription_types::ConfirmSubscriptionRequest,
     ) -> errors::RouterResult<BillingHandler> {
         let mca_id = self.profile.get_billing_processor_id()?;
 
@@ -490,7 +524,7 @@ impl SubscriptionWithHandler<'_> {
             auth_type,
             connector_data,
             connector_params,
-            request: self.handler.request.clone(),
+            request,
             connector_metadata: billing_processor_mca.metadata.clone(),
             customer,
         })

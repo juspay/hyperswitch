@@ -31,7 +31,7 @@ pub struct CreateSubscriptionRequest {
 ///
 /// Includes details such as subscription ID, status, plan, merchant, and customer info.
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct CreateSubscriptionResponse {
+pub struct SubscriptionResponse {
     /// Unique identifier for the subscription.
     pub id: common_utils::id_type::SubscriptionId,
 
@@ -97,7 +97,7 @@ pub enum SubscriptionStatus {
     Failed,
 }
 
-impl CreateSubscriptionResponse {
+impl SubscriptionResponse {
     /// Creates a new [`CreateSubscriptionResponse`] with the given identifiers.
     ///
     /// By default, `client_secret`, `coupon_code`, and `customer` fields are `None`.
@@ -126,7 +126,7 @@ impl CreateSubscriptionResponse {
     }
 }
 
-impl ApiEventMetric for CreateSubscriptionResponse {}
+impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -199,6 +199,9 @@ pub struct ConfirmSubscriptionRequest {
 
     /// Payment details for the invoice.
     pub payment_details: PaymentDetails,
+
+    /// Merchant specific Unique identifier.
+    pub merchant_reference_id: Option<String>,
 }
 
 impl ConfirmSubscriptionRequest {

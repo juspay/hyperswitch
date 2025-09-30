@@ -1194,6 +1194,10 @@ impl Subscription {
                     },
                 )),
             )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
+            )
     }
 }
 
