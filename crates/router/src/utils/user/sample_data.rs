@@ -394,6 +394,7 @@ pub async fn generate_sample_data(
             connector_request_reference_id: None,
             network_transaction_id: None,
             network_details: None,
+            is_stored_credential: None,
             authorized_amount: None,
         };
 

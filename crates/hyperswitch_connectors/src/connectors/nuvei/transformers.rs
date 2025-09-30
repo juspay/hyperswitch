@@ -17,7 +17,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    address::Address,
+    address::{Address, AddressDetails},
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
         GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
@@ -106,6 +106,7 @@ trait NuveiAuthorizePreprocessingCommon {
     ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
         Ok(None)
     }
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode>;
 }
 
 impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
@@ -187,6 +188,10 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
     fn get_ntid(&self) -> Option<String> {
         None
     }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
@@ -260,6 +265,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.enable_partial_authorization
             .map(PartialApprovalFlag::from)
     }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
+    }
 }
 
 impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
@@ -332,6 +341,10 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
 
     fn get_ntid(&self) -> Option<String> {
         None
+    }
+
+    fn get_is_stored_credential(&self) -> Option<StoredCredentialMode> {
+        StoredCredentialMode::get_optional_stored_credential(self.is_stored_credential)
     }
 }
 
@@ -785,8 +798,36 @@ pub struct Card {
     pub issuer_country: Option<String>,
     pub is_prepaid: Option<String>,
     pub external_token: Option<ExternalToken>,
+    pub stored_credentials: Option<StoredCredentialMode>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredCredentialMode {
+    pub stored_credentials_mode: Option<StoredCredentialModeType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StoredCredentialModeType {
+    #[serde(rename = "0")]
+    First,
+    #[serde(rename = "1")]
+    Used,
+}
+
+impl StoredCredentialMode {
+    pub fn get_optional_stored_credential(is_stored_credential: Option<bool>) -> Option<Self> {
+        is_stored_credential.and_then(|is_stored_credential| {
+            if is_stored_credential {
+                Some(Self {
+                    stored_credentials_mode: Some(StoredCredentialModeType::Used),
+                })
+            } else {
+                None
+            }
+        })
+    }
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
@@ -1015,6 +1056,7 @@ pub struct NuveiCardDetails {
     card: payment_method_data::Card,
     three_d: Option<ThreeD>,
     card_holder_name: Option<Secret<String>>,
+    stored_credentials: Option<StoredCredentialMode>,
 }
 
 // Define new structs with camelCase serialization
@@ -1884,6 +1926,7 @@ where
             amount_details,
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
+
             ..request
         })
     }
@@ -1903,7 +1946,7 @@ where
         None
     };
 
-    let address = item
+    let address: Option<&AddressDetails> = item
         .get_optional_billing()
         .and_then(|billing_details| billing_details.address.as_ref());
 
@@ -1999,6 +2042,7 @@ where
             card: card_details.clone(),
             three_d,
             card_holder_name: item.get_optional_billing_full_name(),
+            stored_credentials: item.request.get_is_stored_credential(),
         }),
         is_moto,
         ..Default::default()
@@ -2015,6 +2059,7 @@ impl From<NuveiCardDetails> for PaymentOption {
                 expiration_year: Some(card.card_exp_year),
                 three_d: card_details.three_d,
                 cvv: Some(card.card_cvc),
+                stored_credentials: card_details.stored_credentials,
                 ..Default::default()
             }),
             ..Default::default()
@@ -2038,6 +2083,9 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
                         card,
                         three_d: None,
                         card_holder_name: item.get_optional_billing_full_name(),
+                        stored_credentials: StoredCredentialMode::get_optional_stored_credential(
+                            item.request.is_stored_credential,
+                        ),
                     }),
                     device_details,
                     ..Default::default()

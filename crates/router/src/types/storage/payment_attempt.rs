@@ -229,6 +229,7 @@ mod tests {
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
             network_details: Default::default(),
+            is_stored_credential: None,
             authorized_amount: Default::default(),
         };
 
@@ -324,6 +325,7 @@ mod tests {
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
             network_details: Default::default(),
+            is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
         };
         let store = state
@@ -432,6 +434,7 @@ mod tests {
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
             network_details: Default::default(),
+            is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
         };
         let store = state

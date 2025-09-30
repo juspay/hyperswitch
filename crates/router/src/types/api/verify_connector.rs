@@ -69,6 +69,7 @@ impl VerifyConnectorData {
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         }
     }
 
