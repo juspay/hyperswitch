@@ -2732,8 +2732,6 @@ pub async fn delete_decision_engine_merchant(
     Ok(())
 }
 
-#[cfg(feature = "v1")]
-#[instrument(skip_all)]
 pub async fn redact_cgraph_cache(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
