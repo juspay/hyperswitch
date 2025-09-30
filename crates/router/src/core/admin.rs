@@ -23,6 +23,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -2576,6 +2577,9 @@ pub async fn create_connector(
                     .unwrap_or_default(),
             },
         )?;
+
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
 
     #[cfg(feature = "v1")]
     disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
