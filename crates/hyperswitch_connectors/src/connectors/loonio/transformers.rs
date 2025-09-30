@@ -177,7 +177,7 @@ pub enum LoonioTransactionStatus {
 impl From<LoonioTransactionStatus> for enums::AttemptStatus {
     fn from(item: LoonioTransactionStatus) -> Self {
         match item {
-            LoonioTransactionStatus::Created => Self::Authorizing,
+            LoonioTransactionStatus::Created => Self::AuthenticationPending,
             LoonioTransactionStatus::Prepared | LoonioTransactionStatus::Pending => Self::Pending,
             LoonioTransactionStatus::Settled | LoonioTransactionStatus::Available => Self::Charged,
             LoonioTransactionStatus::Abandoned
