@@ -46,10 +46,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::payouts::{PoCreate, PoFulfill, PoSync},
-    router_request_types::PayoutsData,
-    router_response_types::PayoutsResponseData,
-    types::PayoutsRouterData,
+    router_flow_types::payouts::PoFulfill, router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -173,24 +171,7 @@ impl api::PaymentPostCaptureVoid for Nuvei {}
 
 impl api::Payouts for Nuvei {}
 #[cfg(feature = "payouts")]
-impl api::PayoutCreate for Nuvei {}
-#[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Nuvei {}
-// #[cfg(feature = "payouts")]
-// impl api::PayoutSync for Nuvei {}
-
-#[async_trait::async_trait]
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Nuvei {
-    fn build_request(
-        &self,
-        _req: &PayoutsRouterData<PoCreate>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        // create call check for card is not implemented
-        Err(errors::ConnectorError::NotImplemented("Payout Create for Nuvei".to_string()).into())
-    }
-}
 
 #[async_trait::async_trait]
 #[cfg(feature = "payouts")]

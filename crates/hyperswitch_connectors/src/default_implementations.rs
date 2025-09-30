@@ -3991,6 +3991,7 @@ default_imp_for_payouts_create!(
     connectors::Nordea,
     connectors::Opayo,
     connectors::Opennode,
+    connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payload,
