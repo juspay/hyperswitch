@@ -511,6 +511,7 @@ impl ConnectorConfig {
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
+            Connector::Loonio => Ok(connector_data.loonio),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),
