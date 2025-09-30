@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -20,7 +20,8 @@ use hyperswitch_domain_models::{
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -112,12 +113,6 @@ struct CreditCardDetails {
     expiration_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<Secret<String>>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct BankAccountDetails {
-    account_number: Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -619,9 +614,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
         match item.response.messages.result_code {
             ResultCode::Ok => match item.response.customer_profile_id.clone() {
                 Some(connector_customer_id) => Ok(Self {
-                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                        connector_customer_id,
-                    }),
+                    response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                        ConnectorCustomerResponseData::new_with_customer_id(connector_customer_id),
+                    )),
                     ..item.data
                 }),
                 None => Err(
@@ -637,9 +632,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     error_message.and_then(|error| extract_customer_id(&error.text))
                 {
                     Ok(Self {
-                        response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                            connector_customer_id,
-                        }),
+                        response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                            ConnectorCustomerResponseData::new_with_customer_id(
+                                connector_customer_id,
+                            ),
+                        )),
                         ..item.data
                     })
                 } else {
@@ -1545,7 +1542,10 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1646,7 +1646,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1716,28 +1719,16 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     fn try_from(
         item: &AuthorizedotnetRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .router_data
-            .request
-            .connector_metadata
-            .as_ref()
-            .get_required_value("connector_metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata",
-            })?
-            .clone();
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.amount,
-            payment: payment_details
-                .parse_value("PaymentDetails")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_details",
-                })?,
+            payment: get_refund_metadata(
+                &item.router_data.request.connector_metadata,
+                &item.router_data.request.additional_payment_method_data,
+            )?,
             currency_code: item.router_data.request.currency.to_string(),
             reference_transaction_id: item.router_data.request.connector_transaction_id.clone(),
         };
@@ -1751,6 +1742,42 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     }
 }
 
+fn get_refund_metadata(
+    connector_metadata: &Option<Value>,
+    additional_payment_method: &Option<AdditionalPaymentData>,
+) -> Result<PaymentDetails, error_stack::Report<errors::ConnectorError>> {
+    let payment_details_from_metadata = connector_metadata
+        .as_ref()
+        .get_required_value("connector_metadata")
+        .ok()
+        .and_then(|value| {
+            value
+                .clone()
+                .parse_value::<PaymentDetails>("PaymentDetails")
+                .ok()
+        });
+    let payment_details_from_additional_payment_method = match additional_payment_method {
+        Some(AdditionalPaymentData::Card(additional_card_info)) => {
+            additional_card_info.last4.clone().map(|last4| {
+                construct_refund_payment_details(PaymentDetailAccountNumber::UnMasked(
+                    last4.to_string(),
+                ))
+            })
+        }
+        _ => None,
+    };
+    match (
+        payment_details_from_metadata,
+        payment_details_from_additional_payment_method,
+    ) {
+        (Some(payment_detail), _) => Ok(payment_detail),
+        (_, Some(payment_detail)) => Ok(payment_detail),
+        (None, None) => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "payment_details",
+        }
+        .into()),
+    }
+}
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
@@ -2037,10 +2064,16 @@ pub struct ErrorDetails {
 pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
 }
-
-fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
+enum PaymentDetailAccountNumber {
+    Masked(String),
+    UnMasked(String),
+}
+fn construct_refund_payment_details(detail: PaymentDetailAccountNumber) -> PaymentDetails {
     PaymentDetails::CreditCard(CreditCardDetails {
-        card_number: masked_number.into(),
+        card_number: match detail {
+            PaymentDetailAccountNumber::Masked(masked) => masked.into(),
+            PaymentDetailAccountNumber::UnMasked(unmasked) => format!("XXXX{:}", unmasked).into(),
+        },
         expiration_date: "XXXX".to_string().into(),
         card_code: None,
     })

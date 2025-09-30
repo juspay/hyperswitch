@@ -188,6 +188,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
                 }
+                enums::Connector::Gigadat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -353,12 +356,16 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
+                enums::Connector::Trustpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Trustpayments::new(),
+                ))),
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(connector::Tsys::new()))),
                 // enums::Connector::UnifiedAuthenticationService => Ok(ConnectorEnum::Old(Box::new(
                 //     connector::UnifiedAuthenticationService,
@@ -394,6 +401,11 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Taxjar => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
+                }
+                enums::Connector::Cardinal => {
+                    Err(report!(errors::ConnectorError::InvalidConnectorName)
+                        .attach_printable(format!("invalid connector name: {connector_name}")))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)

@@ -1,8 +1,9 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod revenue_recovery;
+pub mod subscriptions;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
 use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
@@ -84,7 +85,8 @@ pub struct PaymentsAuthorizeData {
     pub order_id: Option<String>,
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -139,7 +141,7 @@ pub struct ExternalVaultProxyPaymentsData {
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
-    pub merchant_order_reference_id: Option<String>,
+    pub merchant_order_reference_id: Option<id_type::PaymentReferenceId>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
@@ -182,6 +184,8 @@ impl
             split_payments: data.request.split_payments.clone(),
             setup_future_usage: data.request.setup_future_usage,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -288,6 +292,8 @@ pub struct ConnectorCustomerData {
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub billing_address: Option<AddressDetails>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -303,6 +309,8 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             split_payments: None,
             setup_future_usage: data.setup_future_usage,
             customer_acceptance: data.customer_acceptance,
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -362,6 +370,8 @@ impl
             split_payments: data.request.split_payments.clone(),
             setup_future_usage: data.request.setup_future_usage,
             customer_acceptance: data.request.customer_acceptance.clone(),
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -388,6 +398,8 @@ impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::Pa
             split_payments: None,
             setup_future_usage: None,
             customer_acceptance: None,
+            customer_id: None,
+            billing_address: None,
         })
     }
 }
@@ -551,6 +563,13 @@ pub struct PaymentsPreProcessingData {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
+    pub minor_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheckRequestData {
+    pub payment_method_data: PaymentMethodData,
+    pub currency: Option<storage_enums::Currency>,
     pub minor_amount: Option<MinorUnit>,
 }
 
@@ -888,6 +907,7 @@ pub struct BrowserInformation {
     pub os_version: Option<String>,
     pub device_model: Option<String>,
     pub accept_language: Option<String>,
+    pub referer: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -908,6 +928,7 @@ impl From<common_utils::types::BrowserInformation> for BrowserInformation {
             os_version: value.os_version,
             device_model: value.device_model,
             accept_language: value.accept_language,
+            referer: value.referer,
         }
     }
 }
@@ -1382,7 +1403,8 @@ pub struct SetupMandateRequestData {
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
 }
 

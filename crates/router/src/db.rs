@@ -21,6 +21,7 @@ pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
 pub mod hyperswitch_ai_interaction;
+pub mod invoice;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -147,11 +148,12 @@ pub trait StorageInterface:
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
     + subscription::SubscriptionInterface
+    + invoice::InvoiceInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
 #[async_trait::async_trait]
@@ -166,7 +168,7 @@ pub trait GlobalStorageInterface:
     + RedisConnInterface
     + 'static
 {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
 #[async_trait::async_trait]
@@ -224,14 +226,14 @@ impl StorageInterface for Store {
         Box::new(self.clone())
     }
 
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
 
 #[async_trait::async_trait]
 impl GlobalStorageInterface for Store {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
@@ -247,14 +249,14 @@ impl StorageInterface for MockDb {
         Box::new(self.clone())
     }
 
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
 
 #[async_trait::async_trait]
 impl GlobalStorageInterface for MockDb {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
