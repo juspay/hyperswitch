@@ -130,8 +130,8 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
 #[derive(Debug, Clone)]
 pub struct GigadatAuthType {
     pub campaign_id: Secret<String>,
-    pub username: Secret<String>,
-    pub password: Secret<String>,
+    pub access_token: Secret<String>,
+    pub security_token: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for GigadatAuthType {
@@ -144,8 +144,8 @@ impl TryFrom<&ConnectorAuthType> for GigadatAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                password: api_secret.to_owned(),
-                username: api_key.to_owned(),
+                security_token: api_secret.to_owned(),
+                access_token: api_key.to_owned(),
                 campaign_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
