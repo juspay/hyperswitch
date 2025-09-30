@@ -4069,6 +4069,23 @@ pub fn map_notification_to_event(
     }
 }
 
+pub fn map_notification_to_event_for_payout(
+    status: DmnStatus,
+    transaction_type: NuveiTransactionType,
+) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
+{
+    match (status, transaction_type) {
+        (DmnStatus::Success | DmnStatus::Approved, NuveiTransactionType::Credit) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
+        }
+        (DmnStatus::Pending, _) => Ok(api_models::webhooks::IncomingWebhookEvent::PayoutProcessing),
+        (DmnStatus::Declined | DmnStatus::Error, _) => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
+        }
+        _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+    }
+}
+
 pub fn map_dispute_notification_to_event(
     dispute_code: DisputeUnifiedStatusCode,
 ) -> Result<api_models::webhooks::IncomingWebhookEvent, error_stack::Report<errors::ConnectorError>>
