@@ -2750,18 +2750,10 @@ pub async fn redact_cgraph_cache(
     );
 
     let config_payouts_key = cache::CacheKind::CGraph(cgraph_payouts_key.clone().into());
-    cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
-        [config_payouts_key],
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to invalidate the cgraph cache")?;
-
     let config_payments_key = cache::CacheKind::CGraph(cgraph_payments_key.clone().into());
     cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
-        [config_payments_key],
+        [config_payouts_key, config_payments_key],
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
