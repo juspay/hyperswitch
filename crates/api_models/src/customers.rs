@@ -389,10 +389,3 @@ pub struct CustomerUpdateRequestInternal {
     pub request: CustomerUpdateRequest,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
-pub struct CustomerListResponse {
-    /// List of customers
-    pub data: Vec<CustomerResponse>,
-    /// Total count of customers
-    pub count: usize,
-}
