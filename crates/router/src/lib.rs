@@ -123,7 +123,11 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone(), state.conf.trace_header.clone());
+    let mut server_app = get_application_builder(
+        request_body_limit,
+        state.conf.cors.clone(),
+        state.conf.trace_header.clone(),
+    );
 
     #[cfg(feature = "dummy_connector")]
     {
