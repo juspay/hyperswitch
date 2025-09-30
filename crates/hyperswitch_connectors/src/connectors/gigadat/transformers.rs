@@ -67,6 +67,7 @@ pub struct GigadatCpiRequest {
     pub transaction_id: String,
     #[serde(rename = "type")]
     pub transaction_type: GidadatTransactionType,
+    pub sandbox: bool,
     pub name: Secret<String>,
     pub email: Email,
     pub mobile: Secret<String>,
@@ -95,9 +96,11 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
                 let email = router_data.get_billing_email()?;
                 let mobile = router_data.get_billing_phone_number()?;
                 let currency = item.router_data.request.currency;
-
+                let sandbox = match item.router_data.test_mode {
+                    Some(true) => true,
+                    Some(false) | None => false,
+                };
                 let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
-
                 Ok(Self {
                     user_id: router_data.get_customer_id()?,
                     site: metadata.site,
@@ -107,6 +110,7 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
                     transaction_id: router_data.connector_request_reference_id.clone(),
                     transaction_type: GidadatTransactionType::Cpi,
                     name,
+                    sandbox,
                     email,
                     mobile,
                 })
@@ -206,7 +210,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
         let base_url = CONNECTOR_BASE_URL;
 
         let redirect_url = format!(
-            "{}/webflow?transaction={}&token={}",
+            "{}webflow?transaction={}&token={}",
             base_url,
             item.data.connector_request_reference_id,
             item.response.token.peek()
