@@ -1214,10 +1214,6 @@ impl Customers {
         {
             route = route
                 .service(
-                    web::resource("/{customer_id}/mandates")
-                        .route(web::get().to(customers::get_customer_mandates)),
-                )
-                .service(
                     web::resource("/list_with_count")
                         .route(web::get().to(customers::customers_list_with_count)),
                 )
