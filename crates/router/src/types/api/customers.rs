@@ -1,6 +1,6 @@
 use api_models::customers;
 pub use api_models::customers::{
-    CustomerDeleteResponse, CustomerListRequest, CustomerListResponse, CustomerRequest,
+    CustomerDeleteResponse, CustomerListRequest, CustomerRequest,
     CustomerUpdateRequest, CustomerUpdateRequestInternal,
 };
 #[cfg(feature = "v2")]
