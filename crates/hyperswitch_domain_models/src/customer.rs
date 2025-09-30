@@ -642,13 +642,6 @@ where
         constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<Customer>, Self::Error>;
 
-    async fn list_customers_by_merchant_id_with_count(
-        &self,
-        state: &KeyManagerState,
-        merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
-        constraints: CustomerListConstraints,
-    ) -> CustomResult<(Vec<Customer>, usize), Self::Error>;
 
     async fn insert_customer(
         &self,

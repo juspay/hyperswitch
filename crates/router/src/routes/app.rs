@@ -1215,10 +1215,6 @@ impl Customers {
                         .route(web::get().to(customers::get_customer_mandates)),
                 )
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
-                .service(
-                    web::resource("/list_with_count")
-                        .route(web::get().to(customers::customers_list_with_count)),
-                )
         }
 
         #[cfg(feature = "oltp")]
