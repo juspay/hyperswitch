@@ -66,7 +66,7 @@ impl Customer {
             .eq(merchant_id.to_owned())
             .and(dsl::customer_id.like(customer_id.clone()));
 
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
             conn,
             predicate,
             Some(constraints.limit),
