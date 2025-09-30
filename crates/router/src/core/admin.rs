@@ -2963,6 +2963,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
