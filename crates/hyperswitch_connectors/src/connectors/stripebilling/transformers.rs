@@ -422,6 +422,9 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             retry_count: Some(item.data.object.attempt_count),
             next_billing_at,
             billing_started_at,
+            metadata: None,
+            // TODO! This field should be handled for billing connnector integrations
+            enable_partial_authorization: None,
         })
     }
 }
@@ -627,24 +630,24 @@ pub struct StripebillingRecordBackResponse {
 impl
     TryFrom<
         ResponseRouterData<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             StripebillingRecordBackResponse,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
-    > for recovery_router_data_types::RevenueRecoveryRecordBackRouterData
+    > for recovery_router_data_types::InvoiceRecordBackRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: ResponseRouterData<
-            recovery_router_flows::RecoveryRecordBack,
+            recovery_router_flows::InvoiceRecordBack,
             StripebillingRecordBackResponse,
-            recovery_request_types::RevenueRecoveryRecordBackRequest,
-            recovery_response_types::RevenueRecoveryRecordBackResponse,
+            recovery_request_types::InvoiceRecordBackRequest,
+            recovery_response_types::InvoiceRecordBackResponse,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(recovery_response_types::RevenueRecoveryRecordBackResponse {
+            response: Ok(recovery_response_types::InvoiceRecordBackResponse {
                 merchant_reference_id: id_type::PaymentReferenceId::from_str(
                     item.response.id.as_str(),
                 )

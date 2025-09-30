@@ -79,6 +79,10 @@ impl LockAction {
                     .map(|input| input.get_redis_locking_key(&merchant_id))
                     .map(|key| (RedisKey::from(key.as_str()), request_id.clone()))
                     .collect::<Vec<_>>();
+                let delay_between_retries_in_milliseconds = state
+                    .conf()
+                    .lock_settings
+                    .delay_between_retries_in_milliseconds;
                 for _retry in 0..lock_retries {
                     let results: Vec<redis::SetGetReply<_>> = redis_conn
                         .set_multiple_keys_if_not_exists_and_get_values(
@@ -95,6 +99,11 @@ impl LockAction {
                     if lock_aqcuired {
                         logger::info!("Lock acquired for locking inputs {:?}", inputs);
                         return Ok(());
+                    } else {
+                        actix_time::sleep(tokio::time::Duration::from_millis(u64::from(
+                            delay_between_retries_in_milliseconds,
+                        )))
+                        .await;
                     }
                 }
                 Err(report!(errors::ApiErrorResponse::ResourceBusy))

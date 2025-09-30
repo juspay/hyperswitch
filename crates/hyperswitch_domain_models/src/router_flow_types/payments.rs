@@ -85,3 +85,6 @@ pub struct PaymentGetListAttempts;
 
 #[derive(Debug, Clone)]
 pub struct ExternalVaultProxy;
+
+#[derive(Debug, Clone)]
+pub struct GiftCardBalanceCheck;

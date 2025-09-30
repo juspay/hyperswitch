@@ -115,10 +115,24 @@ impl ConnectorCommon for Adyenplatform {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let message = if let Some(invalid_fields) = &response.invalid_fields {
+            match serde_json::to_string(invalid_fields) {
+                Ok(invalid_fields_json) => format!(
+                    "{}\nInvalid fields: {}",
+                    response.title, invalid_fields_json
+                ),
+                Err(_) => response.title.clone(),
+            }
+        } else if let Some(detail) = &response.detail {
+            format!("{}\nDetail: {}", response.title, detail)
+        } else {
+            response.title.clone()
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.title,
+            message,
             reason: response.detail,
             attempt_status: None,
             connector_transaction_id: None,

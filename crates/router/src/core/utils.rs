@@ -19,12 +19,12 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
-};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+    merchant_connector_account::MerchantConnectorAccount,
+    payment_address::PaymentAddress,
+    router_data::ErrorResponse,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_request_types,
+    types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
@@ -98,30 +98,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let billing = payout_data.billing_address.to_owned();
 
-    let billing_address = billing.map(|a| {
-        let phone_details = api_models::payments::PhoneDetails {
-            number: a.phone_number.clone().map(Encryptable::into_inner),
-            country_code: a.country_code.to_owned(),
-        };
-        let address_details = api_models::payments::AddressDetails {
-            city: a.city.to_owned(),
-            country: a.country.to_owned(),
-            line1: a.line1.clone().map(Encryptable::into_inner),
-            line2: a.line2.clone().map(Encryptable::into_inner),
-            line3: a.line3.clone().map(Encryptable::into_inner),
-            zip: a.zip.clone().map(Encryptable::into_inner),
-            first_name: a.first_name.clone().map(Encryptable::into_inner),
-            last_name: a.last_name.clone().map(Encryptable::into_inner),
-            state: a.state.map(Encryptable::into_inner),
-            origin_zip: a.origin_zip.map(Encryptable::into_inner),
-        };
-
-        api_models::payments::Address {
-            phone: Some(phone_details),
-            address: Some(address_details),
-            email: a.email.to_owned().map(Email::from),
-        }
-    });
+    let billing_address = billing.map(api_models::payments::Address::from);
 
     let address = PaymentAddress::new(None, billing_address.map(From::from), None, None);
 
@@ -2373,25 +2350,22 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
-#[cfg(feature = "v2")]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_connector_account: &MerchantConnectorAccount,
+    payment_method_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let resource_common_data = VaultConnectorFlowData {
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id: merchant_id.to_owned(),
     };
 
     let router_data = types::RouterDataV2 {
@@ -2639,7 +2613,10 @@ pub fn should_proceed_with_accept_dispute(
 ) -> bool {
     matches!(
         dispute_stage,
-        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
     ) && matches!(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened

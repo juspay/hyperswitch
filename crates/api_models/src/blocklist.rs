@@ -53,6 +53,7 @@ pub struct ListBlocklistQuery {
     pub limit: u16,
     #[serde(default)]
     pub offset: u16,
+    pub client_secret: Option<String>,
 }
 
 fn default_list_limit() -> u16 {

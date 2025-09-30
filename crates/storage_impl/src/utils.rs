@@ -115,7 +115,7 @@ where
     let limit_satisfies = |len: usize, limit: i64| {
         TryInto::try_into(limit)
             .ok()
-            .map_or(true, |val: usize| len >= val)
+            .is_none_or(|val: usize| len >= val)
     };
 
     let redis_output = redis_fut.await;

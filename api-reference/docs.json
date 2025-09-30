@@ -150,9 +150,7 @@
                   },
                   {
                     "group": "Platform Account",
-                    "pages": [
-                      "v1/platform/platform--create"
-                    ]
+                    "pages": ["v1/platform/platform--create"]
                   },
                   {
                     "group": "API Key",
@@ -268,7 +266,8 @@
                       "v2/payments/payments--confirm-intent",
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
-                      "v2/payments/payments--list"
+                      "v2/payments/payments--list",
+                      "v2/payments/payments--gift-card-balance-check"
                     ]
                   },
                   {

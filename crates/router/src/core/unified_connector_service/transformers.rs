@@ -78,6 +78,9 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            access_token: None,
+            capture_method: None,
+            handle_response: None,
         })
     }
 }
@@ -293,7 +296,13 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_reference_id: router_data
+                .request
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|merchant_order_reference_id| {
+                    merchant_order_reference_id.get_string_repr().to_string()
+                }),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -503,20 +512,19 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             browser_info,
             test_mode: None,
             payment_method_type: None,
+            access_token: None,
         })
     }
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         response: payments_grpc::PaymentServiceAuthorizeResponse,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::foreign_try_from(response.status())?;
-
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
                 identifier
@@ -569,12 +577,17 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
                 status_code,
-                attempt_status: Some(status),
+                attempt_status,
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -582,16 +595,21 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
                 connector_metadata: None,
             })
         } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: response.network_txn_id.clone(),
-                connector_response_reference_id,
-                incremental_authorization_allowed: response.incremental_authorization_allowed,
-                charges: None,
-            })
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    connector_metadata,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: response.incremental_authorization_allowed,
+                    charges: None,
+                },
+                status,
+            ))
         };
 
         Ok(response)
@@ -599,15 +617,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         response: payments_grpc::PaymentServiceGetResponse,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::foreign_try_from(response.status())?;
-
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
                 identifier
@@ -631,12 +647,17 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
         };
 
         let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
+
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
                 status_code,
-                attempt_status: Some(status),
+                attempt_status,
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -644,23 +665,28 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
                 connector_metadata: None,
             })
         } else {
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                    hyperswitch_domain_models::router_response_types::MandateReference {
-                        connector_mandate_id: grpc_mandate.mandate_id,
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
-                    }
-                })),
-                connector_metadata: None,
-                network_txn_id: response.network_txn_id.clone(),
-                connector_response_reference_id,
-                incremental_authorization_allowed: None,
-                charges: None,
-            })
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((
+                PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
+                        hyperswitch_domain_models::router_response_types::MandateReference {
+                            connector_mandate_id: grpc_mandate.mandate_id,
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }
+                    })),
+                    connector_metadata: None,
+                    network_txn_id: response.network_txn_id.clone(),
+                    connector_response_reference_id,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                },
+                status,
+            ))
         };
 
         Ok(response)
@@ -668,15 +694,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceGetResponse>
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         response: payments_grpc::PaymentServiceRegisterResponse,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::foreign_try_from(response.status())?;
-
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
                 identifier
@@ -694,12 +718,16 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
                 status_code,
-                attempt_status: Some(status),
+                attempt_status,
                 connector_transaction_id: connector_response_reference_id,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -707,7 +735,9 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 connector_metadata: None,
             })
         } else {
-            Ok(PaymentsResponseData::TransactionResponse {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((PaymentsResponseData::TransactionResponse {
                 resource_id: response.registration_id.as_ref().and_then(|identifier| {
                     identifier
                         .id_type
@@ -744,7 +774,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
                 connector_response_reference_id,
                 incremental_authorization_allowed: response.incremental_authorization_allowed,
                 charges: None,
-            })
+            }, status))
         };
 
         Ok(response)
@@ -752,15 +782,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRegisterResponse>
 }
 
 impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         response: payments_grpc::PaymentServiceRepeatEverythingResponse,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::foreign_try_from(response.status())?;
-
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
                 identifier
@@ -786,12 +814,16 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from(response.status())?),
+            };
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
                 status_code,
-                attempt_status: Some(status),
+                attempt_status,
                 connector_transaction_id: transaction_id,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -799,7 +831,9 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
                 connector_metadata: None,
             })
         } else {
-            Ok(PaymentsResponseData::TransactionResponse {
+            let status = AttemptStatus::foreign_try_from(response.status())?;
+
+            Ok((PaymentsResponseData::TransactionResponse {
                 resource_id: match transaction_id.as_ref() {
                     Some(transaction_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
                     None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
@@ -811,7 +845,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceRepeatEverythingResponse>
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 charges: None,
-            })
+            }, status))
         };
 
         Ok(response)
@@ -876,8 +910,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             });
 
             payments_grpc::Address {
-                first_name: details.and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose())),
+                first_name: details
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.clone().expose().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.clone().expose().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.clone().expose().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.clone().expose().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.clone().expose().into())),
@@ -910,8 +946,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
             payments_grpc::Address {
                 first_name: details
-                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
-                last_name: details.and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                    .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+                last_name: details
+                    .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                 line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                 line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
                 line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
@@ -942,9 +979,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 
                 payments_grpc::Address {
                     first_name: details
-                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
                     last_name: details
-                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string())),
+                        .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
                     line1: details
                         .and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
                     line2: details
@@ -1009,6 +1046,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
             device_model: browser_info.device_model,
             accept_language: browser_info.accept_language,
             time_zone_offset_minutes: browser_info.time_zone,
+            referer: browser_info.referer,
         })
     }
 }
@@ -1274,6 +1312,7 @@ pub fn build_webhook_transform_request(
         }),
         request_details: Some(request_details_grpc),
         webhook_secrets,
+        access_token: None,
     })
 }
 

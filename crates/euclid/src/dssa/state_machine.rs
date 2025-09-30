@@ -424,7 +424,7 @@ impl<'a> ProgramStateMachine<'a> {
     pub fn is_finished(&self) -> bool {
         self.current_rule_machine
             .as_ref()
-            .map_or(true, |rsm| rsm.is_finished())
+            .is_none_or(|rsm| rsm.is_finished())
             && self.rule_machines.is_empty()
     }
 
@@ -449,7 +449,7 @@ impl<'a> ProgramStateMachine<'a> {
         if self
             .current_rule_machine
             .as_ref()
-            .map_or(true, |rsm| rsm.is_finished())
+            .is_none_or(|rsm| rsm.is_finished())
         {
             self.current_rule_machine = self.rule_machines.pop();
             context.clear();

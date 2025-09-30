@@ -312,14 +312,28 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 {
     async fn get_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut PaymentConfirmData<F>,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedConfirmOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        // TODO: Implement external vault specific customer details retrieval
-        Ok((Box::new(self), None))
+        match payment_data.payment_intent.customer_id.clone() {
+            Some(id) => {
+                let customer = state
+                    .store
+                    .find_customer_by_global_id(
+                        &state.into(),
+                        &id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await?;
+
+                Ok((Box::new(self), Some(customer)))
+            }
+            None => Ok((Box::new(self), None)),
+        }
     }
 
     #[instrument(skip_all)]

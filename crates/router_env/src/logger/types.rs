@@ -263,6 +263,10 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Subscription create flow,
+    CreateSubscription,
+    /// Subscription confirm flow,
+    ConfirmSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -357,6 +361,8 @@ pub enum Flow {
     GsmRuleDelete,
     /// Get data from embedded flow
     GetDataFromHyperswitchAiFlow,
+    // List all chat interactions
+    ListAllChatInteractions,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -616,6 +622,8 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Process Tracker Revenue Recovery Workflow Resume
+    RevenueRecoveryResume,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
@@ -650,6 +658,10 @@ pub enum Flow {
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
     TokenizationDelete,
+    /// Payment method data backfill flow
+    RecoveryDataBackfill,
+    /// Gift card balance check flow
+    GiftCardBalanceCheck,
 }
 
 /// Trait for providing generic behaviour to flow metric

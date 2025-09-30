@@ -15,6 +15,7 @@ use common_utils::{
     metrics::utils::record_operation_time,
     pii,
 };
+use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
@@ -26,6 +27,8 @@ use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::vault_payment_method_external_v1;
 use crate::{
     consts,
     core::{
@@ -49,6 +52,38 @@ use crate::{
     },
     utils::{generate_id, OptionExt},
 };
+
+#[cfg(feature = "v1")]
+async fn save_in_locker(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_method_request: api::PaymentMethodCreate,
+    card_detail: Option<api::CardDetail>,
+    business_profile: &domain::Profile,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    match &business_profile.external_vault_details {
+        domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
+            logger::info!("External vault is enabled, using vault_payment_method_external_v1");
+
+            Box::pin(save_in_locker_external(
+                state,
+                merchant_context,
+                payment_method_request,
+                card_detail,
+                external_vault_details,
+            ))
+            .await
+        }
+        domain::ExternalVaultDetails::Skip => {
+            // Use internal vault (locker)
+            save_in_locker_internal(state, merchant_context, payment_method_request, card_detail)
+                .await
+        }
+    }
+}
 
 pub struct SavePaymentMethodData<Req> {
     request: Req,
@@ -241,6 +276,7 @@ where
                         merchant_context,
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
+                        business_profile,
                     )
                     .await?
                 };
@@ -333,6 +369,21 @@ where
 
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
+                let (external_vault_details, vault_type) = match &business_profile.external_vault_details{
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
+                        (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
+                    },
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => (None, Some(common_enums::VaultType::Internal)),
+                };
+                let external_vault_mca_id = external_vault_details
+                    .map(|connector_details| connector_details.vault_connector_id.clone());
+
+                let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
+                    vault_type,
+                    external_vault_mca_id,
+                ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to create vault source details")?;
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -425,6 +476,7 @@ where
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
+                                                Some(vault_source_details),
                                             )
                                             .await
                                     } else {
@@ -544,6 +596,7 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
+                                                    Some(vault_source_details),
                                                 )
                                                 .await
                                         } else {
@@ -765,6 +818,7 @@ where
                                     network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
+                                    Some(vault_source_details),
                                 )
                                 .await?;
 
@@ -1043,7 +1097,7 @@ async fn skip_saving_card_in_locker(
 }
 
 #[cfg(feature = "v1")]
-pub async fn save_in_locker(
+pub async fn save_in_locker_internal(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     payment_method_request: api::PaymentMethodCreate,
@@ -1093,8 +1147,100 @@ pub async fn save_in_locker(
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn save_in_locker_external(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_method_request: api::PaymentMethodCreate,
+    card_detail: Option<api::CardDetail>,
+    external_vault_connector_details: &ExternalVaultConnectorDetails,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    let customer_id = payment_method_request
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    // For external vault, we need to convert the card data to PaymentMethodVaultingData
+    if let Some(card) = card_detail {
+        let payment_method_vaulting_data =
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone());
+
+        let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
+
+        let key_manager_state = &state.into();
+
+        let merchant_connector_account_details = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                key_manager_state,
+                merchant_context.get_merchant_account().get_id(),
+                &external_vault_mca_id,
+                merchant_context.get_merchant_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: external_vault_mca_id.get_string_repr().to_string(),
+            })?;
+
+        // Call vault_payment_method_external_v1
+        let vault_response = vault_payment_method_external_v1(
+            state,
+            &payment_method_vaulting_data,
+            merchant_context.get_merchant_account(),
+            merchant_connector_account_details,
+        )
+        .await?;
+
+        let payment_method_id = vault_response.vault_id.to_string().to_owned();
+        let card_detail = CardDetailFromLocker::from(card);
+
+        let pm_resp = api::PaymentMethodResponse {
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            customer_id: Some(customer_id),
+            payment_method_id,
+            payment_method: payment_method_request.payment_method,
+            payment_method_type: payment_method_request.payment_method_type,
+            card: Some(card_detail),
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+            metadata: None,
+            created: Some(common_utils::date_time::now()),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: Some(common_utils::date_time::now()),
+            client_secret: None,
+        };
+
+        Ok((pm_resp, None))
+    } else {
+        //Similar implementation is done for save in locker internal
+        let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+        let payment_method_response = api::PaymentMethodResponse {
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            customer_id: Some(customer_id),
+            payment_method_id: pm_id,
+            payment_method: payment_method_request.payment_method,
+            payment_method_type: payment_method_request.payment_method_type,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            card: None,
+            metadata: None,
+            created: Some(common_utils::date_time::now()),
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+            last_used_at: Some(common_utils::date_time::now()),
+            client_secret: None,
+        };
+        Ok((payment_method_response, None))
+    }
+}
+
 #[cfg(feature = "v2")]
-pub async fn save_in_locker(
+pub async fn save_in_locker_internal(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
     _payment_method_request: api::PaymentMethodCreate,
@@ -1595,6 +1741,7 @@ pub async fn save_card_and_network_token_in_locker(
     merchant_context: &domain::MerchantContext,
     payment_method_create_request: api::PaymentMethodCreate,
     is_network_tokenization_enabled: bool,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(
     (
         api_models::payment_methods::PaymentMethodResponse,
@@ -1633,6 +1780,7 @@ pub async fn save_card_and_network_token_in_locker(
                 merchant_context,
                 payment_method_create_request.to_owned(),
                 Some(card_data),
+                business_profile,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1654,7 +1802,7 @@ pub async fn save_card_and_network_token_in_locker(
             );
 
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
-                let (res, dc) = Box::pin(save_in_locker(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
                     merchant_context,
                     payment_method_create_request.to_owned(),
@@ -1699,7 +1847,7 @@ pub async fn save_card_and_network_token_in_locker(
                     )
                     .await;
                 }
-                let (res, dc) = Box::pin(save_in_locker(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
                     merchant_context,
                     payment_method_create_request.to_owned(),
@@ -1713,13 +1861,17 @@ pub async fn save_card_and_network_token_in_locker(
             }
         }
         _ => {
+            let card_data = payment_method_create_request.card.clone();
             let (res, dc) = Box::pin(save_in_locker(
                 state,
                 merchant_context,
                 payment_method_create_request.to_owned(),
-                None,
+                card_data,
+                business_profile,
             ))
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card In Locker Failed")?;
 
             if is_network_tokenization_enabled {
                 match &payment_method_data {

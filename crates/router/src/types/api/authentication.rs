@@ -27,6 +27,7 @@ pub struct AuthenticationResponse {
     pub trans_status: common_enums::TransactionStatus,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
@@ -51,6 +52,7 @@ impl TryFrom<storage::Authentication> for AuthenticationResponse {
             acs_trans_id: authentication.acs_trans_id,
             three_dsserver_trans_id: authentication.threeds_server_transaction_id,
             acs_signed_content: authentication.acs_signed_content,
+            challenge_request_key: authentication.challenge_request_key,
         })
     }
 }
@@ -105,6 +107,9 @@ impl AuthenticationConnectorData {
             enums::AuthenticationConnectors::Juspaythreedsserver => Ok(ConnectorEnum::Old(
                 Box::new(connector::Juspaythreedsserver::new()),
             )),
+            enums::AuthenticationConnectors::Cardinal => Ok(ConnectorEnum::Old(Box::new(
+                connector::UnifiedAuthenticationService::new(),
+            ))),
         }
     }
 }

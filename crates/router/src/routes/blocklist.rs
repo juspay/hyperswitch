@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
+use error_stack::report;
 use router_env::Flow;
 
 use crate::{
@@ -117,11 +118,24 @@ pub async fn list_blocked_payment_methods(
     query_payload: web::Query<api_blocklist::ListBlocklistQuery>,
 ) -> HttpResponse {
     let flow = Flow::ListBlocklist;
+    let payload = query_payload.into_inner();
+
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
+    };
+
+    let (auth_type, _) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        query_payload.into_inner(),
+        payload,
         |state, auth: auth::AuthenticationData, query, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
@@ -129,10 +143,7 @@ pub async fn list_blocked_payment_methods(
             blocklist::list_blocklist_entries(state, merchant_context, query)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            }),
+            &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
             },

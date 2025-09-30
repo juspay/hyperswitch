@@ -1232,6 +1232,9 @@ pub struct BrowserInformation {
 
     /// Accept-language of the browser
     pub accept_language: Option<String>,
+
+    /// Identifier of the source that initiated the request.
+    pub referer: Option<String>,
 }
 
 #[cfg(feature = "v2")]

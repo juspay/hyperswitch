@@ -448,6 +448,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 None,
                 None,
+                Default::default(),
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -615,6 +616,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                vault_source_details: Default::default(),
             },
             merchant_context.get_merchant_account().storage_scheme,
         )

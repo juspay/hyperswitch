@@ -5,7 +5,7 @@ use common_enums as storage_enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
-    ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
+    ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool, RequestExtendedAuthorizationBool,
 };
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -23,7 +23,7 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
-    ConnectorMandateReferenceId, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+    ConnectorMandateReferenceId, NetworkDetails, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -398,6 +398,8 @@ pub struct PaymentAttempt {
     pub payment_id: id_type::GlobalPaymentId,
     /// Merchant id for the payment attempt
     pub merchant_id: id_type::MerchantId,
+    /// Group id for the payment attempt
+    pub attempts_group_id: Option<String>,
     /// Amount details for the payment attempt
     pub amount_details: AttemptAmountDetails,
     /// Status of the payment attempt. This is the status that is updated by the connector.
@@ -575,6 +577,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             // This will be decided by the routing algorithm and updated in update trackers
@@ -665,6 +668,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             connector: Some(request.connector.clone()),
@@ -761,6 +765,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: attempt_amount_details,
             status: common_enums::AttemptStatus::Started,
             connector: None,
@@ -879,6 +884,7 @@ impl PaymentAttempt {
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
+            attempts_group_id: None,
             amount_details: AttemptAmountDetails::from(amount_details),
             status: request.status,
             connector,
@@ -1030,6 +1036,8 @@ pub struct PaymentAttempt {
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
     pub network_transaction_id: Option<String>,
+    pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1327,6 +1335,7 @@ pub struct PaymentAttemptNew {
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_details: Option<NetworkDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1398,6 +1407,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1451,6 +1461,7 @@ pub enum PaymentAttemptUpdate {
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         debit_routing_savings: Option<MinorUnit>,
+        is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1482,6 +1493,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         issuer_error_code: Option<String>,
         issuer_error_message: Option<String>,
+        network_details: Option<NetworkDetails>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -1671,6 +1683,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1715,6 +1728,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                request_extended_authorization,
             },
             Self::VoidUpdate {
                 status,
@@ -1752,6 +1766,7 @@ impl PaymentAttemptUpdate {
                 setup_future_usage_applied,
                 network_transaction_id,
                 debit_routing_savings: _,
+                is_overcapture_enabled,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1778,6 +1793,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
+                is_overcapture_enabled,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1818,6 +1834,7 @@ impl PaymentAttemptUpdate {
                 authentication_type,
                 issuer_error_code,
                 issuer_error_message,
+                network_details,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -1833,6 +1850,7 @@ impl PaymentAttemptUpdate {
                 authentication_type,
                 issuer_error_code,
                 issuer_error_message,
+                network_details,
             },
             Self::CaptureUpdate {
                 multiple_capture_count,
@@ -2035,6 +2053,11 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_payment_id: Option<String>,
     },
+    VoidUpdate {
+        status: storage_enums::AttemptStatus,
+        cancellation_reason: Option<String>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -2153,6 +2176,8 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            is_overcapture_enabled: self.is_overcapture_enabled,
+            network_details: self.network_details,
         })
     }
 
@@ -2252,6 +2277,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
                 network_transaction_id: storage_model.network_transaction_id,
+                is_overcapture_enabled: storage_model.is_overcapture_enabled,
+                network_details: storage_model.network_details,
             })
         }
         .await
@@ -2343,6 +2370,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_details: self.network_details,
         })
     }
 }
@@ -2369,6 +2397,7 @@ impl behaviour::Conversion for PaymentAttempt {
         let Self {
             payment_id,
             merchant_id,
+            attempts_group_id,
             status,
             error,
             amount_details,
@@ -2512,6 +2541,9 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
             network_transaction_id,
+            is_overcapture_enabled: None,
+            network_details: None,
+            attempts_group_id,
         })
     }
 
@@ -2584,6 +2616,7 @@ impl behaviour::Conversion for PaymentAttempt {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id.clone(),
+                attempts_group_id: storage_model.attempts_group_id,
                 id: storage_model.id,
                 status: storage_model.status,
                 amount_details,
@@ -2649,6 +2682,7 @@ impl behaviour::Conversion for PaymentAttempt {
         let Self {
             payment_id,
             merchant_id,
+            attempts_group_id,
             status,
             error,
             amount_details,
@@ -2789,6 +2823,8 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
             connector_request_reference_id,
+            network_details: None,
+            attempts_group_id,
         })
     }
 }
@@ -2832,6 +2868,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id,
                 connector_response_reference_id,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2873,6 +2910,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: error.network_error_message,
                     connector_request_reference_id: None,
                     connector_response_reference_id: None,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -2920,6 +2958,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_error_message: None,
                     connector_request_reference_id: None,
                     connector_response_reference_id,
+                    cancellation_reason: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2953,6 +2992,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2985,6 +3025,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3016,6 +3057,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3051,6 +3093,40 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_error_message: None,
                 connector_request_reference_id: None,
                 connector_response_reference_id: None,
+                cancellation_reason: None,
+            },
+            PaymentAttemptUpdate::VoidUpdate {
+                status,
+                cancellation_reason,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                cancellation_reason,
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                redirection_data: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: None,
+                feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                payment_method_id: None,
             },
         }
     }

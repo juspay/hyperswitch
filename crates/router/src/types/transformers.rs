@@ -24,6 +24,7 @@ use crate::{
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
+        X_REFERENCE_ID,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -1339,6 +1340,8 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+        let x_reference_id =
+            get_header_value_by_key(X_REFERENCE_ID.into(), headers)?.map(|val| val.to_string());
 
         Ok(Self {
             payment_confirm_source,
@@ -1351,6 +1354,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
+            x_reference_id,
         })
     }
 }
@@ -1427,6 +1431,8 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 
         let x_redirect_uri =
             get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+        let x_reference_id =
+            get_header_value_by_key(X_REFERENCE_ID.into(), headers)?.map(|val| val.to_string());
 
         Ok(Self {
             payment_confirm_source,
@@ -1439,6 +1445,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             locale,
             x_app_id,
             x_redirect_uri,
+            x_reference_id,
         })
     }
 }

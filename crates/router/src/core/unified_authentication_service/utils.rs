@@ -223,6 +223,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_request: authentication_details
                             .authn_flow_type
                             .get_challenge_request(),
+                        challenge_request_key: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request_key(),
                         acs_reference_number: authentication_details
                             .authn_flow_type
                             .get_acs_reference_number(),

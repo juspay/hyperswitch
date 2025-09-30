@@ -146,6 +146,7 @@ impl AuthenticationInterface for MockDb {
             three_ds_method_url: authentication.three_ds_method_url,
             acs_url: authentication.acs_url,
             challenge_request: authentication.challenge_request,
+            challenge_request_key: authentication.challenge_request_key,
             acs_reference_number: authentication.acs_reference_number,
             acs_trans_id: authentication.acs_trans_id,
             acs_signed_content: authentication.acs_signed_content,

@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct BillingConnectorPaymentsSync;
 #[derive(Debug, Clone)]
-pub struct RecoveryRecordBack;
+pub struct InvoiceRecordBack;
 
 #[derive(Debug, Clone)]
 pub struct BillingConnectorInvoiceSync;

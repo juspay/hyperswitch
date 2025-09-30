@@ -16,7 +16,9 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{PaymentsCancelData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
+    },
     types,
 };
 use hyperswitch_interfaces::{
@@ -372,9 +374,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayCustomerResponse, T, Payment
         item: ResponseRouterData<F, FacilitapayCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.data.customer_id.expose(),
-            }),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(
+                    item.response.data.customer_id.expose(),
+                ),
+            )),
             ..item.data
         })
     }

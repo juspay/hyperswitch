@@ -363,6 +363,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: request.threeds_method_comp_ind.clone(),
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
         };
 
         let customer_details = Some(CustomerDetails {

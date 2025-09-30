@@ -51,6 +51,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
+          components: rustfmt
 
       - uses: baptiste0928/cargo-install@v3.3.0
         with:

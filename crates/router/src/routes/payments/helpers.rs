@@ -36,6 +36,7 @@ pub fn populate_browser_info(
             os_version: None,
             device_model: None,
             accept_language: None,
+            referer: None,
         });
 
     let ip_address = req

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -1125,6 +1125,26 @@ pub fn validate_recurring_details_and_token(
     Ok(())
 }
 
+pub fn validate_overcapture_request(
+    enable_overcapture: &Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    capture_method: &Option<common_enums::CaptureMethod>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(overcapture) = enable_overcapture {
+        utils::when(
+            *overcapture.deref()
+                && !matches!(*capture_method, Some(common_enums::CaptureMethod::Manual)),
+            || {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Invalid overcapture request: supported only with manual capture"
+                        .into()
+                }))
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
 fn validate_new_mandate_request(
     req: api::MandateValidationFields,
     is_confirm_operation: bool,
@@ -2176,7 +2196,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
-    _merchant_key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: domain::PaymentMethod,
@@ -2230,14 +2250,16 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 .and_then(|vault_data| vault_data.get_card_vault_data())
                 .map(Ok)
                 .async_unwrap_or_else(|| async {
-                    fetch_card_details_from_locker(
+                    Box::pin(fetch_card_details_from_locker(
                         state,
                         customer_id,
                         &payment_intent.merchant_id,
                         locker_id,
                         card_token_data,
                         co_badged_card_data,
-                    )
+                        payment_method_info,
+                        merchant_key_store,
+                    ))
                     .await
                 })
                 .await?;
@@ -2281,14 +2303,16 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                             .and_then(|vault_data| vault_data.get_card_vault_data())
                             .map(Ok)
                             .async_unwrap_or_else(|| async {
-                                fetch_card_details_from_locker(
+                                Box::pin(fetch_card_details_from_locker(
                                     state,
                                     customer_id,
                                     &payment_intent.merchant_id,
                                     locker_id,
                                     card_token_data,
                                     co_badged_card_data,
-                                )
+                                    payment_method_info,
+                                    merchant_key_store,
+                                ))
                                 .await
                             })
                             .await?,
@@ -2343,7 +2367,7 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
             message: "no customer id provided for the payment".to_string(),
         })?;
     Ok(domain::PaymentMethodData::Card(
-        fetch_card_details_from_locker(
+        fetch_card_details_from_internal_locker(
             state,
             customer_id,
             &payment_intent.merchant_id,
@@ -2358,7 +2382,48 @@ pub async fn retrieve_card_with_permanent_token_for_external_authentication(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn fetch_card_details_from_locker(
+    state: &SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    locker_id: &str,
+    card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    payment_method_info: domain::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<domain::Card> {
+    match &payment_method_info.vault_source_details.clone() {
+        domain::PaymentMethodVaultSourceDetails::ExternalVault {
+            ref external_vault_source,
+        } => {
+            fetch_card_details_from_external_vault(
+                state,
+                merchant_id,
+                card_token_data,
+                co_badged_card_data,
+                payment_method_info,
+                merchant_key_store,
+                external_vault_source,
+            )
+            .await
+        }
+        domain::PaymentMethodVaultSourceDetails::InternalVault => {
+            fetch_card_details_from_internal_locker(
+                state,
+                customer_id,
+                merchant_id,
+                locker_id,
+                card_token_data,
+                co_badged_card_data,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn fetch_card_details_from_internal_locker(
     state: &SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
@@ -2414,6 +2479,65 @@ pub async fn fetch_card_details_from_locker(
     Ok(domain::Card::from((api_card, co_badged_card_data)))
 }
 
+#[cfg(feature = "v1")]
+pub async fn fetch_card_details_from_external_vault(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    card_token_data: Option<&domain::CardToken>,
+    co_badged_card_data: Option<api_models::payment_methods::CoBadgedCardData>,
+    payment_method_info: domain::PaymentMethod,
+    merchant_key_store: &domain::MerchantKeyStore,
+    external_vault_mca_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<domain::Card> {
+    let key_manager_state = &state.into();
+
+    let merchant_connector_account_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            external_vault_mca_id,
+            merchant_key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: external_vault_mca_id.get_string_repr().to_string(),
+        })?;
+
+    let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
+        state,
+        merchant_id,
+        &payment_method_info,
+        merchant_connector_account_details,
+    )
+    .await?;
+
+    let payment_methods_data = payment_method_info.get_payment_methods_data();
+
+    match vault_resp {
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
+            domain::Card::from((card, card_token_data, co_badged_card_data)),
+        ),
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(card_number) => {
+            let payment_methods_data = payment_methods_data
+                .get_required_value("PaymentMethodsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payment methods data not present")?;
+
+            let card = payment_methods_data
+                .get_card_details()
+                .get_required_value("CardDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Card details not present")?;
+
+            Ok(
+                domain::Card::try_from((card_number, card_token_data, co_badged_card_data, card))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to generate card data")?,
+            )
+        }
+    }
+}
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
@@ -2946,6 +3070,13 @@ pub(crate) fn validate_amount_to_capture(
     amount: i64,
     amount_to_capture: Option<i64>,
 ) -> RouterResult<()> {
+    utils::when(amount_to_capture.is_some_and(|value| value <= 0), || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string(),
+        }))
+    })?;
+
     utils::when(
         amount_to_capture.is_some() && (Some(amount) < amount_to_capture),
         || {
@@ -3899,6 +4030,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3983,6 +4115,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4065,6 +4198,7 @@ mod tests {
             shipping_amount_tax: None,
             duty_amount: None,
             enable_partial_authorization: None,
+            enable_overcapture: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4419,15 +4553,27 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    request: &api_models::payments::PaymentsRequest,
+    is_manual_retry_enabled: Option<bool>,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if matches!(
-                request.retry_action,
-                Some(api_models::enums::RetryAction::ManualRetry)
-            ) {
+            if matches!(is_manual_retry_enabled, Some(true)) {
+                // if it is false, don't go ahead with manual retry
+                fp_utils::when(
+                    !validate_manual_retry_cutoff(
+                        payment_intent.created_at,
+                        payment_intent.session_expiry,
+                    ),
+                    || {
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment using `manual_retry` because the allowed duration has expired")
+                            }
+                        ))
+                    },
+                )?;
+
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
                     1,
                     router_env::metric_attributes!((
@@ -4502,7 +4648,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can enable `manual_retry` in profile to try this payment again", payment_intent.status)
                         }
                     ))
             }
@@ -4530,6 +4676,27 @@ pub fn get_attempt_type(
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => Ok(AttemptType::SameOld),
     }
+}
+
+fn validate_manual_retry_cutoff(
+    created_at: time::PrimitiveDateTime,
+    session_expiry: Option<time::PrimitiveDateTime>,
+) -> bool {
+    let utc_current_time = time::OffsetDateTime::now_utc();
+    let primitive_utc_current_time =
+        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let time_difference_from_creation = primitive_utc_current_time - created_at;
+
+    // cutoff time is 50% of session duration
+    let cutoff_limit = match session_expiry {
+        Some(session_expiry) => {
+            let duration = session_expiry - created_at;
+            duration.whole_seconds() / 2
+        }
+        None => consts::DEFAULT_SESSION_EXPIRY / 2,
+    };
+
+    time_difference_from_creation.whole_seconds() <= cutoff_limit
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -4636,6 +4803,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_details: None,
         }
     }
 

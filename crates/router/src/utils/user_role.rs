@@ -495,7 +495,7 @@ pub async fn fetch_user_roles_by_payload(
         .filter_map(|user_role| {
             let (_entity_id, entity_type) = user_role.get_entity_id_and_type()?;
             request_entity_type
-                .map_or(true, |req_entity_type| entity_type == req_entity_type)
+                .is_none_or(|req_entity_type| entity_type == req_entity_type)
                 .then_some(user_role)
         })
         .collect::<HashSet<_>>())

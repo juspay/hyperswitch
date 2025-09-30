@@ -9,8 +9,9 @@ use common_utils::consts::BASE64_ENGINE;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::{
-    ConnectorAuthMetadata, UnifiedConnectorServiceError,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -50,13 +51,21 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{api, transformers::ForeignTryFrom},
-    utils,
 };
 
 pub mod transformers;
 
 // Re-export webhook transformer types for easier access
 pub use transformers::WebhookTransformData;
+
+/// Type alias for return type used by unified connector service response handlers
+type UnifiedConnectorServiceResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
 
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
@@ -627,7 +636,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault => None,
+        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
@@ -647,82 +656,46 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(
@@ -844,12 +817,20 @@ pub async fn call_unified_connector_service_for_webhook(
                 "Missing merchant connector account for UCS webhook transformation",
             )
         })?;
-
+    let profile_id = merchant_connector_account
+        .as_ref()
+        .map(|mca| mca.profile_id.clone())
+        .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
-    let grpc_headers = external_services::grpc_client::GrpcHeaders {
-        tenant_id: state.tenant.tenant_id.get_string_repr().to_string(),
-        request_id: Some(utils::generate_id(consts::ID_LENGTH, "webhook_req")),
-    };
+    let grpc_headers = state
+        .get_grpc_headers_ucs()
+        .lineage_ids(LineageIds::new(
+            merchant_context.get_merchant_account().get_id().clone(),
+            profile_id,
+        ))
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None)
+        .build();
 
     // Make UCS call - client availability already verified
     match ucs_client
@@ -891,6 +872,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -899,7 +881,12 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
-    F: FnOnce(RouterData<T, Req, Resp>, GrpcReq) -> Fut + Send,
+    F: FnOnce(
+            RouterData<T, Req, Resp>,
+            GrpcReq,
+            external_services::grpc_client::GrpcHeadersUcs,
+        ) -> Fut
+        + Send,
     Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, GrpcResp)>> + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
@@ -912,7 +899,7 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
-
+    let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
@@ -934,7 +921,7 @@ where
 
     // Execute UCS function and measure timing
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request).await;
+    let result = handler(router_data, grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call

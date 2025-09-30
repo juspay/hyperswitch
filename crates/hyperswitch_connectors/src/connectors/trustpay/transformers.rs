@@ -529,6 +529,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             os_version: None,
             device_model: None,
             accept_language: Some(browser_info.accept_language.unwrap_or("en".to_string())),
+            referer: None,
         };
         let params = get_mandatory_fields(item.router_data)?;
         let amount = item.amount.to_owned();

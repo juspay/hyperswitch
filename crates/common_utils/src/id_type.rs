@@ -7,6 +7,7 @@ mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
+mod invoice;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
@@ -17,6 +18,7 @@ mod profile_acquirer;
 mod refunds;
 mod relay;
 mod routing;
+mod subscription;
 mod tenant;
 
 use std::{borrow::Cow, fmt::Debug};
@@ -46,6 +48,7 @@ pub use self::{
     authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
+    invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
@@ -55,6 +58,7 @@ pub use self::{
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,
+    subscription::SubscriptionId,
     tenant::TenantId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};

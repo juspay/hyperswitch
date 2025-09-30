@@ -1,4 +1,4 @@
-use std::{cmp, collections::HashSet};
+use std::{cmp, collections::HashSet, ops::Not};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
@@ -450,7 +450,11 @@ pub async fn list_roles_with_info(
         .into());
     }
 
-    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES
+        .values()
+        .filter(|role| role.is_internal().not())
+        .cloned()
+        .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
@@ -507,9 +511,9 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some({
                     let permission_groups = role_info.get_permission_groups();
@@ -539,9 +543,9 @@ pub async fn list_roles_with_info(
             .into_iter()
             .filter_map(|role_info| {
                 let is_lower_entity = user_role_entity >= role_info.get_entity_type();
-                let request_filter = request.entity_type.map_or(true, |entity_type| {
-                    entity_type == role_info.get_entity_type()
-                });
+                let request_filter = request
+                    .entity_type
+                    .is_none_or(|entity_type| entity_type == role_info.get_entity_type());
 
                 (is_lower_entity && request_filter).then_some(role_api::RoleInfoResponseNew {
                     role_id: role_info.get_role_id().to_string(),

@@ -173,6 +173,17 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
+    pub fn get_connector_name_as_string(&self) -> String {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.connector_name.to_string()
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details.connector_name.to_string()
+            }
+        }
+    }
+
     pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
@@ -255,6 +266,11 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone().to_string()
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
     }
 
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
@@ -392,14 +408,16 @@ impl FlattenedPaymentMethodsEnabled {
                             let request_payment_methods_enabled =
                                 payment_method.payment_method_subtypes.unwrap_or_default();
                             let length = request_payment_methods_enabled.len();
-                            request_payment_methods_enabled.into_iter().zip(
-                                std::iter::repeat((
-                                    connector,
-                                    merchant_connector_id.clone(),
-                                    payment_method.payment_method_type,
+                            request_payment_methods_enabled
+                                .into_iter()
+                                .zip(std::iter::repeat_n(
+                                    (
+                                        connector,
+                                        merchant_connector_id.clone(),
+                                        payment_method.payment_method_type,
+                                    ),
+                                    length,
                                 ))
-                                .take(length),
-                            )
                         })
                 },
             )
