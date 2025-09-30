@@ -3272,13 +3272,17 @@ pub struct NetworkTokenStatusCheckResponse {
     #[schema(value_type = Option<String>)]
     pub token_expiry_year: Option<masking::Secret<String>>,
 
-    /// The first six digits of the network token
+    /// The last four digits of the card
     #[schema(value_type = Option<String>)]
-    pub first_six: Option<String>,
+    pub card_last_four: Option<String>,
 
     /// The last four digits of the network token
     #[schema(value_type = Option<String>)]
-    pub last_four: Option<String>,
+    pub token_last_four: Option<String>,
+
+    /// The expiry date of the card in MM/YY format
+    #[schema(value_type = Option<String>)]
+    pub card_expiry: Option<String>,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]

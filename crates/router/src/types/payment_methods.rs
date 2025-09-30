@@ -348,36 +348,19 @@ pub struct CheckTokenStatus {
 #[serde(rename_all = "UPPERCASE")]
 pub enum TokenStatus {
     Active,
-    Inactive,
+    Suspended,
+    Deactivated,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CheckTokenStatusResponsePayload {
+pub struct CheckTokenStatusResponse {
+    pub token_status: TokenStatus,
     pub token_expiry_month: Secret<String>,
     pub token_expiry_year: Secret<String>,
-    pub token_status: TokenStatus,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CheckTokenStatusResponse {
-    pub payload: CheckTokenStatusResponsePayload,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Clone, Deserialize)]
-pub struct NetworkTokenStatusResponse {
-    pub token_details: NetworkTokenStatusDetails,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Clone, Deserialize)]
-pub struct NetworkTokenStatusDetails {
-    pub status: TokenStatus,
-    pub exp_month: Secret<String>,
-    pub exp_year: Secret<String>,
-    pub last_four: String,
-    pub first_six: String,
+    pub card_last_4: Option<String>,
+    pub card_expiry: Option<String>,
+    pub token_last_4: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
