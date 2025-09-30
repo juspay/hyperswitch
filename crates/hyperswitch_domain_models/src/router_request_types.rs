@@ -85,7 +85,8 @@ pub struct PaymentsAuthorizeData {
     pub order_id: Option<String>,
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
@@ -1426,7 +1427,8 @@ pub struct SetupMandateRequestData {
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
 }
 

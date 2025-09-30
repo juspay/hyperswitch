@@ -4,6 +4,42 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.30.0
+
+### Features
+
+- **auth:** Add new authentication to communicate between microservices ([#9547](https://github.com/juspay/hyperswitch/pull/9547)) ([`b8900d0`](https://github.com/juspay/hyperswitch/commit/b8900d008ae46db197034893a81f073552e193a4))
+- **connector:**
+  - Add Peachpayments Cypress ([#9573](https://github.com/juspay/hyperswitch/pull/9573)) ([`e03c009`](https://github.com/juspay/hyperswitch/commit/e03c0096d3f38375205b2c72a5f310462dc9bcca))
+  - [ACI] cypress added ([#9502](https://github.com/juspay/hyperswitch/pull/9502)) ([`1c52f69`](https://github.com/juspay/hyperswitch/commit/1c52f69910fa6bbfae6b6cd00bb03a71e39d9e01))
+
+### Bug Fixes
+
+- **authorizedotnet:** Refund via ucs missing connector_metadata ([#9581](https://github.com/juspay/hyperswitch/pull/9581)) ([`ff06ae4`](https://github.com/juspay/hyperswitch/commit/ff06ae46149a9e0254d372ece70d0e1c766b52ad))
+- Ideal Giropay Country Currency Config ([#9552](https://github.com/juspay/hyperswitch/pull/9552)) ([`9cd8f00`](https://github.com/juspay/hyperswitch/commit/9cd8f001f7360d9b8877fe94b9c185fc237e525c))
+
+**Full Changelog:** [`2025.09.29.0...2025.09.30.0`](https://github.com/juspay/hyperswitch/compare/2025.09.29.0...2025.09.30.0)
+
+- - -
+
+## 2025.09.29.0
+
+### Features
+
+- **connector:** [Checkout] Add Google Pay Predecrypt Flow ([#9130](https://github.com/juspay/hyperswitch/pull/9130)) ([`96e44a7`](https://github.com/juspay/hyperswitch/commit/96e44a75dcaaaf870dab551602195ef010494c01))
+- **core:** Update additional payment method data in psync response ([#9519](https://github.com/juspay/hyperswitch/pull/9519)) ([`407be56`](https://github.com/juspay/hyperswitch/commit/407be56ed368d543b440bfffa6704518e487dced))
+- **cypress:** Add cypress test-cases for manual retry ([#9505](https://github.com/juspay/hyperswitch/pull/9505)) ([`1ff66a7`](https://github.com/juspay/hyperswitch/commit/1ff66a720b29a169870b2141e6ffd585b4d5b640))
+- **finix:** Template code ([#9557](https://github.com/juspay/hyperswitch/pull/9557)) ([`e45bad3`](https://github.com/juspay/hyperswitch/commit/e45bad38d602634c1bf9019978545f28ba19db23))
+- **framework:** Added smithy, smithy-core and smithy-generator crates ([#9249](https://github.com/juspay/hyperswitch/pull/9249)) ([`0baae33`](https://github.com/juspay/hyperswitch/commit/0baae338d32cf12f303739c347bba98f100ac3d5))
+
+### Bug Fixes
+
+- **core:** Add request_extended_authorization in the payment attempt and populate it in the payment response ([#9492](https://github.com/juspay/hyperswitch/pull/9492)) ([`8e629ab`](https://github.com/juspay/hyperswitch/commit/8e629abc92aeb31b64fe347548ec158d3b00f214))
+
+**Full Changelog:** [`2025.09.26.0...2025.09.29.0`](https://github.com/juspay/hyperswitch/compare/2025.09.26.0...2025.09.29.0)
+
+- - -
+
 ## 2025.09.26.0
 
 ### Features
