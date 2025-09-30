@@ -15,17 +15,12 @@ use crate::{core::utils::subscription as subscription_utils, routes::SessionStat
 pub async fn create_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<CreateSubscriptionResponse> {
     let store = state.store.clone();
     let db = store.as_ref();
     let id = common_utils::id_type::SubscriptionId::generate();
-    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "X-Profile-Id",
-        },
-    )?;
 
     let mut subscription = SubscriptionNew::new(
         id,
@@ -128,16 +123,10 @@ pub async fn get_subscription_plans(
 pub async fn confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::ConfirmSubscriptionRequest,
     subscription_id: common_utils::id_type::SubscriptionId,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let profile_id = common_utils::id_type::ProfileId::from_str(&profile_id).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "X-Profile-Id",
-        },
-    )?;
-
     let key_manager_state = &(&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
 

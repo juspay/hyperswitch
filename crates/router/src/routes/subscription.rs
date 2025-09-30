@@ -29,16 +29,11 @@ pub async fn create_subscription(
     json_payload: web::Json<subscription_types::CreateSubscriptionRequest>,
 ) -> impl Responder {
     let flow = Flow::CreateSubscription;
-    let profile_id = match req.headers().get(X_PROFILE_ID) {
-        Some(val) => val.to_str().unwrap_or_default().to_string(),
-        None => {
-            return HttpResponse::BadRequest().json(
-                errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "x-profile-id",
-                },
-            );
-        }
+    let profile_id = match extract_profile_id(&req) {
+        Ok(profile_id) => profile_id,
+        Err(response) => return response,
     };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -80,16 +75,11 @@ pub async fn confirm_subscription(
 ) -> impl Responder {
     let flow = Flow::ConfirmSubscription;
     let subscription_id = subscription_id.into_inner();
-    let profile_id = match req.headers().get(X_PROFILE_ID) {
-        Some(val) => val.to_str().unwrap_or_default().to_string(),
-        None => {
-            return HttpResponse::BadRequest().json(
-                errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                    field_name: "x-profile-id",
-                },
-            );
-        }
+    let profile_id = match extract_profile_id(&req) {
+        Ok(profile_id) => profile_id,
+        Err(response) => return response,
     };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -134,13 +124,7 @@ pub async fn get_subscription_plans(
 
     let profile_id = match extract_profile_id(&req) {
         Ok(profile_id) => profile_id,
-        _ => {
-            return HttpResponse::BadRequest().json(
-                errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                    field_name: X_PROFILE_ID,
-                },
-            )
-        }
+        Err(response) => return response,
     };
 
     let auth_data = match auth::is_ephemeral_auth(req.headers(), api_auth) {
