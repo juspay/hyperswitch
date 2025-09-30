@@ -4069,6 +4069,7 @@ pub fn map_notification_to_event(
     }
 }
 
+#[cfg(feature = "payouts")]
 pub fn map_notification_to_event_for_payout(
     status: DmnStatus,
     transaction_type: NuveiTransactionType,
