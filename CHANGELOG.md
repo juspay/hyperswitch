@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.17.0-hotfix5
+
+### Bug Fixes
+
+- **authorizedotnet:** Refund via ucs missing connector_metadata ([#9602](https://github.com/juspay/hyperswitch/pull/9602)) ([`43901db`](https://github.com/juspay/hyperswitch/commit/43901db2e9ff7f6169c2c33a0c4bbb2a9d1c6270))
+
+**Full Changelog:** [`2025.09.17.0-hotfix4...2025.09.17.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2025.09.17.0-hotfix4...2025.09.17.0-hotfix5)
+
+- - -
+
 ## 2025.09.17.0-hotfix4
 
 ### Bug Fixes
