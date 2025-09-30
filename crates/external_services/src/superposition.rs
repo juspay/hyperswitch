@@ -3,11 +3,8 @@
 use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
-use error_stack::report;
 use masking::{ExposeInterface, Secret};
-use superposition_provider::{
-    PollingStrategy, RefreshStrategy, SuperpositionProvider, SuperpositionProviderOptions,
-};
+use superposition_provider;
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
@@ -164,14 +161,14 @@ impl SuperpositionClient {
             return Err(SuperpositionError::NotEnabled.into());
         }
 
-        let provider_options = SuperpositionProviderOptions {
+        let provider_options = superposition_provider::SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
             token: config.token.expose(),
             org_id: config.org_id.clone(),
             workspace_id: config.workspace_id.clone(),
             fallback_config: None,
             evaluation_cache: None,
-            refresh_strategy: RefreshStrategy::Polling(PollingStrategy {
+            refresh_strategy: superposition_provider::RefreshStrategy::Polling(superposition_provider::PollingStrategy {
                 interval: config.polling_interval,
                 timeout: config.request_timeout,
             }),
@@ -179,7 +176,7 @@ impl SuperpositionClient {
         };
 
         // Create provider and set up OpenFeature
-        let provider = SuperpositionProvider::new(provider_options);
+        let provider = superposition_provider::SuperpositionProvider::new(provider_options);
 
         router_env::logger::info!("Created superposition provider");
 
