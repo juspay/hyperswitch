@@ -1456,7 +1456,6 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Finix,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,

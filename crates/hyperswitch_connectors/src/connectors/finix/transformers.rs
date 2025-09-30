@@ -1,27 +1,50 @@
+pub mod finix_common;
+pub mod request;
+pub mod response;
 use common_enums::enums;
 use common_utils::types::MinorUnit;
+pub use finix_common::*;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_flow_types::{
+        self as flows,
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{ConnectorCustomerData, PaymentMethodTokenizationData, ResponseId},
+    router_response_types::{
+        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
+    },
+    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
+pub use request::*;
+pub use response::*;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    unimplemented_payment_method,
+    utils::RouterData as _,
+};
 
-//TODO: Fill the struct with respective fields
+pub enum FinixFlow {
+    CreateConnectorCustomer,
+    Tokenization,
+    Auth,
+    Transfer,
+    Void,
+    Refund,
+}
+
 pub struct FinixRouterData<T> {
     pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
 impl<T> From<(MinorUnit, T)> for FinixRouterData<T> {
-    fn from((amount, item): (MinorUnit, T)) -> Self {
+    fn from((amount, item, flow): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -30,11 +53,84 @@ impl<T> From<(MinorUnit, T)> for FinixRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct FinixPaymentsRequest {
-    amount: MinorUnit,
-    card: FinixCard,
+//------------------------
+impl
+    TryFrom<
+        &FinixRouterData<
+            &RouterData<
+                flows::CreateConnectorCustomer,
+                ConnectorCustomerData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for FinixCreateIdentityRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<
+            &RouterData<
+                flows::CreateConnectorCustomer,
+                ConnectorCustomerData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let customer_data = &item.router_data.request;
+
+        // Create entity data
+        let entity = FinixIdentityEntity {
+            phone: customer_data.phone.clone(),
+            first_name: customer_data.name.clone().map(|name| {
+                let binding = name.clone().expose();
+                // Split name into first and last if available
+                let parts: Vec<&str> = binding.split_whitespace().collect();
+                if !parts.is_empty() {
+                    Secret::new(parts[0].to_string())
+                } else {
+                    name
+                }
+            }),
+            last_name: customer_data.name.clone().map(|name| {
+                let binding = name.clone().expose();
+
+                let parts: Vec<&str> = binding.split_whitespace().collect();
+                if parts.len() > 1 {
+                    Secret::new(parts[1..].join(" "))
+                } else {
+                    Secret::new(String::new())
+                }
+            }),
+            email: customer_data.email.clone(),
+            personal_address: customer_data
+                .billing_address
+                .as_ref()
+                .map(FinixAddress::from),
+        };
+
+        // Create the request
+        Ok(Self {
+            entity,
+            tags: None,
+            identity_type: FinixIdentityType::PERSONAL,
+        })
+    }
+}
+
+// Implement response handling for Identity creation
+impl<F, T> TryFrom<ResponseRouterData<F, FinixIdentityResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, FinixIdentityResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
+            )),
+            ..item.data
+        })
+    }
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -50,27 +146,173 @@ impl TryFrom<&FinixRouterData<&PaymentsAuthorizeRouterData>> for FinixPaymentsRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &FinixRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "Card payment method not implemented".to_string(),
+            PaymentMethodData::Card(_) => {
+                // Check if we have a payment instrument token already
+                let source = item.router_data.get_payment_method_token()?;
+
+                Ok(Self {
+                    amount: item.amount,
+                    currency: item.router_data.request.currency,
+                    source: match source {
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Stax"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Google Pay", "Stax"))?
+                        }
+                    },
+                    auth_type: Some("AUTHORIZATION".to_string()),
+                    merchant: None, // todo
+                    tags: None,
+                    three_d_secure: None,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported".to_string(),
             )
             .into()),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct FinixAuthType {
-    pub(super) api_key: Secret<String>,
+impl TryFrom<&FinixRouterData<&PaymentsCaptureRouterData>> for FinixPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &FinixRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+        // Check if we have a payment instrument token already
+        let source = item.router_data.get_payment_method_token()?;
+
+        Ok(Self {
+            amount: item.router_data.request.minor_amount_to_capture,
+            currency: item.router_data.request.currency,
+            source: match source {
+                PaymentMethodToken::Token(token) => token,
+                PaymentMethodToken::ApplePayDecrypt(_) => Err(unimplemented_payment_method!(
+                    "Apple Pay",
+                    "Simplified",
+                    "Stax"
+                ))?,
+                PaymentMethodToken::PazeDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Paze", "Stax"))?
+                }
+                PaymentMethodToken::GooglePayDecrypt(_) => {
+                    Err(unimplemented_payment_method!("Google Pay", "Stax"))?
+                }
+            },
+            auth_type: Some("AUTHORIZATION".to_string()),
+            merchant: None, //to do
+            tags: None,
+            three_d_secure: None,
+        })
+    }
 }
 
+impl
+    TryFrom<
+        &FinixRouterData<
+            &RouterData<
+                flows::PaymentMethodToken,
+                PaymentMethodTokenizationData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for FinixCreatePaymentInstrumentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<
+            &RouterData<
+                flows::PaymentMethodToken,
+                PaymentMethodTokenizationData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let tokenization_data = &item.router_data.request;
+
+        match &tokenization_data.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                // let address = item
+                //     .router_data
+                //     .get_billing_address()
+                //     .map(FinixAddress::from);
+
+                Ok(Self {
+                    instrument_type: FinixPaymentInstrumentType::PaymentCard,
+                    name: card_data.card_holder_name.clone(),
+                    number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
+                    security_code: Some(card_data.card_cvc.clone()),
+                    expiration_month: Some(Secret::new(
+                        card_data
+                            .card_exp_month
+                            .clone()
+                            .expose()
+                            .parse::<i32>()
+                            .unwrap_or(0),
+                    )),
+                    expiration_year: Some(Secret::new(
+                        card_data
+                            .card_exp_year
+                            .clone()
+                            .expose()
+                            .parse::<i32>()
+                            .unwrap_or(0),
+                    )),
+                    identity: item.router_data.get_connector_customer_id()?, // This would come from a previously created identity
+                    tags: None,
+                    address: None,
+                    card_brand: None, // Finix determines this from the card number
+                    card_type: None,  // Finix determines this from the card number
+                    additional_data: None,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment method not supported for tokenization".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
+// Implement response handling for tokenization
+impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: common_enums::AttemptStatus::Charged,
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: item.response.id,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Auth Struct
+pub struct FinixAuthType {
+    pub finix_user_name: Secret<String>,
+    pub finix_password: Secret<String>,
+    pub merchant_id: Secret<String>,
+}
 impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                finix_user_name: api_key.clone(),
+                finix_password: api_secret.clone(),
+                merchant_id: key1.clone(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -90,19 +332,17 @@ pub enum FinixPaymentStatus {
 impl From<FinixPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: FinixPaymentStatus) -> Self {
         match item {
-            FinixPaymentStatus::Succeeded => Self::Charged,
+            FinixPaymentStatus::Succeeded => Self::Authorized,
             FinixPaymentStatus::Failed => Self::Failure,
             FinixPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FinixPaymentsResponse {
-    status: FinixPaymentStatus,
-    id: String,
+fn get_payment_status(state: FinixState, flow: FinixFlow) -> common_enums::AttemptStatus {
+    todo!()
 }
+//TODO: Fill the struct with respective fields
 
 impl<F, T> TryFrom<ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
@@ -112,7 +352,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsRespo
         item: ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: get_payment_status(item.response.state, FinixFlow::Auth), //todo
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),

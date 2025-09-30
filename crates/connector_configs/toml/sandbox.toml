@@ -7158,5 +7158,7 @@ required = true
 type = "Text"
 
 [finix]
-[finix.connector_auth.HeaderKey]
-api_key = "API Key"
+[finix.connector_auth.SignatureKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Merchant Id"
