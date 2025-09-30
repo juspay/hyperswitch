@@ -4,7 +4,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
-    dsl::{Find, IsNotNull, Limit},
+    dsl::{count_star, Find, IsNotNull, Limit},
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
@@ -13,7 +13,7 @@ use diesel::{
         QueryId, UpdateStatement,
     },
     query_dsl::{
-        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl},
+        methods::{BoxedDsl, FilterDsl, FindDsl, LimitDsl, OffsetDsl, OrderDsl, SelectDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
@@ -443,6 +443,32 @@ where
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering records by predicate")
+}
+
+pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
+    Filter<T, P>: SelectDsl<count_star>,
+    diesel::dsl::Select<Filter<T, P>, count_star>:
+        LoadQuery<'static, PgConnection, i64> + QueryFragment<Pg> + Send + 'static,
+{
+    let query = <T as HasTable>::table()
+        .filter(predicate)
+        .select(count_star());
+
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    let count_i64: i64 =
+        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error counting records by predicate")?;
+
+    let count_usize = usize::try_from(count_i64).map_err(|_| {
+        report!(errors::DatabaseError::Others).attach_printable("Count value does not fit in usize")
+    })?;
+
+    Ok(count_usize)
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

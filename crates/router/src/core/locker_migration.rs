@@ -54,6 +54,8 @@ pub async fn rust_locker_migration(
     let constraints = CustomerListConstraints {
         limit: u16::MAX,
         offset: None,
+        //search with customer Id constraint
+        customer_id: None,
     };
 
     let domain_customers = db
