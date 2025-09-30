@@ -1,12 +1,17 @@
 use api_models::process_tracker as process_tracker_types;
 use async_trait::async_trait;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{StringExt, ValueExt},
+};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
-    consumer::{types as scheduler_types, workflows::ProcessTrackerWorkflow},
-    errors, utils as scheduler_utils,
+    consumer::{self, workflows::ProcessTrackerWorkflow},
+    errors,
+    types::process_data,
+    utils as scheduler_utils,
 };
 
 #[cfg(feature = "v1")]
@@ -16,6 +21,9 @@ use crate::{
     routes::SessionState,
     types::{domain, storage},
 };
+
+const IVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
+const IVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
 pub struct InvoiceSyncWorkflow;
 
 #[async_trait]
@@ -29,12 +37,12 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData>(
+            .parse_value::<api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData>(
             "InvoiceSyncTrackingData",
         )?;
 
         match process.name.as_deref() {
-            Some("INVOICE_SYNC") => {
+            Some(IVOICE_SYNC_WORKFLOW) => {
                 Box::pin(perform_subscription_invoice_sync(
                     state,
                     process,
@@ -45,6 +53,17 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
             _ => Err(errors::ProcessTrackerError::JobNotFound),
         }
     }
+
+    async fn error_handler<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+        error: errors::ProcessTrackerError,
+    ) -> CustomResult<(), errors::ProcessTrackerError> {
+        logger::error!("Encountered error");
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
+    }
+
     #[cfg(feature = "v2")]
     async fn execute_workflow<'a>(
         &'a self,
@@ -58,7 +77,7 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
 async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: storage::ProcessTracker,
-    tracking_data: &api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData,
+    tracking_data: &api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData,
 ) -> Result<(), errors::ProcessTrackerError> {
     // Extract merchant context
     let key_manager_state = &state.into();
@@ -118,13 +137,11 @@ async fn perform_subscription_invoice_sync(
         )
         .await?;
 
-        // Map out all cases here
         if is_last_retry {
-            // Perform payment ops
             state
                 .store
                 .as_scheduler()
-                .finish_process_with_business_status(process, business_status::GLOBAL_FAILURE)
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?
         }
     } else {
@@ -135,7 +152,7 @@ async fn perform_subscription_invoice_sync(
             status
         );
         return Err(errors::ProcessTrackerError::FlowExecutionError {
-            flow: "INVOICE_SYNC",
+            flow: IVOICE_SYNC_WORKFLOW,
         });
     }
 
@@ -147,7 +164,7 @@ pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    tracking_data: &process_tracker_types::inovoice_sync::InvoiceSyncTrackingData,
+    tracking_data: &process_tracker_types::invoice_sync::InvoiceSyncTrackingData,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
@@ -224,39 +241,16 @@ pub async fn perform_billing_processor_record_back(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_invoice_sync_job(
     state: &SessionState,
-    payment_id: common_utils::id_type::PaymentId,
-    subscription_id: common_utils::id_type::SubscriptionId,
-    billing_processor_mca_id: common_utils::id_type::MerchantConnectorAccountId,
-    invoice_id: common_utils::id_type::InvoiceId,
-    merchant_id: common_utils::id_type::MerchantId,
-    profile_id: common_utils::id_type::ProfileId,
-    customer_id: common_utils::id_type::CustomerId,
-    amount: common_utils::types::MinorUnit,
-    currency: common_enums::Currency,
-    payment_method_type: Option<common_enums::PaymentMethodType>,
-    intent_status: common_enums::IntentStatus,
-    connector_invoice_id: String,
+    request: api_models::process_tracker::invoice_sync::InvoiceSyncRequest,
 ) -> CustomResult<(), crate::errors::ApiErrorResponse> {
-    let tracking_data = api_models::process_tracker::inovoice_sync::InvoiceSyncTrackingData::new(
-        payment_id.clone(),
-        subscription_id,
-        billing_processor_mca_id,
-        invoice_id,
-        merchant_id.clone(),
-        profile_id,
-        customer_id.clone(),
-        amount,
-        currency,
-        payment_method_type,
-        intent_status,
-        connector_invoice_id,
-    );
+    let tracking_data =
+        api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData::from(request);
 
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
-        "INVOICE_SYNC".to_string(),
+        IVOICE_SYNC_WORKFLOW.to_string(),
         common_enums::ProcessTrackerRunner::InvoiceSyncflow,
-        vec!["INVOICE".to_string()],
+        vec![IVOICE_SYNC_WORKFLOW_TAG.to_string()],
         tracking_data,
         Some(0),
         common_utils::date_time::now(),
@@ -274,11 +268,32 @@ pub async fn create_invoice_sync_job(
 }
 
 pub async fn get_subscription_invoice_sync_process_schedule_time(
+    db: &dyn StorageInterface,
+    connector: &str,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     // Can have config based mapping as well
-    let mapping = scheduler_types::process_data::SubscriptionInvoiceSyncPTMapping::default();
+    let mapping: CustomResult<
+        process_data::SubscriptionInvoiceSyncPTMapping,
+        crate::errors::StorageError,
+    > = db
+        .find_config_by_key(&format!("invoice_sync_pt_mapping_{connector}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| {
+            config
+                .parse_struct("SubscriptionInvoiceSyncPTMapping")
+                .change_context(crate::errors::StorageError::DeserializationFailed)
+        });
+    let mapping = match mapping {
+        Ok(x) => x,
+        Err(error) => {
+            logger::info!(?error, "Redis Mapping Error");
+            process_data::SubscriptionInvoiceSyncPTMapping::default()
+        }
+    };
+
     let time_delta = scheduler_utils::get_subscription_invoice_sync_retry_schedule_time(
         mapping,
         merchant_id,
@@ -290,13 +305,17 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
 
 pub async fn retry_subscription_invoice_sync_task(
     db: &dyn StorageInterface,
-    _connector: String,
+    connector: String,
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, errors::ProcessTrackerError> {
-    let schedule_time =
-        get_subscription_invoice_sync_process_schedule_time(&merchant_id, pt.retry_count + 1)
-            .await?;
+    let schedule_time = get_subscription_invoice_sync_process_schedule_time(
+        db,
+        connector.as_str(),
+        &merchant_id,
+        pt.retry_count + 1,
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {

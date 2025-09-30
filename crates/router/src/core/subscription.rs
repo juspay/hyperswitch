@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{
-    enums as api_enums,
+    enums as api_enums, process_tracker as pt_types,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
 use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
@@ -429,8 +429,8 @@ impl InvoiceHandler {
         connector_invoice_id: String,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
-        workflows::invoice_sync::create_invoice_sync_job(
-            state,
+
+        let invoice_sync_request = pt_types::invoice_sync::InvoiceSyncRequest::new(
             payment_response.payment_id.to_owned(),
             self.subscription.id.to_owned(),
             invoice.merchant_connector_id.to_owned(),
@@ -443,12 +443,14 @@ impl InvoiceHandler {
             None,
             payment_response.status,
             connector_invoice_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::SubscriptionError {
-            operation: "Create Invoice Record back job".to_string(),
-        })
-        .attach_printable("invoices: unable to update invoice entry in database")
+        );
+
+        workflows::invoice_sync::create_invoice_sync_job(state, invoice_sync_request)
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Create Invoice Record back job".to_string(),
+            })
+            .attach_printable("invoices: unable to update invoice entry in database")
     }
 }
 
