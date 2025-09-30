@@ -775,27 +775,6 @@ impl RedisTokenManager {
             RedisKeyType::Tokens => Self::get_connector_customer_tokens_key(connector_customer_id),
         };
 
-        // Check if key exists
-        let key_exists = redis_conn
-            .exists::<()>(&redis_key.clone().into())
-            .await
-            .map_err(|error| {
-                tracing::error!(operation = "check_key_exists", err = ?error);
-                errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into())
-            })
-            .and_then(|key_exists| match key_exists {
-                true => Ok(key_exists),
-                false => {
-                    let key_type_str = match key_type {
-                        RedisKeyType::Status => "status",
-                        RedisKeyType::Tokens => "tokens",
-                    };
-                    Err(errors::StorageError::ValueNotFound(format!(
-                        "Redis key '{}' of type '{}' not found for connector customer id:- '{}'",
-                        redis_key, key_type_str, connector_customer_id
-                    )))
-                }
-            })?;
 
         // Get TTL
         let ttl = redis_conn
@@ -806,30 +785,34 @@ impl RedisTokenManager {
                 errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into())
             })?;
 
-        // Get data based on key type
-        let data = match key_type {
-            RedisKeyType::Status => redis_conn
-                .get_key::<String>(&redis_key.into())
-                .await
-                .map(serde_json::Value::String)
-                .unwrap_or_else(|error| {
-                    tracing::error!(operation = "get_status_key", err = ?error);
-                    serde_json::Value::String(format!("Error retrieving status key: {}", error))
-                }),
-            RedisKeyType::Tokens => redis_conn
-                .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
-                .await
-                .map(|hash_fields| {
-                    if hash_fields.is_empty() {
-                        serde_json::Value::Object(serde_json::Map::new())
-                    } else {
-                        serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
+        // Get data based on key type and determine existence
+        let (key_exists, data) = match key_type {
+            RedisKeyType::Status => {
+                match redis_conn.get_key::<String>(&redis_key.into()).await {
+                    Ok(status_value) => (true, serde_json::Value::String(status_value)),
+                    Err(error) => {
+                        tracing::error!(operation = "get_status_key", err = ?error);
+                        (false, serde_json::Value::String(format!("Error retrieving status key: {}", error)))
                     }
-                })
-                .unwrap_or_else(|error| {
-                    tracing::error!(operation = "get_tokens_hash", err = ?error);
-                    serde_json::Value::Null
-                }),
+                }
+            },
+            RedisKeyType::Tokens => {
+                match redis_conn.get_hash_fields::<HashMap<String, String>>(&redis_key.into()).await {
+                    Ok(hash_fields) => {
+                        let exists = !hash_fields.is_empty();
+                        let data = if exists {
+                            serde_json::to_value(hash_fields).unwrap_or(serde_json::Value::Null)
+                        } else {
+                            serde_json::Value::Object(serde_json::Map::new())
+                        };
+                        (exists, data)
+                    },
+                    Err(error) => {
+                        tracing::error!(operation = "get_tokens_hash", err = ?error);
+                        (false, serde_json::Value::Null)
+                    }
+                }
+            }
         };
 
         tracing::debug!(

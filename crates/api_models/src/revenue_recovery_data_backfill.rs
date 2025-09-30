@@ -7,7 +7,43 @@ use common_utils::{events::ApiEventMetric, pii::PhoneNumberStrategy};
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::Date;
+use time::{Date, PrimitiveDateTime};
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ScheduledAtUpdate {
+    SetToDateTime(#[serde(deserialize_with = "deserialize_primitive_datetime")] PrimitiveDateTime),
+    SetToNull(String), // matches "null" string
+}
+
+fn deserialize_primitive_datetime<'de, D>(deserializer: D) -> Result<PrimitiveDateTime, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    
+    // Try multiple datetime formats
+    PrimitiveDateTime::parse(&s, &time::format_description::well_known::Iso8601::DEFAULT)
+        .or_else(|_| {
+            let format = time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]");
+            PrimitiveDateTime::parse(&s, format)
+        })
+        .or_else(|_| {
+            let format = time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+            PrimitiveDateTime::parse(&s, format)
+        })
+        .map_err(|e| serde::de::Error::custom(format!("Invalid datetime format: {}", e)))
+}
+
+impl ScheduledAtUpdate {
+    pub fn to_option(self) -> Option<PrimitiveDateTime> {
+        match self {
+            ScheduledAtUpdate::SetToDateTime(dt) => Some(dt),
+            ScheduledAtUpdate::SetToNull(_) => None,
+        }
+    }
+}
+
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
@@ -136,7 +172,7 @@ pub struct RedisDataResponse {
 pub struct UpdateTokenStatusRequest {
     pub connector_customer_id: String,
     pub payment_processor_token: Secret<String, PhoneNumberStrategy>,
-    pub scheduled_at: Option<String>,
+    pub scheduled_at: Option<ScheduledAtUpdate>,
     pub is_hard_decline: Option<bool>,
     pub error_code: Option<String>,
 }

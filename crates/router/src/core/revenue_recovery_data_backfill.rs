@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::revenue_recovery_data_backfill::{
     BackfillError, ComprehensiveCardData, GetRedisDataQuery, RedisDataResponse, RedisKeyType,
     RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
-    UpdateTokenStatusRequest, UpdateTokenStatusResponse,
+    UpdateTokenStatusRequest, UpdateTokenStatusResponse, ScheduledAtUpdate
 };
 use common_enums::{CardNetwork, PaymentMethodType};
 use error_stack::ResultExt;
@@ -154,42 +154,28 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
 
     let mut updated_fields = Vec::new();
 
-    // Update scheduled_at field
-    request.scheduled_at.as_ref().map(|scheduled_at_str| {
-        (scheduled_at_str.to_lowercase() == "null")
-            .then(|| {
+    // Handle scheduled_at update
+    match request.scheduled_at {
+        Some(ScheduledAtUpdate::SetToNull(ref s)) => {
+            if s == "null" || s == "Null" {
                 token_status.scheduled_at = None;
                 updated_fields.push("scheduled_at: set to null".to_string());
-                logger::info!(
-                    "Set scheduled_at to null for token '{:?}'",
-                    request.payment_processor_token
-                );
-            })
-            .or_else(|| {
-                // Parse datetime
-                time::PrimitiveDateTime::parse(
-                    scheduled_at_str,
-                    &format_description::well_known::Iso8601::DEFAULT,
-                )
-                .map(|parsed_datetime| {
-                    token_status.scheduled_at = Some(parsed_datetime);
-                    updated_fields.push(format!("scheduled_at: {}", scheduled_at_str));
-                    logger::info!(
-                        "Set scheduled_at to '{}' for token '{:?}'",
-                        scheduled_at_str,
-                        request.payment_processor_token
-                    );
-                })
-                .unwrap_or_else(|parse_error| {
-                    logger::warn!(
-                        "Failed to parse scheduled_at '{}': {}. Skipping scheduled_at update.",
-                        scheduled_at_str,
-                        parse_error
-                    );
-                });
-                Some(())
-            });
-    });
+                logger::info!("Set scheduled_at to null for token '{:?}'", request.payment_processor_token);
+            } else {
+                return Err(error_stack::Report::new(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("Invalid null value for scheduled_at: '{}'. Only 'null' or 'Null' are accepted.", s)
+                }));
+            }
+        }
+        Some(ScheduledAtUpdate::SetToDateTime(dt)) => {
+            token_status.scheduled_at = Some(dt);
+            updated_fields.push(format!("scheduled_at: {}", dt));
+            logger::info!("Set scheduled_at to '{}' for token '{:?}'", dt, request.payment_processor_token);
+        }
+        None => {
+            logger::debug!("scheduled_at not provided in request - leaving unchanged");
+        }
+    }
 
     // Update is_hard_decline field
     request.is_hard_decline.map(|is_hard_decline| {
