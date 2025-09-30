@@ -1391,3 +1391,7 @@ http_url = "http://127.0.0.1:8081"     # Proxy all HTTP traffic via this proxy
 https_url = "http://127.0.0.1:8081"                 # Proxy all HTTPS traffic via this proxy
 idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
 bypass_proxy_urls = ""
+
+[internal_merchant_id_profile_id_auth]
+enabled = false
+internal_api_key = "test_internal_api_key"
