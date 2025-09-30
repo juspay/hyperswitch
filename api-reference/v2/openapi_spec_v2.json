@@ -15272,14 +15272,14 @@
       "NetworkTokenStatusCheckResponse": {
         "type": "object",
         "required": [
-          "status",
           "payment_method_id",
           "customer_id"
         ],
         "properties": {
           "status": {
             "type": "string",
-            "description": "The status of the network token"
+            "description": "The status of the network token",
+            "nullable": true
           },
           "token_expiry_month": {
             "type": "string",
@@ -15291,14 +15291,19 @@
             "description": "The expiry year of the network token if active",
             "nullable": true
           },
-          "first_six": {
+          "card_last_four": {
             "type": "string",
-            "description": "The first six digits of the network token",
+            "description": "The last four digits of the card",
             "nullable": true
           },
-          "last_four": {
+          "token_last_four": {
             "type": "string",
             "description": "The last four digits of the network token",
+            "nullable": true
+          },
+          "card_expiry": {
+            "type": "string",
+            "description": "The expiry date of the card in MM/YY format",
             "nullable": true
           },
           "payment_method_id": {
@@ -15310,6 +15315,11 @@
             "type": "string",
             "description": "The customer ID associated with the payment method",
             "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "Error message",
+            "nullable": true
           }
         }
       },

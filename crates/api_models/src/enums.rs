@@ -507,6 +507,8 @@ impl From<PermissionScope> for ReconPermissionScope {
 pub enum TokenStatus {
     /// Indicates that the token is active and can be used for payments
     Active,
-    /// Indicates that the token is not active and cannot be used for payments
-    Inactive,
+    /// Indicates that the token is suspended and can't be used for payments
+    Suspended,
+    /// Indicates that the token is deactivated and can't be used for payments
+    Deactivated,
 }

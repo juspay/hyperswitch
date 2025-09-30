@@ -3937,60 +3937,58 @@ pub async fn check_network_token_status(
         .attach_printable("Payment method not found for network token status check")?;
 
     // Check if the payment method has network token data
-    if payment_method
+    when(
+        payment_method
             .network_token_requestor_reference_id
-        .is_none()
-    {
-        return Err(errors::ApiErrorResponse::InvalidDataValue {
+            .is_none(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_id",
-            }
-        .into());
-    }
+            })
+        },
+    )?;
 
     // Call the network token status check function
-    match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await {
-        Ok(network_token_details) => {
-            let status = network_token_details.clone().map(|details| match details.status {
-                pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
-                pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
-            });
+    let network_token_status_check_response =
+        match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await
+        {
+            Ok(network_token_details) => {
+                let status = match network_token_details.token_status {
+                    pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
+                    pm_types::TokenStatus::Suspended => api_enums::TokenStatus::Suspended,
+                    pm_types::TokenStatus::Deactivated => api_enums::TokenStatus::Deactivated,
+                };
 
-            Ok(services::ApplicationResponse::Json(
                 payment_methods::NetworkTokenStatusCheckResponse {
-                    status,
-                    token_expiry_month: network_token_details
-                        .clone()
-                        .map(|details| details.exp_month),
-                    token_expiry_year: network_token_details
-                        .clone()
-                        .map(|details| details.exp_year),
-                    first_six: network_token_details
-                        .clone()
-                        .map(|details| details.first_six),
-                    last_four: network_token_details
-                        .clone()
-                        .map(|details| details.last_four),
-                    payment_method_id: payment_method_id,
+                    status: Some(status),
+                    token_expiry_month: Some(network_token_details.token_expiry_month),
+                    token_expiry_year: Some(network_token_details.token_expiry_year),
+                    card_last_four: network_token_details.card_last_4,
+                    card_expiry: network_token_details.card_expiry,
+                    token_last_four: network_token_details.token_last_4,
+                    payment_method_id,
                     customer_id: payment_method.customer_id,
                     error_message: None,
-                },
-            ))
-        }
-        Err(e) => {
-            let err_message=e.current_context().error_message();
-            logger::error!("Network token status check failed: {:?}", e);
-            Ok(services::ApplicationResponse::Json(
+                }
+            }
+            Err(e) => {
+                let err_message = e.current_context().to_string();
+                logger::error!("Network token status check failed: {:?}", e);
+
                 payment_methods::NetworkTokenStatusCheckResponse {
                     status: None,
                     token_expiry_month: None,
                     token_expiry_year: None,
-                    first_six: None,
-                    last_four: None,
-                    payment_method_id: payment_method_id,
+                    card_last_four: None,
+                    token_last_four: None,
+                    card_expiry: None,
+                    payment_method_id,
                     customer_id: payment_method.customer_id,
                     error_message: Some(err_message),
-                },
-            ))
-        }
-    }
+                }
+            }
+        };
+    Ok(services::ApplicationResponse::Json(
+        network_token_status_check_response,
+    ))
 }
