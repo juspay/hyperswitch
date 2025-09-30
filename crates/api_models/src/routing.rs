@@ -28,6 +28,7 @@ const DEFAULT_BUCKET_SIZE: i32 = 200;
 const DEFAULT_HEDGING_PERCENT: f64 = 5.0;
 const DEFAULT_ELIMINATION_THRESHOLD: f64 = 0.35;
 const DEFAULT_PAYMENT_METHOD: &str = "CARD";
+const MAX_NAME_LENGTH: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -71,9 +72,12 @@ pub struct RoutingConfigRequest {
 impl RoutingConfigRequest {
     pub fn validate_name_length(&self) -> Result<(), ValidationError> {
         if let Some(name) = &self.name {
-            if name.len() > 64 {
+            if name.len() > MAX_NAME_LENGTH {
                 return Err(ValidationError::InvalidValue {
-                    message: "Name length must not exceed 64 characters".to_string(),
+                    message: format!(
+                        "Length of name field must not exceed {} characters",
+                        MAX_NAME_LENGTH
+                    ),
                 });
             }
         }
