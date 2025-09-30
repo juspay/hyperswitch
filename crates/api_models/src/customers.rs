@@ -52,7 +52,7 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
-    /// Search by customer_id
+    /// Unique identifier for a customer
     pub customer_id: Option<String>,
 }
 
