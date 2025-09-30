@@ -172,6 +172,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
                 }
+                enums::Connector::Finix => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Finix::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }

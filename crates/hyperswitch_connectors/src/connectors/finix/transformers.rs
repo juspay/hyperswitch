@@ -44,7 +44,7 @@ pub struct FinixRouterData<T> {
 }
 
 impl<T> From<(MinorUnit, T)> for FinixRouterData<T> {
-    fn from((amount, item, flow): (MinorUnit, T)) -> Self {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -75,8 +75,8 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let customer_data = &item.router_data.request;
-
+        let customer_data: &ConnectorCustomerData = &item.router_data.request;
+        println!("nitt customer {:?}", customer_data);
         // Create entity data
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
@@ -339,7 +339,7 @@ impl From<FinixPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
-fn get_payment_status(state: FinixState, flow: FinixFlow) -> common_enums::AttemptStatus {
+fn get_payment_status(_state: FinixState, _flow: FinixFlow) -> common_enums::AttemptStatus {
     todo!()
 }
 //TODO: Fill the struct with respective fields
@@ -444,14 +444,42 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FinixErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
+    // pub status_code: u16,
+    pub total: Option<i64>,
+    #[serde(rename = "_embedded")]
+    pub embedded: Option<FinixErrorEmbedded>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FinixErrorEmbedded {
+    pub errors: Option<Vec<FinixError>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FinixError {
+    // pub logref: Option<String>,
+    pub message: Option<String>,
+    pub code: Option<String>,
+}
+
+impl FinixErrorResponse {
+    pub fn get_message(&self) -> String {
+        self.embedded
+            .as_ref()
+            .and_then(|embedded| embedded.errors.as_ref())
+            .and_then(|errors| errors.first())
+            .and_then(|error| error.message.clone())
+            .unwrap_or("".to_string())
+    }
+
+    pub fn get_code(&self) -> String {
+        self.embedded
+            .as_ref()
+            .and_then(|embedded| embedded.errors.as_ref())
+            .and_then(|errors| errors.first())
+            .and_then(|error| error.code.clone())
+            .unwrap_or("".to_string())
+    }
 }

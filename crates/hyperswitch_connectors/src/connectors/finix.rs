@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use base64::Engine;
 use common_enums::{enums, ConnectorIntegrationStatus};
 use common_utils::{
     errors::CustomResult,
@@ -103,12 +104,12 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = finix::FinixRouterData::from((
-            MinorUnit::zero(),
-            req,
-            finix::FinixFlow::CreateConnectorCustomer,
-        ));
+        let connector_router_data = finix::FinixRouterData::from((MinorUnit::zero(), req));
         let connector_req = finix::FinixCreateIdentityRequest::try_from(&connector_router_data)?;
+        println!(
+            "nitt customer req {:?}",
+            serde_json::to_string(&connector_req)
+        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -143,6 +144,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         errors::ConnectorError,
     > {
+        println!("nitt customer res {:?}", res.response);
+
         let response: finix::FinixIdentityResponse = res
             .response
             .parse_struct("Finix IdentityResponse")
@@ -193,10 +196,13 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data =
-            finix::FinixRouterData::from((MinorUnit::zero(), req, finix::FinixFlow::Tokenization));
+        let connector_router_data = finix::FinixRouterData::from((MinorUnit::zero(), req));
         let connector_req =
             finix::FinixCreatePaymentInstrumentRequest::try_from(&connector_router_data)?;
+        println!(
+            "nitt instrument req {:?}",
+            serde_json::to_string(&connector_req)
+        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -233,6 +239,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        println!("nitt instrument res {:?}", res.response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -291,10 +298,14 @@ impl ConnectorCommon for Finix {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = finix::FinixAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.finix_user_name.expose().into_masked(),
-        )])
+        let credentials = format!(
+            "{}:{}",
+            auth.finix_user_name.clone().expose(),
+            auth.finix_password.clone().expose()
+        );
+        let encoded = base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
+
+        Ok(vec![(headers::API_KEY.to_string(), encoded.into_masked())])
     }
 
     fn build_error_response(
@@ -312,9 +323,9 @@ impl ConnectorCommon for Finix {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.get_code(),
+            message: response.get_message(),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
