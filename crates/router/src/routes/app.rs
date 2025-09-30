@@ -1174,7 +1174,7 @@ pub struct Subscription;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
-        let route = web::scope("/subscription").app_data(web::Data::new(state.clone()));
+        let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
 
         route
             .service(web::resource("/create").route(
