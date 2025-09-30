@@ -29,6 +29,11 @@ pub struct UnlockStatusResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct UpdatedTTLResponse {
+    pub is_updated: bool,
+}
+
+#[derive(Debug, Serialize)]
 pub struct RevenueRecoveryDataBackfillResponse {
     pub processed_records: usize,
     pub failed_records: usize,
@@ -70,6 +75,12 @@ impl ApiEventMetric for UnlockStatusResponse {
     }
 }
 
+impl ApiEventMetric for UpdatedTTLResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
 impl ApiEventMetric for CsvParsingResult {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
@@ -94,6 +105,19 @@ pub enum BackfillError {
 #[derive(serde::Deserialize)]
 pub struct BackfillQuery {
     pub cutoff_time: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RedisKeyType {
+    #[serde(rename = "status")]
+    Status, // for customer:{id}:status
+    #[serde(rename = "tokens")]
+    Tokens, // for customer:{id}:tokens
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTTLQuery {
+    pub key_type: RedisKeyType,
 }
 
 impl std::fmt::Display for BackfillError {

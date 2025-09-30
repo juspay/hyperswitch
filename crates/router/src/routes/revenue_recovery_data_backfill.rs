@@ -1,6 +1,8 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::revenue_recovery_data_backfill::{BackfillQuery, RevenueRecoveryDataBackfillForm};
+use api_models::revenue_recovery_data_backfill::{
+    BackfillQuery, RevenueRecoveryDataBackfillForm, UpdateTTLQuery,
+};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -82,6 +84,36 @@ pub async fn revenue_recovery_data_backfill_status(
         connector_customer_id,
         |state, _: (), id, _| {
             revenue_recovery_data_backfill::unlock_connector_customer_status(state, id)
+        },
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RecoveryDataBackfill))]
+pub async fn revenue_recovery_data_backfill_update_ttl(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, i64)>,
+    query: web::Query<UpdateTTLQuery>,
+) -> HttpResponse {
+    let flow = Flow::RecoveryDataBackfill;
+    let (connector_customer_id, ttl_time) = path.into_inner();
+    let key_type = &query.key_type;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, _: (), _, _| {
+            revenue_recovery_data_backfill::update_connector_customer_ttl(
+                state,
+                &connector_customer_id,
+                ttl_time,
+                key_type,
+            )
         },
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
