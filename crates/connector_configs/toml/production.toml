@@ -5924,6 +5924,10 @@ api_key = "API Key"
 [tesouro.connector_auth.BodyKey]
 api_key="Client ID"
 key1="Client Secret"
+
 [loonio]
-[loonio.connector_auth.HeaderKey]
-api_key = "API Key"
+[loonio.connector_auth.BodyKey]
+api_key = "Merchant ID"
+api_secret = "Merchant Token"
+[[loonio.bank_redirect]]
+payment_method_type = "interac"

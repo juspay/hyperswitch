@@ -1,13 +1,11 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -24,7 +22,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -37,11 +36,12 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts as api_consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as loonio;
 
@@ -49,13 +49,13 @@ use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Loonio {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Loonio {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -121,10 +121,16 @@ impl ConnectorCommon for Loonio {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = loonio::LoonioAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::MERCHANTID.to_string(),
+                auth.merchant_id.expose().into_masked(),
+            ),
+            (
+                headers::MERCHANT_TOKEN.to_string(),
+                auth.merchant_token.expose().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -142,9 +148,12 @@ impl ConnectorCommon for Loonio {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or(api_consts::NO_ERROR_CODE.to_string()),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -205,9 +214,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}api/v1/transactions/incoming/payment_form",
+            self.base_url(connectors),
+        ))
     }
 
     fn get_request_body(
@@ -222,7 +234,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = loonio::LoonioRouterData::from((amount, req));
-        let connector_req = loonio::LoonioPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = loonio::LoonioPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -291,10 +303,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loo
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = self.base_url(connectors);
+        let connector_payment_id = req.connector_request_reference_id.clone();
+        Ok(format!(
+            "{base_url}api/v1/transactions/{connector_payment_id}/details"
+        ))
     }
 
     fn build_request(
@@ -318,9 +334,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: loonio::LoonioPaymentsResponse = res
+        let response: loonio::LoonioTransactionSyncResponse = res
             .response
-            .parse_struct("loonio PaymentsSyncResponse")
+            .parse_struct("loonio LoonioTransactionSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -594,21 +610,36 @@ impl webhooks::IncomingWebhook for Loonio {
     }
 }
 
-static LOONIO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref LOONIO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static LOONIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Loonio",
-    description: "Loonio connector",
-    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
-};
+        let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
+        gigadat_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Interac,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
+            },
+        );
 
-static LOONIO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        gigadat_supported_payment_methods
+    };
+    static ref LOONIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Loonio",
+        description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    };
+    static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+}
 
 impl ConnectorSpecifications for Loonio {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&LOONIO_CONNECTOR_INFO)
+        Some(&*LOONIO_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -616,6 +647,6 @@ impl ConnectorSpecifications for Loonio {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&LOONIO_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*LOONIO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
