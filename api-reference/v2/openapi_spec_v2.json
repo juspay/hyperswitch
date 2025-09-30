@@ -2593,6 +2593,64 @@
         ]
       }
     },
+    "/v2/payments/{id}/check-gift-card-balance": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Gift Card Balance Check",
+        "description": "Check the balance of the provided gift card. This endpoint also returns whether the gift card balance is enough to cover the entire amount or another payment method is needed",
+        "operationId": "Retrieve Gift Card Balance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsGiftCardBalanceCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Get the Gift Card Balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftCardBalanceCheckResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-methods": {
       "post": {
         "tags": [
@@ -5159,7 +5217,8 @@
           "ctp_mastercard",
           "unified_authentication_service",
           "juspaythreedsserver",
-          "ctp_visa"
+          "ctp_visa",
+          "cardinal"
         ]
       },
       "AuthenticationDetails": {
@@ -7463,6 +7522,11 @@
             "type": "string",
             "description": "Accept-language of the browser",
             "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },
@@ -8593,6 +8657,7 @@
           "boku",
           "braintree",
           "breadpay",
+          "cardinal",
           "cashtocode",
           "celero",
           "chargebee",
@@ -8619,6 +8684,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -8673,8 +8739,10 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
+          "trustpayments",
           "tsys",
           "vgs",
           "volt",
@@ -12143,6 +12211,35 @@
           }
         ]
       },
+      "GiftCardBalanceCheckResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "balance",
+          "currency",
+          "needs_additional_pm_data",
+          "remaining_amount"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "needs_additional_pm_data": {
+            "type": "boolean",
+            "description": "Whether the gift card balance is enough for the transaction (Used for split payments case)"
+          },
+          "remaining_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -13331,6 +13428,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -18874,14 +18975,6 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -18942,6 +19035,14 @@
           },
           "payment_method_data": {
             "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          },
+          "split_payment_method_data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitPaymentMethodDataRequest"
+            },
+            "description": "The payment instrument data to be used for the payment in case of split payments",
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
@@ -19200,6 +19301,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19313,6 +19420,11 @@
             "description": "Challenge request which should be sent to acs_url",
             "nullable": true
           },
+          "challenge_request_key": {
+            "type": "string",
+            "description": "Challenge request key which should be set as form field name for creq",
+            "nullable": true
+          },
           "acs_reference_number": {
             "type": "string",
             "description": "Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)",
@@ -19343,6 +19455,19 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsGiftCardBalanceCheckRequest": {
+        "type": "object",
+        "description": "Request for Gift Card balance check",
+        "required": [
+          "gift_card_data"
+        ],
+        "properties": {
+          "gift_card_data": {
+            "$ref": "#/components/schemas/GiftCardData"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentsIncrementalAuthorizationRequest": {
         "type": "object",
@@ -19553,6 +19678,12 @@
           },
           "payment_type": {
             "$ref": "#/components/schemas/PaymentType"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20011,6 +20142,12 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -20484,6 +20621,12 @@
                 "$ref": "#/components/schemas/UpdateActiveAttempt"
               }
             ],
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -22170,6 +22313,11 @@
             ],
             "default": "skip",
             "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22471,6 +22619,11 @@
                 "$ref": "#/components/schemas/RevenueRecoveryAlgorithmType"
               }
             ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
@@ -23678,11 +23831,13 @@
           "schedule_time_for_payment": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "schedule_time_for_psync": {
             "type": "string",
             "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
           "status": {
@@ -23816,6 +23971,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -23867,6 +24023,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "trustpayments",
           "tokenio",
           "tsys",
           "volt",
@@ -24857,6 +25014,25 @@
           "created"
         ]
       },
+      "SplitPaymentMethodDataRequest": {
+        "type": "object",
+        "required": [
+          "payment_method_data",
+          "payment_method_type",
+          "payment_method_subtype"
+        ],
+        "properties": {
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodData"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "SplitPaymentsRequest": {
         "oneOf": [
           {
@@ -25539,7 +25715,7 @@
             "type": "object",
             "required": [
               "three_ds_method_data_submission",
-              "three_ds_method_key"
+              "consume_post_message_for_three_ds_method_completion"
             ],
             "properties": {
               "three_ds_method_data_submission": {
@@ -25557,17 +25733,27 @@
                 "nullable": true
               },
               "three_ds_method_key": {
-                "type": "string",
-                "enum": [
-                  "threeDSMethodData"
-                ]
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ThreeDsMethodKey"
+                  }
+                ],
+                "nullable": true
+              },
+              "consume_post_message_for_three_ds_method_completion": {
+                "type": "boolean",
+                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
               }
             }
           }
-        ],
-        "discriminator": {
-          "propertyName": "three_ds_method_key"
-        }
+        ]
+      },
+      "ThreeDsMethodKey": {
+        "type": "string",
+        "enum": [
+          "threeDSMethodData",
+          "JWT"
+        ]
       },
       "TimeRange": {
         "type": "object",
