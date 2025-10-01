@@ -23,7 +23,6 @@ use crate::{
         errors::{self, StorageErrorExt},
         payment_methods::{cards, network_tokenization},
     },
-    db,
     db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, SessionState},
@@ -586,7 +585,7 @@ pub async fn list_customers(
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
 
-    let customer_list_constraints = db::customers::CustomerListConstraints {
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
         limit: request
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
@@ -618,6 +617,7 @@ pub async fn list_customers(
 
     Ok(services::ApplicationResponse::Json(customers))
 }
+
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
