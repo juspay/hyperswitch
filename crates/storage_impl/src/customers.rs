@@ -655,12 +655,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let query_constraints = query::customers::CustomerListConstraints::from(constraints);
-        let customer_list_constraints = query::customers::CustomerListConstraints {
-            limit: query_constraints.limit,
-            offset: query_constraints.offset,
-            customer_id: query_constraints.customer_id,
-        };
+        let customer_list_constraints =
+            query::customers::CustomerListConstraints::from(constraints);
         self.find_resources(
             state,
             key_store,
