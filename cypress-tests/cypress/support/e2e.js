@@ -17,24 +17,45 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
 import "./redirectionHandler";
+import addContext from "mochawesome/addContext";
+
+Cypress.Commands.add("logRequestId", (xRequestId) => {
+  if (xRequestId) {
+    cy.then(function () {
+      addContext({ test: this }, { title: "x-request-id", value: xRequestId });
+    });
+  }
+});
 
 Cypress.on("window:before:load", (win) => {
-  // Add security headers
-  win.headers = {
-    "Content-Security-Policy": "default-src 'self'",
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-  };
+    // Add security headers
+    win.headers = {
+        "Content-Security-Policy": "default-src 'self'",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+    };
 });
 
 // Add error handling for dynamic imports
 Cypress.on("uncaught:exception", (err, runnable) => {
-  // Log the error details
-  // eslint-disable-next-line no-console
-  console.error(
-    `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
-  );
+    // Log the error details
+    // eslint-disable-next-line no-console
+    console.error(
+        `Error: ${err.message}\nError occurred in: ${runnable.title}\nStack trace: ${err.stack}`
+    );
 
-  // Return false to prevent the error from failing the test
-  return false;
+    // Return false to prevent the error from failing the test
+    return false;
+});
+
+// Add global interceptor for responses
+beforeEach(() => {
+  cy.intercept("**", (req) => {
+    req.on("response", (res) => {
+      const xRequestId = res.headers["x-request-id"];
+      if (xRequestId) {
+        cy.logRequestId(xRequestId); // добавляется прямо к текущему тесту
+      }
+    });
+  });
 });
