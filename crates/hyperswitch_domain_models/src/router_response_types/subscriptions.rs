@@ -11,7 +11,16 @@ pub struct SubscriptionCreateResponse {
     pub total_amount: MinorUnit,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub created_at: Option<PrimitiveDateTime>,
-    pub connector_invoice_id: String,
+    pub invoice_details: Option<SubscriptionInvoiceData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SubscriptionInvoiceData {
+    pub id: String,
+    pub total: MinorUnit,
+    pub currency_code: Currency,
+    pub status: Option<common_enums::connector_enums::InvoiceStatus>,
+    pub billing_address: Option<api_models::payments::Address>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]

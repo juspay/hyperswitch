@@ -740,12 +740,16 @@ pub async fn call_unified_connector_service_for_webhook(
                 "Missing merchant connector account for UCS webhook transformation",
             )
         })?;
-
+    let profile_id = merchant_connector_account
+        .as_ref()
+        .map(|mca| mca.profile_id.clone())
+        .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
     let grpc_headers = state
         .get_grpc_headers_ucs()
         .lineage_ids(LineageIds::new(
             merchant_context.get_merchant_account().get_id().clone(),
+            profile_id,
         ))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
@@ -791,7 +795,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
-    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderIntermediate,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -818,9 +822,7 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
-    let grpc_header = grpc_header_builder
-        .lineage_ids(LineageIds::new(merchant_id.clone()))
-        .build();
+    let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
