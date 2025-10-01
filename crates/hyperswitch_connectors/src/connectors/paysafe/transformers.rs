@@ -5,11 +5,11 @@ use cards::CardNumber;
 use common_enums::{enums, Currency};
 use common_types::payments::{ApplePayPaymentData, ApplePayPredecryptData};
 use common_utils::{
+    ext_traits::ValueExt,
     id_type,
     pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
     types::MinorUnit,
-    ext_traits::ValueExt
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -1116,12 +1116,9 @@ pub struct PaysafeMandateData {
     payment_token: Secret<String>,
 }
 
-
 impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PaymentsAuthorizeRouterData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match (
             item.request.is_cit_mandate_payment(),
             item.request.get_connector_mandate_data(),
@@ -1133,8 +1130,9 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                 payment_token: item.get_preprocessing_id()?.into(),
             }),
             (false, Some(mandate_data)) => {
-                let mandate_id = mandate_data.get_connector_mandate_id()
-                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                let mandate_id = mandate_data
+                    .get_connector_mandate_id()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                 let initial_transaction_id = mandate_data
                     .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
