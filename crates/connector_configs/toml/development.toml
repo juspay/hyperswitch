@@ -7243,6 +7243,14 @@ payment_method_type = "Visa"
 payment_method_type = "AmericanExpress"
 [[tesouro.credit]]
 payment_method_type = "Discover"
+[[tesouro.credit]]
+payment_method_type = "DinersClub"
+[[tesouro.credit]]
+payment_method_type = "JCB"
+[[tesouro.credit]]
+payment_method_type = "Maestro"
+[[tesouro.credit]]
+payment_method_type = "UnionPay"
 [[tesouro.debit]]
 payment_method_type = "Mastercard"
 [[tesouro.debit]]
@@ -7251,6 +7259,12 @@ payment_method_type = "Visa"
 payment_method_type = "AmericanExpress"
 [[tesouro.debit]]
 payment_method_type = "Discover"
+[[tesouro.debit]]
+payment_method_type = "DinersClub"
+[[tesouro.debit]]
+payment_method_type = "JCB"
+[[tesouro.debit]]
+payment_method_type = "Maestro"
 [tesouro.connector_auth.SignatureKey]
 api_key = "Client ID"
 api_secret = "Client Secret"

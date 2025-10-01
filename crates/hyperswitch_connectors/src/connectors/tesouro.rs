@@ -855,6 +855,10 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         common_enums::CardNetwork::Visa,
         common_enums::CardNetwork::AmericanExpress,
         common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Jcb,
+        common_enums::CardNetwork::Maestro,
+        common_enums::CardNetwork::UnionPay,
     ];
 
     let mut paysafe_supported_payment_methods = SupportedPaymentMethods::new();
