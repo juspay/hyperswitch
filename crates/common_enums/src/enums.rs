@@ -9560,3 +9560,13 @@ pub enum ExternalVaultEnabled {
     #[default]
     Skip,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum GooglePayCardFundingSource {
+    Credit,
+    Debit,
+    Prepaid,
+    #[serde(other)]
+    Unknown,
+}
