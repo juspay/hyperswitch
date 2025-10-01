@@ -6829,6 +6829,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
+        authorized_amount: data.authorized_amount,
     }
 }
 

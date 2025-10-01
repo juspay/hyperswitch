@@ -1084,6 +1084,7 @@ diesel::table! {
         is_overcapture_enabled -> Nullable<Bool>,
         network_details -> Nullable<Jsonb>,
         is_stored_credential -> Nullable<Bool>,
+        authorized_amount -> Nullable<Int8>,
     }
 }
 
