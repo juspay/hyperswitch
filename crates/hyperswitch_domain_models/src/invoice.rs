@@ -1,6 +1,6 @@
 use common_utils::{
     id_type::GenerateId,
-    errors::{CustomResult, ParsingError, ValidationError},
+    errors::{CustomResult, ValidationError},
     pii::SecretSerdeValue,
     types::keymanager::{Identifier, KeyManagerState},
     types::MinorUnit,
@@ -25,6 +25,8 @@ pub struct Invoice {
     pub amount: MinorUnit,
     pub currency: String,
     pub status: String,
+    pub provider_name: common_enums::connector_enums::Connector,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 pub enum InvoiceStatus {
@@ -58,7 +60,7 @@ impl super::behaviour::Conversion for Invoice {
             amount: self.amount,
             currency: self.currency.to_string(),
             status: self.status,
-            provider_name: common_enums::connector_enums::Connector::Adyen, // Placeholder connector
+            provider_name: self.provider_name,
             metadata: None,
             created_at: now,
             modified_at: now,
@@ -91,6 +93,8 @@ impl super::behaviour::Conversion for Invoice {
             // )?,
             currency: item.currency,
             status: item.status,
+            provider_name: item.provider_name,
+            metadata: item.metadata,
         })
     }
 
@@ -111,55 +115,16 @@ impl super::behaviour::Conversion for Invoice {
             self.amount,
             self.currency.to_string(),
             invoice_status,
-            common_enums::connector_enums::Connector::Adyen, // Placeholder connector
+            self.provider_name,
             None,
         ))
     }
 }
 
-// Type conversions for Invoice
-
-/// Convert from API model `Invoice` to domain model `Invoice`
-impl From<api_models::subscription::Invoice> for Invoice {
-    fn from(api_invoice: api_models::subscription::Invoice) -> Self {
-        Self {
-            id: api_invoice.id,
-            subscription_id: api_invoice.subscription_id,
-            merchant_id: api_invoice.merchant_id,
-            profile_id: api_invoice.profile_id,
-            merchant_connector_id: api_invoice.merchant_connector_id,
-            payment_intent_id: api_invoice.payment_intent_id,
-            payment_method_id: api_invoice.payment_method_id,
-            customer_id: api_invoice.customer_id,
-            amount: api_invoice.amount,
-            currency: api_invoice.currency.to_string(),
-            status: api_invoice.status,
-        }
-    }
-}
-
-// /// Convert from domain model `Invoice` to API model `Invoice`
-// impl From<Invoice> for api_models::subscription::Invoice {
-//     fn from(domain_invoice: Invoice) -> Self {
-//         Self {
-//             id: domain_invoice.id,
-//             subscription_id: domain_invoice.subscription_id,
-//             merchant_id: domain_invoice.merchant_id,
-//             profile_id: domain_invoice.profile_id,
-//             merchant_connector_id: domain_invoice.merchant_connector_id,
-//             payment_intent_id: domain_invoice.payment_intent_id,
-//             payment_method_id: domain_invoice.payment_method_id,
-//             customer_id: domain_invoice.customer_id,
-//             amount: domain_invoice.amount,
-//             currency: domain_invoice.currency.into(),
-//             status: domain_invoice.status,
-//         }
-//     }
-// }
-
 impl Invoice {
-    /// Convert domain invoice with context to InvoiceNew for database operations
-    pub fn to_invoice_new(
+    
+    #[allow(clippy::too_many_arguments)]
+    pub fn to_invoice(
         subscription_id: common_utils::id_type::SubscriptionId,
         merchant_id: common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
@@ -172,8 +137,10 @@ impl Invoice {
         status: common_enums::connector_enums::InvoiceStatus,
         provider_name: common_enums::connector_enums::Connector,
         metadata: Option<SecretSerdeValue>,
-    ) -> diesel_models::invoice::InvoiceNew {
-        diesel_models::invoice::InvoiceNew::new(
+    ) -> Self {
+        // let now = common_utils::date_time::now();
+        Self {
+            id: common_utils::id_type::InvoiceId::generate(),
             subscription_id,
             merchant_id,
             profile_id,
@@ -182,59 +149,11 @@ impl Invoice {
             payment_method_id,
             customer_id,
             amount,
-            currency,
-            status,
+            currency: currency.to_string(),
+            status: status.to_string(),
             provider_name,
             metadata,
-        )
-    }
-    pub fn to_invoice(
-        subscription_id: common_utils::id_type::SubscriptionId,
-        merchant_id: common_utils::id_type::MerchantId,
-        profile_id: common_utils::id_type::ProfileId,
-        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-        payment_intent_id: Option<common_utils::id_type::PaymentId>,
-        payment_method_id: Option<String>,
-        customer_id: common_utils::id_type::CustomerId,
-        amount: MinorUnit,
-        currency: String,
-        status: common_enums::connector_enums::InvoiceStatus,
-        _provider_name: common_enums::connector_enums::Connector,
-        _metadata: Option<SecretSerdeValue>,
-    ) -> Invoice {
-        // let now = common_utils::date_time::now();
-        Invoice{
-            id:common_utils::id_type::InvoiceId::generate(),
-            subscription_id:subscription_id,
-            merchant_id:merchant_id,
-            profile_id:profile_id,
-            merchant_connector_id:merchant_connector_id,
-            payment_intent_id:payment_intent_id,
-            payment_method_id:payment_method_id,
-            customer_id:customer_id,
-            amount:amount,
-            currency:currency.to_string(),
-            status:status.to_string(),
         }
-    }
-
-    /// Convert from database invoice model to domain invoice
-    pub fn from_invoice_db(invoice: diesel_models::invoice::Invoice) -> Result<Self, ParsingError> {
-        Ok(Self {
-            id: invoice.id,
-            subscription_id: invoice.subscription_id,
-            merchant_id: invoice.merchant_id,
-            profile_id: invoice.profile_id,
-            merchant_connector_id: invoice.merchant_connector_id,
-            payment_intent_id: invoice.payment_intent_id,
-            payment_method_id: invoice.payment_method_id,
-            customer_id: invoice.customer_id,
-            amount: invoice.amount,
-            currency: invoice.currency,
-            // currency: Currency::from_str(&invoice.currency)
-            //     .map_err(|_| ParsingError::UnknownError)?,
-            status: invoice.status,
-        })
     }
 }
 

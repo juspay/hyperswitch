@@ -114,7 +114,7 @@ impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     }
 }
 
-/// Convert from API model `SubscriptionStatus` to domain model `SubscriptionStatus`
+// /// Convert from API model `SubscriptionStatus` to domain model `SubscriptionStatus`
 impl From<api_models::subscription::SubscriptionStatus> for SubscriptionStatus {
     fn from(api_status: api_models::subscription::SubscriptionStatus) -> Self {
         match api_status {
@@ -133,28 +133,7 @@ impl From<api_models::subscription::SubscriptionStatus> for SubscriptionStatus {
 }
 
 impl CreateSubscriptionRequest {
-    /// Convert domain request with context to SubscriptionNew for database operations
-    pub fn to_subscription_new(
-        self,
-        id: common_utils::id_type::SubscriptionId,
-        profile_id: common_utils::id_type::ProfileId,
-        merchant_id: common_utils::id_type::MerchantId,
-    ) -> diesel_models::subscription::SubscriptionNew {
-        diesel_models::subscription::SubscriptionNew::new(
-            id,
-            SubscriptionStatus::Created.to_string(),
-            None, // billing_processor
-            None, // payment_method_id
-            None, // merchant_connector_id
-            None, // client_secret
-            None, // connector_subscription_id
-            merchant_id,
-            self.customer_id,
-            None, // metadata
-            profile_id,
-            self.merchant_reference_id,
-        )
-    }
+
     pub fn to_subscription(
         self,
         id: common_utils::id_type::SubscriptionId,
@@ -163,7 +142,7 @@ impl CreateSubscriptionRequest {
     ) -> Subscription {
         let now = common_utils::date_time::now();
         Subscription{
-            id: id,
+            id,
             status: SubscriptionStatus::Created.to_string(),
             billing_processor: None,
             payment_method_id: None,
@@ -182,7 +161,6 @@ impl CreateSubscriptionRequest {
 }
 
 impl CreateSubscriptionResponse {
-    /// Convert from database subscription model to domain response
     pub fn from_subscription_db(
         subscription: Subscription,
         customer_id: common_utils::id_type::CustomerId,
@@ -202,7 +180,7 @@ impl CreateSubscriptionResponse {
     }
 }
 
-/// Add FromStr implementation for SubscriptionStatus if not already present
+/// Add FromStr implementation for SubscriptionStatus
 impl FromStr for SubscriptionStatus {
     type Err = ();
 
@@ -212,12 +190,17 @@ impl FromStr for SubscriptionStatus {
             "Created" => Ok(Self::Created),
             "InActive" => Ok(Self::InActive),
             "Pending" => Ok(Self::Pending),
+            "Trail" => Ok(Self::Trial),
+            "Paused" => Ok(Self::Paused),
+            "Unpaid" => Ok(Self::Unpaid),
+            "Onetime" => Ok(Self::Onetime),
+            "Cancelled" => Ok(Self::Cancelled),
+            "Failed" => Ok(Self::Failed),
             _ => Err(()),
         }
     }
 }
 
-// /// Subscription domain model
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Subscription {
     pub id: common_utils::id_type::SubscriptionId,

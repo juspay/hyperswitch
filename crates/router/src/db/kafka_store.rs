@@ -4399,7 +4399,7 @@ impl SubscriptionInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         subscription_id: String,
     ) -> CustomResult<DomainSubscription, errors::StorageError> {
         self.diesel_store
@@ -4412,7 +4412,7 @@ impl SubscriptionInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         subscription_id: String,
         data: DomainSubscriptionUpdate,
     ) -> CustomResult<DomainSubscription, errors::StorageError> {
