@@ -311,35 +311,6 @@ where
                     }
                 };
 
-                // let (
-                //     (mut resp, duplication_check, network_token_requestor_ref_id),
-                //     network_token_resp,
-                // ) = if !state.conf.locker.locker_enabled {
-                //     let (res, dc) = skip_saving_card_in_locker(
-                //         merchant_context,
-                //         payment_method_create_request.to_owned(),
-                //     )
-                //     .await?;
-                //     ((res, dc, None), None)
-                // } else {
-                //     let payment_method_status = common_enums::PaymentMethodStatus::from(
-                //         save_payment_method_data.attempt_status,
-                //     );
-                //     pm_status = Some(payment_method_status);
-                //     save_card_and_network_token_in_locker(
-                //         state,
-                //         customer_id.clone(),
-                //         payment_method_status,
-                //         payment_method_data.clone(),
-                //         vault_operation,
-                //         payment_method_info,
-                //         merchant_context,
-                //         payment_method_create_request.clone(),
-                //         is_network_tokenization_enabled,
-                //         business_profile,
-                //     )
-                //     .await?
-                // };
                 let network_token_locker_id = match network_token_resp {
                     Some(ref token_resp) => {
                         if network_token_requestor_ref_id.is_some() {
