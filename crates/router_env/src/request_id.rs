@@ -365,4 +365,3 @@ impl FromRequest for RequestId {
         )
     }
 }
-
