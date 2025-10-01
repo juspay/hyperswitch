@@ -12,6 +12,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
+    payment_methods::storage_enums::MitCategory,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, PaymentMethodToken, RouterData,
@@ -273,6 +274,8 @@ pub enum CheckoutPaymentType {
     Unscheduled,
     #[serde(rename = "MOTO")]
     Moto,
+    Installment,
+    Recurring,
 }
 
 pub struct CheckoutAuthType {
@@ -585,7 +588,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                let p_type = CheckoutPaymentType::Unscheduled;
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
@@ -605,8 +613,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = CheckoutPaymentType::Unscheduled;
-
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             _ => Err(errors::ConnectorError::NotImplemented(

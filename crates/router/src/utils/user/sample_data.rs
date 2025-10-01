@@ -298,6 +298,7 @@ pub async fn generate_sample_data(
             shipping_amount_tax: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            mit_category: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

@@ -325,6 +325,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::AcceptedCurrencies,
         api_models::enums::AdyenSplitType,
         api_models::enums::PaymentType,
+        api_models::enums::MitCategory,
         api_models::enums::ScaExemptionType,
         api_models::enums::PaymentMethod,
         api_models::enums::TriggeredBy,

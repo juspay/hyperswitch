@@ -70,6 +70,7 @@ impl VerifyConnectorData {
             enable_partial_authorization: None,
             enable_overcapture: None,
             is_stored_credential: None,
+            mit_category: None,
         }
     }
 
