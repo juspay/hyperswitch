@@ -2341,6 +2341,18 @@ fn get_bank_redirect_required_fields(
                         vec![],
                     ),
                 ),
+                (
+                    Connector::Loonio,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingEmail,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                        ],
+                        vec![],
+                    ),
+                ),
             ]),
         ),
     ])

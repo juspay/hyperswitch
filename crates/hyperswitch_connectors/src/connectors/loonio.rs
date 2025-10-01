@@ -1,9 +1,7 @@
 pub mod transformers;
 
-use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -29,16 +27,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    router_flow_types::{PoCreate, PoFulfill, PoQuote},
-    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
-};
-#[cfg(feature = "payouts")]
-use hyperswitch_interfaces::types::{PayoutCreateType, PayoutFulfillType, PayoutQuoteType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -51,20 +42,17 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{Mask, PeekInterface};
-#[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
-use transformers as gigadat;
-use uuid::Uuid;
+use masking::{ExposeInterface, Mask};
+use transformers as loonio;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Gigadat {
+pub struct Loonio {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Gigadat {
+impl Loonio {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
@@ -72,32 +60,26 @@ impl Gigadat {
     }
 }
 
-impl api::Payment for Gigadat {}
-impl api::PaymentSession for Gigadat {}
-impl api::ConnectorAccessToken for Gigadat {}
-impl api::MandateSetup for Gigadat {}
-impl api::PaymentAuthorize for Gigadat {}
-impl api::PaymentSync for Gigadat {}
-impl api::PaymentCapture for Gigadat {}
-impl api::PaymentVoid for Gigadat {}
-impl api::Refund for Gigadat {}
-impl api::RefundExecute for Gigadat {}
-impl api::RefundSync for Gigadat {}
-impl api::PaymentToken for Gigadat {}
-#[cfg(feature = "payouts")]
-impl api::PayoutQuote for Gigadat {}
-#[cfg(feature = "payouts")]
-impl api::PayoutCreate for Gigadat {}
-#[cfg(feature = "payouts")]
-impl api::PayoutFulfill for Gigadat {}
+impl api::Payment for Loonio {}
+impl api::PaymentSession for Loonio {}
+impl api::ConnectorAccessToken for Loonio {}
+impl api::MandateSetup for Loonio {}
+impl api::PaymentAuthorize for Loonio {}
+impl api::PaymentSync for Loonio {}
+impl api::PaymentCapture for Loonio {}
+impl api::PaymentVoid for Loonio {}
+impl api::Refund for Loonio {}
+impl api::RefundExecute for Loonio {}
+impl api::RefundSync for Loonio {}
+impl api::PaymentToken for Loonio {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Gigadat
+    for Loonio
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gigadat
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Loonio
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -116,9 +98,9 @@ where
     }
 }
 
-impl ConnectorCommon for Gigadat {
+impl ConnectorCommon for Loonio {
     fn id(&self) -> &'static str {
-        "gigadat"
+        "loonio"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -130,25 +112,25 @@ impl ConnectorCommon for Gigadat {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.gigadat.base_url.as_ref()
+        connectors.loonio.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(auth_type)
+        let auth = loonio::LoonioAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!(
-            "{}:{}",
-            auth.access_token.peek(),
-            auth.security_token.peek()
-        );
-        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_header.into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::MERCHANTID.to_string(),
+                auth.merchant_id.expose().into_masked(),
+            ),
+            (
+                headers::MERCHANT_TOKEN.to_string(),
+                auth.merchant_token.expose().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -156,9 +138,9 @@ impl ConnectorCommon for Gigadat {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatErrorResponse = res
+        let response: loonio::LoonioErrorResponse = res
             .response
-            .parse_struct("GigadatErrorResponse")
+            .parse_struct("LoonioErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -166,9 +148,12 @@ impl ConnectorCommon for Gigadat {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.err.clone(),
-            message: response.err.clone(),
-            reason: Some(response.err).clone(),
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or(api_consts::NO_ERROR_CODE.to_string()),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -179,7 +164,7 @@ impl ConnectorCommon for Gigadat {
     }
 }
 
-impl ConnectorValidation for Gigadat {
+impl ConnectorValidation for Loonio {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -205,15 +190,15 @@ impl ConnectorValidation for Gigadat {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Loonio {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Gigadat {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Loonio {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Gigadat {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Loonio {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -228,15 +213,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        req: &PaymentsAuthorizeRouterData,
+        _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
-            "{}api/payment-token/{}",
+            "{}api/v1/transactions/incoming/payment_form",
             self.base_url(connectors),
-            auth.campaign_id.peek()
         ))
     }
 
@@ -251,8 +233,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = gigadat::GigadatRouterData::from((amount, req));
-        let connector_req = gigadat::GigadatCpiRequest::try_from(&connector_router_data)?;
+        let connector_router_data = loonio::LoonioRouterData::from((amount, req));
+        let connector_req = loonio::LoonioPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -284,14 +266,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatPaymentResponse = res
+        let response: loonio::LoonioPaymentsResponse = res
             .response
-            .parse_struct("GigadatPaymentResponse")
+            .parse_struct("Loonio PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -308,7 +288,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -326,14 +306,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let base_url = self.base_url(connectors);
+        let connector_payment_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}api/transactions/{transaction_id}",
-            self.base_url(connectors)
+            "{base_url}api/v1/transactions/{connector_payment_id}/details"
         ))
     }
 
@@ -358,9 +334,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatTransactionStatusResponse = res
+        let response: loonio::LoonioTransactionSyncResponse = res
             .response
-            .parse_struct("gigadat PaymentsSyncResponse")
+            .parse_struct("loonio LoonioTransactionSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -380,7 +356,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Gigadat {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -435,9 +411,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: gigadat::GigadatTransactionStatusResponse = res
+        let response: loonio::LoonioPaymentsResponse = res
             .response
-            .parse_struct("Gigadat PaymentsCaptureResponse")
+            .parse_struct("Loonio PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -457,32 +433,15 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Gigadat {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Loonio {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!(
-            "{}:{}",
-            auth.access_token.peek(),
-            auth.security_token.peek()
-        );
-        let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-        Ok(vec![
-            (
-                headers::AUTHORIZATION.to_string(),
-                auth_header.into_masked(),
-            ),
-            (
-                headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
-            ),
-        ])
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -492,9 +451,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}refunds", self.base_url(connectors),))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -508,8 +467,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             req.request.currency,
         )?;
 
-        let connector_router_data = gigadat::GigadatRouterData::from((refund_amount, req));
-        let connector_req = gigadat::GigadatRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = loonio::LoonioRouterData::from((refund_amount, req));
+        let connector_req = loonio::LoonioRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -538,10 +497,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: gigadat::RefundResponse = res
-            .response
-            .parse_struct("gigadat RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: loonio::RefundResponse =
+            res.response
+                .parse_struct("loonio RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -556,114 +515,61 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatRefundErrorResponse = res
-            .response
-            .parse_struct("GigadatRefundErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let code = response
-            .error
-            .first()
-            .and_then(|error_detail| error_detail.code.clone())
-            .unwrap_or(api_consts::NO_ERROR_CODE.to_string());
-        let message = response
-            .error
-            .first()
-            .map(|error_detail| error_detail.detail.clone())
-            .unwrap_or(api_consts::NO_ERROR_MESSAGE.to_string());
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code,
-            message,
-            reason: Some(response.message).clone(),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+        self.build_error_response(res, event_builder)
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Gigadat {
-    //Gigadat does not support Refund Sync
-}
-
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Gigadat {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
     fn get_headers(
         &self,
-        req: &PayoutsRouterData<PoQuote>,
+        req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
-    fn get_url(
-        &self,
-        req: &PayoutsRouterData<PoQuote>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(format!(
-            "{}api/payment-token/{}",
-            self.base_url(connectors),
-            auth.campaign_id.peek()
-        ))
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
     }
 
-    fn get_request_body(
+    fn get_url(
         &self,
-        req: &PayoutsRouterData<PoQuote>,
+        _req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.destination_currency,
-        )?;
-
-        let connector_router_data = gigadat::GigadatRouterData::from((amount, req));
-        let connector_req = gigadat::GigadatPayoutQuoteRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        req: &PayoutsRouterData<PoQuote>,
+        req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&PayoutQuoteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(PayoutQuoteType::get_headers(self, req, connectors)?)
-            .set_body(PayoutQuoteType::get_request_body(self, req, connectors)?)
-            .build();
-
-        Ok(Some(request))
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
-    #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &PayoutsRouterData<PoQuote>,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PayoutsRouterData<PoQuote>, errors::ConnectorError> {
-        let response: gigadat::GigadatPayoutResponse = res
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+        let response: loonio::RefundResponse = res
             .response
-            .parse_struct("GigadatPayoutResponse")
+            .parse_struct("loonio RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -681,159 +587,7 @@ impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Gigadat
 }
 
 #[async_trait::async_trait]
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Gigadat {
-    fn get_headers(
-        &self,
-        req: &PayoutsRouterData<PoCreate>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_url(
-        &self,
-        req: &PayoutsRouterData<PoCreate>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
-            },
-        )?;
-        Ok(format!(
-            "{}webflow?transaction={}",
-            self.base_url(connectors),
-            transfer_id,
-        ))
-    }
-
-    fn build_request(
-        &self,
-        req: &PayoutsRouterData<PoCreate>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&PayoutCreateType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(PayoutCreateType::get_headers(self, req, connectors)?)
-            .build();
-
-        Ok(Some(request))
-    }
-
-    #[instrument(skip_all)]
-    fn handle_response(
-        &self,
-        data: &PayoutsRouterData<PoCreate>,
-        _event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PayoutsRouterData<PoCreate>, errors::ConnectorError> {
-        router_env::logger::debug!("Expected zero bytes response, skipped parsing of the response");
-
-        let status = if res.status_code == 200 {
-            enums::PayoutStatus::RequiresFulfillment
-        } else {
-            enums::PayoutStatus::Failed
-        };
-        Ok(PayoutsRouterData {
-            response: Ok(PayoutsResponseData {
-                status: Some(status),
-                connector_payout_id: None,
-                payout_eligible: None,
-                should_add_next_step_to_process_tracker: false,
-                error_code: None,
-                error_message: None,
-            }),
-            ..data.clone()
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigadat {
-    fn get_headers(
-        &self,
-        req: &PayoutsRouterData<PoFulfill>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_url(
-        &self,
-        req: &PayoutsRouterData<PoFulfill>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "transfer_id",
-            },
-        )?;
-        Ok(format!(
-            "{}webflow?transaction={}",
-            self.base_url(connectors),
-            transfer_id,
-        ))
-    }
-
-    fn build_request(
-        &self,
-        req: &PayoutsRouterData<PoFulfill>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Get)
-            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
-            .build();
-
-        Ok(Some(request))
-    }
-
-    #[instrument(skip_all)]
-    fn handle_response(
-        &self,
-        data: &PayoutsRouterData<PoFulfill>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
-        let response: gigadat::GigadatPayoutResponse = res
-            .response
-            .parse_struct("GigadatPayoutResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-#[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Gigadat {
+impl webhooks::IncomingWebhook for Loonio {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -857,7 +611,7 @@ impl webhooks::IncomingWebhook for Gigadat {
 }
 
 lazy_static! {
-    static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+    static ref LOONIO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
         let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
@@ -874,25 +628,25 @@ lazy_static! {
 
         gigadat_supported_payment_methods
     };
-    static ref GIGADAT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Gigadat",
-        description: "Gigadat is a financial services product that offers a single API for payment integration. It provides Canadian businesses with a secure payment gateway and various pay-in and pay-out solutions, including Interac e-Transfer",
+    static ref LOONIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Loonio",
+        description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
         connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
         integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
-    static ref GIGADAT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+    static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 }
 
-impl ConnectorSpecifications for Gigadat {
+impl ConnectorSpecifications for Loonio {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*GIGADAT_CONNECTOR_INFO)
+        Some(&*LOONIO_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*GIGADAT_SUPPORTED_PAYMENT_METHODS)
+        Some(&*LOONIO_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*LOONIO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
