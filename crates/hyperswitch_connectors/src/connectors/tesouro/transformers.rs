@@ -938,7 +938,7 @@ impl<F>
                 } else {
                     Err(errors::ConnectorError::UnexpectedResponseError(
                         bytes::Bytes::from(
-                            "Expected either error or authorization_response".to_string(),
+                            "Expected either error or capture_authorization_response".to_string(),
                         ),
                     ))?
                 }
@@ -1080,7 +1080,7 @@ impl<F>
                 } else {
                     Err(errors::ConnectorError::UnexpectedResponseError(
                         bytes::Bytes::from(
-                            "Expected either error or authorization_response".to_string(),
+                            "Expected either error or reverse_transaction_response".to_string(),
                         ),
                     ))?
                 }
@@ -1245,7 +1245,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                 } else {
                     Err(errors::ConnectorError::UnexpectedResponseError(
                         bytes::Bytes::from(
-                            "Expected either error or authorization_response".to_string(),
+                            "Expected either error or refund_previous_payment_response".to_string(),
                         ),
                     ))?
                 }
