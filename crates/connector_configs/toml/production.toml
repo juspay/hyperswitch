@@ -5980,7 +5980,7 @@ api_key = "API Key"
 [loonio]
 [loonio.connector_auth.BodyKey]
 api_key = "Merchant ID"
-api_secret = "Merchant Token"
+key1 = "Merchant Token"
 [[loonio.bank_redirect]]
 payment_method_type = "interac"
 
