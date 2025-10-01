@@ -39,8 +39,14 @@ pub async fn create_subscription(
         SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
             .await
             .attach_printable("subscriptions: failed to find customer")?;
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        customer,
+        profile.clone(),
+    )
+    .await?;
 
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context, profile);
     let mut subscription = subscription_handler
@@ -105,8 +111,14 @@ pub async fn create_and_confirm_subscription(
             .await
             .attach_printable("subscriptions: failed to find customer")?;
 
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        customer,
+        profile.clone(),
+    )
+    .await?;
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context, profile.clone());
     let mut subs_handler = subscription_handler
         .create_subscription_entry(
@@ -234,8 +246,14 @@ pub async fn confirm_subscription(
         )
         .await?;
 
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        customer,
+        profile,
+    )
+    .await?;
     let invoice_handler = subscription_entry.get_invoice_handler();
     let subscription = subscription_entry.subscription.clone();
 

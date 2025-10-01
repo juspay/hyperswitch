@@ -9,7 +9,10 @@ use hyperswitch_domain_models::router_response_types::subscriptions as subscript
 use masking::{PeekInterface, Secret};
 
 use super::errors;
-use crate::{core::subscription::payments_api_client, routes::SessionState};
+use crate::{
+    core::subscription::{self, payments_api_client},
+    routes::SessionState,
+};
 
 pub struct InvoiceHandler {
     pub subscription: diesel_models::subscription::Subscription,
@@ -19,6 +22,17 @@ pub struct InvoiceHandler {
 
 #[allow(clippy::todo)]
 impl InvoiceHandler {
+    pub fn new(
+        subscription: diesel_models::subscription::Subscription,
+        merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
+        profile: hyperswitch_domain_models::business_profile::Profile,
+    ) -> Self {
+        Self {
+            subscription,
+            merchant_account,
+            profile,
+        }
+    }
     #[allow(clippy::too_many_arguments)]
     pub async fn create_invoice_entry(
         self,

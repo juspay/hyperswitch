@@ -5,17 +5,25 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
-    router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
+    router_data_v2::flow_common_types::{
+        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
+    },
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest, subscriptions as subscription_request_types,
+        ConnectorCustomerData,
+    },
     router_response_types::{
-        subscriptions as subscription_response_types, ConnectorCustomerResponseData,
-        PaymentsResponseData,
+        revenue_recovery::InvoiceRecordBackResponse, subscriptions as subscription_response_types,
+        ConnectorCustomerResponseData, PaymentsResponseData,
     },
 };
 
 use super::errors;
 use crate::{
-    core::payments as payments_core, routes::SessionState, services, types::api as api_types,
+    core::{currency, payments as payments_core},
+    routes::SessionState,
+    services,
+    types::api as api_types,
 };
 
 pub struct BillingHandler {
@@ -31,7 +39,8 @@ pub struct BillingHandler {
 impl BillingHandler {
     pub async fn create(
         state: &SessionState,
-        merchant_context: &MerchantContext,
+        merchant_account: &hyperswitch_domain_models::merchant_account::MerchantAccount,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         customer: hyperswitch_domain_models::customer::Customer,
         profile: hyperswitch_domain_models::business_profile::Profile,
     ) -> errors::RouterResult<Self> {
@@ -41,9 +50,9 @@ impl BillingHandler {
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &(state).into(),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_account.get_id(),
                 &merchant_connector_id,
-                merchant_context.get_merchant_key_store(),
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -197,6 +206,62 @@ impl BillingHandler {
                 state,
                 router_data,
                 "create subscription on connector",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(response_data) => Ok(response_data),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+    pub async fn record_back_to_billing_processor(
+        &self,
+        state: &SessionState,
+        invoice_id: String,
+        payment_id: common_utils::id_type::PaymentId,
+        payment_status: common_enums::AttemptStatus,
+        amount: common_utils::types::MinorUnit,
+        currency: common_enums::Currency,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> errors::RouterResult<InvoiceRecordBackResponse> {
+        let invoice_record_back_req = InvoiceRecordBackRequest {
+            amount,
+            currency,
+            payment_method_type,
+            attempt_status: payment_status,
+            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&invoice_id)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "invoice_id",
+                })?,
+            connector_params: self.connector_params.clone(),
+            connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
+                payment_id.get_string_repr().to_string(),
+            )),
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            invoice_record_back_req,
+            InvoiceRecordBackData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "invoice record back",
                 connector_integration,
             )
             .await?;

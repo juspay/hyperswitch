@@ -16,7 +16,7 @@ use scheduler::{
 };
 
 #[cfg(feature = "v1")]
-use crate::core::subscription;
+use crate::core::subscription::{billing_processor_handler as billing, invoice_handler};
 use crate::{
     db::StorageInterface,
     errors as router_errors,
@@ -290,26 +290,25 @@ pub async fn perform_billing_processor_record_back(
 ) -> CustomResult<(), router_errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
-    let billing_handler = subscription::BillingHandler::create(
+    let billing_handler = billing::BillingHandler::create(
         state,
         merchant_account,
         key_store,
-        subscription.clone(),
         customer,
-        profile,
-        None,
-        None,
-        None,
-        payment_response.amount,
-        payment_response.currency,
+        profile.clone(),
     )
     .await
     .attach_printable("Failed to create billing handler")?;
 
-    let invoice_handler = subscription::InvoiceHandler::new(subscription.clone());
+    let invoice_handler = invoice_handler::InvoiceHandler::new(
+        subscription.clone(),
+        merchant_account.clone(),
+        profile,
+    );
 
+    // Should we fetch latest invoice or use the one from tracking data?
     let invoice = invoice_handler
-        .fetch_invoice_by_id(state, &tracking_data.invoice_id)
+        .get_latest_invoice(state)
         .await
         .attach_printable("Unable to fetch Invoice from DB")?;
 
@@ -320,14 +319,18 @@ pub async fn perform_billing_processor_record_back(
             tracking_data.connector_invoice_id.clone(),
             payment_response.payment_id.to_owned(),
             payment_status,
+            payment_response.amount,
+            payment_response.currency,
+            payment_response.payment_method_type,
         )
         .await
         .attach_printable("Failed to record back to billing processor")?;
 
     invoice_handler
-        .update_invoice_status(
+        .update_invoice(
             state,
-            invoice.id.get_string_repr().to_string(),
+            invoice.id.to_owned(),
+            None,
             common_enums::connector_enums::InvoiceStatus::InvoicePaid,
         )
         .await
