@@ -140,8 +140,19 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let webhook_url = helpers::create_webhook_url(
+        &state.base_url,
+        &merchant_context.get_merchant_account().get_id().to_owned(),
+        merchant_connector_account
+            .get_mca_id()
+            .get_required_value("merchant_connector_id")?
+            .get_string_repr(),
+    );
+
     let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
+    let browser_info = payout_data.browser_info.to_owned();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -187,6 +198,8 @@ pub async fn construct_payout_router_data<'a, F>(
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                 }),
             connector_transfer_method_id,
+            webhook_url: Some(webhook_url),
+            browser_info,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
