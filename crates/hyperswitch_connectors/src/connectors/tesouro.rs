@@ -138,22 +138,21 @@ impl ConnectorCommon for Tesouro {
             Ok(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                let error_extensions = response.errors.first().and_then(|error_data| {
-                    error_data
-                        .extensions});
+                let error_extensions = response
+                    .errors
+                    .first()
+                    .and_then(|error_data| error_data.extensions);
 
                 Ok(ErrorResponse {
                     status_code,
                     code: error_extensions
-                    .as_ref()
-                                .and_then(|ext| ext.code.clone())
+                        .as_ref()
+                        .and_then(|ext| ext.code.clone())
                         .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     message: error_extensions
                         .map(|error_data| error_data.message.clone())
                         .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_extensions
-                            .as_ref()
-                            .and_then(|ext| ext.reason.clone()),
+                    reason: error_extensions.as_ref().and_then(|ext| ext.reason.clone()),
                     attempt_status: None,
                     connector_transaction_id: None,
                     network_advice_code: None,
