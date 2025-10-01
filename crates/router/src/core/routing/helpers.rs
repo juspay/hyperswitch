@@ -2761,4 +2761,3 @@ pub async fn redact_cgraph_cache(
 
     Ok(())
 }
-
