@@ -1,4 +1,5 @@
-use api_models::enums as api_enums;
+#[cfg(feature = "v1")]
+use api_models::subscription as subscription_types;
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
@@ -27,6 +28,7 @@ const IVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 const IVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
 pub struct InvoiceSyncWorkflow;
 
+#[cfg(feature = "v1")]
 pub struct InvoiceSyncHandler<'a> {
     pub state: &'a SessionState,
     pub tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
@@ -37,6 +39,7 @@ pub struct InvoiceSyncHandler<'a> {
     pub subscription: Subscription,
 }
 
+#[cfg(feature = "v1")]
 impl<'a> InvoiceSyncHandler<'a> {
     pub async fn create(
         state: &'a SessionState,
@@ -110,7 +113,7 @@ impl<'a> InvoiceSyncHandler<'a> {
     #[allow(clippy::todo)]
     pub async fn perform_payments_sync(
         &self,
-    ) -> CustomResult<storage::invoice_sync::PaymentsResponse, router_errors::ApiErrorResponse>
+    ) -> CustomResult<subscription_types::PaymentResponseData, router_errors::ApiErrorResponse>
     {
         todo!()
     }
@@ -118,7 +121,7 @@ impl<'a> InvoiceSyncHandler<'a> {
     pub async fn transition_workflow_state(
         &self,
         process: storage::ProcessTracker,
-        payment_response: storage::invoice_sync::PaymentsResponse,
+        payment_response: subscription_types::PaymentResponseData,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
@@ -130,8 +133,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     &self.key_store,
                     &self.tracking_data,
                     common_enums::AttemptStatus::Charged,
-                    payment_response.amount,
-                    payment_response.currency,
+                    payment_response,
                 )
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
@@ -184,8 +186,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     &self.key_store,
                     &self.tracking_data,
                     common_enums::AttemptStatus::Failure,
-                    payment_response.amount,
-                    payment_response.currency,
+                    payment_response,
                 )
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
@@ -275,8 +276,7 @@ pub async fn perform_billing_processor_record_back(
     key_store: &domain::MerchantKeyStore,
     tracking_data: &storage::invoice_sync::InvoiceSyncTrackingData,
     payment_status: common_enums::AttemptStatus,
-    amount: common_utils::types::MinorUnit,
-    currency: api_enums::Currency,
+    payment_response: subscription_types::PaymentResponseData,
 ) -> CustomResult<(), router_errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
@@ -321,8 +321,8 @@ pub async fn perform_billing_processor_record_back(
         None,
         None,
         None,
-        amount,
-        currency,
+        payment_response.amount,
+        payment_response.currency,
     )
     .await
     .change_context(router_errors::ApiErrorResponse::InternalServerError)
@@ -340,7 +340,7 @@ pub async fn perform_billing_processor_record_back(
         .record_back_to_billing_processor(
             state,
             tracking_data.connector_invoice_id.clone(),
-            tracking_data.payment_id.to_owned(),
+            payment_response.payment_id.to_owned(),
             payment_status,
         )
         .await

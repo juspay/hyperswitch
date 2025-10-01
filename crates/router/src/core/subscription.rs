@@ -427,14 +427,13 @@ impl InvoiceHandler {
     pub async fn create_invoice_sync_job(
         &self,
         state: &SessionState,
-        payment_response: &subscription_types::PaymentResponseData,
+        _payment_response: &subscription_types::PaymentResponseData,
         invoice: &diesel_models::invoice::Invoice,
         connector_invoice_id: String,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
 
         let invoice_sync_request = storage::invoice_sync::InvoiceSyncRequest::new(
-            payment_response.payment_id.to_owned(),
             self.subscription.id.to_owned(),
             invoice.id.to_owned(),
             invoice.merchant_id.to_owned(),
