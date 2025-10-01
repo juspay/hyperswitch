@@ -644,7 +644,6 @@ where
         constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<Customer>, Self::Error>;
 
-
     async fn insert_customer(
         &self,
         customer_data: Customer,
