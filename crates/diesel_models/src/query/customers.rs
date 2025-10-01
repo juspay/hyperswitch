@@ -1,8 +1,5 @@
 use common_utils::id_type;
-use diesel::{
-    associations::HasTable, BoolExpressionMethods, ExpressionMethods, TextExpressionMethods,
-};
-
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use super::generics;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
@@ -63,21 +60,35 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        let customer_id = constraints.customer_id.unwrap_or("%".to_string());
 
-        let predicate = dsl::merchant_id
-            .eq(merchant_id.to_owned())
-            .and(dsl::customer_id.like(customer_id.clone()));
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone()).and(dsl::customer_id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
+        else{
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
 
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
-            conn,
-            predicate,
-            Some(constraints.limit),
-            constraints.offset,
-            Some(dsl::created_at),
-        )
-        .await
+        
     }
+
+
+
 
     #[cfg(feature = "v2")]
     pub async fn list_by_merchant_id(
@@ -85,21 +96,30 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        let customer_id = constraints.customer_id.unwrap_or("%".to_string());
-
-        let predicate = dsl::merchant_id
-            .eq(merchant_id.to_owned())
-            .and(dsl::id.like(customer_id.clone())); // use id instead of customer_id
-
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
-            conn,
-            predicate,
-            Some(constraints.limit),
-            constraints.offset,
-            Some(dsl::created_at),
-        )
-        .await
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone()).and(dsl::id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
+        else{
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
     }
+
 
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
