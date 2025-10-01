@@ -1308,6 +1308,7 @@ pub struct PayoutsData {
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub connector_transfer_method_id: Option<String>,
+    pub webhook_url: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
