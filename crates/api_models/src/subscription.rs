@@ -17,7 +17,6 @@ use crate::{
 ///
 /// This struct captures details required to create a subscription,
 /// including plan, profile, merchant connector, and optional customer info.
-//
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
     /// Merchant specific Unique identifier.
@@ -133,6 +132,7 @@ impl CreateSubscriptionResponse {
 
 impl ApiEventMetric for CreateSubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentDetails {
     pub payment_method: api_enums::PaymentMethod,
