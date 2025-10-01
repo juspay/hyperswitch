@@ -20,7 +20,7 @@ impl CustomerNew {
 pub struct CustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl Customer {
