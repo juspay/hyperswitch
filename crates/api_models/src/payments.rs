@@ -5936,7 +5936,7 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
-    pub webhook_url: Option<common_utils::types::Url>,     
+    pub webhook_url: Option<common_utils::types::Url>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
@@ -6180,7 +6180,7 @@ pub struct PaymentsRequest {
 
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
-    pub webhook_url: Option<common_utils::types::Url>, 
+    pub webhook_url: Option<common_utils::types::Url>,
 }
 
 #[cfg(feature = "v2")]
