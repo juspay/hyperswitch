@@ -7223,9 +7223,9 @@ type = "Text"
 
 [gigadat_payout]
 [gigadat_payout.connector_auth.SignatureKey]
-api_key = "Username"
-api_secret = "Password"
-key1 = "Campaign Id"
+api_key = "Access Token"
+api_secret = "Security Token"
+key1 = "Campaign ID"
 [[gigadat_payout.bank_redirect]]
 payment_method_type = "interac"
 [gigadat_payout.metadata.site]
