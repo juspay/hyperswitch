@@ -1130,8 +1130,9 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                 payment_token: item.get_preprocessing_id()?.into(),
             }),
             (false, Some(mandate_data)) => {
-                let mandate_id = mandate_data.get_connector_mandate_id()
-                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                let mandate_id = mandate_data
+                    .get_connector_mandate_id()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                 let mandate_metadata: PaysafeMandateMetadata = mandate_data
                     .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
@@ -1141,7 +1142,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                 Ok(Self {
                     stored_credential: Some(
                         PaysafeStoredCredential::new_merchant_initiated_transaction(
-                            mandate_metadata.initial_transaction_id
+                            mandate_metadata.initial_transaction_id,
                         ),
                     ),
                     payment_token: mandate_id.into(),
