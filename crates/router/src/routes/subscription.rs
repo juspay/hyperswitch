@@ -7,7 +7,6 @@ use std::str::FromStr;
 
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
-use error_stack::report;
 use hyperswitch_domain_models::errors;
 use router_env::{
     tracing::{self, instrument},
@@ -216,43 +215,6 @@ pub async fn create_and_confirm_subscription(
             is_connected_allowed: false,
             is_platform_allowed: false,
         }),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-/// add support for get subscription estimate
-#[instrument(skip_all)]
-pub async fn get_estimate(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<subscription_types::EstimateSubscriptionRequest>,
-) -> impl Responder {
-    let flow = Flow::GetSubscriptionEstimate;
-    let profile_id = match extract_profile_id(&req) {
-        Ok(id) => id,
-        Err(response) => return response,
-    };
-    let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
-    };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return oss_api::log_and_return_error_response(report!(err)),
-    };
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            subscription::get_estimate(state, merchant_context, profile_id.clone(), payload)
-        },
-        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

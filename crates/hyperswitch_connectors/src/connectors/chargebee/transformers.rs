@@ -987,7 +987,6 @@ impl<F, T>
                 currency: estimate.subscription_estimate.currency_code,
                 next_billing_at: estimate.subscription_estimate.next_billing_at,
                 credits_applied: Some(estimate.invoice_estimate.credits_applied),
-                customer_id: Some(estimate.invoice_estimate.customer_id),
                 line_items: estimate
                     .invoice_estimate
                     .line_items
@@ -1309,7 +1308,7 @@ pub struct InvoiceEstimate {
     pub amount_due: MinorUnit,
     /// type of the object will be `invoice_estimate`
     pub object: String,
-    pub customer_id: CustomerId,
+    pub customer_id: String,
     pub line_items: Vec<LineItem>,
     pub currency_code: enums::Currency,
     pub round_off_amount: MinorUnit,

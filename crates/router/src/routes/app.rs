@@ -1198,10 +1198,6 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
-            .service(
-                web::resource("/estimate")
-                    .route(web::get().to(subscription::get_estimate)),
-            )
     }
 }
 
