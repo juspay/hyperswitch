@@ -37,13 +37,14 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;
-pub mod subscriptions;
+pub mod invoice;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}
@@ -229,7 +230,7 @@ impl ApiModelToDieselModelConvertor<ApiRecurringPaymentIntervalUnit>
         }
     }
 }
-//
+
 impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
     for ApplePayRegularBillingDetails
 {

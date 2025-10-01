@@ -23,6 +23,8 @@ pub mod metrics;
 pub mod mock_db;
 pub mod payment_method;
 pub mod payments;
+pub mod invoice;
+pub mod subscription;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod redis;

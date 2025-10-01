@@ -4,11 +4,15 @@ use api_models::{
     enums as api_enums,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
-use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
-use diesel_models::subscription::SubscriptionNew;
+use common_utils::{
+    ext_traits::ValueExt,
+    id_type::GenerateId,
+    pii,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
+    invoice::Invoice,
     merchant_context::MerchantContext,
     router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
     router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
@@ -16,14 +20,15 @@ use hyperswitch_domain_models::{
         subscriptions as subscription_response_types, ConnectorCustomerResponseData,
         PaymentsResponseData,
     },
-    subscriptions::CreateSubscriptionRequest,
-
+    subscription::CreateSubscriptionRequest,
 };
-use masking::Secret;
 
 use super::errors::{self, RouterResponse};
 use crate::{
-    core::payments as payments_core, routes::SessionState, services, types::api as api_types,
+    core::payments as payments_core, 
+    routes::SessionState, 
+    services, 
+    types::api as api_types,
 };
 
 pub const SUBSCRIPTION_CONNECTOR_ID: &str = "DefaultSubscriptionConnectorId";
@@ -44,24 +49,27 @@ pub async fn create_subscription(
         },
     )?;
 
-    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
-    let domain_request: CreateSubscriptionRequest = request.clone().into();
-    let mut subscription: SubscriptionNew =
-        domain_request.to_subscription_new(id.clone(), profile_id.clone(), merchant_id.clone());
+    let key_manager_state = &(&state).into();
+    let key_store = merchant_context.get_merchant_key_store();
 
+    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let domain_request = CreateSubscriptionRequest::from(request.clone());
+    let mut subscription =
+        domain_request.to_subscription(id.clone(), profile_id.clone(), merchant_id.clone());
+    
     subscription.generate_and_set_client_secret();
     let subscription_response = db
-        .insert_subscription_entry(subscription)
+        .insert_subscription_entry(key_manager_state, key_store, subscription)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("subscriptions: unable to insert subscription entry to database")?;
 
     let domain_response =
-        hyperswitch_domain_models::subscriptions::CreateSubscriptionResponse::from_subscription_db(
+        hyperswitch_domain_models::subscription::CreateSubscriptionResponse::from_subscription_db(
             subscription_response,
             request.customer_id,
         );
-        
+
     let response = CreateSubscriptionResponse::from(domain_response);
 
     Ok(ApplicationResponse::Json(response))
@@ -104,10 +112,10 @@ pub async fn confirm_subscription(
         .change_context(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("subscriptions: unable to fetch customer from database")?;
 
-    let handler = SubscriptionHandler::new(state, merchant_context, request, profile);
+    let handler = SubscriptionHandler::new(state.clone(), merchant_context.clone(), request, profile);
 
     let mut subscription_entry = handler
-        .find_subscription(subscription_id.get_string_repr().to_string())
+        .find_subscription(state, merchant_context.clone(), subscription_id.get_string_repr().to_string())
         .await?;
 
     let billing_handler = subscription_entry.get_billing_handler(customer).await?;
@@ -126,6 +134,7 @@ pub async fn confirm_subscription(
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &handler.state,
+            merchant_context,
             subscription_entry.profile.get_billing_processor_id()?,
             None,
             billing_handler.request.amount,
@@ -175,12 +184,18 @@ impl SubscriptionHandler {
     }
     pub async fn find_subscription(
         &self,
+        state: SessionState,
+        merchant_context: MerchantContext,
         subscription_id: String,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
+        let key_manager_state = &(&state).into();
+        let key_store = merchant_context.get_merchant_key_store();
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
+                key_manager_state,
+                key_store,
                 self.merchant_context.get_merchant_account().get_id(),
                 subscription_id.clone(),
             )
@@ -198,14 +213,14 @@ impl SubscriptionHandler {
 }
 pub struct SubscriptionWithHandler<'a> {
     handler: &'a SubscriptionHandler,
-    subscription: diesel_models::subscription::Subscription,
+    subscription: hyperswitch_domain_models::subscription::Subscription,
     profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 impl<'a> SubscriptionWithHandler<'a> {
     fn generate_response(
         &self,
-        invoice: &diesel_models::invoice::Invoice,
+        invoice: &Invoice,
         // _payment_response: &subscription_types::PaymentResponseData,
         status: subscription_response_types::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
@@ -246,12 +261,14 @@ impl<'a> SubscriptionWithHandler<'a> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
+                &(&self.handler.state).into(),
+                self.handler.merchant_context.get_merchant_key_store(),
                 self.handler
                     .merchant_context
                     .get_merchant_account()
                     .get_id(),
                 self.subscription.id.get_string_repr().to_string(),
-                diesel_models::subscription::SubscriptionUpdate::new(None, Some(status)),
+                hyperswitch_domain_models::subscription::SubscriptionUpdate::new(None, Some(status)),
             )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
@@ -346,7 +363,7 @@ impl<'a> SubscriptionWithHandler<'a> {
 }
 
 pub struct BillingHandler {
-    subscription: diesel_models::subscription::Subscription,
+    subscription: hyperswitch_domain_models::subscription::Subscription,
     auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
     connector_data: api_types::ConnectorData,
     connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
@@ -356,7 +373,7 @@ pub struct BillingHandler {
 }
 
 pub struct InvoiceHandler {
-    subscription: diesel_models::subscription::Subscription,
+    subscription: hyperswitch_domain_models::subscription::Subscription,
 }
 
 #[allow(clippy::todo)]
@@ -365,6 +382,7 @@ impl InvoiceHandler {
     pub async fn create_invoice_entry(
         self,
         state: &SessionState,
+        merchant_context: MerchantContext,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
         amount: common_utils::types::MinorUnit,
@@ -372,8 +390,8 @@ impl InvoiceHandler {
         status: common_enums::connector_enums::InvoiceStatus,
         provider_name: common_enums::connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
-    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
-        let invoice_new = diesel_models::invoice::InvoiceNew::new(
+    ) -> errors::RouterResult<Invoice> {
+        let invoice_new = Invoice::to_invoice(
             self.subscription.id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.profile_id.to_owned(),
@@ -388,9 +406,12 @@ impl InvoiceHandler {
             metadata,
         );
 
+        let key_manager_state = state.into();
+        let key_store = merchant_context.get_merchant_key_store();
+
         let invoice = state
             .store
-            .insert_invoice_entry(invoice_new)
+            .insert_invoice_entry(&key_manager_state, key_store, invoice_new)
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Subscription Confirm".to_string(),

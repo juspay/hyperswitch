@@ -26,6 +26,8 @@ use hyperswitch_domain_models::{
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
+    invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
+    subscription::{Subscription as DomainSubscription, SubscriptionInterface, SubscriptionUpdate as DomainSubscriptionUpdate},
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -4335,3 +4337,88 @@ impl TokenizationInterface for KafkaStore {
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl TokenizationInterface for KafkaStore {}
+
+#[async_trait::async_trait]
+impl InvoiceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_new: DomainInvoice,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store.insert_invoice_entry(state, key_store, invoice_new).await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_id: String,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .find_invoice_by_invoice_id(state, key_store, invoice_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        invoice_id: String,
+        data: DomainInvoiceUpdate,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .update_invoice_entry(state, key_store, invoice_id, data)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl SubscriptionInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    #[instrument(skip_all)]
+    async fn insert_subscription_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        subscription_new: DomainSubscription,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .insert_subscription_entry(state, key_store, subscription_new)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn find_by_merchant_id_subscription_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .find_by_merchant_id_subscription_id(state, key_store, merchant_id, subscription_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<DomainSubscription, errors::StorageError> {
+        self.diesel_store
+            .update_subscription_entry(state, key_store, merchant_id, subscription_id, data)
+            .await
+    }
+}
+
