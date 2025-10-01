@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - test-runner
 
   merge_group:
     types:
@@ -37,7 +38,7 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,14 +59,14 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-latest
+          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
@@ -93,15 +94,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
-      - uses: Swatinem/rust-cache@v2.7.7
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          save-if: ${{ github.event_name == 'push' }}
+          tool: sccache
+          checksum: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2
@@ -156,14 +153,14 @@ jobs:
 
     env:
       # Use `sccache` for caching compilation artifacts
-      # RUSTC_WRAPPER: sccache
+      RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: true
       matrix:
         runner:
-          - ubuntu-latest
+          - hyperswitch-runners
 
     steps:
       - name: Checkout repository
@@ -186,16 +183,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.41.10
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
         with:
-          tool: cargo-hack
+          tool: sccache
           checksum: true
 
       - name: Install just
@@ -213,10 +204,6 @@ jobs:
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
-
-      - uses: Swatinem/rust-cache@v2.7.7
-        with:
-          save-if: ${{ github.event_name == 'push' }}
 
       - name: Run clippy
         shell: bash
@@ -244,7 +231,11 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    runs-on: ubuntu-latest
+    runs-on: hyperswitch-runners
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     steps:
       - name: Checkout repository
@@ -266,8 +257,11 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.7
+      - name: Install sccache
+        uses: taiki-e/install-action@v2
+        with:
+          tool: sccache
+          checksum: true
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash
