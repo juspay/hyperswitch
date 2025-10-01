@@ -12101,6 +12101,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -23126,6 +23127,12 @@
             "description": "Allow partial authorization for this payment",
             "default": false,
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -23604,6 +23611,12 @@
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
+            "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
           }
@@ -24236,6 +24249,12 @@
                 "$ref": "#/components/schemas/NetworkDetails"
               }
             ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
             "nullable": true
           }
         }
@@ -25012,6 +25031,12 @@
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25669,6 +25694,12 @@
               }
             ],
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -26282,6 +26313,12 @@
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
             "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -26630,6 +26667,7 @@
           "ebanx",
           "gigadat",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
@@ -30332,6 +30370,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",

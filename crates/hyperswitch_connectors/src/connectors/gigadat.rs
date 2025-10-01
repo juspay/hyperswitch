@@ -139,7 +139,11 @@ impl ConnectorCommon for Gigadat {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = gigadat::GigadatAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
+        let auth_key = format!(
+            "{}:{}",
+            auth.access_token.peek(),
+            auth.security_token.peek()
+        );
         let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -463,7 +467,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = gigadat::GigadatAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
+        let auth_key = format!(
+            "{}:{}",
+            auth.access_token.peek(),
+            auth.security_token.peek()
+        );
         let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
         Ok(vec![
             (

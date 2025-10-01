@@ -220,6 +220,7 @@ pub struct PaymentAttemptBatchNew {
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -309,6 +310,7 @@ impl PaymentAttemptBatchNew {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         }
     }
 }

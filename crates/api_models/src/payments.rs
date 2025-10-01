@@ -1291,6 +1291,10 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1444,6 +1448,24 @@ impl PaymentsRequest {
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
+    }
+    pub fn validate_stored_credential(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.is_stored_credential == Some(false)
+            && (self.recurring_details.is_some()
+                || self.payment_token.is_some()
+                || self.mandate_id.is_some())
+        {
+            Err(ValidationError::InvalidValue {
+                message:
+                    "is_stored_credential should be true when reusing stored payment method data"
+                        .to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -5698,6 +5720,10 @@ pub struct PaymentsResponse {
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
     pub network_details: Option<NetworkDetails>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

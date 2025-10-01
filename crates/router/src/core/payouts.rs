@@ -1475,8 +1475,8 @@ pub async fn check_payout_eligibility(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -1690,8 +1690,8 @@ pub async fn create_payout(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -2077,8 +2077,8 @@ pub async fn create_recipient_disburse_account(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id.clone(),
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -2414,8 +2414,8 @@ pub async fn fulfill_payout(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
