@@ -8698,6 +8698,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -19301,6 +19302,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19672,6 +19679,12 @@
           },
           "payment_type": {
             "$ref": "#/components/schemas/PaymentType"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20130,6 +20143,12 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -20604,6 +20623,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20717,6 +20742,7 @@
           "cybersource",
           "ebanx",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
@@ -23958,6 +23984,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",

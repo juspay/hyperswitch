@@ -434,8 +434,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         order_id: None,
         locale: None,
         payment_channel: None,
-        enable_partial_authorization: None,
+        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -479,8 +480,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -1488,6 +1492,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payment_channel: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2467,6 +2472,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
+                enable_partial_authorization: payment_intent.enable_partial_authorization,
             },
             vec![],
         )))
@@ -3658,6 +3664,7 @@ where
             network_details: payment_attempt
                 .network_details
                 .map(NetworkDetails::foreign_from),
+            is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
         };
 
@@ -3959,6 +3966,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
         }
     }
@@ -4292,6 +4300,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         })
     }
 }
@@ -4526,6 +4535,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5501,6 +5511,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_channel: payment_data.payment_intent.payment_channel,
             related_transaction_id: None,
             enrolled_for_3ds: true,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5644,6 +5655,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_account_id,
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5754,6 +5766,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
             customer_acceptance: payment_data.customer_acceptance,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }

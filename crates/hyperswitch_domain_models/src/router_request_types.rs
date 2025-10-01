@@ -85,8 +85,10 @@ pub struct PaymentsAuthorizeData {
     pub order_id: Option<String>,
     pub locale: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -342,6 +344,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
             metadata: data.metadata,
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
+            is_stored_credential: data.is_stored_credential,
         })
     }
 }
@@ -563,6 +566,7 @@ pub struct PaymentsPreProcessingData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -600,6 +604,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreProcessingData {
             metadata: data.metadata.map(Secret::new),
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
+            is_stored_credential: data.is_stored_credential,
         })
     }
 }
@@ -749,6 +754,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPreProcessingData {
             metadata: data.connector_meta.map(Secret::new),
             customer_acceptance: data.customer_acceptance,
             setup_future_usage: data.setup_future_usage,
+            is_stored_credential: data.is_stored_credential,
         })
     }
 }
@@ -817,6 +823,7 @@ pub struct CompleteAuthorizeData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -1308,6 +1315,7 @@ pub struct PayoutsData {
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub connector_transfer_method_id: Option<String>,
+    pub webhook_url: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1402,8 +1410,10 @@ pub struct SetupMandateRequestData {
     pub shipping_cost: Option<MinorUnit>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub enable_partial_authorization: Option<bool>,
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
     pub payment_channel: Option<storage_enums::PaymentChannel>,
+    pub is_stored_credential: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
