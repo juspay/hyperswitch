@@ -1,7 +1,7 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
-use common_enums::enums;
+use common_enums::{connector_enums, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
@@ -29,8 +29,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionLineItem,
-            SubscriptionStatus,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionInvoiceData,
+            SubscriptionLineItem, SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
@@ -120,6 +120,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionCreateResponse {
     pub subscription: ChargebeeSubscriptionDetails,
+    pub invoice: Option<ChargebeeInvoiceData>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -192,6 +193,7 @@ impl
                 total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),
                 next_billing_at: subscription.next_billing_at,
                 created_at: subscription.created_at,
+                invoice_details: item.response.invoice.map(SubscriptionInvoiceData::from),
             }),
             ..item.data
         })
@@ -461,17 +463,18 @@ pub enum ChargebeeEventType {
     InvoiceDeleted,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
     pub id: String,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
+    pub status: Option<ChargebeeInvoiceStatus>,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoicePayments {
     pub txn_status: Option<String>,
 }
@@ -539,7 +542,7 @@ pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceBillingAddress {
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
@@ -788,7 +791,6 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     fn from(item: ChargebeeInvoiceData) -> Self {
         Self {
@@ -801,7 +803,6 @@ impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
     fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
         Self {
@@ -1336,4 +1337,41 @@ pub struct LineItem {
     pub entity_id: String,
     pub discount_amount: MinorUnit,
     pub item_level_discount_amount: MinorUnit,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeInvoiceStatus {
+    Paid,
+    Posted,
+    PaymentDue,
+    NotPaid,
+    Voided,
+    #[serde(other)]
+    Pending,
+}
+
+impl From<ChargebeeInvoiceData> for SubscriptionInvoiceData {
+    fn from(item: ChargebeeInvoiceData) -> Self {
+        Self {
+            billing_address: Some(api_models::payments::Address::from(item.clone())),
+            id: item.id,
+            total: item.total,
+            currency_code: item.currency_code,
+            status: item.status.map(connector_enums::InvoiceStatus::from),
+        }
+    }
+}
+
+impl From<ChargebeeInvoiceStatus> for connector_enums::InvoiceStatus {
+    fn from(status: ChargebeeInvoiceStatus) -> Self {
+        match status {
+            ChargebeeInvoiceStatus::Paid => Self::InvoicePaid,
+            ChargebeeInvoiceStatus::Posted => Self::PaymentPendingTimeout,
+            ChargebeeInvoiceStatus::PaymentDue => Self::PaymentPending,
+            ChargebeeInvoiceStatus::NotPaid => Self::PaymentFailed,
+            ChargebeeInvoiceStatus::Voided => Self::Voided,
+            ChargebeeInvoiceStatus::Pending => Self::InvoiceCreated,
+        }
+    }
 }
