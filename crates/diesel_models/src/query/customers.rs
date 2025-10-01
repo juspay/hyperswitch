@@ -95,7 +95,7 @@ impl Customer {
         if let Some(customer_id) = constraints.customer_id {
             let predicate = dsl::merchant_id
                 .eq(merchant_id.clone())
-                .and(dsl::id.eq(customer_id));
+                .and(dsl::merchant_reference_id.eq(customer_id));
             generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
                 conn,
                 predicate,
