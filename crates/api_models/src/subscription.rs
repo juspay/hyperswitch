@@ -298,7 +298,6 @@ pub struct Invoice {
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
 
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct EstimateSubscriptionRequest {
     /// Identifier for the associated subscription plan.

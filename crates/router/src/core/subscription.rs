@@ -140,9 +140,7 @@ async fn execute_subscription_confirmation(
     customer: hyperswitch_domain_models::customer::Customer,
     request: subscription_types::ConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let billing_handler = subscription_entry
-        .get_billing_handler(customer)
-        .await?;
+    let billing_handler = subscription_entry.get_billing_handler(customer).await?;
     let invoice_handler = subscription_entry.get_invoice_handler().await?;
     let subscription = subscription_entry.subscription.clone();
 
