@@ -738,6 +738,7 @@ impl PaymentIntentUpdateInternal {
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             enable_partial_authorization,
+            mit_category,
         } = self;
 
         PaymentIntent {
@@ -820,6 +821,7 @@ impl PaymentIntentUpdateInternal {
             enable_overcapture: None,
             active_attempt_id_type: source.active_attempt_id_type,
             active_attempts_group_id: source.active_attempts_group_id,
+            mit_category:source.mit_category,
         }
     }
 }
