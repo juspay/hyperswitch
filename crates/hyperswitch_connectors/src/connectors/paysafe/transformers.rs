@@ -9,6 +9,7 @@ use common_utils::{
     pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
     types::MinorUnit,
+    ext_traits::ValueExt
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -809,20 +810,16 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let initial_transaction_id = item.response.id;
         let mandate_reference = item
             .response
             .payment_handle_token
-            .map(|payment_handle_token| {
-                format!(
-                    "{}--{initial_transaction_id}",
-                    payment_handle_token.expose()
-                )
-            })
+            .map(|payment_handle_token| payment_handle_token.expose())
             .map(|mandate_id| MandateReference {
                 connector_mandate_id: Some(mandate_id),
                 payment_method_id: None,
-                mandate_metadata: None,
+                mandate_metadata: Some(Secret::new(serde_json::json!(PaysafeMandateMetadata {
+                    initial_transaction_id: item.response.id.clone()
+                }))),
                 connector_mandate_request_reference_id: None,
             });
 
@@ -832,7 +829,7 @@ impl<F>
                 item.data.request.capture_method,
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(initial_transaction_id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
@@ -1119,10 +1116,52 @@ impl
     }
 }
 
-fn split_by_double_hyphen(input: &str) -> Option<(String, String)> {
-    input
-        .split_once("--")
-        .map(|(first, second)| (first.to_string(), second.to_string()))
+#[derive(Debug, Clone)]
+pub struct PaysafeMandateData {
+    stored_credential: Option<PaysafeStoredCredential>,
+    payment_token: Secret<String>,
+}
+
+
+impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PaymentsAuthorizeRouterData,
+    ) -> Result<Self, Self::Error> {
+        match (
+            item.request.is_cit_mandate_payment(),
+            item.request.get_connector_mandate_data(),
+        ) {
+            (true, _) => Ok(Self {
+                stored_credential: Some(
+                    PaysafeStoredCredential::new_customer_initiated_transaction(),
+                ),
+                payment_token: item.get_preprocessing_id()?.into(),
+            }),
+            (false, Some(mandate_data)) => {
+                let mandate_id = mandate_data.get_connector_mandate_id()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                let initial_transaction_id = mandate_data
+                    .get_mandate_metadata()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
+                    .clone()
+                    .parse_value("DeutschebankMandateMetadata")
+                    .change_context(errors::ConnectorError::ParsingFailed)?;
+                Ok(Self {
+                    stored_credential: Some(
+                        PaysafeStoredCredential::new_merchant_initiated_transaction(
+                            initial_transaction_id,
+                        ),
+                    ),
+                    payment_token: mandate_id.into(),
+                })
+            }
+            _ => Ok(Self {
+                stored_credential: None,
+                payment_token: item.get_preprocessing_id()?.into(),
+            }),
+        }
+    }
 }
 
 impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymentsRequest {
@@ -1162,36 +1201,16 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
             }
             _ => None,
         };
-
-        let (stored_credential, payment_token) = match (
-            item.router_data.request.is_cit_mandate_payment(),
-            item.router_data.request.get_connector_mandate_id().ok(),
-        ) {
-            (true, _) => (
-                Some(PaysafeStoredCredential::new_customer_initiated_transaction()),
-                item.router_data.get_preprocessing_id()?,
-            ),
-            (false, Some(connector_mandate_id)) => split_by_double_hyphen(&connector_mandate_id)
-                .map(|(transaction_token, initial_transaction_id)| {
-                    (
-                        Some(PaysafeStoredCredential::new_merchant_initiated_transaction(
-                            initial_transaction_id,
-                        )),
-                        transaction_token,
-                    )
-                })
-                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-            _ => (None, item.router_data.get_preprocessing_id()?),
-        };
+        let mandate_data = PaysafeMandateData::try_from(item.router_data)?;
 
         Ok(Self {
             merchant_ref_num: item.router_data.connector_request_reference_id.clone(),
-            payment_handle_token: Secret::new(payment_token),
+            payment_handle_token: mandate_data.payment_token,
             amount,
             settle_with_auth: item.router_data.request.is_auto_capture()?,
             currency_code: item.router_data.request.currency,
             customer_ip,
-            stored_credential,
+            stored_credential: mandate_data.stored_credential,
             account_id,
         })
     }
@@ -1528,6 +1547,12 @@ pub struct PaysafePaymentsResponse {
     pub merchant_ref_num: Option<String>,
     pub status: PaysafePaymentStatus,
     pub error: Option<Error>,
+}
+
+// Paysafe Mandate Metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaysafeMandateMetadata {
+    pub initial_transaction_id: String,
 }
 
 // Paysafe Customer Response Structure

@@ -1790,6 +1790,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
@@ -1908,6 +1909,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
     }
+
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    Some(connector_mandate_ids.clone())
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
         self.browser_info.clone().and_then(|browser_info| {
             browser_info
