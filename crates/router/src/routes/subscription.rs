@@ -49,7 +49,6 @@ fn extract_profile_id(req: &HttpRequest) -> Result<common_utils::id_type::Profil
     })
 }
 
-#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn create_subscription(
     state: web::Data<AppState>,
@@ -92,7 +91,6 @@ pub async fn create_subscription(
     .await
 }
 
-#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn confirm_subscription(
     state: web::Data<AppState>,
@@ -139,7 +137,6 @@ pub async fn confirm_subscription(
 }
 
 /// Add support for get subscription by id
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn get_subscription(
     state: web::Data<AppState>,
@@ -183,12 +180,11 @@ pub async fn get_subscription(
     .await
 }
 
-#[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn create_and_confirm_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<subscription_types::ConfirmSubscriptionRequest>,
+    json_payload: web::Json<subscription_types::CreateAndConfirmSubscriptionRequest>,
 ) -> impl Responder {
     let flow = Flow::CreateAndConfirmSubscription;
     let profile_id = match extract_profile_id(&req) {

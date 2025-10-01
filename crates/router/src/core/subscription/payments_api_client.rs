@@ -52,7 +52,7 @@ impl PaymentsApiClient {
         state: &SessionState,
         method: services::Method,
         url: String,
-        request_body: Option<subscription_types::PaymentsRequestData>,
+        request_body: Option<common_utils::request::RequestContent>,
         operation_name: &str,
         merchant_id: &str,
         profile_id: &str,
@@ -69,8 +69,7 @@ impl PaymentsApiClient {
 
         // Add request body only if provided (for POST requests)
         if let Some(body) = request_body {
-            request_builder = request_builder
-                .set_body(common_utils::request::RequestContent::Json(Box::new(body)));
+            request_builder = request_builder.set_body(body);
         }
 
         let request = request_builder.build();
@@ -105,7 +104,7 @@ impl PaymentsApiClient {
 
     pub async fn create_cit_payment(
         state: &SessionState,
-        request: subscription_types::PaymentsRequestData,
+        request: subscription_types::CreatePaymentsRequestData,
         merchant_id: &str,
         profile_id: &str,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
@@ -116,8 +115,57 @@ impl PaymentsApiClient {
             state,
             services::Method::Post,
             url,
-            Some(request),
-            "Create CIT Payment",
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Create Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
+
+    pub async fn create_and_confirm_payment(
+        state: &SessionState,
+        request: subscription_types::CreateAndConfirmPaymentsRequestData,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments", base_url);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Create And Confirm Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
+
+    pub async fn confirm_payment(
+        state: &SessionState,
+        request: subscription_types::ConfirmPaymentsRequestData,
+        payment_id: String,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments/{}/confirm", base_url, payment_id);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Confirm Payment",
             merchant_id,
             profile_id,
         )
@@ -126,7 +174,7 @@ impl PaymentsApiClient {
 
     pub async fn sync_payment(
         state: &SessionState,
-        payment_id: &str,
+        payment_id: String,
         merchant_id: &str,
         profile_id: &str,
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
