@@ -581,7 +581,6 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                // let p_type = CheckoutPaymentType::Unscheduled;
                 let p_type = match item.router_data.request.mit_category {
                     Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
                     Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
