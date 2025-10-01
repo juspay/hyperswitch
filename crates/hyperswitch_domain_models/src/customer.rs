@@ -541,12 +541,6 @@ pub struct CustomerListConstraints {
     pub customer_id: Option<String>,
 }
 
-pub struct QueryCustomerListConstraints {
-    pub limit: i64,
-    pub offset: Option<i64>,
-    pub customer_id: Option<String>,
-}
-
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
     fn from(value: CustomerListConstraints) -> Self {
         Self {
