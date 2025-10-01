@@ -1,81 +1,13 @@
 use common_utils::consts::TENANT_HEADER;
 use futures::StreamExt;
+// Re-export RequestId from router_env for convenience
+pub use router_env::RequestId;
 use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
 
 use crate::{headers, routes::metrics};
-
-/// Middleware to include request ID in response header.
-pub struct RequestId;
-
-impl<S, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest> for RequestId
-where
-    S: actix_web::dev::Service<
-        actix_web::dev::ServiceRequest,
-        Response = actix_web::dev::ServiceResponse<B>,
-        Error = actix_web::Error,
-    >,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = actix_web::dev::ServiceResponse<B>;
-    type Error = actix_web::Error;
-    type Transform = RequestIdMiddleware<S>;
-    type InitError = ();
-    type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
-
-    fn new_transform(&self, service: S) -> Self::Future {
-        std::future::ready(Ok(RequestIdMiddleware { service }))
-    }
-}
-
-pub struct RequestIdMiddleware<S> {
-    service: S,
-}
-
-impl<S, B> actix_web::dev::Service<actix_web::dev::ServiceRequest> for RequestIdMiddleware<S>
-where
-    S: actix_web::dev::Service<
-        actix_web::dev::ServiceRequest,
-        Response = actix_web::dev::ServiceResponse<B>,
-        Error = actix_web::Error,
-    >,
-    S::Future: 'static,
-    B: 'static,
-{
-    type Response = actix_web::dev::ServiceResponse<B>;
-    type Error = actix_web::Error;
-    type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
-
-    actix_web::dev::forward_ready!(service);
-
-    fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
-        let old_x_request_id = req.headers().get("x-request-id").cloned();
-        let mut req = req;
-        let request_id_fut = req.extract::<router_env::tracing_actix_web::RequestId>();
-        let response_fut = self.service.call(req);
-
-        Box::pin(
-            async move {
-                let request_id = request_id_fut.await?;
-                let request_id = request_id.as_hyphenated().to_string();
-                if let Some(upstream_request_id) = old_x_request_id {
-                    router_env::logger::info!(?upstream_request_id);
-                }
-                let mut response = response_fut.await?;
-                response.headers_mut().append(
-                    http::header::HeaderName::from_static("x-request-id"),
-                    http::HeaderValue::from_str(&request_id)?,
-                );
-
-                Ok(response)
-            }
-            .in_current_span(),
-        )
-    }
-}
 
 /// Middleware for attaching default response headers. Headers with the same key already set in a
 /// response will not be overwritten.
@@ -257,7 +189,7 @@ where
 
     fn call(&self, mut req: actix_web::dev::ServiceRequest) -> Self::Future {
         let svc = self.service.clone();
-        let request_id_fut = req.extract::<router_env::tracing_actix_web::RequestId>();
+        let request_id_fut = req.extract::<RequestId>();
         Box::pin(async move {
             let (http_req, payload) = req.into_parts();
             let result_payload: Vec<Result<bytes::Bytes, actix_web::error::PayloadError>> =
@@ -280,7 +212,7 @@ where
             let response = response_fut.await?;
             // Log the request_details when we receive 400 status from the application
             if response.status() == 400 {
-                let request_id = request_id_fut.await?.as_hyphenated().to_string();
+                let request_id = request_id_fut.await?.to_string();
                 let content_length_header_string = content_length_header
                     .map(|content_length_header| {
                         content_length_header.to_str().map(ToOwned::to_owned)

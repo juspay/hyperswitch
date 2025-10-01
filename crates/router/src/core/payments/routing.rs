@@ -1742,7 +1742,7 @@ where
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
         payment_attempt.payment_id.get_string_repr().to_string(),
         payment_attempt.profile_id.to_owned(),
         payment_attempt.merchant_id.to_owned(),
@@ -1932,7 +1932,7 @@ where
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
         payment_attempt.payment_id.get_string_repr().to_string(),
         payment_attempt.profile_id.to_owned(),
         payment_attempt.merchant_id.to_owned(),
@@ -2033,7 +2033,7 @@ pub async fn update_gateway_score_with_open_router(
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        state.request_id,
+        state.request_id.clone(),
         payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
         merchant_id.to_owned(),
@@ -2163,7 +2163,7 @@ where
 
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            state.request_id,
+            state.request_id.clone(),
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),
@@ -2349,7 +2349,7 @@ pub async fn perform_elimination_routing(
 
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            state.request_id,
+            state.request_id.clone(),
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),
@@ -2561,7 +2561,7 @@ where
 
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            state.request_id,
+            state.request_id.clone(),
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),

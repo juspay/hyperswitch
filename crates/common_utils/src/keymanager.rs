@@ -114,11 +114,11 @@ where
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
     #[cfg(feature = "km_forward_x_request_id")]
-    if let Some(request_id) = state.request_id {
+    if let Some(ref request_id) = state.request_id {
         header.push((
             HeaderName::from_str(X_REQUEST_ID)
                 .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-            HeaderValue::from_str(request_id.as_hyphenated().to_string().as_str())
+            HeaderValue::from_str(request_id.as_str())
                 .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
         ))
     }
