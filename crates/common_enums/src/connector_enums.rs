@@ -113,6 +113,7 @@ pub enum RoutableConnectors {
     Itaubank,
     Jpmorgan,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -294,6 +295,7 @@ pub enum Connector {
     Jpmorgan,
     Juspaythreedsserver,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -494,6 +496,7 @@ impl Connector {
             | Self::Jpmorgan
             | Self::Juspaythreedsserver
             | Self::Klarna
+            | Self::Loonio
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -676,6 +679,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
+            RoutableConnectors::Loonio => Self::Loonio,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -813,6 +817,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
+            Connector::Loonio => Ok(Self::Loonio),
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
