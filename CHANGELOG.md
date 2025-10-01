@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.09.29.0-hotfix1
+
+### Features
+
+- **payouts:** [Nuvei] add payout flows ([#9635](https://github.com/juspay/hyperswitch/pull/9635)) ([`4e2e2b3`](https://github.com/juspay/hyperswitch/commit/4e2e2b316dce9df0c438350b8450711e6e328ef8))
+
+### Refactors
+
+- **core:** Add cache redaction for cgraph ([#9639](https://github.com/juspay/hyperswitch/pull/9639)) ([`5108868`](https://github.com/juspay/hyperswitch/commit/5108868e41e8f83ffee19f32a7fe6c86afa2ab9b))
+
+**Full Changelog:** [`2025.09.29.0...2025.09.29.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.09.29.0...2025.09.29.0-hotfix1)
+
+- - -
+
 ## 2025.09.29.0
 
 ### Features
