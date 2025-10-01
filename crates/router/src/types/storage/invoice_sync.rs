@@ -1,6 +1,5 @@
-use common_utils::{id_type, types::MinorUnit};
-
 use api_models::enums as api_enums;
+use common_utils::{id_type, types::MinorUnit};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceSyncTrackingData {
     pub payment_id: id_type::PaymentId,
