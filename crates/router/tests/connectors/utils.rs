@@ -477,6 +477,7 @@ pub trait ConnectorActions: Connector {
                 vendor_details: None,
                 priority: None,
                 connector_transfer_method_id: None,
+                webhook_url: None,
             },
             payment_info,
         )
@@ -1006,6 +1007,7 @@ impl Default for PaymentAuthorizeType {
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         };
         Self(data)
     }

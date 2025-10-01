@@ -695,6 +695,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     network_transaction_id: payment_attempt.network_transaction_id.clone(),
                     is_overcapture_enabled: None,
                     network_details: payment_attempt.network_details.clone(),
+                    is_stored_credential: payment_attempt.is_stored_credential,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1906,6 +1907,7 @@ impl DataModelExt for PaymentAttempt {
             network_transaction_id: self.network_transaction_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         }
     }
 
@@ -2002,6 +2004,7 @@ impl DataModelExt for PaymentAttempt {
             network_transaction_id: storage_model.network_transaction_id,
             is_overcapture_enabled: storage_model.is_overcapture_enabled,
             network_details: storage_model.network_details,
+            is_stored_credential: storage_model.is_stored_credential,
         }
     }
 }
@@ -2095,6 +2098,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
         }
     }
 
@@ -2181,6 +2185,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_request_reference_id: storage_model.connector_request_reference_id,
             network_transaction_id: storage_model.network_transaction_id,
             network_details: storage_model.network_details,
+            is_stored_credential: storage_model.is_stored_credential,
         }
     }
 }
