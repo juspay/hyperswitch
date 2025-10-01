@@ -458,7 +458,8 @@ pub async fn change_password(
             },
         )
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to update user password in database")?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
         .await
@@ -1561,7 +1562,7 @@ pub async fn create_platform_account(
         .insert_in_v2(&state)
         .await?;
 
-    Ok(ApplicationResponse::Json(
+        Ok(ApplicationResponse::Json(
         user_api::PlatformAccountCreateResponse {
             org_id: organization.get_organization_id(),
             org_name: organization.get_organization_name(),
@@ -1626,6 +1627,8 @@ pub async fn create_merchant_account(
         },
     ))
 }
+
+
 
 pub async fn list_user_roles_details(
     state: SessionState,
