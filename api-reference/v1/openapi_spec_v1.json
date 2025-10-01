@@ -10939,6 +10939,16 @@
             "type": "string",
             "description": "The device model of the client",
             "nullable": true
+          },
+          "accept_language": {
+            "type": "string",
+            "description": "Accept-language of the browser",
+            "nullable": true
+          },
+          "referer": {
+            "type": "string",
+            "description": "Identifier of the source that initiated the request.",
+            "nullable": true
           }
         }
       },
@@ -12077,6 +12087,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -12090,6 +12101,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -12131,6 +12143,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenex",
           "tokenio",
           "trustpay",
           "trustpayments",
@@ -15238,6 +15251,31 @@
           }
         }
       },
+      "ExternalVaultConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "vault_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ExternalVaultEnabled": {
+        "type": "string",
+        "enum": [
+          "enable",
+          "skip"
+        ]
+      },
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
@@ -16125,6 +16163,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -16144,6 +16191,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -17178,6 +17233,10 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          },
+          "client_secret": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -19148,6 +19207,15 @@
         "type": "integer",
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
+      },
+      "MitCategory": {
+        "type": "string",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "resubmission"
+        ]
       },
       "MobilePayRedirection": {
         "type": "object"
@@ -23083,6 +23151,21 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23556,12 +23639,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24101,6 +24199,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -24168,6 +24272,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -24184,6 +24289,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
               }
             ],
             "nullable": true
@@ -24954,12 +25073,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25525,6 +25659,12 @@
             "description": "flag that indicates if extended authorization is applied on this payment or not",
             "nullable": true
           },
+          "request_extended_authorization": {
+            "type": "boolean",
+            "description": "Optional boolean value to extent authorization period of this payment\n\ncapture method must be manual or manual_multiple",
+            "default": false,
+            "nullable": true
+          },
           "capture_before": {
             "type": "string",
             "format": "date-time",
@@ -25592,6 +25732,7 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
@@ -25608,6 +25749,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
               }
             ],
             "nullable": true
@@ -26216,12 +26371,27 @@
           "enable_partial_authorization": {
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           },
           "enable_overcapture": {
             "type": "boolean",
             "description": "Boolean indicating whether to enable overcapture for this payment",
             "example": true,
+            "nullable": true
+          },
+          "is_stored_credential": {
+            "type": "boolean",
+            "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
+            "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26551,6 +26721,14 @@
             "type": "string",
             "description": "Identifier for payout method",
             "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26561,7 +26739,9 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "gigadat",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
@@ -27527,6 +27707,14 @@
             "type": "string",
             "description": "Identifier for payout method",
             "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27750,6 +27938,14 @@
           "payout_method_id": {
             "type": "string",
             "description": "Identifier for payout method",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         }
@@ -28616,6 +28812,27 @@
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
             "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -28951,6 +29168,27 @@
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
+            "nullable": true
+          },
+          "is_external_vault_enabled": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultEnabled"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "billing_processor_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           }
         }
@@ -30195,6 +30433,7 @@
           "flexiti",
           "forte",
           "getnet",
+          "gigadat",
           "globalpay",
           "globepay",
           "gocardless",
@@ -30205,6 +30444,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -32698,6 +32938,13 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
       },
       "Venmo": {
         "type": "object",

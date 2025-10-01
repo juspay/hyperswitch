@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
             ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionPlanPricesData,
             GetSubscriptionPlansData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
             MandateRevokeFlowData, PaymentFlowData, RefundFlowData, SubscriptionCreateData,
-            UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
+            SubscriptionCustomerData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -89,6 +89,7 @@ fn get_default_router_data<F, Req, Resp>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     }
 }
 
@@ -324,6 +325,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
         router_data.apple_pay_flow = apple_pay_flow;
         router_data.connector_response = connector_response;
         router_data.payment_method_status = payment_method_status;
+        router_data.connector_auth_type = new_router_data.connector_auth_type;
         Ok(router_data)
     }
 }
@@ -845,7 +847,9 @@ macro_rules! default_router_data_conversion {
             where
                 Self: Sized,
             {
-                let resource_common_data = Self {};
+                let resource_common_data = Self {
+                    connector_meta_data: old_router_data.connector_meta_data.clone(),
+                };
                 Ok(RouterDataV2 {
                     flow: std::marker::PhantomData,
                     tenant_id: old_router_data.tenant_id.clone(),
@@ -862,16 +866,19 @@ macro_rules! default_router_data_conversion {
             where
                 Self: Sized,
             {
-                let router_data = get_default_router_data(
+                let Self {
+                    connector_meta_data,
+                } = new_router_data.resource_common_data;
+                let mut router_data = get_default_router_data(
                     new_router_data.tenant_id.clone(),
                     stringify!($flow_name),
                     new_router_data.request,
                     new_router_data.response,
                 );
-                Ok(RouterData {
-                    connector_auth_type: new_router_data.connector_auth_type.clone(),
-                    ..router_data
-                })
+                router_data.connector_meta_data = connector_meta_data;
+                router_data.connector_auth_type = new_router_data.connector_auth_type;
+
+                Ok(router_data)
             }
         }
     };
@@ -879,6 +886,7 @@ macro_rules! default_router_data_conversion {
 default_router_data_conversion!(GetSubscriptionPlansData);
 default_router_data_conversion!(GetSubscriptionPlanPricesData);
 default_router_data_conversion!(SubscriptionCreateData);
+default_router_data_conversion!(SubscriptionCustomerData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(

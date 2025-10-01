@@ -48,7 +48,9 @@ pub enum PayoutConnectors {
     Adyenplatform,
     Cybersource,
     Ebanx,
+    Gigadat,
     Nomupay,
+    Nuvei,
     Payone,
     Paypal,
     Stripe,
@@ -74,7 +76,9 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -91,7 +95,9 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -109,6 +115,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
@@ -177,6 +184,7 @@ pub enum BillingConnectors {
 pub enum VaultConnectors {
     Vgs,
     HyperswitchVault,
+    Tokenex,
 }
 
 impl From<VaultConnectors> for Connector {
@@ -184,6 +192,7 @@ impl From<VaultConnectors> for Connector {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
+            VaultConnectors::Tokenex => Self::Tokenex,
         }
     }
 }

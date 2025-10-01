@@ -11,29 +11,39 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::{
         flow_common_types::{
-            GetSubscriptionPlanPricesData, GetSubscriptionPlansData, SubscriptionCreateData,
+            GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+            SubscriptionCreateData, SubscriptionCustomerData,
         },
         UasFlowData,
     },
     router_flow_types::{
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans, SubscriptionCreate},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
+        CreateConnectorCustomer,
     },
     router_request_types::{
         subscriptions::{
-            GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest,
-            SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
+        ConnectorCustomerData,
     },
-    router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+    router_response_types::{
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        },
+        PaymentsResponseData,
     },
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -151,6 +161,7 @@ impl
 impl api::revenue_recovery_v2::RevenueRecoveryV2 for Recurly {}
 impl api::subscriptions_v2::SubscriptionsV2 for Recurly {}
 impl api::subscriptions_v2::GetSubscriptionPlansV2 for Recurly {}
+impl api::subscriptions_v2::SubscriptionConnectorCustomerV2 for Recurly {}
 
 impl
     ConnectorIntegrationV2<
@@ -158,6 +169,16 @@ impl
         GetSubscriptionPlansData,
         GetSubscriptionPlansRequest,
         GetSubscriptionPlansResponse,
+    > for Recurly
+{
+}
+
+impl
+    ConnectorIntegrationV2<
+        CreateConnectorCustomer,
+        SubscriptionCustomerData,
+        ConnectorCustomerData,
+        PaymentsResponseData,
     > for Recurly
 {
 }
@@ -183,6 +204,18 @@ impl
     > for Recurly
 {
 }
+
+impl api::subscriptions_v2::GetSubscriptionEstimateV2 for Recurly {}
+impl
+    ConnectorIntegrationV2<
+        GetSubscriptionEstimate,
+        GetSubscriptionEstimateData,
+        GetSubscriptionEstimateRequest,
+        GetSubscriptionEstimateResponse,
+    > for Recurly
+{
+}
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery_v2::RevenueRecoveryRecordBackV2 for Recurly {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

@@ -13,7 +13,7 @@ pub struct SubscriptionCreateResponse {
     pub created_at: Option<PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum SubscriptionStatus {
     Pending,
     Trial,
@@ -23,6 +23,22 @@ pub enum SubscriptionStatus {
     Onetime,
     Cancelled,
     Failed,
+}
+
+#[cfg(feature = "v1")]
+impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+    fn from(status: SubscriptionStatus) -> Self {
+        match status {
+            SubscriptionStatus::Pending => Self::Pending,
+            SubscriptionStatus::Trial => Self::Trial,
+            SubscriptionStatus::Active => Self::Active,
+            SubscriptionStatus::Paused => Self::Paused,
+            SubscriptionStatus::Unpaid => Self::Unpaid,
+            SubscriptionStatus::Onetime => Self::Onetime,
+            SubscriptionStatus::Cancelled => Self::Cancelled,
+            SubscriptionStatus::Failed => Self::Failed,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -60,4 +76,28 @@ pub enum PeriodUnit {
     Week,
     Month,
     Year,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateResponse {
+    pub sub_total: MinorUnit,
+    pub total: MinorUnit,
+    pub credits_applied: Option<MinorUnit>,
+    pub amount_paid: Option<MinorUnit>,
+    pub amount_due: Option<MinorUnit>,
+    pub currency: Currency,
+    pub next_billing_at: Option<PrimitiveDateTime>,
+    pub line_items: Vec<SubscriptionLineItem>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionLineItem {
+    pub item_id: String,
+    pub item_type: String,
+    pub description: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub unit_amount: Option<MinorUnit>,
+    pub quantity: i64,
+    pub pricing_model: Option<String>,
 }
