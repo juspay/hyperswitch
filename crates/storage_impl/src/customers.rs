@@ -9,6 +9,7 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+
 #[cfg(feature = "v1")]
 use crate::diesel_error_to_data_error;
 use crate::{
@@ -288,7 +289,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
             .await
     }
-
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
