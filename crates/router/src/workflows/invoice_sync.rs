@@ -53,7 +53,8 @@ impl<'a> InvoiceSyncHandler<'a> {
                 &tracking_data.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
-            .await?;
+            .await
+            .attach_printable("Failed to fetch Merchant key store from DB")?;
 
         let merchant_account = state
             .store
@@ -62,7 +63,8 @@ impl<'a> InvoiceSyncHandler<'a> {
                 &tracking_data.merchant_id,
                 &key_store,
             )
-            .await?;
+            .await
+            .attach_printable("Subscriptions: Failed to fetch Merchant Account from DB")?;
 
         let subscription = state
             .store
@@ -71,8 +73,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 tracking_data.subscription_id.get_string_repr().to_string(),
             )
             .await
-            .change_context(router_errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch subscription from DB")?;
+            .attach_printable("Subscriptions: Failed to fetch subscription from DB")?;
 
         let customer = state
             .store
@@ -84,8 +85,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(router_errors::ApiErrorResponse::CustomerNotFound)
-            .attach_printable("subscriptions: unable to fetch customer from database")?;
+            .attach_printable("Subscriptions: Failed to fetch Customer from DB")?;
 
         let profile = state
             .store
@@ -95,9 +95,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 &tracking_data.profile_id,
             )
             .await
-            .change_context(router_errors::ApiErrorResponse::ProfileNotFound {
-                id: tracking_data.profile_id.get_string_repr().to_string(),
-            })?;
+            .attach_printable("Subscriptions: Failed to fetch Business Profile from DB")?;
 
         Ok(Self {
             state,
@@ -134,6 +132,9 @@ impl<'a> InvoiceSyncHandler<'a> {
                     &self.tracking_data,
                     common_enums::AttemptStatus::Charged,
                     payment_response,
+                    self.subscription.clone(),
+                    self.customer.clone(),
+                    self.profile.clone(),
                 )
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
@@ -173,7 +174,9 @@ impl<'a> InvoiceSyncHandler<'a> {
                             business_status::COMPLETED_BY_PT,
                         )
                         .await
-                        .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                            operation: "Invoice_sync process_tracker task retry".to_string(),
+                        })
                         .attach_printable("Failed to update process tracker status")?;
                 }
 
@@ -187,6 +190,9 @@ impl<'a> InvoiceSyncHandler<'a> {
                     &self.tracking_data,
                     common_enums::AttemptStatus::Failure,
                     payment_response,
+                    self.subscription.clone(),
+                    self.customer.clone(),
+                    self.profile.clone(),
                 )
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
@@ -199,7 +205,9 @@ impl<'a> InvoiceSyncHandler<'a> {
                         business_status::COMPLETED_BY_PT,
                     )
                     .await
-                    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                        operation: "Invoice_sync process_tracker task retry".to_string(),
+                    })
                     .attach_printable("Failed to update process tracker status")
             }
         }
@@ -259,7 +267,6 @@ async fn perform_subscription_invoice_sync(
     process: storage::ProcessTracker,
     tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
 ) -> Result<(), errors::ProcessTrackerError> {
-    // Extract merchant context
     let handler = InvoiceSyncHandler::create(state, tracking_data).await?;
 
     let payment_status = handler.perform_payments_sync().await?;
@@ -277,39 +284,11 @@ pub async fn perform_billing_processor_record_back(
     tracking_data: &storage::invoice_sync::InvoiceSyncTrackingData,
     payment_status: common_enums::AttemptStatus,
     payment_response: subscription_types::PaymentResponseData,
+    subscription: Subscription,
+    customer: domain::Customer,
+    profile: domain::Profile,
 ) -> CustomResult<(), router_errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
-
-    let subscription = state
-        .store
-        .find_by_merchant_id_subscription_id(
-            merchant_account.get_id(),
-            tracking_data.subscription_id.get_string_repr().to_string(),
-        )
-        .await
-        .change_context(router_errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch subscription from DB")?;
-
-    let customer = state
-        .store
-        .find_customer_by_customer_id_merchant_id(
-            &(state).into(),
-            &tracking_data.customer_id,
-            merchant_account.get_id(),
-            key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(router_errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("subscriptions: unable to fetch customer from database")?;
-
-    let profile = state
-        .store
-        .find_business_profile_by_profile_id(&(state).into(), key_store, &tracking_data.profile_id)
-        .await
-        .change_context(router_errors::ApiErrorResponse::ProfileNotFound {
-            id: tracking_data.profile_id.get_string_repr().to_string(),
-        })?;
 
     let billing_handler = subscription::BillingHandler::create(
         state,
@@ -325,7 +304,6 @@ pub async fn perform_billing_processor_record_back(
         payment_response.currency,
     )
     .await
-    .change_context(router_errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to create billing handler")?;
 
     let invoice_handler = subscription::InvoiceHandler::new(subscription.clone());
