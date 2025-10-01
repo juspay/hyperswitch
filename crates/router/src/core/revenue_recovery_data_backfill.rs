@@ -156,21 +156,8 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
 
     // Handle scheduled_at update
     match request.scheduled_at {
-        Some(ScheduledAtUpdate::SetToNull(ref s)) => {
-            if s == "null" || s == "Null" {
-                token_status.scheduled_at = None;
-                updated_fields.push("scheduled_at: set to null".to_string());
-                logger::info!(
-                    "Set scheduled_at to null for token '{:?}'",
-                    request.payment_processor_token
-                );
-            } else {
-                return Err(error_stack::Report::new(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("Invalid null value for scheduled_at: '{}'. Only 'null' or 'Null' are accepted.", s)
-                }));
-            }
-        }
         Some(ScheduledAtUpdate::SetToDateTime(dt)) => {
+            // Field provided with datetime - update schedule_at field with datetime
             token_status.scheduled_at = Some(dt);
             updated_fields.push(format!("scheduled_at: {}", dt));
             logger::info!(
@@ -179,7 +166,17 @@ pub async fn redis_update_additional_details_for_revenue_recovery(
                 request.payment_processor_token
             );
         }
+        Some(ScheduledAtUpdate::SetToNull) => {
+            // Field provided with "null" variable - set schedule_at field to null
+            token_status.scheduled_at = None;
+            updated_fields.push("scheduled_at: set to null".to_string());
+            logger::info!(
+                "Set scheduled_at to null for token '{:?}'",
+                request.payment_processor_token
+            );
+        }
         None => {
+            // Field not provided - we don't update schedule_at field
             logger::debug!("scheduled_at not provided in request - leaving unchanged");
         }
     }
