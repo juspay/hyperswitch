@@ -54,7 +54,7 @@ pub async fn rust_locker_migration(
     let constraints = CustomerListConstraints {
         limit: u16::MAX,
         offset: None,
-        /// Unique identifier for a customer
+        // Unique identifier for a customer
         customer_id: None,
     };
 
