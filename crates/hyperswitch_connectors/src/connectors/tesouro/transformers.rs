@@ -472,10 +472,10 @@ impl TryFrom<(&ApplePayWalletData, Option<&PaymentMethodToken>)> for TesouroPaym
         let apple_pay_data = get_apple_pay_data(wallet_data, payment_method_token)?;
 
         let network_token_details = TesouroNetworkTokenPassThroughDetails {
+            expiration_year: apple_pay_data.get_four_digit_expiry_year(),
             cryptogram: apple_pay_data.payment_data.online_payment_cryptogram,
             token_value: apple_pay_data.application_primary_account_number,
             expiration_month: apple_pay_data.application_expiration_month,
-            expiration_year: apple_pay_data.application_expiration_year,
             ecommerce_indicator: apple_pay_data.payment_data.eci_indicator,
             wallet_type: TesouroWalletType::ApplePay,
         };
