@@ -280,12 +280,15 @@ where
                     }
                     (false, true) => {
                         let card_data = payment_method_create_request.card.clone();
-                        let external_vault_details = match &business_profile.external_vault_details {
-                            domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
-                                external_vault_details
-                            },
+                        let external_vault_details = match &business_profile.external_vault_details
+                        {
+                            domain::ExternalVaultDetails::ExternalVaultEnabled(
+                                external_vault_details,
+                            ) => external_vault_details,
                             domain::ExternalVaultDetails::Skip => {
-                                logger::error!("External vault details not found for the business profile");
+                                logger::error!(
+                                    "External vault details not found for the business profile"
+                                );
                                 Err(errors::ApiErrorResponse::InternalServerError)?
                             }
                         };
