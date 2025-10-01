@@ -176,11 +176,9 @@ pub struct PaymentDetails {
 // Eg: Amount will be serialized as { amount: {Value: 100 }}
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreatePaymentsRequestData {
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub confirm: bool,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -191,7 +189,6 @@ pub struct CreatePaymentsRequestData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ConfirmPaymentsRequestData {
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
@@ -202,7 +199,6 @@ pub struct ConfirmPaymentsRequestData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CreateAndConfirmPaymentsRequestData {
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
@@ -280,9 +276,6 @@ impl ApiEventMetric for ConfirmSubscriptionRequest {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateAndConfirmSubscriptionRequest {
-    /// Client secret for SDK based interaction.
-    pub client_secret: Option<String>,
-
     /// Amount to be charged for the invoice.
     pub amount: Option<MinorUnit>,
 
