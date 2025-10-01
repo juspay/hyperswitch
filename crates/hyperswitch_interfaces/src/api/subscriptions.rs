@@ -1,9 +1,11 @@
 //! Subscriptions Interface for V1
 
 use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
     router_flow_types::{
-        subscriptions::{GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate as SubscriptionCreateFlow,
+        },
         InvoiceRecordBack,
     },
     router_request_types::{
