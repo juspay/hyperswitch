@@ -420,7 +420,7 @@ impl TryFrom<&Card> for TesouroPaymentMethodDetails {
             },
         };
 
-        Ok(TesouroPaymentMethodDetails::CardWithPanDetails(card_data))
+        Ok(Self::CardWithPanDetails(card_data))
     }
 }
 
@@ -470,6 +470,13 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
     fn try_from(
         item: &TesouroRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Tesouro",
+            })?
+        }
+
         let auth = TesouroAuthType::try_from(&item.router_data.connector_auth_type)?;
         let acceptor_id = auth.get_acceptor_id();
         let transaction_reference = get_valid_transaction_id(
@@ -518,7 +525,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                         },
                         automatic_capture: capture_data.automatic_capture,
                         authorization_intent: capture_data.authorization_intent,
-                        bill_to_address: bill_to_address,
+                        bill_to_address,
                     },
             },
         })
@@ -545,13 +552,17 @@ impl TryFrom<&TesouroRouterData<&PaymentsCaptureRouterData>> for TesouroCaptureR
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?
             .payment_id;
 
+        let transaction_id = get_valid_transaction_id(
+                item.router_data.connector_request_reference_id.clone()
+            )?;
+
         Ok(Self {
             query: tesouro_queries::CAPTURE_TRANSACTION.to_string(),
             variables: TesouroCaptureInput {
                 capture_authorization_input: CaptureAuthorizationInput {
                     acceptor_id: auth.get_acceptor_id(),
-                    payment_id: payment_id,
-                    transaction_reference: format!("capture_{}", item.router_data.connector_request_reference_id.clone()),
+                    payment_id,
+                    transaction_reference: format!("capture_{transaction_id}"),
                     transaction_amount_details: TransactionAmountDetails {
                         total_amount: item.amount,
                         currency: item.router_data.request.currency,
@@ -566,13 +577,16 @@ impl TryFrom<&PaymentsCancelRouterData> for TesouroVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = TesouroAuthType::try_from(&item.connector_auth_type)?;
+        let transaction_id = get_valid_transaction_id(
+            item.connector_request_reference_id.clone()
+        )?;
         Ok(Self {
             query: tesouro_queries::VOID_TRANSACTION.to_string(),
             variables: TesouroVoidInput {
                 reverse_transaction_input: ReverseTransactionInput {
                     acceptor_id: auth.get_acceptor_id(),
                     transaction_id: item.request.connector_transaction_id.clone(),
-                    transaction_reference: format!("rev_{}", item.connector_request_reference_id.clone()),
+                    transaction_reference: format!("rev_{transaction_id}"),
                 },
             },
         })
@@ -1139,7 +1153,7 @@ impl<F> TryFrom<&TesouroRouterData<&RefundsRouterData<F>>> for TesouroRefundRequ
             variables: TesouroRefundInput {
                 refund_previous_payment_input: RefundPreviousPaymentInput {
                     acceptor_id: auth.get_acceptor_id(),
-                    payment_id: payment_id,
+                    payment_id,
                     transaction_reference,
                     transaction_amount_details: TransactionAmountDetails {
                         total_amount: item.amount,
@@ -1171,7 +1185,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TesouroRefundResponse>>
                             Ok(Self {
                                 response: Ok(RefundsResponseData {
                                     connector_refund_id: transaction_id,
-                                    refund_status: enums::RefundStatus::Pending,
+                                    refund_status: enums::RefundStatus::Success,
                                 }),
                                 ..item.data
                             })

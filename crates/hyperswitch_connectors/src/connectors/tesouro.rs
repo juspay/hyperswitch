@@ -319,7 +319,18 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     }
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Tesouro {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Tesouro {
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Tesouro".to_string())
+                .into(),
+        )
+    }
+}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Tesouro {
     fn get_headers(
@@ -359,10 +370,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = tesouro::TesouroRouterData::from((amount, req));
         let connector_req = tesouro::TesouroAuthorizeRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -394,8 +401,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response_str = std::str::from_utf8(&res.response).unwrap();
-        println!("$$$$$ response_str: {:?}", response_str);
         let response: tesouro::TesouroAuthorizeResponse = res
             .response
             .parse_struct("Tesouro TesouroAuthorizeResponse")
@@ -528,10 +533,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
         let connector_router_data = tesouro::TesouroRouterData::from((amount, req));
         let connector_req = tesouro::TesouroCaptureRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -561,8 +562,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response_str = std::str::from_utf8(&res.response).unwrap();
-        println!("$$$$$ response_str: {:?}", response_str);
         let response: tesouro::TesouroCaptureResponse = res
             .response
             .parse_struct("Tesouro TesouroCaptureResponse")
@@ -615,7 +614,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Te
         let printrequest =
             common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -643,8 +641,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Te
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response_str = std::str::from_utf8(&res.response).unwrap();
-        println!("$$$$$ response_str: {:?}", response_str);
         let response: tesouro::TesouroVoidResponse = res
             .response
             .parse_struct("Tesouro TesouroVoidResponse")
@@ -704,7 +700,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tesouro
         let printrequest =
             common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
