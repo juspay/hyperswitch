@@ -3,16 +3,14 @@ use api_models::subscription::{
 };
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
-
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 
 use super::errors::{self, RouterResponse};
 use crate::{
-    core::{
-        subscription::billing_processor_handler::BillingHandler,
-        subscription::invoice_handler::InvoiceHandler,
-        subscription::subscription_handler::SubscriptionHandler,
+    core::subscription::{
+        billing_processor_handler::BillingHandler, invoice_handler::InvoiceHandler,
+        subscription_handler::SubscriptionHandler,
     },
     routes::SessionState,
 };

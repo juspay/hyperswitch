@@ -14,8 +14,7 @@ use hyperswitch_domain_models::{
 use masking::Secret;
 
 use super::errors;
-use crate::core::subscription::invoice_handler::InvoiceHandler;
-use crate::routes::SessionState;
+use crate::{core::subscription::invoice_handler::InvoiceHandler, routes::SessionState};
 
 pub struct SubscriptionHandler<'a> {
     pub state: &'a SessionState,

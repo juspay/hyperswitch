@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use common_enums::connector_enums;
-use common_utils::ext_traits::ValueExt;
-use common_utils::pii;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,

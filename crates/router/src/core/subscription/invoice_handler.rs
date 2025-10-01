@@ -6,12 +6,10 @@ use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::errors;
-use crate::core::subscription::payments_api_client;
-use crate::routes::SessionState;
+use crate::{core::subscription::payments_api_client, routes::SessionState};
 
 pub struct InvoiceHandler {
     pub subscription: diesel_models::subscription::Subscription,
