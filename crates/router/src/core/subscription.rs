@@ -214,7 +214,7 @@ pub struct SubscriptionWithHandler<'a> {
     profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
-impl<'a> SubscriptionWithHandler<'a> {
+impl SubscriptionWithHandler<'_> {
     fn generate_response(
         &self,
         invoice: &diesel_models::invoice::Invoice,
