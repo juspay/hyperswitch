@@ -24,9 +24,7 @@ pub use logger::*;
 pub use opentelemetry;
 // Re-export our internal request_id module for easier migration
 #[cfg(feature = "actix_web")]
-pub use request_id::{
-    IdReuse, RequestId, RequestIdGenerator, RequestIdentifier, UuidV4Generator, UuidV7Generator,
-};
+pub use request_id::{IdReuse, RequestId, RequestIdentifier};
 #[cfg(feature = "actix_web")]
 pub use root_span::RequestIdRootSpanBuilder;
 pub use tracing;

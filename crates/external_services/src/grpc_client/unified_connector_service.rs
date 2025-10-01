@@ -475,11 +475,6 @@ pub fn build_unified_connector_service_grpc_headers(
             consts::UCS_HEADER_SESSION_ID,
             parse(consts::UCS_HEADER_SESSION_ID, request_id.as_str())?,
         );
-
-        metadata.append(
-            common_utils_consts::X_REQUEST_ID,
-            parse(common_utils_consts::X_REQUEST_ID, request_id.as_str())?,
-        );
     }
 
     Ok(metadata)

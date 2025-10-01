@@ -413,7 +413,7 @@ pub fn get_application_builder(
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(cors::cors(cors))
         .wrap(
-            router_env::RequestIdentifier::with_header(&trace_header.header_name)
+            router_env::RequestIdentifier::new(&trace_header.header_name)
                 .use_incoming_id(router_env::IdReuse::UseIncoming),
         )
 }
