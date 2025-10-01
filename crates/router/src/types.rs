@@ -1243,6 +1243,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             enable_partial_authorization: data.request.enable_partial_authorization,
             enable_overcapture: None,
             is_stored_credential: data.request.is_stored_credential,
+            mit_category: None,
         }
     }
 }

@@ -1295,6 +1295,10 @@ pub struct PaymentsRequest {
     /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
     #[schema(value_type = Option<bool>, example = true)]
     pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1466,6 +1470,19 @@ impl PaymentsRequest {
         } else {
             Ok(())
         }
+    }
+
+    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.mit_category.is_some()
+            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
+        {
+            return Err(ValidationError::InvalidValue {
+                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
     }
 }
 
@@ -5718,6 +5735,10 @@ pub struct PaymentsResponse {
     /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
     #[schema(value_type = Option<bool>, example = true)]
     pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[cfg(feature = "v2")]

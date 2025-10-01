@@ -19181,6 +19181,15 @@
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
       },
+      "MitCategory": {
+        "type": "string",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "resubmission"
+        ]
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -23123,6 +23132,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23608,6 +23625,14 @@
             "type": "boolean",
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24245,6 +24270,14 @@
             "type": "boolean",
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -25027,6 +25060,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25690,6 +25731,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26308,6 +26357,14 @@
             "type": "boolean",
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }

@@ -1188,6 +1188,8 @@ diesel::table! {
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        mit_category -> Nullable<Varchar>,
     }
 }
 

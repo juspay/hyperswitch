@@ -1123,6 +1123,8 @@ diesel::table! {
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
+        mit_category -> Nullable<Varchar>,
+        #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,
