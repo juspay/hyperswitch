@@ -546,7 +546,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
-            customer_id: value.customer_id.filter(|s| !s.trim().is_empty()),
+            customer_id: value.customer_id,
         }
     }
 }
