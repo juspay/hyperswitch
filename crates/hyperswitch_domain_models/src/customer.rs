@@ -538,7 +538,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
 pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
