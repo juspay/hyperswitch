@@ -1,5 +1,6 @@
 use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+
 use super::generics;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
@@ -60,9 +61,10 @@ impl Customer {
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-
         if let Some(customer_id) = constraints.customer_id {
-            let predicate = dsl::merchant_id.eq(merchant_id.clone()).and(dsl::customer_id.eq(customer_id));
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::customer_id.eq(customer_id));
             generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
                 conn,
                 predicate,
@@ -71,8 +73,7 @@ impl Customer {
                 Some(dsl::created_at),
             )
             .await
-        }
-        else{
+        } else {
             let predicate = dsl::merchant_id.eq(merchant_id.clone());
             generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
                 conn,
@@ -83,12 +84,7 @@ impl Customer {
             )
             .await
         }
-
-        
     }
-
-
-
 
     #[cfg(feature = "v2")]
     pub async fn list_by_merchant_id(
@@ -97,7 +93,9 @@ impl Customer {
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
         if let Some(customer_id) = constraints.customer_id {
-            let predicate = dsl::merchant_id.eq(merchant_id.clone()).and(dsl::id.eq(customer_id));
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::id.eq(customer_id));
             generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
                 conn,
                 predicate,
@@ -106,8 +104,7 @@ impl Customer {
                 Some(dsl::created_at),
             )
             .await
-        }
-        else{
+        } else {
             let predicate = dsl::merchant_id.eq(merchant_id.clone());
             generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
                 conn,
@@ -119,7 +116,6 @@ impl Customer {
             .await
         }
     }
-
 
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
