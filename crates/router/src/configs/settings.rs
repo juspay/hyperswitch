@@ -535,8 +535,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,

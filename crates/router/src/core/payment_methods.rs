@@ -3437,6 +3437,7 @@ fn construct_zero_auth_payments_request(
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
         return_raw_connector_response: None,
+        enable_partial_authorization: None,
     })
 }
 
@@ -3830,6 +3831,7 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

@@ -75,6 +75,7 @@ pub struct ConnectorAuthentication {
     pub jpmorgan: Option<BodyKey>,
     pub juspaythreedsserver: Option<HeaderKey>,
     pub katapult: Option<HeaderKey>,
+    pub loonio: Option<HeaderKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub moneris: Option<SignatureKey>,

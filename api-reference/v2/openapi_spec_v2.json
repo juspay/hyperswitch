@@ -8698,6 +8698,7 @@
           "jpmorgan",
           "juspaythreedsserver",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -8739,6 +8740,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tesouro",
           "tokenex",
           "tokenio",
           "trustpay",
@@ -12365,6 +12367,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -12384,6 +12395,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -15306,7 +15325,8 @@
           "post_session_tokens",
           "confirm",
           "sync",
-          "complete_authorize"
+          "complete_authorize",
+          "await_merchant_callback"
         ]
       },
       "NextActionData": {
@@ -19301,6 +19321,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19672,6 +19698,12 @@
           },
           "payment_type": {
             "$ref": "#/components/schemas/PaymentType"
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20130,6 +20162,12 @@
           "return_raw_connector_response": {
             "type": "boolean",
             "description": "Stringified connector raw response body. Only returned if `return_raw_connector_response` is true",
+            "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
             "nullable": true
           }
         },
@@ -20604,6 +20642,12 @@
               }
             ],
             "nullable": true
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for this payment",
+            "default": false,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20716,7 +20760,9 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "gigadat",
           "nomupay",
+          "nuvei",
           "payone",
           "paypal",
           "stripe",
@@ -21014,6 +21060,14 @@
           "payout_method_id": {
             "type": "string",
             "description": "Identifier for payout method",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         },
@@ -23958,6 +24012,7 @@
           "itaubank",
           "jpmorgan",
           "klarna",
+          "loonio",
           "mifinity",
           "mollie",
           "moneris",
@@ -23998,6 +24053,7 @@
           "stax",
           "stripe",
           "stripebilling",
+          "tesouro",
           "trustpay",
           "trustpayments",
           "tokenio",
