@@ -1130,19 +1130,18 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                 payment_token: item.get_preprocessing_id()?.into(),
             }),
             (false, Some(mandate_data)) => {
-                let mandate_id = mandate_data
-                    .get_connector_mandate_id()
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
-                let initial_transaction_id = mandate_data
+                let mandate_id = mandate_data.get_connector_mandate_id()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                let mandate_metadata: PaysafeMandateMetadata = mandate_data
                     .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
                     .clone()
-                    .parse_value("DeutschebankMandateMetadata")
+                    .parse_value("PaysafeMandateMetadata")
                     .change_context(errors::ConnectorError::ParsingFailed)?;
                 Ok(Self {
                     stored_credential: Some(
                         PaysafeStoredCredential::new_merchant_initiated_transaction(
-                            initial_transaction_id,
+                            mandate_metadata.initial_transaction_id
                         ),
                     ),
                     payment_token: mandate_id.into(),
@@ -1543,6 +1542,7 @@ pub struct PaysafePaymentsResponse {
 
 // Paysafe Mandate Metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct PaysafeMandateMetadata {
     pub initial_transaction_id: String,
 }
