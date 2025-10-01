@@ -611,9 +611,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Te
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = tesouro::TesouroVoidRequest::try_from(req)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -697,9 +694,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tesouro
 
         let connector_router_data = tesouro::TesouroRouterData::from((refund_amount, req));
         let connector_req = tesouro::TesouroRefundRequest::try_from(&connector_router_data)?;
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
