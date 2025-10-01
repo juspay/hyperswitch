@@ -156,6 +156,7 @@ pub enum RoutableConnectors {
     Stax,
     Stripe,
     Stripebilling,
+    Tesouro,
     // Taxjar,
     Trustpay,
     Trustpayments,
@@ -340,6 +341,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tesouro,
     Tokenex,
     Tokenio,
     Trustpay,
@@ -409,6 +411,7 @@ impl Connector {
                     Self::Trustpay,
                     PaymentMethod::BankRedirect | PaymentMethod::BankTransfer
                 )
+                | (Self::Tesouro, _)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
@@ -526,6 +529,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Tesouro
             // | Self::Thunes
             | Self::Trustpay
             | Self::Trustpayments
@@ -714,6 +718,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Trustpayments => Self::Trustpayments,
@@ -850,6 +855,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tesouro => Ok(Self::Tesouro),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
