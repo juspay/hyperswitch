@@ -18,8 +18,7 @@ use hyperswitch_domain_models::{
         PaymentsResponseData,
     },
 };
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 
 use super::errors::{self, RouterResponse};
 use crate::{
