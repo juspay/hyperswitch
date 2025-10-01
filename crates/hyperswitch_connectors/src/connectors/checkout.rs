@@ -1617,7 +1617,16 @@ static CHECKOUT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Wallet({
+                        api_models::feature_matrix::WalletSpecificFeatures {
+                            supported_tokenization_flows: vec![
+                                common_enums::TokenizationFlow::ConnectorTokenization,
+                                common_enums::TokenizationFlow::NetworkTokenization,
+                            ],
+                        }
+                    }),
+                ),
             },
         );
 

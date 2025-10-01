@@ -687,6 +687,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn get_payment_method_details(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> Option<&PaymentMethodDetails>;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -704,6 +710,15 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
             self.insert(payment_method, payment_method_type_metadata);
         }
+    }
+
+    fn get_payment_method_details(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> Option<&PaymentMethodDetails> {
+        self.get(payment_method)
+            .and_then(|pm_type_metadata| pm_type_metadata.get(payment_method_type))
     }
 }
 
