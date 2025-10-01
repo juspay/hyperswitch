@@ -138,11 +138,8 @@ impl ConnectorCommon for Tesouro {
             Ok(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                let error = response
-                .errors
-                .first();
-                let error_extensions = error
-                    .and_then(|error_data| error_data.extensions);
+                let error = response.errors.first();
+                let error_extensions = error.and_then(|error_data| error_data.extensions);
 
                 Ok(ErrorResponse {
                     status_code,
