@@ -1,36 +1,28 @@
-use common_utils::{id_type, types};
+use common_utils::{id_type, types::MinorUnit};
 
-use crate::enums as api_enums;
+use api_models::enums as api_enums;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceSyncTrackingData {
     pub payment_id: id_type::PaymentId,
     pub subscription_id: id_type::SubscriptionId,
-    pub billing_processor_mca_id: id_type::MerchantConnectorAccountId,
     pub invoice_id: id_type::InvoiceId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
-    pub amount: types::MinorUnit,
-    pub currency: api_enums::Currency,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub intent_status: common_enums::IntentStatus,
     pub connector_invoice_id: String,
+    pub connector_name: api_enums::Connector, // The connector to which the invoice belongs
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InvoiceSyncRequest {
     pub payment_id: id_type::PaymentId,
     pub subscription_id: id_type::SubscriptionId,
-    pub billing_processor_mca_id: id_type::MerchantConnectorAccountId,
     pub invoice_id: id_type::InvoiceId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
-    pub amount: types::MinorUnit,
-    pub currency: api_enums::Currency,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub intent_status: common_enums::IntentStatus,
     pub connector_invoice_id: String,
+    pub connector_name: api_enums::Connector,
 }
 
 impl From<InvoiceSyncRequest> for InvoiceSyncTrackingData {
@@ -38,16 +30,12 @@ impl From<InvoiceSyncRequest> for InvoiceSyncTrackingData {
         Self {
             payment_id: item.payment_id,
             subscription_id: item.subscription_id,
-            billing_processor_mca_id: item.billing_processor_mca_id,
             invoice_id: item.invoice_id,
             merchant_id: item.merchant_id,
             profile_id: item.profile_id,
             customer_id: item.customer_id,
-            amount: item.amount,
-            currency: item.currency,
-            payment_method_type: item.payment_method_type,
-            intent_status: item.intent_status,
             connector_invoice_id: item.connector_invoice_id,
+            connector_name: item.connector_name,
         }
     }
 }
@@ -57,30 +45,22 @@ impl InvoiceSyncRequest {
     pub fn new(
         payment_id: id_type::PaymentId,
         subscription_id: id_type::SubscriptionId,
-        billing_processor_mca_id: id_type::MerchantConnectorAccountId,
         invoice_id: id_type::InvoiceId,
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
         customer_id: id_type::CustomerId,
-        amount: types::MinorUnit,
-        currency: api_enums::Currency,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        intent_status: common_enums::IntentStatus,
         connector_invoice_id: String,
+        connector_name: api_enums::Connector,
     ) -> Self {
         Self {
             payment_id,
             subscription_id,
-            billing_processor_mca_id,
             invoice_id,
             merchant_id,
             profile_id,
             customer_id,
-            amount,
-            currency,
-            payment_method_type,
-            intent_status,
             connector_invoice_id,
+            connector_name,
         }
     }
 }
@@ -90,30 +70,50 @@ impl InvoiceSyncTrackingData {
     pub fn new(
         payment_id: id_type::PaymentId,
         subscription_id: id_type::SubscriptionId,
-        billing_processor_mca_id: id_type::MerchantConnectorAccountId,
         invoice_id: id_type::InvoiceId,
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
         customer_id: id_type::CustomerId,
-        amount: types::MinorUnit,
-        currency: api_enums::Currency,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        intent_status: common_enums::IntentStatus,
         connector_invoice_id: String,
+        connector_name: api_enums::Connector,
     ) -> Self {
         Self {
             payment_id,
             subscription_id,
-            billing_processor_mca_id,
             invoice_id,
             merchant_id,
             profile_id,
             customer_id,
-            amount,
-            currency,
-            payment_method_type,
-            intent_status,
             connector_invoice_id,
+            connector_name,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum InvoiceSyncPaymentStatus {
+    PaymentSucceeded,
+    PaymentProcessing,
+    PaymentFailed,
+}
+
+impl From<common_enums::IntentStatus> for InvoiceSyncPaymentStatus {
+    fn from(value: common_enums::IntentStatus) -> Self {
+        match value {
+            common_enums::IntentStatus::Succeeded => Self::PaymentSucceeded,
+            common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::RequiresPaymentMethod => Self::PaymentProcessing,
+            _ => Self::PaymentFailed,
+        }
+    }
+}
+
+/// Dummy Type for skeleton code, to be removed once Payments S2S call is merged
+#[derive(Debug, Clone)]
+pub struct PaymentsResponse {
+    pub status: common_enums::IntentStatus,
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
 }

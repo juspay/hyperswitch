@@ -1,10 +1,10 @@
-use api_models::process_tracker as process_tracker_types;
+use api_models::enums as api_enums;
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{StringExt, ValueExt},
 };
-use diesel_models::process_tracker::business_status;
+use diesel_models::{process_tracker::business_status, subscription::Subscription};
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
@@ -18,6 +18,7 @@ use scheduler::{
 use crate::core::subscription;
 use crate::{
     db::StorageInterface,
+    errors as router_errors,
     routes::SessionState,
     types::{domain, storage},
 };
@@ -25,6 +26,184 @@ use crate::{
 const IVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 const IVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
 pub struct InvoiceSyncWorkflow;
+
+pub struct InvoiceSyncHandler<'a> {
+    pub state: &'a SessionState,
+    pub tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
+    pub key_store: domain::MerchantKeyStore,
+    pub merchant_account: domain::MerchantAccount,
+    pub customer: domain::Customer,
+    pub profile: domain::Profile,
+    pub subscription: Subscription,
+}
+
+impl<'a> InvoiceSyncHandler<'a> {
+    pub async fn create(
+        state: &'a SessionState,
+        tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
+    ) -> Result<Self, errors::ProcessTrackerError> {
+        let key_manager_state = &state.into();
+        let key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &tracking_data.merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await?;
+
+        let merchant_account = state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &tracking_data.merchant_id,
+                &key_store,
+            )
+            .await?;
+
+        let subscription = state
+            .store
+            .find_by_merchant_id_subscription_id(
+                merchant_account.get_id(),
+                tracking_data.subscription_id.get_string_repr().to_string(),
+            )
+            .await
+            .change_context(router_errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch subscription from DB")?;
+
+        let customer = state
+            .store
+            .find_customer_by_customer_id_merchant_id(
+                &(state).into(),
+                &tracking_data.customer_id,
+                merchant_account.get_id(),
+                &key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(router_errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("subscriptions: unable to fetch customer from database")?;
+
+        let profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                &(state).into(),
+                &key_store,
+                &tracking_data.profile_id,
+            )
+            .await
+            .change_context(router_errors::ApiErrorResponse::ProfileNotFound {
+                id: tracking_data.profile_id.get_string_repr().to_string(),
+            })?;
+
+        Ok(Self {
+            state,
+            tracking_data,
+            key_store,
+            merchant_account,
+            customer,
+            profile,
+            subscription,
+        })
+    }
+
+    #[allow(clippy::todo)]
+    pub async fn perform_payments_sync(
+        &self,
+    ) -> CustomResult<storage::invoice_sync::PaymentsResponse, router_errors::ApiErrorResponse>
+    {
+        todo!()
+    }
+
+    pub async fn transition_workflow_state(
+        &self,
+        process: storage::ProcessTracker,
+        payment_response: storage::invoice_sync::PaymentsResponse,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        let invoice_sync_status =
+            storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
+        match invoice_sync_status {
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
+                perform_billing_processor_record_back(
+                    self.state,
+                    &self.merchant_account,
+                    &self.key_store,
+                    &self.tracking_data,
+                    common_enums::AttemptStatus::Charged,
+                    payment_response.amount,
+                    payment_response.currency,
+                )
+                .await
+                .attach_printable("Failed to record back to billing processor")?;
+
+                self.state
+                    .store
+                    .as_scheduler()
+                    .finish_process_with_business_status(
+                        process.clone(),
+                        business_status::COMPLETED_BY_PT,
+                    )
+                    .await
+                    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update process tracker status")
+            }
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => {
+                let db = &*self.state.store;
+                let connector = self.tracking_data.connector_name.to_string().clone();
+                let is_last_retry = retry_subscription_invoice_sync_task(
+                    db,
+                    connector,
+                    self.merchant_account.get_id().to_owned(),
+                    process.clone(),
+                )
+                .await
+                .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                    operation: "Invoice_sync process_tracker task retry".to_string(),
+                })
+                .attach_printable("Failed to update process tracker status")?;
+
+                if is_last_retry {
+                    self.state
+                        .store
+                        .as_scheduler()
+                        .finish_process_with_business_status(
+                            process,
+                            business_status::COMPLETED_BY_PT,
+                        )
+                        .await
+                        .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to update process tracker status")?;
+                }
+
+                Ok(())
+            }
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
+                perform_billing_processor_record_back(
+                    self.state,
+                    &self.merchant_account,
+                    &self.key_store,
+                    &self.tracking_data,
+                    common_enums::AttemptStatus::Failure,
+                    payment_response.amount,
+                    payment_response.currency,
+                )
+                .await
+                .attach_printable("Failed to record back to billing processor")?;
+
+                self.state
+                    .store
+                    .as_scheduler()
+                    .finish_process_with_business_status(
+                        process.clone(),
+                        business_status::COMPLETED_BY_PT,
+                    )
+                    .await
+                    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update process tracker status")
+            }
+        }
+    }
+}
 
 #[async_trait]
 impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
@@ -37,7 +216,7 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         let tracking_data = process
             .tracking_data
             .clone()
-            .parse_value::<api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData>(
+            .parse_value::<storage::invoice_sync::InvoiceSyncTrackingData>(
             "InvoiceSyncTrackingData",
         )?;
 
@@ -46,7 +225,7 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
                 Box::pin(perform_subscription_invoice_sync(
                     state,
                     process,
-                    &tracking_data,
+                    tracking_data,
                 ))
                 .await
             }
@@ -77,84 +256,14 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
 async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: storage::ProcessTracker,
-    tracking_data: &api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData,
+    tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
 ) -> Result<(), errors::ProcessTrackerError> {
     // Extract merchant context
-    let key_manager_state = &state.into();
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &tracking_data.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await?;
+    let handler = InvoiceSyncHandler::create(state, tracking_data).await?;
 
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &tracking_data.merchant_id,
-            &key_store,
-        )
-        .await?;
+    let payment_status = handler.perform_payments_sync().await?;
 
-    let billing_processor_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
-            merchant_account.get_id(),
-            &tracking_data.billing_processor_mca_id,
-            &key_store,
-        )
-        .await?;
-
-    // Call Payemnt Sync API
-    // If payment is successful, record back to billing processor
-    // else if pending, schedule a retry
-
-    let status = common_enums::IntentStatus::Succeeded;
-
-    if status == common_enums::IntentStatus::Succeeded {
-        // Record back to billing processor
-        perform_billing_processor_record_back(state, &merchant_account, &key_store, tracking_data)
-            .await
-            .attach_printable("Failed to record back to billing processor")?;
-
-        state
-            .store
-            .as_scheduler()
-            .finish_process_with_business_status(process.clone(), business_status::COMPLETED_BY_PT)
-            .await?
-    } else if status == common_enums::IntentStatus::Processing {
-        let db = &*state.store;
-        let connector = billing_processor_mca.connector_name.clone();
-        let is_last_retry = retry_subscription_invoice_sync_task(
-            db,
-            connector,
-            merchant_account.get_id().to_owned(),
-            process.clone(),
-        )
-        .await?;
-
-        if is_last_retry {
-            state
-                .store
-                .as_scheduler()
-                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
-                .await?
-        }
-    } else {
-        // Handle payment failure - log the payment status and return appropriate error
-        logger::error!(
-            "Payment failed for invoice record back. Payment ID: {:?}, Status: {:?}",
-            tracking_data.payment_id,
-            status
-        );
-        return Err(errors::ProcessTrackerError::FlowExecutionError {
-            flow: IVOICE_SYNC_WORKFLOW,
-        });
-    }
+    Box::pin(handler.transition_workflow_state(process, payment_status)).await?;
 
     Ok(())
 }
@@ -164,8 +273,11 @@ pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    tracking_data: &process_tracker_types::invoice_sync::InvoiceSyncTrackingData,
-) -> CustomResult<(), crate::errors::ApiErrorResponse> {
+    tracking_data: &storage::invoice_sync::InvoiceSyncTrackingData,
+    payment_status: common_enums::AttemptStatus,
+    amount: common_utils::types::MinorUnit,
+    currency: api_enums::Currency,
+) -> CustomResult<(), router_errors::ApiErrorResponse> {
     logger::info!("perform_billing_processor_record_back");
 
     let subscription = state
@@ -175,7 +287,7 @@ pub async fn perform_billing_processor_record_back(
             tracking_data.subscription_id.get_string_repr().to_string(),
         )
         .await
-        .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+        .change_context(router_errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch subscription from DB")?;
 
     let customer = state
@@ -188,14 +300,14 @@ pub async fn perform_billing_processor_record_back(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(crate::errors::ApiErrorResponse::CustomerNotFound)
+        .change_context(router_errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("subscriptions: unable to fetch customer from database")?;
 
     let profile = state
         .store
         .find_business_profile_by_profile_id(&(state).into(), key_store, &tracking_data.profile_id)
         .await
-        .change_context(crate::errors::ApiErrorResponse::ProfileNotFound {
+        .change_context(router_errors::ApiErrorResponse::ProfileNotFound {
             id: tracking_data.profile_id.get_string_repr().to_string(),
         })?;
 
@@ -209,18 +321,19 @@ pub async fn perform_billing_processor_record_back(
         None,
         None,
         None,
-        tracking_data.amount,
-        tracking_data.currency,
+        amount,
+        currency,
     )
     .await
-    .change_context(crate::errors::ApiErrorResponse::InternalServerError)
+    .change_context(router_errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to create billing handler")?;
 
     let invoice_handler = subscription::InvoiceHandler::new(subscription.clone());
 
     let invoice = invoice_handler
         .fetch_invoice_by_id(state, &tracking_data.invoice_id)
-        .await?;
+        .await
+        .attach_printable("Unable to fetch Invoice from DB")?;
 
     // TODO: Handle retries here on failure
     billing_handler
@@ -228,8 +341,10 @@ pub async fn perform_billing_processor_record_back(
             state,
             tracking_data.connector_invoice_id.clone(),
             tracking_data.payment_id.to_owned(),
+            payment_status,
         )
-        .await?;
+        .await
+        .attach_printable("Failed to record back to billing processor")?;
 
     invoice_handler
         .update_invoice_status(
@@ -237,7 +352,8 @@ pub async fn perform_billing_processor_record_back(
             invoice.id.get_string_repr().to_string(),
             common_enums::connector_enums::InvoiceStatus::InvoicePaid,
         )
-        .await?;
+        .await
+        .attach_printable("Failed to update invoice in DB")?;
 
     Ok(())
 }
@@ -245,10 +361,9 @@ pub async fn perform_billing_processor_record_back(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_invoice_sync_job(
     state: &SessionState,
-    request: api_models::process_tracker::invoice_sync::InvoiceSyncRequest,
-) -> CustomResult<(), crate::errors::ApiErrorResponse> {
-    let tracking_data =
-        api_models::process_tracker::invoice_sync::InvoiceSyncTrackingData::from(request);
+    request: storage::invoice_sync::InvoiceSyncRequest,
+) -> CustomResult<(), router_errors::ApiErrorResponse> {
+    let tracking_data = storage::invoice_sync::InvoiceSyncTrackingData::from(request);
 
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
@@ -260,13 +375,15 @@ pub async fn create_invoice_sync_job(
         common_utils::date_time::now(),
         common_types::consts::API_VERSION,
     )
-    .change_context(crate::errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("subscriptions: unable to form process_tracker type")?;
 
     state
         .store
         .insert_process(process_tracker_entry)
         .await
-        .change_context(crate::errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(router_errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("subscriptions: unable to insert process_tracker entry in DB")?;
 
     Ok(())
 }
@@ -280,7 +397,7 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     // Can have config based mapping as well
     let mapping: CustomResult<
         process_data::SubscriptionInvoiceSyncPTMapping,
-        crate::errors::StorageError,
+        router_errors::StorageError,
     > = db
         .find_config_by_key(&format!("invoice_sync_pt_mapping_{connector}"))
         .await
@@ -288,7 +405,7 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
         .and_then(|config| {
             config
                 .parse_struct("SubscriptionInvoiceSyncPTMapping")
-                .change_context(crate::errors::StorageError::DeserializationFailed)
+                .change_context(router_errors::StorageError::DeserializationFailed)
         });
     let mapping = match mapping {
         Ok(x) => x,

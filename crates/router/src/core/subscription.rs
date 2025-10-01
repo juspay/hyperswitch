@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{
-    enums as api_enums, process_tracker as pt_types,
+    enums as api_enums,
     subscription::{self as subscription_types, CreateSubscriptionResponse, SubscriptionStatus},
 };
 use common_utils::{ext_traits::ValueExt, id_type::GenerateId, pii};
@@ -26,7 +26,10 @@ use masking::Secret;
 
 use super::errors::{self, RouterResponse};
 use crate::{
-    core::payments as payments_core, routes::SessionState, services, types::api as api_types,
+    core::payments as payments_core,
+    routes::SessionState,
+    services,
+    types::{api as api_types, storage},
     workflows,
 };
 
@@ -430,19 +433,15 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
 
-        let invoice_sync_request = pt_types::invoice_sync::InvoiceSyncRequest::new(
+        let invoice_sync_request = storage::invoice_sync::InvoiceSyncRequest::new(
             payment_response.payment_id.to_owned(),
             self.subscription.id.to_owned(),
-            invoice.merchant_connector_id.to_owned(),
             invoice.id.to_owned(),
             invoice.merchant_id.to_owned(),
             invoice.profile_id.to_owned(),
             invoice.customer_id.to_owned(),
-            payment_response.amount,
-            payment_response.currency,
-            None,
-            payment_response.status,
             connector_invoice_id,
+            invoice.provider_name,
         );
 
         workflows::invoice_sync::create_invoice_sync_job(state, invoice_sync_request)
@@ -662,6 +661,7 @@ impl BillingHandler {
         state: &SessionState,
         invoice_id: String,
         payment_id: common_utils::id_type::PaymentId,
+        payment_status: common_enums::AttemptStatus,
     ) -> errors::RouterResult<InvoiceRecordBackResponse> {
         let invoice_record_back_req = InvoiceRecordBackRequest {
             amount: self.amount,
@@ -670,7 +670,7 @@ impl BillingHandler {
                 .payment_details
                 .as_ref()
                 .and_then(|details| details.payment_method_type),
-            attempt_status: common_enums::AttemptStatus::Charged,
+            attempt_status: payment_status,
             merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&invoice_id)
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "invoice_id",
