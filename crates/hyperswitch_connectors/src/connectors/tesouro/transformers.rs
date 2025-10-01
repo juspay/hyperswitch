@@ -589,14 +589,6 @@ impl TryFrom<&PaymentsCancelRouterData> for TesouroVoidRequest {
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// #[serde(tag = "__typename")]
-// #[serde(rename_all = "PascalCase")]
-// pub enum AuthorizeCustomerInitiatedTransactionResponseData {
-//     AuthorizationApproval(TesouroApprovalResponse),
-//     AuthorizationDecline(TesouroDeclineResponse),
-// }
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroApprovalResponse {

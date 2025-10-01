@@ -130,6 +130,7 @@ impl ConnectorCommon for Tesouro {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let status_code = res.status_code;
         let response: Result<tesouro::TesouroGraphQlErrorResponse, _> =
             res.response.parse_struct("TesouroGraphQlErrorResponse");
 
@@ -140,7 +141,7 @@ impl ConnectorCommon for Tesouro {
                 let error = response.errors.first();
 
                 Ok(ErrorResponse {
-                    status_code: res.status_code,
+                    status_code,
                     code: error
                         .and_then(|error_data| {
                             error_data
@@ -167,7 +168,7 @@ impl ConnectorCommon for Tesouro {
                 })
             }
             Err(error_msg) => {
-                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": status_code})));
                 router_env::logger::error!(deserialization_error =? error_msg);
                 connector_utils::handle_json_response_deserialization_failure(res, "tesouro")
             }
@@ -856,7 +857,7 @@ static TESOURO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         common_enums::CardNetwork::AmericanExpress,
         common_enums::CardNetwork::Discover,
         common_enums::CardNetwork::DinersClub,
-        common_enums::CardNetwork::Jcb,
+        common_enums::CardNetwork::JCB,
         common_enums::CardNetwork::Maestro,
         common_enums::CardNetwork::UnionPay,
     ];
