@@ -1616,6 +1616,63 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Data",
+        "operationId": "Submit Eligibility data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligbility submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -19418,7 +19475,8 @@
           "post_session_tokens",
           "confirm",
           "sync",
-          "complete_authorize"
+          "complete_authorize",
+          "await_merchant_callback"
         ]
       },
       "NextActionData": {
@@ -24368,6 +24426,48 @@
           },
           "display_amount": {
             "$ref": "#/components/schemas/DisplayAmountOnSdk"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "properties": {
+          "sdk_next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkNextAction"
+              }
+            ],
+            "nullable": true
           }
         }
       },
