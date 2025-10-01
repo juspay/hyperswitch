@@ -940,7 +940,8 @@ impl ConnectorSpecifications for Tesouro {
         {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
-            let max_payment_reference_id_length = tesouro::tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
+            let max_payment_reference_id_length =
+                tesouro::tesouro_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
             nanoid::nanoid!(max_payment_reference_id_length)
         }
     }
