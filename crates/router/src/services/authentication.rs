@@ -2871,12 +2871,12 @@ where
                 merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
                 role_id: payload.role_id,
-                profile_id: payload.profile_id,
+                profile_id: payload.profile_id.clone(),
                 tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -2936,7 +2936,7 @@ where
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3131,14 +3131,14 @@ where
             merchant_account: merchant,
             platform_merchant_account: None,
             key_store,
-            profile_id: Some(payload.profile_id),
+            profile_id: Some(payload.profile_id.clone()),
         };
 
         Ok((
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id.clone()),
                 user_id: payload.user_id,
             },
         ))
@@ -3183,7 +3183,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3265,7 +3265,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3332,7 +3332,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3369,7 +3369,7 @@ where
             (),
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3881,13 +3881,13 @@ where
             merchant_account: merchant,
             platform_merchant_account: None,
             key_store,
-            profile_id: Some(payload.profile_id),
+            profile_id: Some(payload.profile_id.clone()),
         };
         Ok((
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -3963,7 +3963,7 @@ where
             auth,
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -4028,7 +4028,7 @@ where
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
                 profile_id: auth.profile_id.clone(),
-                user_id: None,
+                user_id: payload.user_id.clone(),
             },
         ))
     }
@@ -4063,12 +4063,12 @@ where
                 merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
                 role_id: payload.role_id,
-                profile_id: payload.profile_id,
+                profile_id: payload.profile_id.clone(),
                 tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
@@ -4646,7 +4646,7 @@ where
             merchant_id: payload.merchant_id.clone(),
             org_id: payload.org_id,
             role_id: payload.role_id,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
             tenant_id: payload.tenant_id,
         };
 
@@ -4654,7 +4654,7 @@ where
             UserFromTokenWithRoleInfo { user, role_info },
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: payload.merchant_id,
-                profile_id: payload.profile_id,
+                profile_id: Some(payload.profile_id),
                 user_id: payload.user_id,
             },
         ))
