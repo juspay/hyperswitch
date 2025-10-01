@@ -152,6 +152,8 @@ pub async fn construct_payout_router_data<'a, F>(
     let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
 
+    let browser_info = payout_data.browser_info.to_owned();
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
@@ -197,6 +199,7 @@ pub async fn construct_payout_router_data<'a, F>(
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
+            browser_info,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

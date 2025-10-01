@@ -6399,6 +6399,7 @@ pub trait PayoutsData {
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6429,6 +6430,11 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
         self.webhook_url
             .to_owned()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 pub trait RevokeMandateRequestData {

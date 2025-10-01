@@ -20741,6 +20741,7 @@
           "adyenplatform",
           "cybersource",
           "ebanx",
+          "gigadat",
           "nomupay",
           "nuvei",
           "payone",
@@ -21040,6 +21041,14 @@
           "payout_method_id": {
             "type": "string",
             "description": "Identifier for payout method",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
             "nullable": true
           }
         },

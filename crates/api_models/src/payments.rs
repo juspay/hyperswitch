@@ -1597,6 +1597,12 @@ pub struct BrowserInformation {
 
     /// The device model of the client
     pub device_model: Option<String>,
+
+    /// Accept-language of the browser
+    pub accept_language: Option<String>,
+
+    /// Identifier of the source that initiated the request.
+    pub referer: Option<String>,
 }
 
 impl RequestSurchargeDetails {
