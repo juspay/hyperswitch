@@ -102,8 +102,8 @@ services:
         condition: service_healthy
       redis-standalone:
         condition: service_healthy
-      # migration_runner:
-      #   condition: service_completed_successfully
+      migration_runner:
+        condition: service_completed_successfully
     labels:
       logs: "promtail"
     healthcheck:
