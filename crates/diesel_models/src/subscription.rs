@@ -1,6 +1,6 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -48,6 +48,7 @@ pub struct Subscription {
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionUpdate {
+    pub connector_subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
@@ -97,10 +98,15 @@ impl SubscriptionNew {
 }
 
 impl SubscriptionUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
+    pub fn new(
+        payment_method_id: Option<Secret<String>>,
+        status: Option<String>,
+        connector_subscription_id: Option<String>,
+    ) -> Self {
         Self {
-            payment_method_id,
+            payment_method_id: payment_method_id.map(|pmid| pmid.peek().clone()),
             status,
+            connector_subscription_id,
             modified_at: common_utils::date_time::now(),
         }
     }

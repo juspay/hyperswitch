@@ -12,6 +12,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
+    payment_methods::storage_enums::MitCategory,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, PaymentMethodToken, RouterData,
@@ -273,6 +274,8 @@ pub enum CheckoutPaymentType {
     Unscheduled,
     #[serde(rename = "MOTO")]
     Moto,
+    Installment,
+    Recurring,
 }
 
 pub struct CheckoutAuthType {
@@ -357,6 +360,13 @@ pub struct PaymentsRequest {
     pub processing: Option<CheckoutProcessing>,
     pub shipping: Option<CheckoutShipping>,
     pub items: Option<Vec<CheckoutLineItem>>,
+    pub partial_authorization: Option<CheckoutPartialAuthorization>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutPartialAuthorization {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -578,7 +588,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                let p_type = CheckoutPaymentType::Unscheduled;
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
@@ -598,8 +613,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = CheckoutPaymentType::Unscheduled;
-
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -698,6 +717,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 (None, None, None, None)
             };
 
+        let partial_authorization = item.router_data.request.enable_partial_authorization.map(
+            |enable_partial_authorization| CheckoutPartialAuthorization {
+                enabled: *enable_partial_authorization,
+            },
+        );
+
         let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -716,6 +741,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             processing,
             shipping,
             items,
+            partial_authorization,
         };
 
         Ok(request)
@@ -1012,10 +1038,28 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             incremental_authorization_allowed: None,
             charges: None,
         };
+
+        let (amount_captured, minor_amount_capturable) = match item.data.request.capture_method {
+            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
+                (None, item.response.amount)
+            }
+            _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+        };
+
+        let authorized_amount = item
+            .data
+            .request
+            .enable_partial_authorization
+            .filter(|flag| flag.is_true())
+            .and(item.response.amount);
+
         Ok(Self {
             status,
             response: Ok(payments_response_data),
             connector_response: additional_information,
+            authorized_amount,
+            amount_captured,
+            minor_amount_capturable,
             ..item.data
         })
     }

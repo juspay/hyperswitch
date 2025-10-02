@@ -943,7 +943,7 @@ pub async fn authentication_eligibility_core(
     let notification_url = match authentication_connector {
         common_enums::AuthenticationConnectors::Juspaythreedsserver => {
             Some(url::Url::parse(&format!(
-                "{base_url}/authentication/{merchant_id}/{authentication_id}/sync",
+                "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
                 base_url = state.base_url,
                 merchant_id = merchant_id.get_string_repr(),
                 authentication_id = authentication_id.get_string_repr()
