@@ -128,6 +128,10 @@ pub enum ApiEventsType {
         payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
     #[cfg(feature = "v2")]
+    PaymentMethodToken {
+        payment_method_token: id_type::GlobalPaymentMethodToken,
+    },
+    #[cfg(feature = "v2")]
     Token {
         token_id: Option<id_type::GlobalTokenId>,
     },
