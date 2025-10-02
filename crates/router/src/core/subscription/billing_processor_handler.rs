@@ -218,7 +218,7 @@ impl BillingHandler {
             .into()),
         }
     }
-
+    #[allow(clippy::too_many_arguments)]
     pub async fn record_back_to_billing_processor(
         &self,
         state: &SessionState,

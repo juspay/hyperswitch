@@ -17,10 +17,11 @@ use scheduler::{
     utils as scheduler_utils,
 };
 
+#[cfg(feature = "v1")]
+use crate::core::subscription::{
+    billing_processor_handler as billing, invoice_handler, payments_api_client,
+};
 use crate::{
-    core::subscription::{
-        billing_processor_handler as billing, invoice_handler, payments_api_client,
-    },
     db::StorageInterface,
     errors as router_errors,
     routes::SessionState,
@@ -42,6 +43,7 @@ pub struct InvoiceSyncHandler<'a> {
     pub invoice: Invoice,
 }
 
+#[cfg(feature = "v1")]
 impl<'a> InvoiceSyncHandler<'a> {
     pub async fn create(
         state: &'a SessionState,
@@ -151,7 +153,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         match invoice_sync_status {
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                perform_billing_processor_record_back(
+                Box::pin(perform_billing_processor_record_back(
                     self.state,
                     &self.merchant_account,
                     &self.key_store,
@@ -161,7 +163,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     self.subscription.clone(),
                     self.customer.clone(),
                     self.profile.clone(),
-                )
+                ))
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
 
@@ -209,7 +211,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 Ok(())
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                perform_billing_processor_record_back(
+                Box::pin(perform_billing_processor_record_back(
                     self.state,
                     &self.merchant_account,
                     &self.key_store,
@@ -219,7 +221,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     self.subscription.clone(),
                     self.customer.clone(),
                     self.profile.clone(),
-                )
+                ))
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
 
@@ -242,6 +244,7 @@ impl<'a> InvoiceSyncHandler<'a> {
 
 #[async_trait]
 impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -276,8 +279,18 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         logger::error!("Encountered error");
         consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
+
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        Ok(())
+    }
 }
 
+#[cfg(feature = "v1")]
 async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: storage::ProcessTracker,
@@ -292,6 +305,8 @@ async fn perform_subscription_invoice_sync(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,

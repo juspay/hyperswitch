@@ -16,5 +16,4 @@ pub mod process_dispute;
 
 pub mod dispute_list;
 
-#[cfg(feature = "v1")]
 pub mod invoice_sync;
