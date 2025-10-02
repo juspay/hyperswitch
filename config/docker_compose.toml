@@ -1047,6 +1047,8 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,w
 [connector_customer]
 payout_connector_list = "nomupay,stripe,wise"
 
+[payment_link]
+sdk_url = "http://localhost:9050/HyperLoader.js"
 
 [payment_method_auth]
 redis_expiry = 900
