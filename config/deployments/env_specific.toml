@@ -428,3 +428,6 @@ encryption_key = ""                            # Key to encrypt and decrypt chat
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
+
+[internal_services] # Internal services base urls and configs
+payments_base_url = "http://localhost:8080"

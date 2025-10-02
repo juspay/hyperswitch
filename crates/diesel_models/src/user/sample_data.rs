@@ -221,6 +221,7 @@ pub struct PaymentAttemptBatchNew {
     pub network_transaction_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
+    pub authorized_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -311,6 +312,7 @@ impl PaymentAttemptBatchNew {
             network_transaction_id: self.network_transaction_id,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
         }
     }
 }

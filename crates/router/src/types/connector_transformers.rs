@@ -147,6 +147,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripe => Self::Stripe,
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Thunes => Self::Thunes,
+            api_enums::Connector::Tesouro => Self::Tesouro,
             api_enums::Connector::Tokenex => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Tokenex is not a routable connector".to_string(),
