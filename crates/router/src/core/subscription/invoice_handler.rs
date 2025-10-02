@@ -225,7 +225,6 @@ impl InvoiceHandler {
         connector_invoice_id: String,
         connector_name: connector_enums::Connector,
     ) -> errors::RouterResult<()> {
-        // Create an invoice job entry based on payment status
         let request = storage_types::invoice_sync::InvoiceSyncRequest::new(
             self.subscription.id.to_owned(),
             invoice.id.to_owned(),
@@ -235,6 +234,7 @@ impl InvoiceHandler {
             connector_invoice_id,
             connector_name,
         );
+
         invoice_sync_workflow::create_invoice_sync_job(state, request)
             .await
             .attach_printable("invoices: unable to create invoice sync job in database")?;

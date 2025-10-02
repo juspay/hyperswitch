@@ -38,7 +38,7 @@ pub trait GetSubscriptionPlansFlow:
 {
 }
 
-/// trait GetSubscriptionPlans for V1
+/// trait SubscriptionRecordBack for V1
 pub trait SubscriptionRecordBackFlow:
     ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
 {
