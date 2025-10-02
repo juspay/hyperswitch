@@ -353,6 +353,19 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub email_domain: Option<String>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct CreateUserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
+    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
+    pub auth_type: common_enums::UserAuthType,
+    pub email_domain: String,
+    pub allow_signup: bool,
+}
+
+impl common_utils::events::ApiEventMetric for CreateUserAuthenticationMethodResponse {}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpdateUserAuthenticationMethodRequest {
