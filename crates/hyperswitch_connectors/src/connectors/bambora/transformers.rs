@@ -309,15 +309,20 @@ pub struct BamboraPaymentsResponse {
     order_number: String,
     #[serde(rename = "type")]
     payment_type: String,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     comments: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     batch_number: Option<String>,
     total_refunds: Option<f32>,
     total_completions: Option<f32>,
     payment_method: String,
     card: CardData,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     billing: Option<AddressData>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     shipping: Option<AddressData>,
     custom: CustomData,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     adjusted_by: Option<Vec<AdjustedBy>>,
     links: Vec<Links>,
     risk_score: Option<f32>,
@@ -371,14 +376,23 @@ pub struct AvsObject {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AddressData {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     name: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     address_line1: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     address_line2: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     city: Option<String>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     province: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     country: Option<enums::CountryAlpha2>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     postal_code: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     phone_number: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
     email_address: Option<Email>,
 }
 
@@ -817,4 +831,20 @@ pub struct CardValidation {
     type_: String,
     amount: f64,
     cvd_id: i32,
+}
+
+pub fn empty_string_as_none<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None), // "" or missing field → None
+        Some(s) => {
+            let t = serde_json::from_str::<T>(&format!("\"{}\"", s))
+                .map_err(serde::de::Error::custom)?;
+            Ok(Some(t))
+        }
+    }
 }
