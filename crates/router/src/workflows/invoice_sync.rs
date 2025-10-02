@@ -17,10 +17,10 @@ use scheduler::{
     utils as scheduler_utils,
 };
 
-use crate::core::subscription::{
-    billing_processor_handler as billing, invoice_handler, payments_api_client,
-};
 use crate::{
+    core::subscription::{
+        billing_processor_handler as billing, invoice_handler, payments_api_client,
+    },
     db::StorageInterface,
     errors as router_errors,
     routes::SessionState,
