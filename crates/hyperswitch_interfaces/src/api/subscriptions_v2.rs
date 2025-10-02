@@ -54,7 +54,7 @@ pub trait GetSubscriptionPlansV2:
 {
 }
 
-/// trait GetSubscriptionPlans for V2
+/// trait SubscriptionRecordBack for V2
 pub trait SubscriptionRecordBackV2:
     ConnectorIntegrationV2<
     InvoiceRecordBack,
