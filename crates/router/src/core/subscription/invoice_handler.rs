@@ -10,8 +10,8 @@ use masking::{PeekInterface, Secret};
 
 use super::errors;
 use crate::{
-    core::subscription::{self, payments_api_client},
-    routes::SessionState,
+    core::subscription::payments_api_client, routes::SessionState, types::storage as storage_types,
+    workflows::invoice_sync as invoice_sync_workflow,
 };
 
 pub struct InvoiceHandler {
@@ -35,7 +35,7 @@ impl InvoiceHandler {
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn create_invoice_entry(
-        self,
+        &self,
         state: &SessionState,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
@@ -218,12 +218,26 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to get latest invoice from database")
     }
 
-    pub async fn create_invoice_record_back_job(
+    pub async fn create_invoice_sync_job(
         &self,
-        // _invoice: &subscription_types::Invoice,
-        _payment_response: &subscription_types::PaymentResponseData,
+        state: &SessionState,
+        invoice: &diesel_models::invoice::Invoice,
+        connector_invoice_id: String,
+        connector_name: connector_enums::Connector,
     ) -> errors::RouterResult<()> {
         // Create an invoice job entry based on payment status
-        todo!("Create an invoice job entry based on payment status")
+        let request = storage_types::invoice_sync::InvoiceSyncRequest::new(
+            self.subscription.id.to_owned(),
+            invoice.id.to_owned(),
+            self.subscription.merchant_id.to_owned(),
+            self.subscription.profile_id.to_owned(),
+            self.subscription.customer_id.to_owned(),
+            connector_invoice_id,
+            connector_name,
+        );
+        invoice_sync_workflow::create_invoice_sync_job(state, request)
+            .await
+            .attach_printable("invoices: unable to create invoice sync job in database")?;
+        Ok(())
     }
 }

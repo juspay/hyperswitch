@@ -5,7 +5,9 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{StringExt, ValueExt},
 };
-use diesel_models::{process_tracker::business_status, subscription::Subscription};
+use diesel_models::{
+    invoice::Invoice, process_tracker::business_status, subscription::Subscription,
+};
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
@@ -15,8 +17,9 @@ use scheduler::{
     utils as scheduler_utils,
 };
 
-#[cfg(feature = "v1")]
-use crate::core::subscription::{billing_processor_handler as billing, invoice_handler};
+use crate::core::subscription::{
+    billing_processor_handler as billing, invoice_handler, payments_api_client,
+};
 use crate::{
     db::StorageInterface,
     errors as router_errors,
@@ -28,7 +31,6 @@ const IVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
 const IVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
 pub struct InvoiceSyncWorkflow;
 
-#[cfg(feature = "v1")]
 pub struct InvoiceSyncHandler<'a> {
     pub state: &'a SessionState,
     pub tracking_data: storage::invoice_sync::InvoiceSyncTrackingData,
@@ -37,9 +39,9 @@ pub struct InvoiceSyncHandler<'a> {
     pub customer: domain::Customer,
     pub profile: domain::Profile,
     pub subscription: Subscription,
+    pub invoice: Invoice,
 }
 
-#[cfg(feature = "v1")]
 impl<'a> InvoiceSyncHandler<'a> {
     pub async fn create(
         state: &'a SessionState,
@@ -75,6 +77,12 @@ impl<'a> InvoiceSyncHandler<'a> {
             .await
             .attach_printable("Subscriptions: Failed to fetch subscription from DB")?;
 
+        let invoice = state
+            .store
+            .get_latest_invoice_for_subscription(subscription.id.get_string_repr().to_string())
+            .await
+            .attach_printable("invoices: unable to get latest invoice from database")?;
+
         let customer = state
             .store
             .find_customer_by_customer_id_merchant_id(
@@ -105,15 +113,33 @@ impl<'a> InvoiceSyncHandler<'a> {
             customer,
             profile,
             subscription,
+            invoice,
         })
     }
 
-    #[allow(clippy::todo)]
     pub async fn perform_payments_sync(
         &self,
     ) -> CustomResult<subscription_types::PaymentResponseData, router_errors::ApiErrorResponse>
     {
-        todo!()
+        let payment_id = self.invoice.payment_intent_id.clone().ok_or(
+            router_errors::ApiErrorResponse::SubscriptionError {
+                operation: "Invoice_sync: Missing Payment Intent ID in Invoice".to_string(),
+            },
+        )?;
+        let payments_response = payments_api_client::PaymentsApiClient::sync_payment(
+            self.state,
+            payment_id.get_string_repr().to_string(),
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
+        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+            operation: "Invoice_sync: Failed to sync payment status from payments microservice"
+                .to_string(),
+        })
+        .attach_printable("Failed to sync payment status from payments microservice")?;
+
+        Ok(payments_response)
     }
 
     pub async fn transition_workflow_state(
@@ -216,7 +242,6 @@ impl<'a> InvoiceSyncHandler<'a> {
 
 #[async_trait]
 impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
-    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -251,17 +276,8 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         logger::error!("Encountered error");
         consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
-
-    #[cfg(feature = "v2")]
-    async fn execute_workflow<'a>(
-        &'a self,
-        state: &'a SessionState,
-        process: storage::ProcessTracker,
-    ) -> Result<(), errors::ProcessTrackerError> {
-        todo!()
-    }
 }
-#[cfg(feature = "v1")]
+
 async fn perform_subscription_invoice_sync(
     state: &SessionState,
     process: storage::ProcessTracker,
@@ -276,7 +292,6 @@ async fn perform_subscription_invoice_sync(
     Ok(())
 }
 
-#[cfg(feature = "v1")]
 pub async fn perform_billing_processor_record_back(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -339,7 +354,6 @@ pub async fn perform_billing_processor_record_back(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn create_invoice_sync_job(
     state: &SessionState,
     request: storage::invoice_sync::InvoiceSyncRequest,

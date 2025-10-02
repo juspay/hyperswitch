@@ -172,6 +172,7 @@ pub async fn create_and_confirm_subscription(
             amount,
             currency,
             invoice_details
+                .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
@@ -179,14 +180,19 @@ pub async fn create_and_confirm_subscription(
         )
         .await?;
 
-    // invoice_handler
-    //     .create_invoice_sync_job(
-    //         &handler.state,
-    //         payment_response,
-    //         &invoice_entry,
-    //         subscription_create_response.connector_invoice_id.clone(),
-    //     )
-    //     .await?;
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &invoice_entry,
+            invoice_details
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "invoice_details",
+                })?
+                .id
+                .clone(),
+            billing_handler.connector_data.connector_name,
+        )
+        .await?;
 
     subs_handler
         .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
@@ -288,6 +294,21 @@ pub async fn confirm_subscription(
                 .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+        )
+        .await?;
+
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &invoice_entry,
+            invoice_details
+                .clone()
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "invoice_details",
+                })?
+                .id
+                .clone(),
+            billing_handler.connector_data.connector_name,
         )
         .await?;
 

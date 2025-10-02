@@ -184,7 +184,6 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let subscription = &item.response.subscription;
-        let invoice = &item.response.invoice;
         Ok(Self {
             response: Ok(SubscriptionCreateResponse {
                 subscription_id: subscription.id.clone(),
