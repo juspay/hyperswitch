@@ -22,6 +22,10 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
+<<<<<<< Updated upstream
+=======
+use super::routing::helpers::{redact_cgraph_cache, update_default_fallback_on_mca_update};
+>>>>>>> Stashed changes
 
 use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -2893,6 +2897,14 @@ pub async fn update_connector(
 
     // redact cgraph cache on connector updation
     redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // update default fallback config
+    update_default_fallback_on_mca_update(
+        &state,
+        merchant_id,
+        &profile_id,
+        &updated_mca
+    ).await?;
 
     let response = updated_mca.foreign_try_into()?;
 
