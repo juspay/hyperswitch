@@ -2495,13 +2495,14 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
+
     let id = uuid::Uuid::new_v4().to_string();
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &state,
         &req.auth_method,
         &user_auth_encryption_key,
-        id.clone(),
+        id,
     )
     .await?;
 
@@ -2535,6 +2536,9 @@ pub async fn create_user_authentication_method(
 
         (uuid::Uuid::new_v4().to_string(), email_domain.clone())
     };
+
+    let auth_id_for_response = auth_id.clone();
+    let email_domain_for_response = email_domain.clone();
 
     for db_auth_method in auth_methods {
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
@@ -2575,6 +2579,7 @@ pub async fn create_user_authentication_method(
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
+            email_domain: email_domain.clone(),
             email_domain: email_domain.clone(),
         })
         .await
