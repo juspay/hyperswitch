@@ -13,13 +13,13 @@ pub struct FinixPaymentsResponse {
     pub updated_at: String,
     pub application: String,
     pub amount: MinorUnit,
-    pub captured_amount: MinorUnit,
+    pub captured_amount: Option<MinorUnit>,
     pub currency: Currency,
-    pub is_void: bool,
+    pub is_void: Option<bool>,
     pub source: String,
     pub state: FinixState,
     pub tags: FinixTags,
-    pub trace_id: String,
+    // pub trace_id: String,
     pub three_d_secure: Option<FinixThreeDSecure>,
     // Add other fields from the API response as needed.
 }

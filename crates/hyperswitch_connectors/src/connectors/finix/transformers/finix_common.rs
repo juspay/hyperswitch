@@ -1,5 +1,5 @@
-use api_models::payments::AddressDetails;
-use common_enums::CountryAlpha2;
+use common_enums::{CountryAlpha2, CountryAlpha3};
+use hyperswitch_domain_models::address::Address;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -39,6 +39,7 @@ pub enum FinixState {
     FAILED,
     CANCELED,
     UNKNOWN,
+    // RETURNED
 }
 
 /// Represents the type of a payment instrument.
@@ -57,6 +58,7 @@ pub enum FinixCardType {
     DEBIT,
     CREDIT,
     PREPAID,
+    UNKNOWN,
 }
 
 /// Represents the brand of a payment card.
@@ -86,23 +88,38 @@ pub type FinixTags = HashMap<String, String>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixAddress {
-    pub line1: Secret<String>,
+    pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
-    pub city: String,
-    pub region: Secret<String>,
-    pub postal_code: Secret<String>,
-    pub country: CountryAlpha2,
+    pub city: Option<String>,
+    pub region: Option<Secret<String>>,
+    pub postal_code: Option<Secret<String>>,
+    pub country: Option<CountryAlpha3>,
 }
 
-impl From<&AddressDetails> for FinixAddress {
-    fn from(address: &AddressDetails) -> Self {
-        Self {
-            line1: address.line1.clone().unwrap_or_default(),
-            line2: address.line2.clone(),
-            city: address.city.clone().unwrap_or_default(),
-            region: address.state.clone().unwrap_or_default(),
-            postal_code: address.zip.clone().unwrap_or_default(),
-            country: address.country.unwrap_or(CountryAlpha2::US), //todo see is this is required
+impl From<&Address> for FinixAddress {
+    fn from(address: &Address) -> Self {
+        let billing = address.address.as_ref();
+
+        match billing {
+            Some(address) => Self {
+                line1: address.line1.clone(),
+                line2: address.line2.clone(),
+                city: address.city.clone(),
+                region: address.state.clone(),
+                postal_code: address.zip.clone(),
+                country: address
+                    .country
+                    .clone()
+                    .map(CountryAlpha2::from_alpha2_to_alpha3),
+            },
+            None => Self {
+                line1: None,
+                line2: None,
+                city: None,
+                region: None,
+                postal_code: None,
+                country: None,
+            },
         }
     }
 }

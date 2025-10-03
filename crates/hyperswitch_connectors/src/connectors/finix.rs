@@ -1,8 +1,8 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use base64::Engine;
+use common_enums::CaptureMethod;
+use common_enums::PaymentMethodType;
 use common_enums::{enums, ConnectorIntegrationStatus};
 use common_utils::{
     errors::CustomResult,
@@ -11,6 +11,8 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_response_types::PaymentMethodDetails;
+use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -45,6 +47,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
+use std::sync::LazyLock;
 use transformers as finix;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -104,7 +107,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = finix::FinixRouterData::from((MinorUnit::zero(), req));
+        let connector_router_data = finix::FinixRouterData::try_from((MinorUnit::zero(), req))?;
         let connector_req = finix::FinixCreateIdentityRequest::try_from(&connector_router_data)?;
         println!(
             "nitt customer req {:?}",
@@ -196,7 +199,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = finix::FinixRouterData::from((MinorUnit::zero(), req));
+        let connector_router_data = finix::FinixRouterData::try_from((MinorUnit::zero(), req))?;
         let connector_req =
             finix::FinixCreatePaymentInstrumentRequest::try_from(&connector_router_data)?;
         println!(
@@ -303,9 +306,15 @@ impl ConnectorCommon for Finix {
             auth.finix_user_name.clone().expose(),
             auth.finix_password.clone().expose()
         );
-        let encoded = base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
+        let encoded = format!(
+            "Basic {:}",
+            base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes())
+        );
 
-        Ok(vec![(headers::API_KEY.to_string(), encoded.into_masked())])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            encoded.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -339,7 +348,7 @@ impl ConnectorCommon for Finix {
 impl ConnectorValidation for Finix {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<enums::PaymentMethodType>,
+        _pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         match pm_data {
@@ -385,10 +394,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}authorizations", self.base_url(connectors)))
+        let flow = match req.request.capture_method.unwrap_or_default() {
+            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => "transfers",
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                "authorizations"
+            }
+        };
+        Ok(format!("{}/{}", self.base_url(connectors), flow))
     }
 
     fn get_request_body(
@@ -402,7 +417,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = finix::FinixRouterData::from((amount, req));
+        let connector_router_data = finix::FinixRouterData::try_from((amount, req))?;
         let connector_req = finix::FinixPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -441,11 +456,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        finix::get_finix_response(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            finix::FinixFlow::get_flow_for_auth(data.request.capture_method.unwrap_or_default()),
+        )
     }
 
     fn get_error_response(
@@ -472,10 +490,24 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fin
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_transaction_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        match finix::FinixId::from(connector_transaction_id) {
+            transformers::FinixId::Auth(id) => Ok(format!(
+                "{}/authorizations/{}",
+                self.base_url(connectors),
+                id
+            )),
+            transformers::FinixId::Transfer(id) => {
+                Ok(format!("{}/transfers/{}", self.base_url(connectors), id))
+            }
+        }
     }
 
     fn build_request(
@@ -505,11 +537,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fin
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let response_id = response.id.clone();
+        finix::get_finix_response(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            match finix::FinixId::from(response_id) {
+                finix::FinixId::Auth(_) => finix::FinixFlow::Auth,
+                finix::FinixId::Transfer(_) => finix::FinixFlow::Transfer,
+            },
+        )
     }
 
     fn get_error_response(
@@ -536,10 +575,15 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}transfers", self.base_url(connectors)))
+        let connector_transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/authorizations/{}",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -553,8 +597,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             req.request.currency,
         )?;
 
-        let connector_router_data = finix::FinixRouterData::from((amount, req));
-        let connector_req = finix::FinixPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = finix::FinixRouterData::try_from((amount, req))?;
+        let connector_req = finix::FinixCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -565,7 +609,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Post)
+                .method(Method::Put)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
@@ -590,11 +634,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        finix::get_finix_response(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            finix::FinixFlow::Transfer,
+        )
     }
 
     fn get_error_response(
@@ -640,7 +687,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
             req.request.currency,
         )?;
 
-        let connector_router_data = finix::FinixRouterData::from((refund_amount, req));
+        let connector_router_data = finix::FinixRouterData::try_from((refund_amount, req))?;
         let connector_req = finix::FinixRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -783,8 +830,59 @@ impl webhooks::IncomingWebhook for Finix {
     }
 }
 
-static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let default_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut finix_supported_payment_methods = SupportedPaymentMethods::new();
+
+    finix_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+    finix_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+    finix_supported_payment_methods
+});
 
 static FINIX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Finix",
@@ -806,5 +904,12 @@ impl ConnectorSpecifications for Finix {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&FINIX_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        true
     }
 }

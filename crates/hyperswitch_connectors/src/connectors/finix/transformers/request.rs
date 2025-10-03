@@ -15,9 +15,14 @@ pub struct FinixPaymentsRequest {
     pub source: Secret<String>,
     #[serde(rename = "type")]
     pub auth_type: Option<String>,
-    pub merchant: Option<Secret<String>>,
+    pub merchant: Secret<String>,
     pub tags: Option<FinixTags>,
     pub three_d_secure: Option<FinixThreeDSecure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixCaptureRequest {
+    pub amount: MinorUnit,
 }
 
 /// Request structure for capturing an authorization.
