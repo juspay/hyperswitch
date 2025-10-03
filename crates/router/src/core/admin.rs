@@ -22,12 +22,9 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
-<<<<<<< Updated upstream
-=======
-use super::routing::helpers::{redact_cgraph_cache, update_default_fallback_on_mca_update};
->>>>>>> Stashed changes
 
-use super::routing::helpers::redact_cgraph_cache;
+use super::routing::helpers::{redact_cgraph_cache, update_default_fallback_on_mca_update};
+
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
