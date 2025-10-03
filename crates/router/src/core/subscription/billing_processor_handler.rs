@@ -5,7 +5,9 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data_v2::flow_common_types::{SubscriptionCreateData, SubscriptionCustomerData},
+    router_data_v2::flow_common_types::{
+        GetSubscriptionEstimateData, SubscriptionCreateData, SubscriptionCustomerData,
+    },
     router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
     router_response_types::{
         subscriptions as subscription_response_types, ConnectorCustomerResponseData,
@@ -15,7 +17,10 @@ use hyperswitch_domain_models::{
 
 use super::errors;
 use crate::{
-    core::payments as payments_core, routes::SessionState, services, types::api as api_types,
+    core::{payments as payments_core, subscription::subscription_types},
+    routes::SessionState,
+    services,
+    types::api as api_types,
 };
 
 pub struct BillingHandler {
@@ -200,6 +205,46 @@ impl BillingHandler {
                 connector_integration,
             )
             .await?;
+
+        match response {
+            Ok(response_data) => Ok(response_data),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+    pub async fn get_subscription_estimate(
+        &self,
+        state: &SessionState,
+        estimate_request: subscription_types::EstimateSubscriptionRequest,
+    ) -> errors::RouterResult<subscription_response_types::GetSubscriptionEstimateResponse> {
+        let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
+            price_id: estimate_request.item_price_id.clone(),
+            customer_id: Some(estimate_request.customer_id.clone()),
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            estimate_req,
+            GetSubscriptionEstimateData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = Box::pin(self.call_connector(
+            state,
+            router_data,
+            "get subscription estimate from connector",
+            connector_integration,
+        ))
+        .await?;
 
         match response {
             Ok(response_data) => Ok(response_data),
