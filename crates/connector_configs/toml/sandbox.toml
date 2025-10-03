@@ -7562,5 +7562,15 @@ type="Text"
 api_key = "API Key"
 
 [gigadat]
-[gigadat.connector_auth.HeaderKey]
-api_key = "API Key"
+[gigadat.connector_auth.SignatureKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Compaign Id"
+[[gigadat.bank_redirect]]
+payment_method_type = "interac"
+[gigadat.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"
