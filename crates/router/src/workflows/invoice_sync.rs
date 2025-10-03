@@ -237,33 +237,17 @@ impl<'a> InvoiceSyncHandler<'a> {
                     .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => {
-                let db = &*self.state.store;
-                let connector = self.tracking_data.connector_name.to_string().clone();
-                let is_last_retry = retry_subscription_invoice_sync_task(
-                    db,
-                    connector,
+                retry_subscription_invoice_sync_task(
+                    &*self.state.store,
+                    self.tracking_data.connector_name.to_string().clone(),
                     self.merchant_account.get_id().to_owned(),
-                    process.clone(),
+                    process,
                 )
                 .await
                 .change_context(router_errors::ApiErrorResponse::SubscriptionError {
                     operation: "Invoice_sync process_tracker task retry".to_string(),
                 })
-                .attach_printable("Failed to update process tracker status")?;
-
-                if is_last_retry {
-                    self.finish_process_with_business_status(
-                        &process,
-                        business_status::COMPLETED_BY_PT,
-                    )
-                    .await
-                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                        operation: "Invoice_sync process_tracker task retry".to_string(),
-                    })
-                    .attach_printable("Failed to update process tracker status")?;
-                }
-
-                Ok(())
+                .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
                 Box::pin(self.perform_billing_processor_record_back(
@@ -424,7 +408,7 @@ pub async fn retry_subscription_invoice_sync_task(
     connector: String,
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
-) -> Result<bool, errors::ProcessTrackerError> {
+) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time = get_subscription_invoice_sync_process_schedule_time(
         db,
         connector.as_str(),
@@ -439,14 +423,14 @@ pub async fn retry_subscription_invoice_sync_task(
                 .retry_process(pt, s_time)
                 .await
                 .attach_printable("Failed to retry subscription invoice sync task")?;
-            Ok(false)
         }
         None => {
             db.as_scheduler()
                 .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
                 .await
                 .attach_printable("Failed to finish subscription invoice sync task")?;
-            Ok(true)
         }
     }
+
+    Ok(())
 }
