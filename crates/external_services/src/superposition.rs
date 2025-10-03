@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, fp_utils::when};
 use masking::{ExposeInterface, Secret};
 use superposition_provider;
 
@@ -93,9 +93,6 @@ pub enum SuperpositionError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
-    /// Superposition is not enabled
-    #[error("Superposition is not enabled")]
-    NotEnabled,
 }
 
 /// Context for configuration requests
@@ -108,29 +105,35 @@ pub struct ConfigContext {
 impl SuperpositionClientConfig {
     /// Validate the Superposition configuration
     pub fn validate(&self) -> Result<(), SuperpositionError> {
-        if self.enabled {
-            if self.endpoint.is_empty() {
-                return Err(SuperpositionError::InvalidConfiguration(
+        when(self.enabled, || {
+            when(self.endpoint.is_empty(), || {
+                Err(SuperpositionError::InvalidConfiguration(
                     "Superposition endpoint cannot be empty".to_string(),
-                ));
-            }
-            if self.token.clone().expose().is_empty() {
-                return Err(SuperpositionError::InvalidConfiguration(
-                    "Superposition token cannot be empty".to_string(),
-                ));
-            }
-            if self.org_id.is_empty() {
-                return Err(SuperpositionError::InvalidConfiguration(
-                    "Superposition org_id cannot be empty".to_string(),
-                ));
-            }
-            if self.workspace_id.is_empty() {
-                return Err(SuperpositionError::InvalidConfiguration(
-                    "Superposition workspace_id cannot be empty".to_string(),
-                ));
-            }
-        }
-        Ok(())
+                ))
+            })
+            .and_then(|_| {
+                when(self.token.clone().expose().is_empty(), || {
+                    Err(SuperpositionError::InvalidConfiguration(
+                        "Superposition token cannot be empty".to_string(),
+                    ))
+                })
+            })
+            .and_then(|_| {
+                when(self.org_id.is_empty(), || {
+                    Err(SuperpositionError::InvalidConfiguration(
+                        "Superposition org_id cannot be empty".to_string(),
+                    ))
+                })
+            })
+            .and_then(|_| {
+                when(self.workspace_id.is_empty(), || {
+                    Err(SuperpositionError::InvalidConfiguration(
+                        "Superposition workspace_id cannot be empty".to_string(),
+                    ))
+                })
+            })
+        })
+        .unwrap_or(Ok(()))
     }
 }
 
@@ -157,10 +160,6 @@ pub struct SuperpositionClient {
 impl SuperpositionClient {
     /// Create a new Superposition client
     pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
-        if !config.enabled {
-            return Err(SuperpositionError::NotEnabled.into());
-        }
-
         let provider_options = superposition_provider::SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
             token: config.token.expose(),
@@ -178,13 +177,9 @@ impl SuperpositionClient {
         // Create provider and set up OpenFeature
         let provider = superposition_provider::SuperpositionProvider::new(provider_options);
 
-        router_env::logger::info!("Created superposition provider");
-
         // Initialize OpenFeature API and set provider
         let mut api = open_feature::OpenFeature::singleton_mut().await;
         api.set_provider(provider).await;
-
-        router_env::logger::info!("Set superposition provider, creating client");
 
         // Create client
         let client = api.create_client();
