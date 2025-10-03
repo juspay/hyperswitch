@@ -2807,5 +2807,3 @@ pub async fn update_default_fallback_on_mca_update(
 
     Ok(())
 }
-
->>>>>>> Stashed changes
