@@ -3,8 +3,6 @@
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 use std::{fmt::Debug, str::FromStr};
 
@@ -2773,16 +2771,18 @@ pub async fn update_default_fallback_on_mca_update(
     let profile_id_str = profile_id.get_string_repr();
     let txn_type = &storage::enums::TransactionType::from(updated_mca.connector_type);
 
-    let mut connectors = get_merchant_default_config(db, &merchant_id_str, txn_type).await?;
+    let mut connectors = get_merchant_default_config(db, merchant_id_str, txn_type).await?;
 
     let choice = routing_types::RoutableConnectorChoice {
         choice_kind: routing_types::RoutableChoiceKind::FullStruct,
-        connector: api_models::enums::RoutableConnectors::from_str(&updated_mca.connector_name)
-            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-            .attach_printable(format!(
-                "Unable to parse RoutableConnectors from connector: {}",
-                updated_mca.connector_name
-            ))?,
+        connector: api_models::enums::RoutableConnectors::from_str(
+            &updated_mca.connector_name.to_string(),
+        )
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable(format!(
+            "Unable to parse RoutableConnectors from connector: {}",
+            updated_mca.connector_name
+        ))?,
         merchant_connector_id: Some(updated_mca.get_id().clone()),
     };
 
@@ -2799,10 +2799,10 @@ pub async fn update_default_fallback_on_mca_update(
     }
 
     // update merchant config
-    update_merchant_default_config(db, &merchant_id_str, connectors.clone(), txn_type).await?;
+    update_merchant_default_config(db, merchant_id_str, connectors.clone(), txn_type).await?;
 
     // update profile config
-    update_merchant_default_config(db, &profile_id_str, connectors, txn_type).await?;
+    update_merchant_default_config(db, profile_id_str, connectors, txn_type).await?;
 
     Ok(())
 }
