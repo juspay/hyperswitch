@@ -269,7 +269,7 @@ impl TryFrom<&RiskifiedRouterData<&FrmCheckoutRouterData>> for RiskifiedPayments
                             .clone()
                             .map(|last_four| format!("XXXX-XXXX-XXXX-{last_four}"))
                             .map(Secret::new),
-                        credit_card_company: card_info.card_network.clone(),
+                        credit_card_company: card_info.card_network,
                     }),
                     Some(_) | None => None,
                 },
