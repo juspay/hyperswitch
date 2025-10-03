@@ -15,6 +15,7 @@ pub mod disputes;
 pub mod errors;
 pub mod ext_traits;
 pub mod gsm;
+pub mod invoice;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
@@ -44,7 +45,6 @@ pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;
-pub mod invoice;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

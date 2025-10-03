@@ -1,17 +1,16 @@
+use std::str::FromStr;
+
 use common_utils::{
     errors::{CustomResult, ValidationError},
+    generate_id_with_default_len,
     pii::SecretSerdeValue,
-    types::{
-        keymanager::{self, KeyManagerState},
-    },
+    types::keymanager::{self, KeyManagerState},
 };
 use masking::{ExposeInterface, Secret};
-use std::str::FromStr;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-use common_utils::{generate_id_with_default_len,};
-use crate::merchant_key_store::MerchantKeyStore;
 
+use crate::merchant_key_store::MerchantKeyStore;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
@@ -133,7 +132,6 @@ impl From<api_models::subscription::SubscriptionStatus> for SubscriptionStatus {
 }
 
 impl CreateSubscriptionRequest {
-
     pub fn to_subscription(
         self,
         id: common_utils::id_type::SubscriptionId,
@@ -141,7 +139,7 @@ impl CreateSubscriptionRequest {
         merchant_id: common_utils::id_type::MerchantId,
     ) -> Subscription {
         let now = common_utils::date_time::now();
-        Subscription{
+        Subscription {
             id,
             status: SubscriptionStatus::Created.to_string(),
             billing_processor: None,
@@ -221,7 +219,7 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
 }
 
-impl Subscription{
+impl Subscription {
     pub fn generate_and_set_client_secret(&mut self) -> Secret<String> {
         let client_secret =
             generate_id_with_default_len(&format!("{}_secret", self.id.get_string_repr()));
@@ -334,10 +332,7 @@ pub struct SubscriptionUpdate {
 }
 
 impl SubscriptionUpdate {
-    pub fn new(
-        payment_method_id: Option<String>,
-        status: Option<String>,
-    ) -> Self {
+    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
         Self {
             payment_method_id,
             status,
@@ -382,4 +377,4 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: self.modified_at,
         })
     }
-}  
+}

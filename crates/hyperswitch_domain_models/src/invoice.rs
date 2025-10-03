@@ -1,16 +1,19 @@
+use std::str::FromStr;
+
 use common_utils::{
-    id_type::GenerateId,
     errors::{CustomResult, ValidationError},
+    id_type::GenerateId,
     pii::SecretSerdeValue,
-    types::keymanager::{Identifier, KeyManagerState},
-    types::MinorUnit,
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        MinorUnit,
+    },
 };
 use error_stack::ResultExt;
 use masking::Secret;
-use std::str::FromStr;
 use utoipa::ToSchema;
-use crate::merchant_key_store::MerchantKeyStore;
 
+use crate::merchant_key_store::MerchantKeyStore;
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct Invoice {
@@ -122,7 +125,6 @@ impl super::behaviour::Conversion for Invoice {
 }
 
 impl Invoice {
-    
     #[allow(clippy::too_many_arguments)]
     pub fn to_invoice(
         subscription_id: common_utils::id_type::SubscriptionId,

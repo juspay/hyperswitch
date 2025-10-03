@@ -23,11 +23,14 @@ use hyperswitch_domain_models::payouts::{
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
     disputes,
+    invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
     refunds,
-    invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
-    subscription::{Subscription as DomainSubscription, SubscriptionInterface, SubscriptionUpdate as DomainSubscriptionUpdate},
+    subscription::{
+        Subscription as DomainSubscription, SubscriptionInterface,
+        SubscriptionUpdate as DomainSubscriptionUpdate,
+    },
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -4349,7 +4352,9 @@ impl InvoiceInterface for KafkaStore {
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
         invoice_new: DomainInvoice,
     ) -> CustomResult<DomainInvoice, errors::StorageError> {
-        self.diesel_store.insert_invoice_entry(state, key_store, invoice_new).await
+        self.diesel_store
+            .insert_invoice_entry(state, key_store, invoice_new)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -4421,4 +4426,3 @@ impl SubscriptionInterface for KafkaStore {
             .await
     }
 }
-

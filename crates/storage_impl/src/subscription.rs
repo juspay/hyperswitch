@@ -1,13 +1,19 @@
-use error_stack::{ResultExt};
-use router_env::{instrument, tracing};
-use crate::MockDb;
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 pub use diesel_models::subscription::Subscription;
-
-use common_utils::{errors::CustomResult,types::keymanager::KeyManagerState};
-use crate::{connection, errors::StorageError,DatabaseStore,RouterStore,kv_router_store::KVRouterStore,};
+use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
-    behaviour::Conversion, subscription::Subscription as DomainSubscription,merchant_key_store::MerchantKeyStore,
-    subscription::SubscriptionInterface, subscription::SubscriptionUpdate as DomainSubscriptionUpdate,
+    behaviour::Conversion,
+    merchant_key_store::MerchantKeyStore,
+    subscription::{
+        Subscription as DomainSubscription, SubscriptionInterface,
+        SubscriptionUpdate as DomainSubscriptionUpdate,
+    },
+};
+use router_env::{instrument, tracing};
+
+use crate::{
+    connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,
+    RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -26,7 +32,8 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(state, key_store,sub_new.insert(&conn)).await
+        self.call_database(state, key_store, sub_new.insert(&conn))
+            .await
     }
     #[instrument(skip_all)]
     async fn find_by_merchant_id_subscription_id(
@@ -37,7 +44,12 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         subscription_id: String,
     ) -> CustomResult<DomainSubscription, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(state, key_store,Subscription::find_by_merchant_id_subscription_id(&conn, merchant_id, subscription_id)).await
+        self.call_database(
+            state,
+            key_store,
+            Subscription::find_by_merchant_id_subscription_id(&conn, merchant_id, subscription_id),
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -54,7 +66,12 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(state, key_store,Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new)).await
+        self.call_database(
+            state,
+            key_store,
+            Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new),
+        )
+        .await
     }
 }
 
@@ -69,7 +86,9 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         subscription_new: DomainSubscription,
     ) -> CustomResult<DomainSubscription, StorageError> {
-        self.router_store.insert_subscription_entry(state, key_store, subscription_new).await
+        self.router_store
+            .insert_subscription_entry(state, key_store, subscription_new)
+            .await
     }
     #[instrument(skip_all)]
     async fn find_by_merchant_id_subscription_id(
@@ -79,7 +98,9 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         subscription_id: String,
     ) -> CustomResult<DomainSubscription, StorageError> {
-        self.router_store.find_by_merchant_id_subscription_id(state, key_store, merchant_id, subscription_id).await
+        self.router_store
+            .find_by_merchant_id_subscription_id(state, key_store, merchant_id, subscription_id)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -91,7 +112,9 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
         subscription_id: String,
         data: DomainSubscriptionUpdate,
     ) -> CustomResult<DomainSubscription, StorageError> {
-        self.router_store.update_subscription_entry(state, key_store, merchant_id, subscription_id, data).await
+        self.router_store
+            .update_subscription_entry(state, key_store, merchant_id, subscription_id, data)
+            .await
     }
 }
 
