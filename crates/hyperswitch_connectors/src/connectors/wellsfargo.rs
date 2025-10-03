@@ -68,7 +68,8 @@ use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, get_authorise_integrity_object, get_sync_integrity_object, get_capture_integrity_object, get_refund_integrity_object, PaymentMethodDataType,
+        self, convert_amount, get_authorise_integrity_object, get_capture_integrity_object,
+        get_refund_integrity_object, get_sync_integrity_object, PaymentMethodDataType,
         RefundsRequestData,
     },
 };
@@ -678,7 +679,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let response_integrity_object = get_capture_integrity_object(
             self.amount_converter,
             Some(order_info.amount_details.total_amount.clone()),
-            order_info.amount_details.currency.to_string()
+            order_info.amount_details.currency.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -687,7 +688,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }).change_context(errors::ConnectorError::ResponseHandlingFailed);
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
@@ -811,7 +813,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wel
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }).change_context(errors::ConnectorError::ResponseHandlingFailed);
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
@@ -1179,7 +1182,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Wellsfa
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }).change_context(errors::ConnectorError::ResponseHandlingFailed);
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);
@@ -1265,7 +1269,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Wellsfarg
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }).change_context(errors::ConnectorError::ResponseHandlingFailed);
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
 
         new_router_data.map(|mut router_data| {
             router_data.request.integrity_object = Some(response_integrity_object);

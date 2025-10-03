@@ -2258,7 +2258,7 @@ pub struct WellsfargoRsyncResponse {
     id: String,
     application_information: Option<RsyncApplicationInformation>,
     error_information: Option<WellsfargoErrorInformation>,
-    pub order_information: Option<OrderInformation>
+    pub order_information: Option<OrderInformation>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, WellsfargoRsyncResponse>>
