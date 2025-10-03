@@ -404,7 +404,6 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    // Can have config based mapping as well
     let mapping: CustomResult<
         process_data::SubscriptionInvoiceSyncPTMapping,
         router_errors::StorageError,
@@ -416,6 +415,7 @@ pub async fn get_subscription_invoice_sync_process_schedule_time(
             config
                 .parse_struct("SubscriptionInvoiceSyncPTMapping")
                 .change_context(router_errors::StorageError::DeserializationFailed)
+                .attach_printable("Failed to deserialize invoice_sync_pt_mapping config to struct")
         });
     let mapping = match mapping {
         Ok(x) => x,
@@ -450,13 +450,17 @@ pub async fn retry_subscription_invoice_sync_task(
 
     match schedule_time {
         Some(s_time) => {
-            db.as_scheduler().retry_process(pt, s_time).await?;
+            db.as_scheduler()
+                .retry_process(pt, s_time)
+                .await
+                .attach_printable("Failed to retry subscription invoice sync task")?;
             Ok(false)
         }
         None => {
             db.as_scheduler()
                 .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
-                .await?;
+                .await
+                .attach_printable("Failed to finish subscription invoice sync task")?;
             Ok(true)
         }
     }
