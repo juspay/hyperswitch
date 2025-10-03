@@ -330,9 +330,6 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
                 }
-                storage::ProcessTrackerRunner::SubscriptionsWorkflow => Ok(Box::new(
-                    workflows::subscription::ExecuteSubscriptionWorkflow,
-                )),
             }
         };
 

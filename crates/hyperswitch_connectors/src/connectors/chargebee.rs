@@ -1374,6 +1374,36 @@ impl webhooks::IncomingWebhook for Chargebee {
             transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
     }
+
+    fn get_subscription_mit_payment_data(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        let webhook_body =
+            transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+                .attach_printable("Failed to parse Chargebee invoice webhook body")?;
+
+        let chargebee_mit_data = transformers::ChargebeeMitPaymentData::try_from(webhook_body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to extract MIT payment data from Chargebee webhook")?;
+
+        // Convert Chargebee-specific data to generic domain model
+        Ok(
+            hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData {
+                invoice_id: chargebee_mit_data.invoice_id,
+                amount_due: chargebee_mit_data.amount_due,
+                currency_code: chargebee_mit_data.currency_code,
+                status: chargebee_mit_data.status,
+                customer_id: chargebee_mit_data.customer_id,
+                subscription_id: chargebee_mit_data.subscription_id,
+                first_invoice: chargebee_mit_data.first_invoice,
+            },
+        )
+    }
 }
 
 static CHARGEBEE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {

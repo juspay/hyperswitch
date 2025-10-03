@@ -8,3 +8,15 @@ pub struct GetSubscriptionPlanPrices;
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimate;
+
+/// Generic structure for subscription MIT (Merchant Initiated Transaction) payment data
+#[derive(Debug, Clone)]
+pub struct SubscriptionMitPaymentData {
+    pub invoice_id: common_utils::id_type::InvoiceId,
+    pub amount_due: common_utils::types::MinorUnit,
+    pub currency_code: common_enums::enums::Currency,
+    pub status: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub first_invoice: bool,
+}

@@ -15,5 +15,3 @@ pub mod revenue_recovery;
 pub mod process_dispute;
 
 pub mod dispute_list;
-
-pub mod subscription;
