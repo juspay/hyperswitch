@@ -2762,8 +2762,6 @@ pub async fn redact_cgraph_cache(
 
     Ok(())
 }
-<<<<<<< Updated upstream
-=======
 
 pub async fn update_default_fallback_on_mca_update(
     state: &SessionState,
