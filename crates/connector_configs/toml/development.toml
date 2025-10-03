@@ -6918,8 +6918,6 @@ key1 = "API Secret"
   payment_method_type = "eps"
 [[trustpayments.bank_redirect]]
   payment_method_type = "trustly"
-[[trustpayments.bank_redirect]]
-  payment_method_type = "sepa"
 [[trustpayments.wallet]]
   payment_method_type = "ali_pay"
 [[trustpayments.wallet]]

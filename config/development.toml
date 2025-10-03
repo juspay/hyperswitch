@@ -1020,7 +1020,6 @@ apple_pay = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 eps = {currency = "EUR"}
 paysera = {currency = "EUR"}
 trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
-sepa = {currency = "EUR"}
 ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
 
 [tokenization]
@@ -1092,7 +1091,7 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
 bank_debit.bacs = { connector_list = "gocardless" }
-bank_debit.sepa = { connector_list = "gocardless,adyen,trustpayments" }
+bank_debit.sepa = { connector_list = "gocardless,adyen" }
 card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel"
 card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel"
 pay_later.klarna.connector_list = "adyen"
