@@ -970,6 +970,23 @@ trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
 ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
 
 
+<<<<<<< HEAD
+=======
+[pm_filters.trustpayments]
+eps = {currency = "EUR"}
+paysera = {currency = "EUR"}
+trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
+ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
+
+
+[pm_filters.trustpayments]
+eps = {country = "AT", currency = "EUR"}
+paysera = {country = "EE,LT,LV", currency = "EUR"}
+trustly = {currency = "DKK,EUR,GBP,NOK,PLN,SEK"}
+ali_pay = {currency = "AUD,CAD,CHF,DKK,EUR,GBP,HKD,JPY,KRW,NOK,NZD,SEK,SGD,THB,USD"}
+
+
+>>>>>>> 460bdfde9 (removes sepa integration)
 
 [connector_customer]
 payout_connector_list = "nomupay,stripe,wise"

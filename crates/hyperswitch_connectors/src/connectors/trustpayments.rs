@@ -1038,17 +1038,6 @@ static TRUSTPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
             },
         );
 
-        trustpayments_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Sepa,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-
         trustpayments_supported_payment_methods
     });
 
