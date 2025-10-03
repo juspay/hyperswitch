@@ -1397,7 +1397,7 @@ impl webhooks::IncomingWebhook for Chargebee {
                 invoice_id: chargebee_mit_data.invoice_id,
                 amount_due: chargebee_mit_data.amount_due,
                 currency_code: chargebee_mit_data.currency_code,
-                status: chargebee_mit_data.status,
+                status: chargebee_mit_data.status.map(|s| s.into()),
                 customer_id: chargebee_mit_data.customer_id,
                 subscription_id: chargebee_mit_data.subscription_id,
                 first_invoice: chargebee_mit_data.first_invoice,

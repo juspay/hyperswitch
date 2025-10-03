@@ -44,6 +44,8 @@ use serde_json::Value;
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::subscription::subscription_handler::SubscriptionHandler;
 use crate::{
     consts,
     core::{
@@ -459,87 +461,6 @@ pub async fn get_mca_from_payment_intent(
         }
     }
 }
-pub async fn get_mca_from_subscription_id(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
-    subscription_id: id_type::SubscriptionId,
-    connector_name: &str,
-) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
-    let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
-
-    let subscription = db
-        .find_by_merchant_id_subscription_id(
-            merchant_context.get_merchant_account().get_id(),
-            subscription_id.get_string_repr().to_string(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "Subscription with id: {} not found",
-                subscription_id.get_string_repr()
-            ),
-        })?;
-
-    match subscription.merchant_connector_id {
-        Some(merchant_connector_id) => {
-            #[cfg(feature = "v1")]
-            {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
-                    &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
-            }
-            #[cfg(feature = "v2")]
-            {
-                //get mca using id
-                let _ = key_manager_state;
-                let _ = connector_name;
-                let _ = merchant_context.get_merchant_key_store();
-                let _ = subscription.profile_id;
-                todo!()
-            }
-        }
-        None => {
-            // Fallback to profile-based lookup when merchant_connector_id is not set
-            #[cfg(feature = "v1")]
-            {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
-                    &subscription.profile_id,
-                    connector_name,
-                    merchant_context.get_merchant_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            subscription.profile_id.get_string_repr()
-                        ),
-                    },
-                )
-            }
-            #[cfg(feature = "v2")]
-            {
-                //get mca using id
-                let _ = key_manager_state;
-                let _ = connector_name;
-                let _ = merchant_context.get_merchant_key_store();
-                let _ = subscription.profile_id;
-                todo!()
-            }
-        }
-    }
-}
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     state: &SessionState,
@@ -720,13 +641,20 @@ pub async fn get_mca_from_object_reference_id(
                 .await
             }
             webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
-                get_mca_from_subscription_id(
-                    state,
-                    merchant_context,
-                    subscription_id_type,
-                    connector_name,
-                )
-                .await
+                #[cfg(feature = "v1")]
+                {
+                    let subscription_handler = SubscriptionHandler::new(state, merchant_context);
+                    let mut subscription_with_handler = subscription_handler
+                        .find_subscription(subscription_id_type)
+                        .await?;
+
+                    subscription_with_handler.get_mca(connector_name).await
+                }
+                #[cfg(feature = "v2")]
+                {
+                    let _db = db;
+                    todo!()
+                }
             }
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {

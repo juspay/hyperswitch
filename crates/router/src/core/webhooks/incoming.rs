@@ -34,7 +34,9 @@ use crate::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payments::{self, tokenization},
-        refunds, relay, unified_connector_service, utils as core_utils,
+        refunds, relay,
+        subscription::subscription_handler::SubscriptionHandler,
+        unified_connector_service, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
     db::StorageInterface,
@@ -2602,24 +2604,30 @@ async fn subscription_incoming_webhook_flow(
         return Ok(WebhookResponseTracker::NoEffect);
     }
 
-    // Find subscription by merchant_id and subscription_id to get payment_method_id
-    let subscription = state
-        .store
-        .find_by_merchant_id_subscription_id(
-            merchant_context.get_merchant_account().get_id(),
-            mit_payment_data
-                .subscription_id
-                .get_string_repr()
-                .to_string(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Subscription not found".to_string(),
-        })
-        .attach_printable("Failed to find subscription by merchant ID and subscription ID")?;
+    let profile_id = business_profile.get_id().clone();
 
-    let payment_method_id = subscription
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in get_subscription",
+            )?;
+
+    let handler = SubscriptionHandler::new(&state, &merchant_context);
+
+    let subscription_id = mit_payment_data.subscription_id.clone();
+
+    let subscription_with_handler = handler
+        .find_subscription(subscription_id)
+        .await
+        .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
+
+    let invoice_handler = subscription_with_handler.get_invoice_handler(profile);
+
+    let payment_method_id = subscription_with_handler
+        .subscription
         .payment_method_id
+        .clone()
         .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
             message: "No payment method found for subscription".to_string(),
         })
@@ -2627,38 +2635,18 @@ async fn subscription_incoming_webhook_flow(
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 
-    let invoice_id = mit_payment_data.invoice_id.clone();
-
-    // Create invoice entry before process tracker
-    let invoice_new = storage::invoice::InvoiceNew {
-        id: invoice_id.clone(),
-        subscription_id: mit_payment_data.subscription_id,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
-        profile_id: business_profile.get_id().clone(),
-        merchant_connector_id: billing_connector_mca_id.clone(),
-        payment_intent_id: None,
-        payment_method_id: Some(payment_method_id),
-        customer_id: mit_payment_data.customer_id,
-        amount: mit_payment_data.amount_due,
-        currency: mit_payment_data.currency_code.to_string(),
-        status: InvoiceStatus::PaymentPending.to_string(),
-        provider_name: connector,
-        metadata: None,
-        created_at: common_utils::date_time::now(),
-        modified_at: common_utils::date_time::now(),
-    };
-
-    let _invoice = state
-        .store
-        .insert_invoice_entry(invoice_new)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting invoice: invoice_id: {:?}",
-                invoice_id
-            )
-        })?;
+    let _invoice_new = invoice_handler
+        .create_invoice_entry(
+            &state,
+            billing_connector_mca_id.clone(),
+            None,
+            mit_payment_data.amount_due,
+            mit_payment_data.currency_code,
+            InvoiceStatus::PaymentPending,
+            connector,
+            None,
+        )
+        .await?;
 
     Ok(WebhookResponseTracker::NoEffect)
 }
