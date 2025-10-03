@@ -215,21 +215,6 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub customer_acceptance: Option<CustomerAcceptance>,
 }
 
-// Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
-// Eg: Amount will be serialized as { amount: {Value: 100 }}
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct PaymentsRequestData {
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub amount: Option<MinorUnit>,
-    pub currency: Option<api_enums::Currency>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub confirm: bool,
-    pub billing: Option<Address>,
-    pub shipping: Option<Address>,
-    #[serde(flatten)]
-    pub payment_details: PaymentDetails,
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentResponseData {
     pub payment_id: common_utils::id_type::PaymentId,
