@@ -5,7 +5,7 @@ import { getCustomExchange } from "./_Reusable";
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -13,7 +13,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "morino",
   card_cvc: "999",
 };
@@ -562,9 +562,28 @@ export const connectorDetails = {
     }),
   },
   card_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntentManualCapture: getCustomExchange({
       Request: {
-        currency: "USD",
+        amount_details: {
+          order_amount: 1001,
+          currency: "USD",
+        },
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaymentIntentAutoCapture: getCustomExchange({
+      Request: {
+        amount_details: {
+          order_amount: 1001,
+          currency: "USD",
+        },
+        capture_method: "automatic",
       },
       Response: {
         status: 200,
@@ -583,7 +602,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }), 
+    }),
     "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
@@ -608,24 +627,54 @@ export const connectorDetails = {
     }),
     No3DSManualCapture: getCustomExchange({
       Request: {
-        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        payment_method_type: "card",
+        payment_method_subtype: "credit",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        shipping: {
+          address: {
+            first_name: "John",
+            last_name: "Dough",
+            city: "Karwar",
+            zip: "581301",
+            state: "Karnataka",
+          },
+          email: "example@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
       },
     }),
     No3DSAutoCapture: getCustomExchange({
       Request: {
-        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        payment_method_type: "card",
+        payment_method_subtype: "credit",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        shipping: {
+          address: {
+            first_name: "John",
+            last_name: "Dough",
+            city: "Karwar",
+            zip: "581301",
+            state: "Karnataka",
+          },
+          email: "example@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     }),
     Capture: getCustomExchange({
@@ -634,7 +683,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
         customer_acceptance: null,
       },
     }),
@@ -659,8 +707,28 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot cancel this payment because it has status succeeded",
-            code: "IR_16",
+              "This Payment could not be PaymentsCancel because it has a status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, partially_authorized_and_requires_capture",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    VoidAfterConfirm: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be PaymentsCancel because it has a status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, partially_authorized_and_requires_capture",
+            code: "IR_14",
           },
         },
       },
@@ -671,7 +739,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
         customer_acceptance: null,
       },
       ResponseCustom: {
@@ -970,7 +1037,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message: "Json deserialize error: invalid card number length",
-            code: "IR_06"
+            code: "IR_06",
           },
         },
       },
@@ -1077,8 +1144,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+            code: "IR_06",
           },
         },
       },
@@ -1105,8 +1173,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+            code: "IR_06",
           },
         },
       },
@@ -1132,8 +1201,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
+            code: "IR_06",
           },
         },
       },
@@ -1202,7 +1272,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data or ctp service details is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
         },
