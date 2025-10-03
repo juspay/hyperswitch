@@ -5959,18 +5959,63 @@ placeholder = "Enter site where transaction is initiated"
 required = true
 type = "Text"
 
+[gigadat_payout]
+[gigadat_payout.connector_auth.SignatureKey]
+api_key = "Access Token"
+api_secret = "Security Token"
+key1 = "Campaign ID"
+[[gigadat_payout.bank_redirect]]
+payment_method_type = "interac"
+[gigadat_payout.metadata.site]
+name = "site"
+label = "Site where transaction is initiated"
+placeholder = "Enter site where transaction is initiated"
+required = true
+type = "Text"
+
 [finix]
 [finix.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[tesouro]
-[tesouro.connector_auth.BodyKey]
-api_key="Client ID"
-key1="Client Secret"
-
 [loonio]
 [loonio.connector_auth.BodyKey]
 api_key = "Merchant ID"
-api_secret = "Merchant Token"
+key1 = "Merchant Token"
 [[loonio.bank_redirect]]
 payment_method_type = "interac"
+
+[tesouro]
+[[tesouro.credit]]
+payment_method_type = "Mastercard"
+[[tesouro.credit]]
+payment_method_type = "Visa"
+[[tesouro.credit]]
+payment_method_type = "AmericanExpress"
+[[tesouro.credit]]
+payment_method_type = "Discover"
+[[tesouro.credit]]
+payment_method_type = "DinersClub"
+[[tesouro.credit]]
+payment_method_type = "JCB"
+[[tesouro.credit]]
+payment_method_type = "Maestro"
+[[tesouro.credit]]
+payment_method_type = "UnionPay"
+[[tesouro.debit]]
+payment_method_type = "Mastercard"
+[[tesouro.debit]]
+payment_method_type = "Visa"
+[[tesouro.debit]]
+payment_method_type = "AmericanExpress"
+[[tesouro.debit]]
+payment_method_type = "Discover"
+[[tesouro.debit]]
+payment_method_type = "DinersClub"
+[[tesouro.debit]]
+payment_method_type = "JCB"
+[[tesouro.debit]]
+payment_method_type = "Maestro"
+[tesouro.connector_auth.SignatureKey]
+api_key = "Client ID"
+api_secret = "Client Secret"
+key1 = "Acceptor ID"

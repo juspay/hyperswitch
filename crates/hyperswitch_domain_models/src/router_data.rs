@@ -92,6 +92,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub minor_amount_captured: Option<MinorUnit>,
     pub minor_amount_capturable: Option<MinorUnit>,
 
+    // stores the authorized amount in case of partial authorization
+    pub authorized_amount: Option<MinorUnit>,
+
     pub integrity_check: Result<(), IntegrityCheckError>,
 
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,

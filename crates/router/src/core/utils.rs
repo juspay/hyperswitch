@@ -154,6 +154,8 @@ pub async fn construct_payout_router_data<'a, F>(
     let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
 
+    let browser_info = payout_data.browser_info.to_owned();
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
@@ -199,6 +201,7 @@ pub async fn construct_payout_router_data<'a, F>(
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
+            browser_info,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -230,6 +233,7 @@ pub async fn construct_payout_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -404,6 +408,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -610,6 +615,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1053,6 +1059,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1156,6 +1163,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1268,6 +1276,7 @@ pub async fn construct_upload_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1341,6 +1350,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 
@@ -1446,6 +1456,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1574,6 +1585,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1680,6 +1692,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1780,6 +1793,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }

@@ -674,6 +674,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                             .attach_printable("Merchant connector id is none when constructing response")
                     })?,
                     authentication_type,
+                    connector_request_reference_id,
                     payment_method_id : payment_method.get_id().clone()
                 }
             }

@@ -3969,6 +3969,7 @@ mod tests {
             connector_id: None,
             shipping_address_id: None,
             billing_address_id: None,
+            mit_category: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now(),
@@ -4054,6 +4055,7 @@ mod tests {
             metadata: None,
             connector_id: None,
             shipping_address_id: None,
+            mit_category: None,
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
@@ -4135,6 +4137,7 @@ mod tests {
             return_url: None,
             metadata: None,
             connector_id: None,
+            mit_category: None,
             shipping_address_id: None,
             billing_address_id: None,
             statement_descriptor_name: None,
@@ -4545,6 +4548,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
+        authorized_amount: router_data.authorized_amount,
     }
 }
 
@@ -4805,6 +4809,7 @@ impl AttemptType {
             network_transaction_id: None,
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
+            authorized_amount: old_payment_attempt.authorized_amount,
         }
     }
 

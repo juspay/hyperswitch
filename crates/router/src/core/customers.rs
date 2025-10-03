@@ -590,6 +590,7 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
+        customer_id: request.customer_id,
     };
 
     let domain_customers = db
