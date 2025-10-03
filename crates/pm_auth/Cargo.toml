@@ -23,7 +23,7 @@ bytes = "1.10.1"
 error-stack = "0.4.1"
 http = "0.2.12"
 mime = "0.3.17"
-serde = "1.0.219"
+serde = "1.0.228"
 serde_json = "1.0.140"
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"

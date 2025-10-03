@@ -20,7 +20,7 @@ api_models = { version = "0.1.0", path = "../api_models", package = "api_models"
 common_utils = { version = "0.1.0", path = "../common_utils" }
 
 # Third party crates
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 serde_with = "3.12.0"
 toml = "0.8.22"
