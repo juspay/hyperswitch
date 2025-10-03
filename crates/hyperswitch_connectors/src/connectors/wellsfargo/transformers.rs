@@ -509,13 +509,13 @@ pub struct OrderInformationIncrementalAuthorization {
     amount_details: AdditionalAmount,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
     pub amount_details: Amount,
 }
 
-#[derive(Debug, Serialize, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
     pub total_amount: StringMajorUnit,
