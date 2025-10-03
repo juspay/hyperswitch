@@ -401,6 +401,15 @@ pub trait ConnectorSpecifications {
         false
     }
 
+    /// Check if connector should make another request to create an customer
+    /// Connectors should override this method if they require to create a connector customer
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        false
+    }
+
     #[cfg(not(feature = "v2"))]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
