@@ -9,8 +9,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-#[cfg(feature = "v1")]
-use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{revenue_recovery, router_data_v2::RouterDataV2};
@@ -1335,17 +1333,25 @@ impl webhooks::IncomingWebhook for Chargebee {
             chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::InvoiceId(
-            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(webhook.content.invoice.id),
+            api_models::webhooks::InvoiceIdType::ConnectorInvoiceId(
+                webhook.content.invoice.id.get_string_repr().to_string(),
+            ),
         ))
     }
     #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook =
+            chargebee::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let subscription_id = webhook.content.invoice.subscription_id;
+        Ok(api_models::webhooks::ObjectReferenceId::SubscriptionId(
+            subscription_id,
+        ))
     }
-    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -1355,13 +1361,6 @@ impl webhooks::IncomingWebhook for Chargebee {
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let event = api_models::webhooks::IncomingWebhookEvent::from(webhook.event_type);
         Ok(event)
-    }
-    #[cfg(any(feature = "v1", not(all(feature = "revenue_recovery", feature = "v2"))))]
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
@@ -1390,6 +1389,36 @@ impl webhooks::IncomingWebhook for Chargebee {
         let webhook =
             transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)?;
         revenue_recovery::RevenueRecoveryInvoiceData::try_from(webhook)
+    }
+
+    fn get_subscription_mit_payment_data(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        let webhook_body =
+            transformers::ChargebeeInvoiceBody::get_invoice_webhook_data_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+                .attach_printable("Failed to parse Chargebee invoice webhook body")?;
+
+        let chargebee_mit_data = transformers::ChargebeeMitPaymentData::try_from(webhook_body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to extract MIT payment data from Chargebee webhook")?;
+
+        // Convert Chargebee-specific data to generic domain model
+        Ok(
+            hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData {
+                invoice_id: chargebee_mit_data.invoice_id,
+                amount_due: chargebee_mit_data.amount_due,
+                currency_code: chargebee_mit_data.currency_code,
+                status: chargebee_mit_data.status.map(|s| s.into()),
+                customer_id: chargebee_mit_data.customer_id,
+                subscription_id: chargebee_mit_data.subscription_id,
+                first_invoice: chargebee_mit_data.first_invoice,
+            },
+        )
     }
 }
 
