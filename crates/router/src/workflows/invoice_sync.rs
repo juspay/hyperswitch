@@ -28,8 +28,8 @@ use crate::{
     types::{domain, storage},
 };
 
-const IVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
-const IVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
+const INVOICE_SYNC_WORKFLOW: &str = "INVOICE_SYNC";
+const INVOICE_SYNC_WORKFLOW_TAG: &str = "INVOICE";
 pub struct InvoiceSyncWorkflow;
 
 pub struct InvoiceSyncHandler<'a> {
@@ -70,20 +70,15 @@ impl<'a> InvoiceSyncHandler<'a> {
             .await
             .attach_printable("Subscriptions: Failed to fetch Merchant Account from DB")?;
 
-        let subscription = state
+        let profile = state
             .store
-            .find_by_merchant_id_subscription_id(
-                merchant_account.get_id(),
-                tracking_data.subscription_id.get_string_repr().to_string(),
+            .find_business_profile_by_profile_id(
+                &(state).into(),
+                &key_store,
+                &tracking_data.profile_id,
             )
             .await
-            .attach_printable("Subscriptions: Failed to fetch subscription from DB")?;
-
-        let invoice = state
-            .store
-            .get_latest_invoice_for_subscription(subscription.id.get_string_repr().to_string())
-            .await
-            .attach_printable("invoices: unable to get latest invoice from database")?;
+            .attach_printable("Subscriptions: Failed to fetch Business Profile from DB")?;
 
         let customer = state
             .store
@@ -97,15 +92,20 @@ impl<'a> InvoiceSyncHandler<'a> {
             .await
             .attach_printable("Subscriptions: Failed to fetch Customer from DB")?;
 
-        let profile = state
+        let subscription = state
             .store
-            .find_business_profile_by_profile_id(
-                &(state).into(),
-                &key_store,
-                &tracking_data.profile_id,
+            .find_by_merchant_id_subscription_id(
+                merchant_account.get_id(),
+                tracking_data.subscription_id.get_string_repr().to_string(),
             )
             .await
-            .attach_printable("Subscriptions: Failed to fetch Business Profile from DB")?;
+            .attach_printable("Subscriptions: Failed to fetch subscription from DB")?;
+
+        let invoice = state
+            .store
+            .find_invoice_by_invoice_id(tracking_data.invoice_id.get_string_repr().to_string())
+            .await
+            .attach_printable("invoices: unable to get latest invoice from database")?;
 
         Ok(Self {
             state,
@@ -117,6 +117,20 @@ impl<'a> InvoiceSyncHandler<'a> {
             subscription,
             invoice,
         })
+    }
+
+    async fn finish_process_with_business_status(
+        &self,
+        process: &storage::ProcessTracker,
+        business_status: &'static str,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        self.state
+            .store
+            .as_scheduler()
+            .finish_process_with_business_status(process.clone(), business_status)
+            .await
+            .change_context(router_errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update process tracker status")
     }
 
     pub async fn perform_payments_sync(
@@ -144,38 +158,80 @@ impl<'a> InvoiceSyncHandler<'a> {
         Ok(payments_response)
     }
 
+    pub async fn perform_billing_processor_record_back(
+        &self,
+        payment_response: subscription_types::PaymentResponseData,
+        payment_status: common_enums::AttemptStatus,
+        connector_invoice_id: String,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        logger::info!("perform_billing_processor_record_back");
+
+        let billing_handler = billing::BillingHandler::create(
+            self.state,
+            &self.merchant_account,
+            &self.key_store,
+            self.customer.clone(),
+            self.profile.clone(),
+        )
+        .await
+        .attach_printable("Failed to create billing handler")?;
+
+        let invoice_handler = invoice_handler::InvoiceHandler::new(
+            self.subscription.clone(),
+            self.merchant_account.clone(),
+            self.profile.clone(),
+        );
+
+        // TODO: Handle retries here on failure
+        billing_handler
+            .record_back_to_billing_processor(
+                self.state,
+                connector_invoice_id.clone(),
+                payment_response.payment_id.to_owned(),
+                payment_status,
+                payment_response.amount,
+                payment_response.currency,
+                payment_response.payment_method_type,
+            )
+            .await
+            .attach_printable("Failed to record back to billing processor")?;
+
+        invoice_handler
+            .update_invoice(
+                self.state,
+                self.invoice.id.to_owned(),
+                None,
+                common_enums::connector_enums::InvoiceStatus::InvoicePaid,
+            )
+            .await
+            .attach_printable("Failed to update invoice in DB")?;
+
+        Ok(())
+    }
+
     pub async fn transition_workflow_state(
         &self,
         process: storage::ProcessTracker,
         payment_response: subscription_types::PaymentResponseData,
+        connector_invoice_id: String,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         match invoice_sync_status {
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                Box::pin(perform_billing_processor_record_back(
-                    self.state,
-                    &self.merchant_account,
-                    &self.key_store,
-                    &self.tracking_data,
-                    common_enums::AttemptStatus::Charged,
+                Box::pin(self.perform_billing_processor_record_back(
                     payment_response,
-                    self.subscription.clone(),
-                    self.customer.clone(),
-                    self.profile.clone(),
+                    common_enums::AttemptStatus::Charged,
+                    connector_invoice_id,
                 ))
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
 
-                self.state
-                    .store
-                    .as_scheduler()
-                    .finish_process_with_business_status(
-                        process.clone(),
-                        business_status::COMPLETED_BY_PT,
-                    )
+                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
-                    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                        operation: "Invoice_sync process_tracker task completion".to_string(),
+                    })
                     .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentProcessing => {
@@ -194,47 +250,32 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .attach_printable("Failed to update process tracker status")?;
 
                 if is_last_retry {
-                    self.state
-                        .store
-                        .as_scheduler()
-                        .finish_process_with_business_status(
-                            process,
-                            business_status::COMPLETED_BY_PT,
-                        )
-                        .await
-                        .change_context(router_errors::ApiErrorResponse::SubscriptionError {
-                            operation: "Invoice_sync process_tracker task retry".to_string(),
-                        })
-                        .attach_printable("Failed to update process tracker status")?;
-                }
-
-                Ok(())
-            }
-            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                Box::pin(perform_billing_processor_record_back(
-                    self.state,
-                    &self.merchant_account,
-                    &self.key_store,
-                    &self.tracking_data,
-                    common_enums::AttemptStatus::Failure,
-                    payment_response,
-                    self.subscription.clone(),
-                    self.customer.clone(),
-                    self.profile.clone(),
-                ))
-                .await
-                .attach_printable("Failed to record back to billing processor")?;
-
-                self.state
-                    .store
-                    .as_scheduler()
-                    .finish_process_with_business_status(
-                        process.clone(),
+                    self.finish_process_with_business_status(
+                        &process,
                         business_status::COMPLETED_BY_PT,
                     )
                     .await
                     .change_context(router_errors::ApiErrorResponse::SubscriptionError {
                         operation: "Invoice_sync process_tracker task retry".to_string(),
+                    })
+                    .attach_printable("Failed to update process tracker status")?;
+                }
+
+                Ok(())
+            }
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
+                Box::pin(self.perform_billing_processor_record_back(
+                    payment_response,
+                    common_enums::AttemptStatus::Failure,
+                    connector_invoice_id,
+                ))
+                .await
+                .attach_printable("Failed to record back to billing processor")?;
+
+                self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
+                    .await
+                    .change_context(router_errors::ApiErrorResponse::SubscriptionError {
+                        operation: "Invoice_sync process_tracker task completion".to_string(),
                     })
                     .attach_printable("Failed to update process tracker status")
             }
@@ -258,7 +299,7 @@ impl ProcessTrackerWorkflow<SessionState> for InvoiceSyncWorkflow {
         )?;
 
         match process.name.as_deref() {
-            Some(IVOICE_SYNC_WORKFLOW) => {
+            Some(INVOICE_SYNC_WORKFLOW) => {
                 Box::pin(perform_subscription_invoice_sync(
                     state,
                     process,
@@ -300,71 +341,12 @@ async fn perform_subscription_invoice_sync(
 
     let payment_status = handler.perform_payments_sync().await?;
 
-    Box::pin(handler.transition_workflow_state(process, payment_status)).await?;
-
-    Ok(())
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-pub async fn perform_billing_processor_record_back(
-    state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    tracking_data: &storage::invoice_sync::InvoiceSyncTrackingData,
-    payment_status: common_enums::AttemptStatus,
-    payment_response: subscription_types::PaymentResponseData,
-    subscription: Subscription,
-    customer: domain::Customer,
-    profile: domain::Profile,
-) -> CustomResult<(), router_errors::ApiErrorResponse> {
-    logger::info!("perform_billing_processor_record_back");
-
-    let billing_handler = billing::BillingHandler::create(
-        state,
-        merchant_account,
-        key_store,
-        customer,
-        profile.clone(),
-    )
-    .await
-    .attach_printable("Failed to create billing handler")?;
-
-    let invoice_handler = invoice_handler::InvoiceHandler::new(
-        subscription.clone(),
-        merchant_account.clone(),
-        profile,
-    );
-
-    // Should we fetch latest invoice or use the one from tracking data?
-    let invoice = invoice_handler
-        .get_latest_invoice(state)
-        .await
-        .attach_printable("Unable to fetch Invoice from DB")?;
-
-    // TODO: Handle retries here on failure
-    billing_handler
-        .record_back_to_billing_processor(
-            state,
-            tracking_data.connector_invoice_id.clone(),
-            payment_response.payment_id.to_owned(),
-            payment_status,
-            payment_response.amount,
-            payment_response.currency,
-            payment_response.payment_method_type,
-        )
-        .await
-        .attach_printable("Failed to record back to billing processor")?;
-
-    invoice_handler
-        .update_invoice(
-            state,
-            invoice.id.to_owned(),
-            None,
-            common_enums::connector_enums::InvoiceStatus::InvoicePaid,
-        )
-        .await
-        .attach_printable("Failed to update invoice in DB")?;
+    Box::pin(handler.transition_workflow_state(
+        process,
+        payment_status,
+        handler.tracking_data.connector_invoice_id.clone(),
+    ))
+    .await?;
 
     Ok(())
 }
@@ -377,9 +359,9 @@ pub async fn create_invoice_sync_job(
 
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         common_utils::generate_id(crate::consts::ID_LENGTH, "proc"),
-        IVOICE_SYNC_WORKFLOW.to_string(),
+        INVOICE_SYNC_WORKFLOW.to_string(),
         common_enums::ProcessTrackerRunner::InvoiceSyncflow,
-        vec![IVOICE_SYNC_WORKFLOW_TAG.to_string()],
+        vec![INVOICE_SYNC_WORKFLOW_TAG.to_string()],
         tracking_data,
         Some(0),
         common_utils::date_time::now(),

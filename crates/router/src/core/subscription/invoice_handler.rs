@@ -218,6 +218,21 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to get latest invoice from database")
     }
 
+    pub async fn get_invoice_by_id(
+        &self,
+        state: &SessionState,
+        invoice_id: common_utils::id_type::InvoiceId,
+    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
+        state
+            .store
+            .find_invoice_by_invoice_id(invoice_id.get_string_repr().to_string())
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Get Invoice by ID".to_string(),
+            })
+            .attach_printable("invoices: unable to get invoice by id from database")
+    }
+
     pub async fn create_invoice_sync_job(
         &self,
         state: &SessionState,
