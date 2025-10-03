@@ -5,7 +5,9 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data_v2::flow_common_types::{GetSubscriptionEstimateData, SubscriptionCreateData, SubscriptionCustomerData},
+    router_data_v2::flow_common_types::{
+        GetSubscriptionEstimateData, SubscriptionCreateData, SubscriptionCustomerData,
+    },
     router_request_types::{subscriptions as subscription_request_types, ConnectorCustomerData},
     router_response_types::{
         subscriptions as subscription_response_types, ConnectorCustomerResponseData,
@@ -15,7 +17,10 @@ use hyperswitch_domain_models::{
 
 use super::errors;
 use crate::{
-    core::{payments as payments_core, subscription::subscription_types}, routes::SessionState, services, types::api as api_types,
+    core::{payments as payments_core, subscription::subscription_types},
+    routes::SessionState,
+    services,
+    types::api as api_types,
 };
 
 pub struct BillingHandler {
