@@ -1616,6 +1616,63 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Data",
+        "operationId": "Submit Eligibility data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligbility submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -12143,6 +12200,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tesouro",
           "tokenex",
           "tokenio",
           "trustpay",
@@ -16163,6 +16221,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -16182,6 +16249,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -19191,6 +19266,15 @@
         "format": "int64",
         "description": "This Unit struct represents MinorUnit in which core amount works"
       },
+      "MitCategory": {
+        "type": "string",
+        "enum": [
+          "installment",
+          "unscheduled",
+          "recurring",
+          "resubmission"
+        ]
+      },
       "MobilePayRedirection": {
         "type": "object"
       },
@@ -19391,7 +19475,8 @@
           "post_session_tokens",
           "confirm",
           "sync",
-          "complete_authorize"
+          "complete_authorize",
+          "await_merchant_callback"
         ]
       },
       "NextActionData": {
@@ -23133,6 +23218,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23618,6 +23711,14 @@
             "type": "boolean",
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24256,6 +24357,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24317,6 +24426,48 @@
           },
           "display_amount": {
             "$ref": "#/components/schemas/DisplayAmountOnSdk"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method_data"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "properties": {
+          "sdk_next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SdkNextAction"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -25037,6 +25188,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25700,6 +25859,14 @@
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
             "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26318,6 +26485,14 @@
             "type": "boolean",
             "description": "Boolean flag indicating whether this payment method is stored and has been previously used for payments",
             "example": true,
+            "nullable": true
+          },
+          "mit_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MitCategory"
+              }
+            ],
             "nullable": true
           }
         }
@@ -30411,6 +30586,7 @@
           "stax",
           "stripe",
           "stripebilling",
+          "tesouro",
           "trustpay",
           "trustpayments",
           "tokenio",

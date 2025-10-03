@@ -133,6 +133,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
         Ok(router_data)

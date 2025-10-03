@@ -1041,6 +1041,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.enable_overcapture,
             &request.capture_method,
         )?;
+        request.validate_mit_request().change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`."
+                        .to_string(),
+            },
+        )?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -1415,7 +1422,8 @@ impl PaymentCreate {
                 connector_request_reference_id: None,
                 network_transaction_id:None,
                 network_details:None,
-                is_stored_credential
+                is_stored_credential,
+                authorized_amount: None,
             },
             additional_pm_data,
 
@@ -1660,6 +1668,7 @@ impl PaymentCreate {
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
             enable_overcapture: request.enable_overcapture,
+            mit_category: request.mit_category,
         })
     }
 

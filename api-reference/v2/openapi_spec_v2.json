@@ -8740,6 +8740,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tesouro",
           "tokenex",
           "tokenio",
           "trustpay",
@@ -12366,6 +12367,15 @@
           }
         }
       },
+      "GooglePayCardFundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "PREPAID",
+          "UNKNOWN"
+        ]
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -12385,6 +12395,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/GooglePayAssuranceDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "card_funding_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayCardFundingSource"
               }
             ],
             "nullable": true
@@ -15307,7 +15325,8 @@
           "post_session_tokens",
           "confirm",
           "sync",
-          "complete_authorize"
+          "complete_authorize",
+          "await_merchant_callback"
         ]
       },
       "NextActionData": {
@@ -24034,6 +24053,7 @@
           "stax",
           "stripe",
           "stripebilling",
+          "tesouro",
           "trustpay",
           "trustpayments",
           "tokenio",
