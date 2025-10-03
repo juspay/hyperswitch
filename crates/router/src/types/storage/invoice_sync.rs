@@ -101,3 +101,13 @@ impl From<common_enums::IntentStatus> for InvoiceSyncPaymentStatus {
         }
     }
 }
+
+impl From<InvoiceSyncPaymentStatus> for common_enums::connector_enums::InvoiceStatus {
+    fn from(value: InvoiceSyncPaymentStatus) -> Self {
+        match value {
+            InvoiceSyncPaymentStatus::PaymentSucceeded => Self::InvoicePaid,
+            InvoiceSyncPaymentStatus::PaymentProcessing => Self::PaymentPending,
+            InvoiceSyncPaymentStatus::PaymentFailed => Self::PaymentFailed,
+        }
+    }
+}

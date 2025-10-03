@@ -163,6 +163,7 @@ impl<'a> InvoiceSyncHandler<'a> {
         payment_response: subscription_types::PaymentResponseData,
         payment_status: common_enums::AttemptStatus,
         connector_invoice_id: String,
+        invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         logger::info!("perform_billing_processor_record_back");
 
@@ -201,7 +202,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 self.state,
                 self.invoice.id.to_owned(),
                 None,
-                common_enums::connector_enums::InvoiceStatus::InvoicePaid,
+                common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
             )
             .await
             .attach_printable("Failed to update invoice in DB")?;
@@ -223,6 +224,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     payment_response,
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
+                    invoice_sync_status,
                 ))
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
@@ -268,6 +270,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                     payment_response,
                     common_enums::AttemptStatus::Failure,
                     connector_invoice_id,
+                    invoice_sync_status,
                 ))
                 .await
                 .attach_printable("Failed to record back to billing processor")?;
