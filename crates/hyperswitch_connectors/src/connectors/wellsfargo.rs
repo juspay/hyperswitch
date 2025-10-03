@@ -67,7 +67,10 @@ use url::Url;
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
+    utils::{
+        self, convert_amount, get_authorise_integrity_object, PaymentMethodDataType,
+        RefundsRequestData,
+    },
 };
 #[derive(Clone)]
 pub struct Wellsfargo {
@@ -856,11 +859,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Wellsfargo PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
+
+        let response_integrity_object = get_authorise_integrity_object(
+            self.amount_converter,
+            response.order_information.amount_details.authorized_amount,
+            response.order_information.amount_details.currency,
+        );
+
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 

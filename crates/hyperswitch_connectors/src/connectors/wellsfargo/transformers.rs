@@ -517,9 +517,23 @@ pub struct OrderInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct OrderInformationAuthorize {
+    pub amount_details: AuthorizedAmountDetails,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Amount {
     total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedAmountDetails {
+    pub total_amount: StringMajorUnit,
+    pub authorized_amount: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -1676,6 +1690,7 @@ pub struct WellsfargoPaymentsResponse {
     risk_information: Option<ClientRiskInformation>,
     token_information: Option<WellsfargoTokenInformation>,
     error_information: Option<WellsfargoErrorInformation>,
+    pub order_information: OrderInformationAuthorize,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
