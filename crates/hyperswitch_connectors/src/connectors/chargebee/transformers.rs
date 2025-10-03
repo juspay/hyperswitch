@@ -1169,6 +1169,7 @@ impl
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeSubscriptionEstimateRequest {
+    #[serde(rename = "subscription_items[item_price_id][0]")]
     pub price_id: String,
 }
 
@@ -1301,8 +1302,8 @@ pub struct SubscriptionEstimate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvoiceEstimate {
     pub recurring: bool,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date: Option<PrimitiveDateTime>,
     pub price_type: String,
     pub sub_total: MinorUnit,
     pub total: MinorUnit,
@@ -1320,10 +1321,10 @@ pub struct InvoiceEstimate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineItem {
     pub id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date_from: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date_to: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_from: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_to: Option<PrimitiveDateTime>,
     pub unit_amount: MinorUnit,
     pub quantity: i64,
     pub amount: MinorUnit,

@@ -1187,6 +1187,7 @@ impl Subscription {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {
@@ -1198,7 +1199,6 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
-            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
     }
 }
 
