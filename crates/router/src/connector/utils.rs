@@ -238,7 +238,7 @@ where
                 }) && payment_data
                     .payment_intent
                     .enable_partial_authorization
-                    .is_some_and(|val| val)
+                    .is_some_and(|val| val.is_true())
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
                 } else if capturable_amount.is_some_and(|capturable_amount| {
@@ -246,7 +246,7 @@ where
                 }) && !payment_data
                     .payment_intent
                     .enable_partial_authorization
-                    .is_some_and(|val| val)
+                    .is_some_and(|val| val.is_true())
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is less than the total attempt amount"

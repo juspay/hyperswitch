@@ -1,4 +1,5 @@
 pub use bool_wrappers::*;
+pub use safe_string::*;
 pub use u32_wrappers::*;
 mod bool_wrappers {
     use std::ops::Deref;
@@ -83,6 +84,53 @@ mod bool_wrappers {
     }
     impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
         for RequestExtendedAuthorizationBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
+        }
+    }
+
+    /// Bool that represents if Enable Partial Authorization is Requested or not
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct EnablePartialAuthorizationBool(bool);
+    impl Deref for EnablePartialAuthorizationBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+    impl From<bool> for EnablePartialAuthorizationBool {
+        fn from(value: bool) -> Self {
+            Self(value)
+        }
+    }
+    impl EnablePartialAuthorizationBool {
+        /// returns the inner bool value
+        pub fn is_true(&self) -> bool {
+            self.0
+        }
+    }
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for EnablePartialAuthorizationBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+        for EnablePartialAuthorizationBool
     where
         DB: diesel::backend::Backend,
         bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
@@ -383,6 +431,109 @@ mod u32_wrappers {
         /// Default for `DisputePollingIntervalInHours` is `24`
         fn default() -> Self {
             Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
+        }
+    }
+}
+
+/// Safe string wrapper that validates input against XSS attacks
+mod safe_string {
+    use std::ops::Deref;
+
+    use common_utils::validation::contains_potential_xss_or_sqli;
+    use masking::SerializableSecret;
+    use serde::{de::Error, Deserialize, Serialize};
+
+    /// String wrapper that prevents XSS and SQLi attacks
+    #[derive(Clone, Debug, Eq, PartialEq, Default)]
+    pub struct SafeString(String);
+
+    impl SafeString {
+        /// Creates a new SafeString after XSS and SQL injection validation
+        pub fn new(value: String) -> Result<Self, String> {
+            if contains_potential_xss_or_sqli(&value) {
+                return Err("Input contains potentially malicious content".into());
+            }
+            Ok(Self(value))
+        }
+
+        /// Creates a SafeString from a string slice
+        pub fn from_string_slice(value: &str) -> Result<Self, String> {
+            Self::new(value.to_string())
+        }
+
+        /// Returns the inner string as a string slice
+        pub fn as_str(&self) -> &str {
+            &self.0
+        }
+
+        /// Consumes self and returns the inner String
+        pub fn into_inner(self) -> String {
+            self.0
+        }
+
+        /// Returns true if the string is empty
+        pub fn is_empty(&self) -> bool {
+            self.0.is_empty()
+        }
+
+        /// Returns the length of the string
+        pub fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+
+    impl Deref for SafeString {
+        type Target = String;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    // Custom serialization and deserialization
+    impl Serialize for SafeString {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.0.serialize(serializer)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for SafeString {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let value = String::deserialize(deserializer)?;
+            Self::new(value).map_err(D::Error::custom)
+        }
+    }
+
+    // Implement SerializableSecret for SafeString to work with Secret<SafeString>
+    impl SerializableSecret for SafeString {}
+
+    // Diesel implementations for database operations
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for SafeString
+    where
+        DB: diesel::backend::Backend,
+        String: diesel::serialize::ToSql<diesel::sql_types::Text, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for SafeString
+    where
+        DB: diesel::backend::Backend,
+        String: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            String::from_sql(value).map(Self)
         }
     }
 }

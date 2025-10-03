@@ -547,6 +547,7 @@ where
                     .network_transaction_id
                     .clone(),
                 is_overcapture_enabled: None,
+                authorized_amount: router_data.authorized_amount,
             };
 
             #[cfg(feature = "v1")]
@@ -748,6 +749,8 @@ pub fn make_new_payment_attempt(
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
         network_details: Default::default(),
+        is_stored_credential: old_payment_attempt.is_stored_credential,
+        authorized_amount: old_payment_attempt.authorized_amount,
     }
 }
 

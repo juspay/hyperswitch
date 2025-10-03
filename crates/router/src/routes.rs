@@ -50,6 +50,8 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_redis;
 #[cfg(feature = "olap")]
 pub mod routing;
 #[cfg(feature = "v1")]

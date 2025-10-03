@@ -227,6 +227,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
                 }
+                enums::Connector::Loonio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Loonio::new())))
+                }
                 enums::Connector::Mollie => {
                     // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
@@ -356,6 +359,9 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tesouro => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tesouro::new())))
+                }
                 enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))

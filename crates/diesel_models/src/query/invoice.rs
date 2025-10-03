@@ -38,4 +38,32 @@ impl Invoice {
         >(conn, dsl::id.eq(id.to_owned()), invoice_update)
         .await
     }
+
+    pub async fn list_invoices_by_subscription_id(
+        conn: &PgPooledConn,
+        subscription_id: String,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        order_by_ascending_order: bool,
+    ) -> StorageResult<Vec<Self>> {
+        if order_by_ascending_order {
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+                conn,
+                dsl::subscription_id.eq(subscription_id.to_owned()),
+                limit,
+                offset,
+                Some(dsl::created_at.asc()),
+            )
+            .await
+        } else {
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+                conn,
+                dsl::subscription_id.eq(subscription_id.to_owned()),
+                limit,
+                offset,
+                Some(dsl::created_at.desc()),
+            )
+            .await
+        }
+    }
 }

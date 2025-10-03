@@ -1083,6 +1083,8 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         is_overcapture_enabled -> Nullable<Bool>,
         network_details -> Nullable<Jsonb>,
+        is_stored_credential -> Nullable<Bool>,
+        authorized_amount -> Nullable<Int8>,
     }
 }
 
@@ -1187,6 +1189,8 @@ diesel::table! {
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        mit_category -> Nullable<Varchar>,
     }
 }
 

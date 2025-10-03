@@ -11,9 +11,19 @@ pub struct SubscriptionCreateResponse {
     pub total_amount: MinorUnit,
     pub next_billing_at: Option<PrimitiveDateTime>,
     pub created_at: Option<PrimitiveDateTime>,
+    pub invoice_details: Option<SubscriptionInvoiceData>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SubscriptionInvoiceData {
+    pub id: String,
+    pub total: MinorUnit,
+    pub currency_code: Currency,
+    pub status: Option<common_enums::connector_enums::InvoiceStatus>,
+    pub billing_address: Option<api_models::payments::Address>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum SubscriptionStatus {
     Pending,
     Trial,
@@ -23,6 +33,22 @@ pub enum SubscriptionStatus {
     Onetime,
     Cancelled,
     Failed,
+}
+
+#[cfg(feature = "v1")]
+impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
+    fn from(status: SubscriptionStatus) -> Self {
+        match status {
+            SubscriptionStatus::Pending => Self::Pending,
+            SubscriptionStatus::Trial => Self::Trial,
+            SubscriptionStatus::Active => Self::Active,
+            SubscriptionStatus::Paused => Self::Paused,
+            SubscriptionStatus::Unpaid => Self::Unpaid,
+            SubscriptionStatus::Onetime => Self::Onetime,
+            SubscriptionStatus::Cancelled => Self::Cancelled,
+            SubscriptionStatus::Failed => Self::Failed,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

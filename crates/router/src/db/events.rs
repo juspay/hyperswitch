@@ -1399,6 +1399,7 @@ mod tests {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            mit_category: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,
@@ -1411,6 +1412,8 @@ mod tests {
             is_overcapture_enabled: None,
             enable_overcapture: None,
             network_details: None,
+            is_stored_credential: None,
+            request_extended_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

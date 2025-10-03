@@ -12,7 +12,9 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             AttemptStatus::Authorized
             | AttemptStatus::Charged
             | AttemptStatus::AutoRefunded
-            | AttemptStatus::PartiallyAuthorized => Self::Succeeded,
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Self::Succeeded,
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -32,8 +34,6 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             AttemptStatus::Voided
             | AttemptStatus::VoidedPostCharge
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
@@ -57,6 +57,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             next_billing_at: None,
             billing_started_at: data.billing_started_at,
             metadata: data.metadata,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }

@@ -1,7 +1,7 @@
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use std::str::FromStr;
 
-use common_enums::enums;
+use common_enums::{connector_enums, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
@@ -29,8 +29,8 @@ use hyperswitch_domain_models::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionLineItem,
-            SubscriptionStatus,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse, SubscriptionInvoiceData,
+            SubscriptionLineItem, SubscriptionStatus,
         },
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
@@ -120,6 +120,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeSubscriptionCreateResponse {
     pub subscription: ChargebeeSubscriptionDetails,
+    pub invoice: Option<ChargebeeInvoiceData>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -192,6 +193,7 @@ impl
                 total_amount: subscription.total_dues.unwrap_or(MinorUnit::new(0)),
                 next_billing_at: subscription.next_billing_at,
                 created_at: subscription.created_at,
+                invoice_details: item.response.invoice.map(SubscriptionInvoiceData::from),
             }),
             ..item.data
         })
@@ -461,17 +463,18 @@ pub enum ChargebeeEventType {
     InvoiceDeleted,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
     pub id: String,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
+    pub status: Option<ChargebeeInvoiceStatus>,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoicePayments {
     pub txn_status: Option<String>,
 }
@@ -539,7 +542,7 @@ pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceBillingAddress {
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
@@ -782,11 +785,12 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
             metadata: None,
+            // TODO! This field should be handled for billing connnector integrations
+            enable_partial_authorization: None,
         })
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     fn from(item: ChargebeeInvoiceData) -> Self {
         Self {
@@ -799,7 +803,6 @@ impl From<ChargebeeInvoiceData> for api_models::payments::Address {
     }
 }
 
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
     fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
         Self {
@@ -1039,7 +1042,20 @@ pub struct ChargebeeCustomerCreateRequest {
     #[serde(rename = "first_name")]
     pub name: Option<Secret<String>>,
     pub email: Option<Email>,
-    pub billing_address: Option<api_models::payments::AddressDetails>,
+    #[serde(rename = "billing_address[first_name]")]
+    pub billing_address_first_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[last_name]")]
+    pub billing_address_last_name: Option<Secret<String>>,
+    #[serde(rename = "billing_address[line1]")]
+    pub billing_address_line1: Option<Secret<String>>,
+    #[serde(rename = "billing_address[city]")]
+    pub billing_address_city: Option<String>,
+    #[serde(rename = "billing_address[state]")]
+    pub billing_address_state: Option<Secret<String>>,
+    #[serde(rename = "billing_address[zip]")]
+    pub billing_address_zip: Option<Secret<String>>,
+    #[serde(rename = "billing_address[country]")]
+    pub billing_address_country: Option<String>,
 }
 
 impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCustomerRouterData>>
@@ -1062,7 +1078,34 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .clone(),
             name: req.name.clone(),
             email: req.email.clone(),
-            billing_address: req.billing_address.clone(),
+            billing_address_first_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.first_name.clone()),
+            billing_address_last_name: req
+                .billing_address
+                .as_ref()
+                .and_then(|address| address.last_name.clone()),
+            billing_address_line1: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.line1.clone()),
+            billing_address_city: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.city.clone()),
+            billing_address_country: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.country.map(|country| country.to_string())),
+            billing_address_state: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.state.clone()),
+            billing_address_zip: req
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.zip.clone()),
         })
     }
 }
@@ -1294,4 +1337,41 @@ pub struct LineItem {
     pub entity_id: String,
     pub discount_amount: MinorUnit,
     pub item_level_discount_amount: MinorUnit,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeInvoiceStatus {
+    Paid,
+    Posted,
+    PaymentDue,
+    NotPaid,
+    Voided,
+    #[serde(other)]
+    Pending,
+}
+
+impl From<ChargebeeInvoiceData> for SubscriptionInvoiceData {
+    fn from(item: ChargebeeInvoiceData) -> Self {
+        Self {
+            billing_address: Some(api_models::payments::Address::from(item.clone())),
+            id: item.id,
+            total: item.total,
+            currency_code: item.currency_code,
+            status: item.status.map(connector_enums::InvoiceStatus::from),
+        }
+    }
+}
+
+impl From<ChargebeeInvoiceStatus> for connector_enums::InvoiceStatus {
+    fn from(status: ChargebeeInvoiceStatus) -> Self {
+        match status {
+            ChargebeeInvoiceStatus::Paid => Self::InvoicePaid,
+            ChargebeeInvoiceStatus::Posted => Self::PaymentPendingTimeout,
+            ChargebeeInvoiceStatus::PaymentDue => Self::PaymentPending,
+            ChargebeeInvoiceStatus::NotPaid => Self::PaymentFailed,
+            ChargebeeInvoiceStatus::Voided => Self::Voided,
+            ChargebeeInvoiceStatus::Pending => Self::InvoiceCreated,
+        }
+    }
 }

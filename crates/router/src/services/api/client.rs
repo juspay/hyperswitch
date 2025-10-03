@@ -24,10 +24,7 @@ pub trait RequestBuilder: Send + Sync {
     fn send(
         self,
     ) -> CustomResult<
-        Box<
-            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
-                 + 'static),
-        >,
+        Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>> + 'static>,
         ApiClientError,
     >;
 }
@@ -154,10 +151,7 @@ impl RequestBuilder for RouterRequestBuilder {
     fn send(
         self,
     ) -> CustomResult<
-        Box<
-            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
-                 + 'static),
-        >,
+        Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>> + 'static>,
         ApiClientError,
     > {
         Ok(Box::new(

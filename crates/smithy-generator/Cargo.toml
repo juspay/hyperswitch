@@ -1,0 +1,26 @@
+[package]
+name = "smithy-generator"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[features]
+default = ["v1"]
+v1 = ["api_models/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "common_utils/v2"]
+
+[dependencies]
+smithy-core = { path = "../smithy-core" }
+api_models = { version = "0.1.0", path = "../api_models" }
+common_enums = { version = "0.1.0", path = "../common_enums" }
+common_types = { version = "0.1.0", path = "../common_types" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+router_env = { version = "0.1.0", path = "../router_env" }
+
+[build-dependencies]
+regex = "1"
+
+[lints]
+workspace = true

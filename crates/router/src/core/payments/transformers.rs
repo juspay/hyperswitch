@@ -188,6 +188,7 @@ where
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -434,9 +435,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_testing_data: None,
         order_id: None,
         locale: None,
+        mit_category: None,
         payment_channel: None,
-        enable_partial_authorization: None,
+        enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -481,8 +484,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-        amount_captured: None,
-        minor_amount_captured: None,
+        amount_captured: payment_data
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -519,6 +525,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -864,6 +871,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -996,6 +1004,7 @@ pub async fn construct_router_data_for_psync<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1356,6 +1365,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1500,6 +1510,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payment_channel: None,
         enrolled_for_3ds: true,
         related_transaction_id: None,
+        is_stored_credential: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1582,6 +1593,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1860,6 +1872,7 @@ where
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -2057,6 +2070,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -2487,6 +2501,7 @@ where
                 request_external_three_ds_authentication: payment_intent
                     .request_external_three_ds_authentication,
                 payment_type,
+                enable_partial_authorization: payment_intent.enable_partial_authorization,
             },
             vec![],
         )))
@@ -3661,6 +3676,7 @@ where
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
             connector_mandate_id,
+            mit_category: payment_intent.mit_category,
             shipping_cost: payment_intent.shipping_cost,
             capture_before: payment_attempt.capture_before,
             extended_authorization_applied: payment_attempt.extended_authorization_applied,
@@ -3678,6 +3694,8 @@ where
             network_details: payment_attempt
                 .network_details
                 .map(NetworkDetails::foreign_from),
+            is_stored_credential: payment_attempt.is_stored_credential,
+            request_extended_authorization: payment_attempt.request_extended_authorization,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -3966,6 +3984,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector_mandate_id:None,
             shipping_cost: None,
             card_discovery: pa.card_discovery,
+            mit_category: pi.mit_category,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
             whole_connector_response: None,
@@ -3978,6 +3997,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
             network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            is_stored_credential:pa.is_stored_credential,
+            request_extended_authorization: pa.request_extended_authorization,
         }
     }
 }
@@ -4306,10 +4327,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_config_currency: None,
             connector_testing_data: None,
             order_id: None,
+            mit_category: None,
             locale: None,
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
         })
     }
 }
@@ -4539,11 +4562,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             merchant_account_id,
             merchant_config_currency,
             connector_testing_data,
+            mit_category: payment_data.payment_intent.mit_category,
             order_id: None,
             locale: Some(additional_data.state.locale.clone()),
             payment_channel: payment_data.payment_intent.payment_channel,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5523,6 +5548,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_channel: payment_data.payment_intent.payment_channel,
             related_transaction_id: None,
             enrolled_for_3ds: true,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5666,6 +5692,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             merchant_account_id,
             merchant_config_currency,
             threeds_method_comp_ind: payment_data.threeds_method_comp_ind,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }
@@ -5776,6 +5803,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
             customer_acceptance: payment_data.customer_acceptance,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
         })
     }
 }

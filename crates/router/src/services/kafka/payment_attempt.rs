@@ -281,6 +281,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             created_by,
             connector_request_reference_id,
             network_transaction_id: _,
+            authorized_amount: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id

@@ -12,6 +12,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
+    payment_methods::storage_enums::MitCategory,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, PaymentMethodToken, RouterData,
@@ -231,6 +232,19 @@ pub enum PaymentSource {
     Wallets(WalletSource),
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
+    GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayPredecrypt {
+    #[serde(rename = "type")]
+    _type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: String,
+    cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,6 +274,8 @@ pub enum CheckoutPaymentType {
     Unscheduled,
     #[serde(rename = "MOTO")]
     Moto,
+    Installment,
+    Recurring,
 }
 
 pub struct CheckoutAuthType {
@@ -344,6 +360,13 @@ pub struct PaymentsRequest {
     pub processing: Option<CheckoutProcessing>,
     pub shipping: Option<CheckoutShipping>,
     pub items: Option<Vec<CheckoutLineItem>>,
+    pub partial_authorization: Option<CheckoutPartialAuthorization>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+pub struct CheckoutPartialAuthorization {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -453,25 +476,47 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => {
-                    let p_source = PaymentSource::Wallets(WalletSource {
-                        source_type: CheckoutSourceTypes::Token,
-                        token: match item.router_data.get_payment_method_token()? {
-                            PaymentMethodToken::Token(token) => token,
-                            PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!(
-                                    "Apple Pay",
-                                    "Simplified",
-                                    "Checkout"
-                                ))?
-                            }
-                            PaymentMethodToken::PazeDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Paze", "Checkout"))?
-                            }
-                            PaymentMethodToken::GooglePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Google Pay", "Checkout"))?
-                            }
-                        },
-                    });
+                    let p_source = match item.router_data.get_payment_method_token()? {
+                        PaymentMethodToken::Token(token) => PaymentSource::Wallets(WalletSource {
+                            source_type: CheckoutSourceTypes::Token,
+                            token,
+                        }),
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
+                        )?,
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(google_pay_decrypted_data) => {
+                            let token = google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone();
+
+                            let expiry_month = google_pay_decrypted_data
+                                .get_expiry_month()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_month",
+                                })?;
+
+                            let expiry_year = google_pay_decrypted_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::InvalidDataFormat {
+                                    field_name: "payment_method_data.card.card_exp_year",
+                                })?;
+
+                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
+
+                            PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
+                                _type: "network_token".to_string(),
+                                token,
+                                token_type: "googlepay".to_string(),
+                                expiry_month,
+                                expiry_year,
+                                eci: "06".to_string(),
+                                cryptogram,
+                            }))
+                        }
+                    };
                     Ok((
                         p_source,
                         None,
@@ -543,7 +588,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                let p_type = CheckoutPaymentType::Unscheduled;
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
@@ -563,8 +613,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = CheckoutPaymentType::Unscheduled;
-
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -663,6 +717,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 (None, None, None, None)
             };
 
+        let partial_authorization = item.router_data.request.enable_partial_authorization.map(
+            |enable_partial_authorization| CheckoutPartialAuthorization {
+                enabled: *enable_partial_authorization,
+            },
+        );
+
         let request = Self {
             source: source_var,
             amount: item.amount.to_owned(),
@@ -681,6 +741,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             processing,
             shipping,
             items,
+            partial_authorization,
         };
 
         Ok(request)
@@ -977,10 +1038,28 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             incremental_authorization_allowed: None,
             charges: None,
         };
+
+        let (amount_captured, minor_amount_capturable) = match item.data.request.capture_method {
+            Some(enums::CaptureMethod::Manual) | Some(enums::CaptureMethod::ManualMultiple) => {
+                (None, item.response.amount)
+            }
+            _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+        };
+
+        let authorized_amount = item
+            .data
+            .request
+            .enable_partial_authorization
+            .filter(|flag| flag.is_true())
+            .and(item.response.amount);
+
         Ok(Self {
             status,
             response: Ok(payments_response_data),
             connector_response: additional_information,
+            authorized_amount,
+            amount_captured,
+            minor_amount_capturable,
             ..item.data
         })
     }
