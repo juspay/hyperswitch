@@ -241,6 +241,8 @@ impl PaymentAttemptInterface for MockDb {
             network_transaction_id: payment_attempt.network_transaction_id,
             is_overcapture_enabled: None,
             network_details: payment_attempt.network_details,
+            is_stored_credential: payment_attempt.is_stored_credential,
+            authorized_amount: payment_attempt.authorized_amount,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
