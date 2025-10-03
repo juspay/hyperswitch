@@ -4,7 +4,8 @@ use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 use utoipa::ToSchema;
-
+use common_utils::events::ApiEventMetric;
+impl ApiEventMetric for CreateUserAuthenticationMethodResponse {}
 use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -352,17 +353,18 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub allow_signup: bool,
     pub email_domain: Option<String>,
 }
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateUserAuthenticationMethodResponse {
     pub id: String,
     pub auth_id: String,
     pub owner_id: String,
     pub owner_type: common_enums::Owner,
-    pub auth_type: String,
+    pub auth_type: common_enums::UserAuthType,
     pub email_domain: Option<String>,
     pub allow_signup: bool,
 }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UpdateUserAuthenticationMethodRequest {
