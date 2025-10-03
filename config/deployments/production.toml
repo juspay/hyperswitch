@@ -926,14 +926,3 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 [grpc_client.unified_connector_service]
 ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
-<<<<<<< HEAD
-
-# Authentication to communicate between internal services using common_api_key, merchant id and profile id
-[internal_merchant_id_profile_id_auth]
-enabled = false # Enable or disable internal api key, merchant id and profile id based authentication
-internal_api_key = "test_internal_api_key" # API key for internal merchant id and profile id based authentication
-
-[internal_services] # Internal services base urls and configs
-payments_base_url = "http://localhost:8080"
-=======
->>>>>>> c611b8145596e61d0f1aad8ec9a0f7f2f83b4ae6
