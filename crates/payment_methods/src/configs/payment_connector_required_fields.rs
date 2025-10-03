@@ -1745,7 +1745,7 @@ fn get_bank_redirect_required_fields(
                     },
                 ),
                 (
-                Connector::Trustpayments,
+                    Connector::Trustpayments,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::from([
@@ -1762,7 +1762,8 @@ fn get_bank_redirect_required_fields(
                             RequiredField::BillingAddressCountries(vec![
                                 "DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT",
                                 "SE", "SK",
-                            ]).to_tuple(),
+                            ])
+                            .to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },
