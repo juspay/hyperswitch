@@ -51,7 +51,7 @@ rsa = {version = "0.9.8", features = ["sha2"]}
 rust_decimal = "1.37"
 rustc-hash = "1.1.0"
 semver = { version = "1.0.26", features = ["serde"] }
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 serde_urlencoded = "0.7.1"
 signal-hook = { version = "0.3.18", optional = true }
