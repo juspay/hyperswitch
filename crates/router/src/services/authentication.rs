@@ -57,6 +57,18 @@ pub mod decision;
 #[cfg(feature = "partial-auth")]
 mod detached;
 
+// Helper function to check if a merchant is soft-deleted
+fn is_merchant_soft_deleted(merchant: &domain::MerchantAccount) -> bool {
+    if let Some(metadata) = &merchant.metadata {
+        let metadata_value = metadata.peek();
+        return metadata_value
+            .get("deleted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+    }
+    false
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
@@ -485,6 +497,12 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
@@ -936,6 +954,12 @@ impl PlatformOrgAdminAuthWithMerchantIdFromRoute {
             .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         Ok((key_store, merchant))
     }
@@ -1543,6 +1567,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let auth = AuthenticationData {
             merchant_account: merchant,
             platform_merchant_account: None,
@@ -1606,6 +1636,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
@@ -1658,6 +1694,12 @@ where
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         let auth = AuthenticationDataWithoutProfile {
             merchant_account: merchant,
@@ -1803,6 +1845,12 @@ impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
             .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         Ok((key_store, merchant))
     }
@@ -2046,6 +2094,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let auth = AuthenticationData {
             merchant_account: merchant,
             platform_merchant_account: None,
@@ -2110,6 +2164,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
@@ -2162,6 +2222,12 @@ where
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         let auth = AuthenticationDataWithoutProfile {
             merchant_account: merchant,
@@ -2303,6 +2369,12 @@ where
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -2507,6 +2579,12 @@ where
                 }
             })?;
 
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant_account) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let profile = state
             .store()
             .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
@@ -2613,6 +2691,12 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
         let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
@@ -2751,6 +2835,13 @@ where
             .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant_account) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let merchant_id = merchant_account.get_id().clone();
 
         if db_client_secret.merchant_id != merchant_id {
@@ -2845,23 +2936,28 @@ where
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let key_manager_state = &(&state.session_state()).into();
-        state
+        let (merchant_account, key_store) = state
             .store()
             .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
-            .map(|(merchant_account, key_store)| {
-                let merchant_id = merchant_account.get_id().clone();
-                (
-                    AuthenticationData {
-                        merchant_account,
-                        platform_merchant_account: None,
-                        key_store,
-                        profile_id: None,
-                    },
-                    AuthenticationType::PublishableKey { merchant_id },
-                )
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant_account) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
+        let merchant_id = merchant_account.get_id().clone();
+        Ok((
+            AuthenticationData {
+                merchant_account,
+                platform_merchant_account: None,
+                key_store,
+                profile_id: None,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
     }
 }
 
@@ -2888,6 +2984,13 @@ where
             .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant_account) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
+
         let merchant_id = merchant_account.get_id().clone();
         let profile = state
             .store()
@@ -3033,6 +3136,12 @@ where
             )
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+        // Check if merchant is soft-deleted
+        if is_merchant_soft_deleted(&merchant) {
+            return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+                .attach_printable("Merchant account has been deleted");
+        }
 
         Ok((
             AuthenticationDataWithMultipleProfiles {
