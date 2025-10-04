@@ -2496,13 +2496,13 @@ pub async fn create_user_authentication_method(
     .attach_printable("Failed to decode DEK")?;
 
 
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4().to_string().clone();
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &state,
         &req.auth_method,
         &user_auth_encryption_key,
-        id,
+        id.clone(),
     )
     .await?;
 
@@ -2537,9 +2537,6 @@ pub async fn create_user_authentication_method(
         (uuid::Uuid::new_v4().to_string(), email_domain.clone())
     };
 
-    let auth_id_for_response = auth_id.clone();
-    let email_domain_for_response = email_domain.clone();
-
     for db_auth_method in auth_methods {
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
         let is_extra_identifier_same = match &req.auth_method {
@@ -2573,13 +2570,12 @@ pub async fn create_user_authentication_method(
             auth_id: auth_id.clone(),
             owner_id: req.owner_id.clone(),
             owner_type: req.owner_type,
-            auth_type: auth_type,
+            auth_type,
             private_config,
             public_config,
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
-            email_domain: email_domain.clone(),
             email_domain: email_domain.clone(),
         })
         .await
@@ -2587,12 +2583,12 @@ pub async fn create_user_authentication_method(
 
     let response:user_api::CreateUserAuthenticationMethodResponse =
         user_api::CreateUserAuthenticationMethodResponse {
-            id: id.clone(),
-            auth_id: auth_id.clone(),
+            id,
+            auth_id,
             owner_id: req.owner_id,
             owner_type: req.owner_type,
-            auth_type:auth_type,
-            email_domain: Some(email_domain.clone()),
+            auth_type,
+            email_domain: Some(email_domain),
             allow_signup: req.allow_signup,
         };
 

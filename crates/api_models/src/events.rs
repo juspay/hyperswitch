@@ -43,7 +43,7 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
-    user::{UserKeyTransferRequest, UserTransferKeyResponse},
+    user::{UserKeyTransferRequest, UserTransferKeyResponse, CreateUserAuthenticationMethodResponse},
     verifications::*,
 };
 
@@ -218,6 +218,8 @@ impl ApiEventMetric for DisputeListFilters {
         Some(ApiEventsType::ResourceListAPI)
     }
 }
+
+impl ApiEventMetric for CreateUserAuthenticationMethodResponse {}
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodSessionRequest {}
