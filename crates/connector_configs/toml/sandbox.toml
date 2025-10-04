@@ -6785,15 +6785,27 @@ key1 = "API Secret"
 
 [trustpayments]
 [[trustpayments.credit]]
-payment_method_type = "Mastercard"
+  payment_method_type = "Mastercard"
 [[trustpayments.credit]]
-payment_method_type = "Visa"
+  payment_method_type = "Visa"
 [[trustpayments.debit]]
-payment_method_type = "Mastercard"
+  payment_method_type = "Mastercard"
 [[trustpayments.debit]]
-payment_method_type = "Visa"
-[trustpayments.connector_auth.HeaderKey]
+  payment_method_type = "Visa"
+[[trustpayments.bank_redirect]]
+  payment_method_type = "eps"
+[[trustpayments.bank_redirect]]
+  payment_method_type = "trustly"
+[[trustpayments.wallet]]
+  payment_method_type = "ali_pay"
+[[trustpayments.wallet]]
+  payment_method_type = "paysera"
+[trustpayments.connector_auth.SignatureKey]
 api_key = "API Key"
+key1 = "Password"
+api_secret = "API Secret"
+[trustpayments.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [breadpay]
 [breadpay.connector_auth.BodyKey]
