@@ -400,10 +400,14 @@ pub struct RevolutPayData {}
 pub struct GooglePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct GooglePayThirdPartySdkData {}
+pub struct GooglePayThirdPartySdkData {
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct ApplePayThirdPartySdkData {}
+pub struct ApplePayThirdPartySdkData {
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WeChatPayRedirection {}
@@ -1191,8 +1195,10 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::ApplePayRedirect(_) => {
                 Self::ApplePayRedirect(Box::new(ApplePayRedirectData {}))
             }
-            api_models::payments::WalletData::ApplePayThirdPartySdk(_) => {
-                Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {}))
+            api_models::payments::WalletData::ApplePayThirdPartySdk(apple_pay_sdk_data) => {
+                Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {
+                    token: apple_pay_sdk_data.token,
+                }))
             }
             api_models::payments::WalletData::DanaRedirect {} => Self::DanaRedirect {},
             api_models::payments::WalletData::GooglePay(google_pay_data) => {
@@ -1201,8 +1207,10 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GooglePayRedirect(_) => {
                 Self::GooglePayRedirect(Box::new(GooglePayRedirectData {}))
             }
-            api_models::payments::WalletData::GooglePayThirdPartySdk(_) => {
-                Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {}))
+            api_models::payments::WalletData::GooglePayThirdPartySdk(google_pay_sdk_data) => {
+                Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {
+                    token: google_pay_sdk_data.token,
+                }))
             }
             api_models::payments::WalletData::MbWayRedirect(..) => {
                 Self::MbWayRedirect(Box::new(MbWayRedirection {}))

@@ -41,7 +41,10 @@ use hyperswitch_domain_models::{
     },
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
+use hyperswitch_interfaces::{
+    api::ConnectorSpecifications,
+    integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
+};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -4511,6 +4514,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         description: router_data.description,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
+        payment_method_type: router_data.payment_method_type,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
@@ -6868,6 +6872,62 @@ pub fn get_recipient_id_for_open_banking(
                 config: "recipient_id".to_string(),
             }),
         },
+    }
+}
+
+pub fn get_connector_data_with_token(
+    state: &SessionState,
+    connector_name: String,
+    merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
+    payment_method_type: api_models::enums::PaymentMethodType,
+) -> RouterResult<api::ConnectorData> {
+    let connector_data_result = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name.to_string(),
+        // Default value, will be replaced by the result of decide_session_token_flow
+        api::GetToken::Connector,
+        merchant_connector_account_id.clone(),
+    );
+    let connector_type = decide_session_token_flow(
+        &connector_data_result?.connector,
+        payment_method_type,
+        connector_name.clone(),
+    );
+
+    logger::debug!(session_token_flow=?connector_type, "Session token flow decided for payment method type: {:?}", payment_method_type);
+
+    api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name.to_string(),
+        connector_type,
+        merchant_connector_account_id,
+    )
+    .inspect_err(|err| {
+        logger::error!(session_token_error=?err);
+    })
+}
+
+/// Decides the session token flow based on payment method type
+pub fn decide_session_token_flow(
+    connector: &hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
+    payment_method_type: api_models::enums::PaymentMethodType,
+    connector_name: String,
+) -> api::GetToken {
+    if connector.validate_sdk_session_token_for_payment_method(&payment_method_type) {
+        logger::debug!(
+            "SDK session token validation succeeded for payment_method_type {:?} in connector {} , proceeding with Connector token flow",
+            payment_method_type, connector_name
+        );
+        return api::GetToken::Connector;
+    }
+
+    match payment_method_type {
+        api_models::enums::PaymentMethodType::ApplePay => api::GetToken::ApplePayMetadata,
+        api_models::enums::PaymentMethodType::GooglePay => api::GetToken::GpayMetadata,
+        api_models::enums::PaymentMethodType::Paypal => api::GetToken::PaypalSdkMetadata,
+        api_models::enums::PaymentMethodType::SamsungPay => api::GetToken::SamsungPayMetadata,
+        api_models::enums::PaymentMethodType::Paze => api::GetToken::PazeMetadata,
+        _ => api::GetToken::Connector,
     }
 }
 // This function validates the intent fulfillment time expiry set by the merchant in the request
