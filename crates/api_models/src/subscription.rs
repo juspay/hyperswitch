@@ -186,6 +186,7 @@ impl ClientSecret {
 pub struct GetPlansQuery {
     pub client_secret: Option<ClientSecret>,
     pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
 impl ApiEventMetric for SubscriptionResponse {}

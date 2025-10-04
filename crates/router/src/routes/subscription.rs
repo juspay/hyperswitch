@@ -138,7 +138,6 @@ pub async fn confirm_subscription(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn get_subscription_plans(
     state: web::Data<AppState>,

@@ -122,7 +122,7 @@ pub async fn get_subscription_plans(
     .await?;
 
     let get_plans_response = billing_handler
-        .get_subscription_plans(&state, query.limit)
+        .get_subscription_plans(&state, query.limit, query.offset)
         .await?;
 
     let mut response = Vec::new();

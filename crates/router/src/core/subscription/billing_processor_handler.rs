@@ -287,12 +287,10 @@ impl BillingHandler {
         &self,
         state: &SessionState,
         limit: Option<u32>,
+        offset: Option<u32>,
     ) -> errors::RouterResult<subscription_response_types::GetSubscriptionPlansResponse> {
-        let get_plans_request = limit
-            .map(|lim| {
-                subscription_request_types::GetSubscriptionPlansRequest::new(Some(lim), Some(0))
-            })
-            .unwrap_or_default();
+        let get_plans_request =
+            subscription_request_types::GetSubscriptionPlansRequest::new(limit, offset);
 
         let router_data = self.build_router_data(
             state,
