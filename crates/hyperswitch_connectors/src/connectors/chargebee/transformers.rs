@@ -5,7 +5,7 @@ use common_enums::{connector_enums, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
-    id_type::{CustomerId, SubscriptionId},
+    id_type::{CustomerId, InvoiceId, SubscriptionId},
     pii::{self, Email},
     types::MinorUnit,
 };
@@ -461,17 +461,21 @@ pub enum ChargebeeEventType {
     PaymentSucceeded,
     PaymentFailed,
     InvoiceDeleted,
+    InvoiceGenerated,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChargebeeInvoiceData {
     // invoice id
-    pub id: String,
+    pub id: InvoiceId,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
     pub status: Option<ChargebeeInvoiceStatus>,
     pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
     pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -585,7 +589,35 @@ impl ChargebeeInvoiceBody {
         Ok(webhook_body)
     }
 }
+// Structure to extract MIT payment data from invoice_generated webhook
+#[derive(Debug, Clone)]
+pub struct ChargebeeMitPaymentData {
+    pub invoice_id: InvoiceId,
+    pub amount_due: MinorUnit,
+    pub currency_code: enums::Currency,
+    pub status: Option<ChargebeeInvoiceStatus>,
+    pub customer_id: CustomerId,
+    pub subscription_id: SubscriptionId,
+    pub first_invoice: bool,
+}
 
+impl TryFrom<ChargebeeInvoiceBody> for ChargebeeMitPaymentData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(webhook_body: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
+        let invoice = webhook_body.content.invoice;
+
+        Ok(Self {
+            invoice_id: invoice.id,
+            amount_due: invoice.total,
+            currency_code: invoice.currency_code,
+            status: invoice.status,
+            customer_id: invoice.customer_id,
+            subscription_id: invoice.subscription_id,
+            first_invoice: invoice.first_invoice.unwrap_or(false),
+        })
+    }
+}
 pub struct ChargebeeMandateDetails {
     pub customer_id: String,
     pub mandate_id: String,
@@ -620,9 +652,10 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
     fn try_from(item: ChargebeeWebhookBody) -> Result<Self, Self::Error> {
         let amount = item.content.transaction.amount;
         let currency = item.content.transaction.currency_code.to_owned();
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let connector_transaction_id = item
             .content
             .transaction
@@ -746,6 +779,19 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
             ChargebeeEventType::PaymentSucceeded => Self::RecoveryPaymentSuccess,
             ChargebeeEventType::PaymentFailed => Self::RecoveryPaymentFailure,
             ChargebeeEventType::InvoiceDeleted => Self::RecoveryInvoiceCancel,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(event: ChargebeeEventType) -> Self {
+        match event {
+            ChargebeeEventType::PaymentSucceeded => Self::PaymentIntentSuccess,
+            ChargebeeEventType::PaymentFailed => Self::PaymentIntentFailure,
+            ChargebeeEventType::InvoiceDeleted => Self::EventNotSupported,
+            ChargebeeEventType::InvoiceGenerated => Self::InvoiceGenerated,
         }
     }
 }
@@ -754,9 +800,10 @@ impl From<ChargebeeEventType> for api_models::webhooks::IncomingWebhookEvent {
 impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: ChargebeeInvoiceBody) -> Result<Self, Self::Error> {
-        let merchant_reference_id =
-            common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let merchant_reference_id = common_utils::id_type::PaymentReferenceId::from_str(
+            item.content.invoice.id.get_string_repr(),
+        )
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
         #[allow(clippy::as_conversions)]
