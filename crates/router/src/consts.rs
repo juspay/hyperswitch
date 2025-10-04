@@ -339,6 +339,12 @@ pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 
+/// Superposition configuration keys
+pub mod superposition {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]

@@ -64,6 +64,17 @@ services:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
+  superposition:
+    image: ghcr.io/juspay/superposition-demo:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - router_net
+    environment:
+      - API_HOSTNAME=http://localhost:8081
+    profiles:
+      - superposition
+
   ### Application services
   hyperswitch-server:
     build:
