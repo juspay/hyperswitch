@@ -808,7 +808,9 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for InvoiceR
     where
         Self: Sized,
     {
-        let resource_common_data = Self {};
+        let resource_common_data = Self {
+            connector_meta_data: old_router_data.connector_meta_data.clone(),
+        };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,
             tenant_id: old_router_data.tenant_id.clone(),
@@ -825,16 +827,18 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for InvoiceR
     where
         Self: Sized,
     {
-        let router_data = get_default_router_data(
+        let Self {
+            connector_meta_data,
+        } = new_router_data.resource_common_data;
+        let mut router_data = get_default_router_data(
             new_router_data.tenant_id.clone(),
             "recovery_record_back",
             new_router_data.request,
             new_router_data.response,
         );
-        Ok(RouterData {
-            connector_auth_type: new_router_data.connector_auth_type.clone(),
-            ..router_data
-        })
+        router_data.connector_meta_data = connector_meta_data;
+        router_data.connector_auth_type = new_router_data.connector_auth_type.clone();
+        Ok(router_data)
     }
 }
 

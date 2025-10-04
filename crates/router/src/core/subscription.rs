@@ -39,8 +39,14 @@ pub async fn create_subscription(
         SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
             .await
             .attach_printable("subscriptions: failed to find customer")?;
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        Some(customer),
+        profile.clone(),
+    )
+    .await?;
 
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
     let mut subscription = subscription_handler
@@ -106,8 +112,14 @@ pub async fn get_subscription_plans(
             .await?
     };
 
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, None, profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        None,
+        profile.clone(),
+    )
+    .await?;
 
     let get_plans_response = billing_handler
         .get_subscription_plans(&state, query.limit)
@@ -154,8 +166,14 @@ pub async fn create_and_confirm_subscription(
             .await
             .attach_printable("subscriptions: failed to find customer")?;
 
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        Some(customer),
+        profile.clone(),
+    )
+    .await?;
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
     let mut subs_handler = subscription_handler
         .create_subscription_entry(
@@ -210,6 +228,7 @@ pub async fn create_and_confirm_subscription(
             amount,
             currency,
             invoice_details
+                .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
@@ -217,9 +236,20 @@ pub async fn create_and_confirm_subscription(
         )
         .await?;
 
-    // invoice_entry
-    //     .create_invoice_record_back_job(&payment_response)
-    //     .await?;
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &invoice_entry,
+            invoice_details
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "invoice_details",
+                })?
+                .id
+                .get_string_repr()
+                .to_string(),
+            billing_handler.connector_data.connector_name,
+        )
+        .await?;
 
     subs_handler
         .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
@@ -279,8 +309,14 @@ pub async fn confirm_subscription(
         )
         .await?;
 
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        Some(customer),
+        profile.clone(),
+    )
+    .await?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 
@@ -315,6 +351,22 @@ pub async fn confirm_subscription(
                 .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+        )
+        .await?;
+
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &invoice_entry,
+            invoice_details
+                .clone()
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "invoice_details",
+                })?
+                .id
+                .get_string_repr()
+                .to_string(),
+            billing_handler.connector_data.connector_name,
         )
         .await?;
 

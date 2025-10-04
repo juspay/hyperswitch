@@ -737,16 +737,31 @@ impl ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
-        let url = self
-            .base_url(connectors)
-            .to_string()
-            .replace("{{merchant_endpoint_prefix}}", metadata.site.peek());
+
+        let site = metadata.site.peek();
+
+        let mut base = self.base_url(connectors).to_string();
+
+        base = base.replace("{{merchant_endpoint_prefix}}", site);
+        base = base.replace("$", site);
+
+        if base.contains("{{merchant_endpoint_prefix}}") || base.contains('$') {
+            return Err(errors::ConnectorError::InvalidConnectorConfig {
+                config: "Chargebee base_url has an unresolved placeholder (expected `$` or `{{merchant_endpoint_prefix}}`).",
+            }
+            .into());
+        }
+
+        if !base.ends_with('/') {
+            base.push('/');
+        }
+
         let invoice_id = req
             .request
             .merchant_reference_id
             .get_string_repr()
             .to_string();
-        Ok(format!("{url}v2/invoices/{invoice_id}/record_payment"))
+        Ok(format!("{base}v2/invoices/{invoice_id}/record_payment"))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -833,6 +848,7 @@ fn get_chargebee_plans_query_params(
 }
 
 impl api::subscriptions::GetSubscriptionPlansFlow for Chargebee {}
+impl api::subscriptions::SubscriptionRecordBackFlow for Chargebee {}
 
 impl
     ConnectorIntegration<
