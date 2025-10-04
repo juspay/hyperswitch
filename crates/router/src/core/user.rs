@@ -2482,7 +2482,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
 pub async fn create_user_authentication_method(
     state: SessionState,
     req: user_api::CreateUserAuthenticationMethodRequest,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::CreateUserAuthenticationMethodResponse> {
     let user_auth_encryption_key = hex::decode(
         state
             .conf
@@ -2560,25 +2560,33 @@ pub async fn create_user_authentication_method(
     }
 
     let now = common_utils::date_time::now();
-    state
-        .store
-        .insert_user_authentication_method(UserAuthenticationMethodNew {
-            id,
-            auth_id,
-            owner_id: req.owner_id,
-            owner_type: req.owner_type,
-            auth_type: (&req.auth_method).foreign_into(),
-            private_config,
-            public_config,
-            allow_signup: req.allow_signup,
-            created_at: now,
-            last_modified_at: now,
-            email_domain,
-        })
-        .await
-        .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
+    let inserted = state
+                       .store
+                       .insert_user_authentication_method(UserAuthenticationMethodNew {
+                           id,
+                           auth_id,
+                           owner_id: req.owner_id,
+                           owner_type: req.owner_type,
+                           auth_type: (&req.auth_method).foreign_into(),
+                           private_config,
+                           public_config,
+                           allow_signup: req.allow_signup,
+                           created_at: now,
+                           last_modified_at: now,
+                           email_domain,
+                       })
+                       .await
+                       .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
 
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(user_api::CreateUserAuthenticationMethodResponse {
+        id: inserted.id,
+        auth_id: inserted.auth_id,
+        owner_id: inserted.owner_id,
+        owner_type: inserted.owner_type,
+        auth_type: inserted.auth_type,
+        email_domain: inserted.email_domain,
+        allow_signup: inserted.allow_signup,
+    }))
 }
 
 pub async fn update_user_authentication_method(
