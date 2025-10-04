@@ -28,6 +28,7 @@ const DEFAULT_BUCKET_SIZE: i32 = 200;
 const DEFAULT_HEDGING_PERCENT: f64 = 5.0;
 const DEFAULT_ELIMINATION_THRESHOLD: f64 = 0.35;
 const DEFAULT_PAYMENT_METHOD: &str = "CARD";
+const MAX_NAME_LENGTH: usize = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -65,6 +66,23 @@ pub struct RoutingConfigRequest {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub transaction_type: Option<TransactionType>,
+}
+
+#[cfg(feature = "v1")]
+impl RoutingConfigRequest {
+    pub fn validate_name_length(&self) -> Result<(), ValidationError> {
+        if let Some(name) = &self.name {
+            if name.len() > MAX_NAME_LENGTH {
+                return Err(ValidationError::InvalidValue {
+                    message: format!(
+                        "Length of name field must not exceed {} characters",
+                        MAX_NAME_LENGTH
+                    ),
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
