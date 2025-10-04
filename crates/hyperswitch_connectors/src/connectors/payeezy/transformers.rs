@@ -1,6 +1,6 @@
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, PaymentMethod};
-use common_utils::{errors::ParsingError, ext_traits::Encode};
+use common_utils::{errors::ParsingError, ext_traits::Encode, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -329,7 +329,7 @@ pub struct PayeezyPaymentsResponse {
     pub transaction_id: String,
     pub transaction_tag: Option<String>,
     pub method: Option<String>,
-    pub amount: String,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_resp_code: String,
     pub bank_message: String,
@@ -537,7 +537,7 @@ pub struct RefundResponse {
     pub transaction_id: String,
     pub transaction_tag: Option<String>,
     pub method: Option<String>,
-    pub amount: String,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_resp_code: String,
     pub bank_message: String,
