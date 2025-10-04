@@ -86,6 +86,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
         routes::payments::payments_update_metadata,
+        routes::payments::payments_submit_eligibility,
 
         // Routes for relay
         routes::relay::relay,
@@ -325,6 +326,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::AcceptedCurrencies,
         api_models::enums::AdyenSplitType,
         api_models::enums::PaymentType,
+        api_models::enums::MitCategory,
         api_models::enums::ScaExemptionType,
         api_models::enums::PaymentMethod,
         api_models::enums::TriggeredBy,
@@ -382,6 +384,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::OrganizationType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::enums::ExternalVaultEnabled,
+        api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultSdk,
         api_models::admin::ExternalVaultConnectorDetails,
         api_models::admin::MerchantConnectorCreate,
@@ -487,6 +490,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsUpdateRequest,
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
+        api_models::payments::PaymentsCreateResponseOpenApi,
+        api_models::payments::PaymentsEligibilityRequest,
+        api_models::payments::PaymentsEligibilityResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::errors::types::GenericErrorResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
