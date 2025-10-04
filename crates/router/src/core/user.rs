@@ -2482,7 +2482,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
 pub async fn create_user_authentication_method(
     state: SessionState,
     req: user_api::CreateUserAuthenticationMethodRequest,
-) -> UserResponse<()> {
+) -> UserResponse<user_api::CreateUserAuthenticationMethodResponse> {
     let user_auth_encryption_key = hex::decode(
         state
             .conf
@@ -2494,7 +2494,10 @@ pub async fn create_user_authentication_method(
     )
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
-    let id = uuid::Uuid::new_v4().to_string();
+
+
+    let id = uuid::Uuid::new_v4().to_string().clone();
+
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
         &state,
         &req.auth_method,
@@ -2524,15 +2527,14 @@ pub async fn create_user_authentication_method(
             None => auth_method.email_domain.clone(),
         };
 
-        (auth_method.auth_id.clone(), email_domain)
+        (auth_method.auth_id.clone(), email_domain.clone())
     } else {
         let email_domain =
-            req.email_domain
-                .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
+            req.email_domain.clone().ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
                     "Email domain not found".to_string(),
                 ))?;
 
-        (uuid::Uuid::new_v4().to_string(), email_domain)
+        (uuid::Uuid::new_v4().to_string(), email_domain.clone())
     };
 
     for db_auth_method in auth_methods {
@@ -2560,25 +2562,37 @@ pub async fn create_user_authentication_method(
     }
 
     let now = common_utils::date_time::now();
+    let auth_type = (&req.auth_method).foreign_into();
     state
         .store
         .insert_user_authentication_method(UserAuthenticationMethodNew {
-            id,
-            auth_id,
-            owner_id: req.owner_id,
+            id: id.clone(),
+            auth_id: auth_id.clone(),
+            owner_id: req.owner_id.clone(),
             owner_type: req.owner_type,
-            auth_type: (&req.auth_method).foreign_into(),
+            auth_type,
             private_config,
             public_config,
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
-            email_domain,
+            email_domain: email_domain.clone(),
         })
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
 
-    Ok(ApplicationResponse::StatusOk)
+    let response:user_api::CreateUserAuthenticationMethodResponse =
+        user_api::CreateUserAuthenticationMethodResponse {
+            id,
+            auth_id,
+            owner_id: req.owner_id,
+            owner_type: req.owner_type,
+            auth_type,
+            email_domain: Some(email_domain),
+            allow_signup: req.allow_signup,
+        };
+
+    Ok(ApplicationResponse::Json(response))
 }
 
 pub async fn update_user_authentication_method(

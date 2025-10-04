@@ -1,10 +1,8 @@
 use std::fmt::Debug;
-
 use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 use utoipa::ToSchema;
-
 use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
@@ -351,6 +349,17 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub auth_method: AuthConfig,
     pub allow_signup: bool,
     pub email_domain: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateUserAuthenticationMethodResponse {
+    pub id: String,
+    pub auth_id: String,
+    pub owner_id: String,
+    pub owner_type: common_enums::Owner,
+    pub auth_type: common_enums::UserAuthType,
+    pub email_domain: Option<String>,
+    pub allow_signup: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
