@@ -1,0 +1,229 @@
+use std::str::FromStr;
+
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    id_type::GenerateId,
+    pii::SecretSerdeValue,
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        MinorUnit,
+    },
+};
+use error_stack::ResultExt;
+use masking::Secret;
+use utoipa::ToSchema;
+
+use crate::merchant_key_store::MerchantKeyStore;
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct Invoice {
+    pub id: common_utils::id_type::InvoiceId,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub payment_method_id: Option<String>,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub amount: MinorUnit,
+    pub currency: String,
+    pub status: String,
+    pub provider_name: common_enums::connector_enums::Connector,
+    pub metadata: Option<SecretSerdeValue>,
+}
+
+pub enum InvoiceStatus {
+    InvoiceCreated,
+    PaymentPending,
+    PaymentPendingTimeout,
+    PaymentSucceeded,
+    PaymentFailed,
+    PaymentCanceled,
+    InvoicePaid,
+    ManualReview,
+}
+
+#[async_trait::async_trait]
+
+impl super::behaviour::Conversion for Invoice {
+    type DstType = diesel_models::invoice::Invoice;
+    type NewDstType = diesel_models::invoice::InvoiceNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let now = common_utils::date_time::now();
+        Ok(diesel_models::invoice::Invoice {
+            id: self.id,
+            subscription_id: self.subscription_id,
+            merchant_id: self.merchant_id,
+            profile_id: self.profile_id,
+            merchant_connector_id: self.merchant_connector_id,
+            payment_intent_id: self.payment_intent_id,
+            payment_method_id: self.payment_method_id,
+            customer_id: self.customer_id,
+            amount: self.amount,
+            currency: self.currency.to_string(),
+            status: self.status,
+            provider_name: self.provider_name,
+            metadata: None,
+            created_at: now,
+            modified_at: now,
+        })
+    }
+
+    async fn convert_back(
+        _state: &KeyManagerState,
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(Self {
+            id: item.id,
+            subscription_id: item.subscription_id,
+            merchant_id: item.merchant_id,
+            profile_id: item.profile_id,
+            merchant_connector_id: item.merchant_connector_id,
+            payment_intent_id: item.payment_intent_id,
+            payment_method_id: item.payment_method_id,
+            customer_id: item.customer_id,
+            amount: item.amount,
+            // currency: Currency::from_str(&item.currency).change_context(
+            //     ValidationError::InvalidValue {
+            //         message: "Invalid currency value".to_string(),
+            //     },
+            // )?,
+            currency: item.currency,
+            status: item.status,
+            provider_name: item.provider_name,
+            metadata: item.metadata,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let invoice_status = common_enums::connector_enums::InvoiceStatus::from_str(&self.status)
+            .change_context(ValidationError::InvalidValue {
+            message: "Invalid invoice status".to_string(),
+        })?;
+
+        Ok(diesel_models::invoice::InvoiceNew::new(
+            self.subscription_id,
+            self.merchant_id,
+            self.profile_id,
+            self.merchant_connector_id,
+            self.payment_intent_id,
+            self.payment_method_id,
+            self.customer_id,
+            self.amount,
+            self.currency.to_string(),
+            invoice_status,
+            self.provider_name,
+            None,
+        ))
+    }
+}
+
+impl Invoice {
+    #[allow(clippy::too_many_arguments)]
+    pub fn to_invoice(
+        subscription_id: common_utils::id_type::SubscriptionId,
+        merchant_id: common_utils::id_type::MerchantId,
+        profile_id: common_utils::id_type::ProfileId,
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
+        payment_method_id: Option<String>,
+        customer_id: common_utils::id_type::CustomerId,
+        amount: MinorUnit,
+        currency: String,
+        status: common_enums::connector_enums::InvoiceStatus,
+        provider_name: common_enums::connector_enums::Connector,
+        metadata: Option<SecretSerdeValue>,
+    ) -> Self {
+        // let now = common_utils::date_time::now();
+        Self {
+            id: common_utils::id_type::InvoiceId::generate(),
+            subscription_id,
+            merchant_id,
+            profile_id,
+            merchant_connector_id,
+            payment_intent_id,
+            payment_method_id,
+            customer_id,
+            amount,
+            currency: currency.to_string(),
+            status: status.to_string(),
+            provider_name,
+            metadata,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait InvoiceInterface {
+    type Error;
+    async fn insert_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        invoice_new: Invoice,
+    ) -> CustomResult<Invoice, Self::Error>;
+
+    async fn find_invoice_by_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        invoice_id: String,
+    ) -> CustomResult<Invoice, Self::Error>;
+
+    async fn update_invoice_entry(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        invoice_id: String,
+        data: InvoiceUpdate,
+    ) -> CustomResult<Invoice, Self::Error>;
+}
+
+pub struct InvoiceUpdate {
+    pub status: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub modified_at: time::PrimitiveDateTime,
+}
+#[async_trait::async_trait]
+impl super::behaviour::Conversion for InvoiceUpdate {
+    type DstType = diesel_models::invoice::InvoiceUpdate;
+    type NewDstType = diesel_models::invoice::InvoiceUpdate;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::invoice::InvoiceUpdate {
+            status: self.status,
+            payment_method_id: self.payment_method_id,
+            modified_at: self.modified_at,
+        })
+    }
+
+    async fn convert_back(
+        _state: &KeyManagerState,
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(Self {
+            status: item.status,
+            payment_method_id: item.payment_method_id,
+            modified_at: item.modified_at,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::invoice::InvoiceUpdate {
+            status: self.status,
+            payment_method_id: self.payment_method_id,
+            modified_at: self.modified_at,
+        })
+    }
+}

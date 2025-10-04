@@ -16,6 +16,7 @@ pub mod connection;
 pub mod customers;
 pub mod database;
 pub mod errors;
+pub mod invoice;
 pub mod kv_router_store;
 pub mod lookup;
 pub mod mandate;
@@ -28,6 +29,7 @@ pub mod payouts;
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
+pub mod subscription;
 pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
