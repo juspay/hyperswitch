@@ -9,10 +9,11 @@ use common_utils::errors::CustomResult;
 use error_stack::report;
 use masking::ExposeInterface;
 use superposition_provider;
-
 pub use types::*;
 
-pub(crate) fn convert_open_feature_value(v: open_feature::Value) -> Result<serde_json::Value, String> {
+pub(crate) fn convert_open_feature_value(
+    v: open_feature::Value,
+) -> Result<serde_json::Value, String> {
     match v {
         open_feature::Value::String(s) => Ok(serde_json::Value::String(s)),
         open_feature::Value::Bool(b) => Ok(serde_json::Value::Bool(b)),
@@ -29,8 +30,6 @@ pub(crate) fn convert_open_feature_value(v: open_feature::Value) -> Result<serde
         )),
     }
 }
-
-
 
 /// Superposition client wrapper
 // Debug trait cannot be derived because open_feature::Client doesn't implement Debug
@@ -49,10 +48,12 @@ impl SuperpositionClient {
             workspace_id: config.workspace_id.clone(),
             fallback_config: None,
             evaluation_cache: None,
-            refresh_strategy: superposition_provider::RefreshStrategy::Polling(superposition_provider::PollingStrategy {
-                interval: config.polling_interval,
-                timeout: config.request_timeout,
-            }),
+            refresh_strategy: superposition_provider::RefreshStrategy::Polling(
+                superposition_provider::PollingStrategy {
+                    interval: config.polling_interval,
+                    timeout: config.request_timeout,
+                },
+            ),
             experimentation_options: None,
         };
 
@@ -185,4 +186,3 @@ impl SuperpositionClient {
         Ok(json_result.0)
     }
 }
-
