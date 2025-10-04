@@ -218,31 +218,6 @@ pub async fn get_subscription(
     .await
 }
 
-fn extract_profile_id(req: &HttpRequest) -> Result<common_utils::id_type::ProfileId, HttpResponse> {
-    let header_value = req.headers().get(X_PROFILE_ID).ok_or_else(|| {
-        HttpResponse::BadRequest().json(
-            errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                field_name: X_PROFILE_ID,
-            },
-        )
-    })?;
-    let profile_str = header_value.to_str().unwrap_or_default();
-    if profile_str.is_empty() {
-        return Err(HttpResponse::BadRequest().json(
-            errors::api_error_response::ApiErrorResponse::MissingRequiredField {
-                field_name: X_PROFILE_ID,
-            },
-        ));
-    }
-    common_utils::id_type::ProfileId::from_str(profile_str).map_err(|_| {
-        HttpResponse::BadRequest().json(
-            errors::api_error_response::ApiErrorResponse::InvalidDataValue {
-                field_name: X_PROFILE_ID,
-            },
-        )
-    })
-}
-
 #[instrument(skip_all)]
 pub async fn create_and_confirm_subscription(
     state: web::Data<AppState>,

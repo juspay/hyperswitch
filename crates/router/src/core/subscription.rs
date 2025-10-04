@@ -40,7 +40,7 @@ pub async fn create_subscription(
             .await
             .attach_printable("subscriptions: failed to find customer")?;
     let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile.clone()).await?;
+        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
 
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
     let mut subscription = subscription_handler
@@ -93,22 +93,12 @@ pub async fn get_subscription_plans(
     profile_id: common_utils::id_type::ProfileId,
     query: subscription_types::GetPlansQuery,
 ) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
-    let key_manager_state = &(&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable("subscriptions: failed to find business profile")?;
 
-    let profile = state
-        .store
-        .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, &profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_string(),
-        })?;
-
-    let subscription_handler = subscription_utils::SubscriptionHandler::new(
-        state.clone(),
-        merchant_context.clone(),
-        profile,
-    );
+    let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
 
     if let Some(client_secret) = query.client_secret {
         subscription_handler
@@ -116,12 +106,9 @@ pub async fn get_subscription_plans(
             .await?
     };
 
-    let subscription_with_handler =
-        subscription_utils::SubscriptionWithHandler::new(&subscription_handler, None);
+    let billing_handler =
+        BillingHandler::create(&state, &merchant_context, None, profile.clone()).await?;
 
-    let billing_handler = subscription_with_handler
-        .get_billing_handler(None, None)
-        .await?;
     let get_plans_response = billing_handler
         .get_subscription_plans(&state, query.limit)
         .await?;
@@ -168,7 +155,7 @@ pub async fn create_and_confirm_subscription(
             .attach_printable("subscriptions: failed to find customer")?;
 
     let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile.clone()).await?;
+        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
     let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
     let mut subs_handler = subscription_handler
         .create_subscription_entry(
@@ -293,7 +280,7 @@ pub async fn confirm_subscription(
         .await?;
 
     let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile.clone()).await?;
+        BillingHandler::create(&state, &merchant_context, Some(customer), profile.clone()).await?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 

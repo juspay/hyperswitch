@@ -1,7 +1,5 @@
 pub mod refunds_transformers;
 pub mod refunds_validator;
-#[cfg(feature = "v1")]
-pub mod subscription;
 
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
