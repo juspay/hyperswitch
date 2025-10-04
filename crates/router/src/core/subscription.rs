@@ -43,7 +43,7 @@ pub async fn create_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -93,6 +93,60 @@ pub async fn create_subscription(
     ))
 }
 
+pub async fn get_subscription_plans(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    query: subscription_types::GetPlansQuery,
+) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable("subscriptions: failed to find business profile")?;
+
+    let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
+
+    if let Some(client_secret) = query.client_secret {
+        subscription_handler
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    };
+
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        None,
+        profile.clone(),
+    )
+    .await?;
+
+    let get_plans_response = billing_handler
+        .get_subscription_plans(&state, query.limit, query.offset)
+        .await?;
+
+    let mut response = Vec::new();
+
+    for plan in &get_plans_response.list {
+        let plan_price_response = billing_handler
+            .get_subscription_plan_prices(&state, plan.subscription_provider_plan_id.clone())
+            .await?;
+
+        response.push(subscription_types::GetPlansResponse {
+            plan_id: plan.subscription_provider_plan_id.clone(),
+            name: plan.name.clone(),
+            description: plan.description.clone(),
+            price_id: plan_price_response
+                .list
+                .into_iter()
+                .map(subscription_types::SubscriptionPlanPrices::from)
+                .collect::<Vec<_>>(),
+        })
+    }
+
+    Ok(ApplicationResponse::Json(response))
+}
+
 /// Creates and confirms a subscription in one operation.
 /// This method combines the creation and confirmation flow to reduce API calls
 pub async fn create_and_confirm_subscription(
@@ -116,7 +170,7 @@ pub async fn create_and_confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -259,7 +313,7 @@ pub async fn confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
