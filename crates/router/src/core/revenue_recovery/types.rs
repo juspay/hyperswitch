@@ -1394,7 +1394,9 @@ pub fn construct_invoice_record_back_router_data(
     let router_data = router_data_v2::RouterDataV2 {
         flow: PhantomData::<router_flow_types::InvoiceRecordBack>,
         tenant_id: state.tenant.tenant_id.clone(),
-        resource_common_data: flow_common_types::InvoiceRecordBackData,
+        resource_common_data: flow_common_types::InvoiceRecordBackData {
+            connector_meta_data: None,
+        },
         connector_auth_type: auth_type,
         request: revenue_recovery_request::InvoiceRecordBackRequest {
             merchant_reference_id,
