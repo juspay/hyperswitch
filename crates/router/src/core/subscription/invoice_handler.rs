@@ -77,11 +77,13 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
         payment_method_id: Option<Secret<String>>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: connector_enums::InvoiceStatus,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
+            payment_intent_id,
         );
         state
             .store

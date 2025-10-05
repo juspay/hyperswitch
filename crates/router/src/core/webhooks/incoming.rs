@@ -2651,18 +2651,28 @@ async fn subscription_incoming_webhook_flow(
     let payment_response = invoice_handler
         .create_mit_payment(
             &state,
-            invoice_entry.amount,
+            mit_payment_data.amount_due,
             mit_payment_data.currency_code,
             &payment_method_id.clone(),
         )
         .await?;
 
-    logger::info!("payment response: {:?}", payment_response);
+    logger::info!(">>>payment response: {:?}", payment_response);
+
+    let updated_invoice = invoice_handler
+        .update_invoice(
+            &state,
+            invoice_entry.id.clone(),
+            payment_response.payment_method_id.clone(),
+            Some(payment_response.payment_id.clone()),
+            InvoiceStatus::from(payment_response.status),
+        )
+        .await?;
 
     invoice_handler
         .create_invoice_sync_job(
             &state,
-            &invoice_entry,
+            &updated_invoice,
             mit_payment_data.invoice_id.get_string_repr().to_string(),
             connector,
         )
