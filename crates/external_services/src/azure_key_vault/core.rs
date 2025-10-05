@@ -310,7 +310,7 @@ mod tests {
         let decrypted_fingerprint = AzureKeyVaultClient::new(&config)
             .await
             .expect("azure key vault client initialization failed")
-            .encrypt(binding)
+            .decrypt(binding)
             .await
             .expect("azure key vault decryption failed");
 
