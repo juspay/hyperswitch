@@ -1,6 +1,6 @@
 // crates/smithy-core/generator.rs
 
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, fmt::Write, fs, path::Path};
 
 use crate::types::{self as types, SmithyModel};
 
@@ -44,8 +44,8 @@ impl SmithyGenerator {
             let filepath = output_dir.join(filename);
 
             let mut content = String::new();
-            content.push_str("$version: \"2\"\n\n");
-            content.push_str(&format!("namespace {}\n\n", namespace));
+            writeln!(content, "$version: \"2\"\n")?;
+            writeln!(content, "namespace {}\n", namespace)?;
 
             // Collect all unique shape definitions for the current namespace
             let mut shapes_in_namespace = HashMap::new();
@@ -62,8 +62,8 @@ impl SmithyGenerator {
                     shape,
                     namespace,
                     &shape_to_namespace,
-                ));
-                content.push_str("\n\n");
+                )?;
+                writeln!(content, "{}\n", shape_definition)?;
             }
 
             fs::write(filepath, content)?;
@@ -78,11 +78,11 @@ impl SmithyGenerator {
         shape: &types::SmithyShape,
         current_namespace: &str,
         shape_to_namespace: &HashMap<&str, &str>,
-    ) -> String {
+    ) -> Result<String, std::fmt::Error> {
         let resolve_target =
             |target: &str| self.resolve_type(target, current_namespace, shape_to_namespace);
 
-        match shape {
+        let def = match shape {
             types::SmithyShape::Structure {
                 members,
                 documentation,
@@ -91,26 +91,26 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 if let Some(doc) = documentation {
-                    def.push_str(&format!("/// {}\n", doc));
+                    writeln!(def, "/// {}", doc)?;
                 }
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("structure {} {{\n", name));
+                writeln!(def, "structure {} {{", name)?;
 
                 for (member_name, member) in members {
                     if let Some(doc) = &member.documentation {
-                        def.push_str(&format!("    /// {}\n", doc));
+                        writeln!(def, "    /// {}", doc)?;
                     }
 
                     for smithy_trait in &member.traits {
-                        def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
+                        writeln!(def, "    @{}", smithy_trait.to_string())?;
                     }
 
                     let resolved_target = resolve_target(&member.target);
-                    def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
+                    writeln!(def, "    {}: {}", member_name, resolved_target)?;
                 }
 
                 def.push('}');
@@ -124,26 +124,26 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 if let Some(doc) = documentation {
-                    def.push_str(&format!("/// {}\n", doc));
+                    writeln!(def, "/// {}", doc)?;
                 }
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("union {} {{\n", name));
+                writeln!(def, "union {} {{", name)?;
 
                 for (member_name, member) in members {
                     if let Some(doc) = &member.documentation {
-                        def.push_str(&format!("    /// {}\n", doc));
+                        writeln!(def, "    /// {}", doc)?;
                     }
 
                     for smithy_trait in &member.traits {
-                        def.push_str(&format!("    @{}\n", self.trait_to_string(smithy_trait)));
+                        writeln!(def, "    @{}", smithy_trait.to_string())?;
                     }
 
                     let resolved_target = resolve_target(&member.target);
-                    def.push_str(&format!("    {}: {}\n", member_name, resolved_target));
+                    writeln!(def, "    {}: {}", member_name, resolved_target)?;
                 }
 
                 def.push('}');
@@ -157,20 +157,20 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 if let Some(doc) = documentation {
-                    def.push_str(&format!("/// {}\n", doc));
+                    writeln!(def, "/// {}", doc)?;
                 }
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("enum {} {{\n", name));
+                writeln!(def, "enum {} {{", name)?;
 
                 for (value_name, enum_value) in values {
                     if let Some(doc) = &enum_value.documentation {
-                        def.push_str(&format!("    /// {}\n", doc));
+                        writeln!(def, "    /// {}", doc)?;
                     }
-                    def.push_str(&format!("    {}\n", value_name));
+                    writeln!(def, "    {}", value_name)?;
                 }
 
                 def.push('}');
@@ -180,56 +180,57 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("string {}", name));
+                writeln!(def, "string {}", name)?;
                 def
             }
             types::SmithyShape::Integer { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("integer {}", name));
+                writeln!(def, "integer {}", name)?;
                 def
             }
             types::SmithyShape::Long { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("long {}", name));
+                writeln!(def, "long {}", name)?;
                 def
             }
             types::SmithyShape::Boolean { traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("boolean {}", name));
+                writeln!(def, "boolean {}", name)?;
                 def
             }
             types::SmithyShape::List { member, traits } => {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    def.push_str(&format!("@{}\n", self.trait_to_string(smithy_trait)));
+                    writeln!(def, "@{}", smithy_trait.to_string())?;
                 }
 
-                def.push_str(&format!("list {} {{\n", name));
+                writeln!(def, "list {} {{", name)?;
                 let resolved_target = resolve_target(&member.target);
-                def.push_str(&format!("    member: {}\n", resolved_target));
+                writeln!(def, "    member: {}", resolved_target)?;
                 def.push('}');
                 def
             }
-        }
+        };
+        Ok(def)
     }
 
     fn resolve_type(
