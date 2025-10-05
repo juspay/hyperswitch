@@ -135,6 +135,37 @@ pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
 }
 
+impl ToString for SmithyTrait {
+    fn to_string(&self) -> String {
+        match self {
+            SmithyTrait::Pattern { pattern } => {
+                format!("pattern(\"{}\")", pattern)
+            }
+            SmithyTrait::Range { min, max } => match (min, max) {
+                (Some(min), Some(max)) => format!("range(min: {}, max: {})", min, max),
+                (Some(min), None) => format!("range(min: {})", min),
+                (None, Some(max)) => format!("range(max: {})", max),
+                (None, None) => "range".to_string(),
+            },
+            SmithyTrait::Required => "required".to_string(),
+            SmithyTrait::Documentation { documentation } => {
+                format!("documentation(\"{}\")", documentation)
+            }
+            SmithyTrait::Length { min, max } => match (min, max) {
+                (Some(min), Some(max)) => format!("length(min: {}, max: {})", min, max),
+                (Some(min), None) => format!("length(min: {})", min),
+                (None, Some(max)) => format!("length(max: {})", max),
+                (None, None) => "length".to_string(),
+            },
+            SmithyTrait::HttpLabel => "httpLabel".to_string(),
+            SmithyTrait::HttpQuery { name } => {
+                format!("httpQuery(\"{}\")", name)
+            }
+            SmithyTrait::Mixin => "mixin".to_string(),
+        }
+    }
+}
+
 // Helper functions moved from the proc-macro crate to be accessible by it.
 
 pub fn resolve_type_and_generate_shapes(
