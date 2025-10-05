@@ -483,6 +483,8 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "smithy",
+ "smithy-core",
  "strum 0.26.3",
  "tempfile",
  "time",
