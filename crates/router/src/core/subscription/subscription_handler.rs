@@ -2,14 +2,14 @@ use std::str::FromStr;
 
 use api_models::{
     enums as api_enums,
-    subscription::{self as subscription_types, SubscriptionResponse, SubscriptionStatus},
+    subscription::{self as subscription_types, SubscriptionResponse},
 };
 use common_enums::connector_enums;
-use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_response_types::subscriptions as subscription_response_types,
+    subscription::{Subscription, SubscriptionStatus},
 };
 use masking::Secret;
 
@@ -38,6 +38,8 @@ impl<'a> SubscriptionHandler<'a> {
     /// Helper function to create a subscription entry in the database.
     pub async fn create_subscription_entry(
         &self,
+        // state: SessionState,
+        // merchant_context: MerchantContext,
         subscription_id: common_utils::id_type::SubscriptionId,
         customer_id: &common_utils::id_type::CustomerId,
         billing_processor: connector_enums::Connector,
@@ -47,28 +49,30 @@ impl<'a> SubscriptionHandler<'a> {
         let store = self.state.store.clone();
         let db = store.as_ref();
 
-        let mut subscription = SubscriptionNew::new(
-            subscription_id,
-            SubscriptionStatus::Created.to_string(),
-            Some(billing_processor.to_string()),
-            None,
-            Some(merchant_connector_id),
-            None,
-            None,
-            self.merchant_context
+        let mut subscription = Subscription{
+            id: subscription_id,
+            status: SubscriptionStatus::Created.to_string(),
+            billing_processor: Some(billing_processor.to_string()),
+            payment_method_id: None,
+            merchant_connector_id: Some(merchant_connector_id),
+            client_secret: None,
+            connector_subscription_id: None,
+            merchant_id: self.merchant_context
                 .get_merchant_account()
                 .get_id()
                 .clone(),
-            customer_id.clone(),
-            None,
-            self.profile.get_id().clone(),
-            merchant_reference_id,
-        );
+            customer_id: customer_id.clone(),
+            metadata: None,
+            profile_id: self.profile.get_id().clone(),
+            merchant_reference_id: merchant_reference_id,
+        };
 
         subscription.generate_and_set_client_secret();
 
+        let key_manager_state = &(self.state).into();
+        let merchant_key_store = self.merchant_context.get_merchant_key_store();
         let new_subscription = db
-            .insert_subscription_entry(subscription)
+            .insert_subscription_entry(key_manager_state, merchant_key_store, subscription)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("subscriptions: unable to insert subscription entry to database")?;
@@ -131,6 +135,8 @@ impl<'a> SubscriptionHandler<'a> {
             .state
             .store
             .find_by_merchant_id_subscription_id(
+                &(self.state).into(),
+                self.merchant_context.get_merchant_key_store(),
                 self.merchant_context.get_merchant_account().get_id(),
                 subscription_id.get_string_repr().to_string().clone(),
             )
@@ -152,7 +158,7 @@ impl<'a> SubscriptionHandler<'a> {
 }
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler<'a>,
-    pub subscription: diesel_models::subscription::Subscription,
+    pub subscription: Subscription,
     pub profile: hyperswitch_domain_models::business_profile::Profile,
     pub merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
 }
@@ -160,14 +166,14 @@ pub struct SubscriptionWithHandler<'a> {
 impl SubscriptionWithHandler<'_> {
     pub fn generate_response(
         &self,
-        invoice: &diesel_models::invoice::Invoice,
+        invoice: &hyperswitch_domain_models::invoice::Invoice,
         payment_response: &subscription_types::PaymentResponseData,
         status: subscription_response_types::SubscriptionStatus,
     ) -> errors::RouterResult<subscription_types::ConfirmSubscriptionResponse> {
         Ok(subscription_types::ConfirmSubscriptionResponse {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
-            status: SubscriptionStatus::from(status),
+            status: subscription_types::SubscriptionStatus::from(status),
             plan_id: None,
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
@@ -202,8 +208,8 @@ impl SubscriptionWithHandler<'_> {
         SubscriptionResponse::new(
             self.subscription.id.clone(),
             self.subscription.merchant_reference_id.clone(),
-            SubscriptionStatus::from_str(&self.subscription.status)
-                .unwrap_or(SubscriptionStatus::Created),
+            subscription_types::SubscriptionStatus::from_str(&self.subscription.status)
+                .unwrap_or(subscription_types::SubscriptionStatus::Created),
             None,
             self.subscription.profile_id.to_owned(),
             self.subscription.merchant_id.to_owned(),
@@ -214,12 +220,14 @@ impl SubscriptionWithHandler<'_> {
 
     pub async fn update_subscription(
         &mut self,
-        subscription_update: diesel_models::subscription::SubscriptionUpdate,
+        subscription_update: hyperswitch_domain_models::subscription::SubscriptionUpdate,
     ) -> errors::RouterResult<()> {
         let db = self.handler.state.store.as_ref();
         let updated_subscription = db
             .update_subscription_entry(
-                self.handler
+                &(self.handler.state).into(),
+                    self.handler.merchant_context.get_merchant_key_store(),
+                    self.handler
                     .merchant_context
                     .get_merchant_account()
                     .get_id(),

@@ -1,12 +1,14 @@
 use std::str::FromStr;
 
+use api_models::{enums as api_enums, payments::Address};
 use common_utils::{
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
     pii::SecretSerdeValue,
     types::keymanager::{self, KeyManagerState},
+    types::MinorUnit,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -14,10 +16,23 @@ use crate::merchant_key_store::MerchantKeyStore;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateSubscriptionRequest {
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub coupon_code: Option<String>,
     pub customer_id: common_utils::id_type::CustomerId,
+    pub payment_details: CreateSubscriptionPaymentDetails,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CreateSubscriptionPaymentDetails {
+    pub return_url: common_utils::types::Url,
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+    pub capture_method: Option<api_enums::CaptureMethod>,
+    pub authentication_type: Option<api_enums::AuthenticationType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -70,16 +85,34 @@ impl std::fmt::Display for SubscriptionStatus {
 impl From<api_models::subscription::CreateSubscriptionRequest> for CreateSubscriptionRequest {
     fn from(api_request: api_models::subscription::CreateSubscriptionRequest) -> Self {
         Self {
+            amount: api_request.amount,
+            currency: api_request.currency,
             merchant_reference_id: api_request.merchant_reference_id,
             plan_id: api_request.plan_id,
             coupon_code: api_request.coupon_code,
             customer_id: api_request.customer_id,
+            payment_details: api_request.payment_details.into(),
+            billing: api_request.billing,
+            shipping: api_request.shipping,
+        }
+    }
+}
+
+impl From<api_models::subscription::CreateSubscriptionPaymentDetails>
+    for CreateSubscriptionPaymentDetails
+{
+    fn from(api_details: api_models::subscription::CreateSubscriptionPaymentDetails) -> Self {
+        Self {
+            return_url: api_details.return_url,
+            setup_future_usage: api_details.setup_future_usage,
+            capture_method: api_details.capture_method,
+            authentication_type: api_details.authentication_type,
         }
     }
 }
 
 /// Convert from domain model `CreateSubscriptionResponse` to API model `CreateSubscriptionResponse`
-impl From<CreateSubscriptionResponse> for api_models::subscription::CreateSubscriptionResponse {
+impl From<CreateSubscriptionResponse> for api_models::subscription::SubscriptionResponse {
     fn from(domain_response: CreateSubscriptionResponse) -> Self {
         Self {
             id: domain_response.id,
@@ -113,24 +146,6 @@ impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     }
 }
 
-// /// Convert from API model `SubscriptionStatus` to domain model `SubscriptionStatus`
-impl From<api_models::subscription::SubscriptionStatus> for SubscriptionStatus {
-    fn from(api_status: api_models::subscription::SubscriptionStatus) -> Self {
-        match api_status {
-            api_models::subscription::SubscriptionStatus::Active => Self::Active,
-            api_models::subscription::SubscriptionStatus::Created => Self::Created,
-            api_models::subscription::SubscriptionStatus::InActive => Self::InActive,
-            api_models::subscription::SubscriptionStatus::Pending => Self::Pending,
-            api_models::subscription::SubscriptionStatus::Trial => Self::Active,
-            api_models::subscription::SubscriptionStatus::Paused => Self::InActive,
-            api_models::subscription::SubscriptionStatus::Unpaid => Self::Pending,
-            api_models::subscription::SubscriptionStatus::Onetime => Self::Active,
-            api_models::subscription::SubscriptionStatus::Cancelled => Self::InActive,
-            api_models::subscription::SubscriptionStatus::Failed => Self::InActive,
-        }
-    }
-}
-
 impl CreateSubscriptionRequest {
     pub fn to_subscription(
         self,
@@ -138,7 +153,6 @@ impl CreateSubscriptionRequest {
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
     ) -> Subscription {
-        let now = common_utils::date_time::now();
         Subscription {
             id,
             status: SubscriptionStatus::Created.to_string(),
@@ -152,8 +166,6 @@ impl CreateSubscriptionRequest {
             metadata: None,
             profile_id,
             merchant_reference_id: self.merchant_reference_id,
-            created_at: now,
-            modified_at: now,
         }
     }
 }
@@ -211,10 +223,6 @@ pub struct Subscription {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::CustomerId,
     pub metadata: Option<SecretSerdeValue>,
-    // #[serde(with = "custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,
-    // #[serde(with = "custom_serde::iso8601")]
-    pub modified_at: PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
 }
@@ -234,6 +242,7 @@ impl super::behaviour::Conversion for Subscription {
     type NewDstType = diesel_models::subscription::SubscriptionNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let now = common_utils::date_time::now();
         Ok(diesel_models::subscription::Subscription {
             id: self.id,
             status: self.status,
@@ -245,8 +254,8 @@ impl super::behaviour::Conversion for Subscription {
             merchant_id: self.merchant_id,
             customer_id: self.customer_id,
             metadata: self.metadata.map(|m| m.expose()),
-            created_at: self.created_at,
-            modified_at: self.modified_at,
+            created_at: now,
+            modified_at: now,
             profile_id: self.profile_id,
             merchant_reference_id: self.merchant_reference_id,
         })
@@ -272,8 +281,6 @@ impl super::behaviour::Conversion for Subscription {
             merchant_id: item.merchant_id,
             customer_id: item.customer_id,
             metadata: item.metadata.map(SecretSerdeValue::new),
-            created_at: item.created_at,
-            modified_at: item.modified_at,
             profile_id: item.profile_id,
             merchant_reference_id: item.merchant_reference_id,
         })
@@ -326,16 +333,22 @@ pub trait SubscriptionInterface {
 }
 
 pub struct SubscriptionUpdate {
+    pub connector_subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
     pub modified_at: PrimitiveDateTime,
 }
 
 impl SubscriptionUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
+    pub fn new(
+        payment_method_id: Option<Secret<String>>,
+        status: Option<String>,
+        connector_subscription_id: Option<String>,
+    ) -> Self {
         Self {
-            payment_method_id,
+            payment_method_id: payment_method_id.map(|pmid| pmid.peek().clone()),
             status,
+            connector_subscription_id,
             modified_at: common_utils::date_time::now(),
         }
     }
@@ -348,6 +361,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::subscription::SubscriptionUpdate {
+            connector_subscription_id: self.connector_subscription_id,
             payment_method_id: self.payment_method_id,
             status: self.status,
             modified_at: self.modified_at,
@@ -364,6 +378,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
         Self: Sized,
     {
         Ok(Self {
+            connector_subscription_id: item.connector_subscription_id,
             payment_method_id: item.payment_method_id,
             status: item.status,
             modified_at: item.modified_at,
@@ -372,6 +387,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::subscription::SubscriptionUpdate {
+            connector_subscription_id: self.connector_subscription_id,
             payment_method_id: self.payment_method_id,
             status: self.status,
             modified_at: self.modified_at,

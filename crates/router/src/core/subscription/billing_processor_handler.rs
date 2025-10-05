@@ -160,7 +160,7 @@ impl BillingHandler {
     pub async fn create_subscription_on_connector(
         &self,
         state: &SessionState,
-        subscription: diesel_models::subscription::Subscription,
+        subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
         billing_address: Option<api_models::payments::Address>,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {

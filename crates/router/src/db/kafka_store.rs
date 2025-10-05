@@ -4381,6 +4381,18 @@ impl InvoiceInterface for KafkaStore {
             .update_invoice_entry(state, key_store, invoice_id, data)
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn get_latest_invoice_for_subscription(
+        &self,
+        state: &KeyManagerState,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        subscription_id: String,
+    ) -> CustomResult<DomainInvoice, errors::StorageError> {
+        self.diesel_store
+            .get_latest_invoice_for_subscription(state, key_store, subscription_id)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

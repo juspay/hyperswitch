@@ -32,16 +32,31 @@ pub struct Invoice {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-pub enum InvoiceStatus {
-    InvoiceCreated,
-    PaymentPending,
-    PaymentPendingTimeout,
-    PaymentSucceeded,
-    PaymentFailed,
-    PaymentCanceled,
-    InvoicePaid,
-    ManualReview,
-}
+// pub enum InvoiceStatus {
+//     InvoiceCreated,
+//     PaymentPending,
+//     PaymentPendingTimeout,
+//     PaymentSucceeded,
+//     PaymentFailed,
+//     PaymentCanceled,
+//     InvoicePaid,
+//     ManualReview,
+// }
+
+// impl std::fmt::Display for InvoiceStatus {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::InvoiceCreated => write!(f, "InvoiceCreated"),
+//             Self::PaymentPending => write!(f, "PaymentPending"),
+//             Self::PaymentPendingTimeout => write!(f, "PaymentPendingTimeout"),
+//             Self::PaymentSucceeded => write!(f, "PaymentSucceeded"),
+//             Self::PaymentFailed => write!(f, "PaymentFailed"),
+//             Self::PaymentCanceled => write!(f, "PaymentCanceled"),
+//             Self::InvoicePaid => write!(f, "InvoicePaid"),
+//             Self::ManualReview => write!(f, "ManualReview"),
+//         }
+//     }
+// }
 
 #[async_trait::async_trait]
 
@@ -183,6 +198,13 @@ pub trait InvoiceInterface {
         invoice_id: String,
         data: InvoiceUpdate,
     ) -> CustomResult<Invoice, Self::Error>;
+
+    async fn get_latest_invoice_for_subscription(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        subscription_id: String,
+    ) -> CustomResult<Invoice, Self::Error>;
 }
 
 pub struct InvoiceUpdate {
@@ -225,5 +247,15 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             payment_method_id: self.payment_method_id,
             modified_at: self.modified_at,
         })
+    }
+}
+
+impl InvoiceUpdate {
+    pub fn new(payment_method_id: Option<String>, status: Option<common_enums::connector_enums::InvoiceStatus>) -> Self {
+        Self {
+            payment_method_id,
+            status: status.map(|status| status.to_string()),
+            modified_at: common_utils::date_time::now(),
+        }
     }
 }

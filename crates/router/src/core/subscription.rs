@@ -61,6 +61,7 @@ pub async fn create_subscription(
     invoice_handler
         .create_invoice_entry(
             &state,
+            &merchant_context,
             billing_handler.merchant_connector_id,
             Some(payment.payment_id.clone()),
             request.amount,
@@ -73,7 +74,7 @@ pub async fn create_subscription(
         .attach_printable("subscriptions: failed to create invoice")?;
 
     subscription
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
+        .update_subscription(hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
             payment.payment_method_id.clone(),
             None,
             None,
@@ -85,7 +86,6 @@ pub async fn create_subscription(
         subscription.to_subscription_response(),
     ))
 }
-
 /// Creates and confirms a subscription in one operation.
 /// This method combines the creation and confirmation flow to reduce API calls
 pub async fn create_and_confirm_subscription(
@@ -155,6 +155,7 @@ pub async fn create_and_confirm_subscription(
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
+            &merchant_context,
             profile.get_billing_processor_id()?,
             Some(payment_response.payment_id.clone()),
             amount,
@@ -172,7 +173,7 @@ pub async fn create_and_confirm_subscription(
     //     .await?;
 
     subs_handler
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
+        .update_subscription(hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
             payment_response.payment_method_id.clone(),
             Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
             Some(
@@ -214,7 +215,7 @@ pub async fn confirm_subscription(
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
     let invoice_handler = subscription_entry.get_invoice_handler();
     let invoice = invoice_handler
-        .get_latest_invoice(&state)
+        .get_latest_invoice(&state, &merchant_context)
         .await
         .attach_printable("subscriptions: failed to get latest invoice")?;
     let payment_response = invoice_handler
@@ -259,6 +260,7 @@ pub async fn confirm_subscription(
     let invoice_entry = invoice_handler
         .update_invoice(
             &state,
+            &merchant_context,
             invoice.id,
             payment_response.payment_method_id.clone(),
             invoice_details
@@ -269,7 +271,7 @@ pub async fn confirm_subscription(
         .await?;
 
     subscription_entry
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
+        .update_subscription(hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
             payment_response.payment_method_id.clone(),
             Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
             Some(
