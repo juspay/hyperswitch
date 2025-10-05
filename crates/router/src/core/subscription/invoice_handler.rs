@@ -270,7 +270,6 @@ impl InvoiceHandler {
             currency,
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
-            profile_id: Some(self.profile.get_id().get_string_repr().to_string()),
             recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
                 payment_method_id.to_owned(),
             )),

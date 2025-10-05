@@ -236,7 +236,6 @@ pub struct CreateMitPaymentRequestData {
     pub currency: api_enums::Currency,
     pub confirm: bool,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub profile_id: Option<String>,
     pub recurring_details: Option<RecurringDetails>,
     pub off_session: Option<bool>,
 }
