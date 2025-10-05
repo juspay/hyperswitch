@@ -49,7 +49,7 @@ impl<'a> SubscriptionHandler<'a> {
         let store = self.state.store.clone();
         let db = store.as_ref();
 
-        let mut subscription = Subscription{
+        let mut subscription = Subscription {
             id: subscription_id,
             status: SubscriptionStatus::Created.to_string(),
             billing_processor: Some(billing_processor.to_string()),
@@ -57,7 +57,8 @@ impl<'a> SubscriptionHandler<'a> {
             merchant_connector_id: Some(merchant_connector_id),
             client_secret: None,
             connector_subscription_id: None,
-            merchant_id: self.merchant_context
+            merchant_id: self
+                .merchant_context
                 .get_merchant_account()
                 .get_id()
                 .clone(),
@@ -224,8 +225,8 @@ impl SubscriptionWithHandler<'_> {
         let updated_subscription = db
             .update_subscription_entry(
                 &(self.handler.state).into(),
-                    self.handler.merchant_context.get_merchant_key_store(),
-                    self.handler
+                self.handler.merchant_context.get_merchant_key_store(),
+                self.handler
                     .merchant_context
                     .get_merchant_account()
                     .get_id(),

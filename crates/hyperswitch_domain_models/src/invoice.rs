@@ -251,7 +251,10 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 }
 
 impl InvoiceUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<common_enums::connector_enums::InvoiceStatus>) -> Self {
+    pub fn new(
+        payment_method_id: Option<String>,
+        status: Option<common_enums::connector_enums::InvoiceStatus>,
+    ) -> Self {
         Self {
             payment_method_id,
             status: status.map(|status| status.to_string()),

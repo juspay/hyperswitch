@@ -91,7 +91,12 @@ impl InvoiceHandler {
         let merchant_key_store = merchant_context.get_merchant_key_store();
         state
             .store
-            .update_invoice_entry(key_manager_state, merchant_key_store, invoice_id.get_string_repr().to_string(), update_invoice)
+            .update_invoice_entry(
+                key_manager_state,
+                merchant_key_store,
+                invoice_id.get_string_repr().to_string(),
+                update_invoice,
+            )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Invoice Update".to_string(),
@@ -219,7 +224,11 @@ impl InvoiceHandler {
         let merchant_key_store = merchant_context.get_merchant_key_store();
         state
             .store
-            .get_latest_invoice_for_subscription(key_manager_state, merchant_key_store, self.subscription.id.get_string_repr().to_string())
+            .get_latest_invoice_for_subscription(
+                key_manager_state,
+                merchant_key_store,
+                self.subscription.id.get_string_repr().to_string(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Get Latest Invoice".to_string(),
