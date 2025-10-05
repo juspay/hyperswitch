@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
     payment_methods::PaymentMethodUpdate,
 };
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use rdkafka::message::ToBytes;
 use router_env::logger;
 
@@ -78,6 +78,46 @@ pub async fn update_payment_method_record(
                     message: "Merchant ID in the request does not match the Merchant ID in the payment method record.".to_string(),
                 }.into());
     }
+
+    // Extract existing payment_method_data and update expiry fields if provided
+    let updated_payment_method_data = match payment_method.payment_method_data.as_ref() {
+        Some(data) => {
+            match serde_json::from_value::<pm_api::PaymentMethodsData>(data.clone().into_inner().expose()) {
+                Ok(pm_api::PaymentMethodsData::Card(mut card_data)) => {
+                    let mut updated = false;
+                    
+                    if let Some(new_month) = &req.card_expiry_month {
+                        card_data.expiry_month = Some(new_month.clone());
+                        updated = true;
+                    }
+                    
+                    if let Some(new_year) = &req.card_expiry_year {
+                        card_data.expiry_year = Some(new_year.clone());
+                        updated = true;
+                    }
+                    
+                    if updated {
+                        let payment_method_data = pm_api::PaymentMethodsData::Card(card_data);
+                        
+                        Some(
+                            serde_json::to_vec(&payment_method_data)
+                                .map_err(|err| {
+                                    logger::error!("Failed to serialize payment method data: {:?}", err);
+                                    errors::ApiErrorResponse::InternalServerError
+                                })
+                                .map(|bytes| {
+                                    common_utils::encryption::Encryption::new(masking::Secret::new(bytes))
+                                })
+                        )
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
+        None => None,
+    }.transpose()?;
 
     // Process mandate details when both payment_instrument_id and merchant_connector_id are present
     let pm_update = match (&req.payment_instrument_id, &req.merchant_connector_id) {
@@ -182,13 +222,19 @@ pub async fn update_payment_method_record(
                 )),
                 network_transaction_id,
                 status,
+                payment_method_data: updated_payment_method_data.clone(),
             }
         }
         _ => {
-            // Update only network_transaction_id and status
-            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
-                network_transaction_id,
-                status,
+            if updated_payment_method_data.is_some() {
+                PaymentMethodUpdate::PaymentMethodDataUpdate {
+                    payment_method_data: updated_payment_method_data,
+                }
+            } else {
+                PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                    network_transaction_id,
+                    status,
+                }
             }
         }
     };
