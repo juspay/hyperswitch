@@ -945,7 +945,7 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         common_enums::PaymentMethod::Card,
         PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::Supported,
+            mandates: common_enums::FeatureStatus::NotSupported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: Some(
@@ -963,7 +963,7 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         common_enums::PaymentMethod::Card,
         PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::Supported,
+            mandates: common_enums::FeatureStatus::NotSupported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: Some(
