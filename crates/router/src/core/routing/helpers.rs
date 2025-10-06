@@ -2,9 +2,7 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
-use std::fmt::Debug;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
+use std::{fmt::Debug, str::FromStr};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
@@ -2761,3 +2759,80 @@ pub async fn redact_cgraph_cache(
 
     Ok(())
 }
+
+pub async fn redact_routing_cache(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<()> {
+    let routing_payments_key = format!(
+        "routing_config_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+    let routing_payouts_key = format!(
+        "routing_config_po_{}_{}",
+        merchant_id.get_string_repr(),
+        profile_id.get_string_repr(),
+    );
+
+    let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
+    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    cache::redact_from_redis_and_publish(
+        state.store.get_cache_store().as_ref(),
+        [routing_payouts_cache_key, routing_payments_cache_key],
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to invalidate the routing cache")?;
+
+    Ok(())
+}
+
+pub async fn update_default_fallback_on_mca_update(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    updated_mca: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+) -> RouterResult<()> {
+    let db = state.store.as_ref();
+    let merchant_id_str = merchant_id.get_string_repr();
+    let profile_id_str = profile_id.get_string_repr();
+    let txn_type = &storage::enums::TransactionType::from(updated_mca.connector_type);
+
+    let mut connectors = get_merchant_default_config(db, merchant_id_str, txn_type).await?;
+
+    let choice = routing_types::RoutableConnectorChoice {
+        choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+        connector: api_models::enums::RoutableConnectors::from_str(
+            &updated_mca.connector_name.to_string(),
+        )
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable(format!(
+            "Unable to parse RoutableConnectors from connector: {}",
+            updated_mca.connector_name
+        ))?,
+        merchant_connector_id: Some(updated_mca.get_id().clone()),
+    };
+
+    if updated_mca.disabled.unwrap_or(false)
+        || updated_mca.status == api_models::enums::ConnectorStatus::Inactive
+    {
+        // remove if disabled
+        connectors.retain(|c| c.merchant_connector_id != Some(updated_mca.get_id().clone()));
+    } else {
+        // ensure it is present if enabled
+        if !connectors.contains(&choice) {
+            connectors.push(choice);
+        }
+    }
+
+    // update merchant config
+    update_merchant_default_config(db, merchant_id_str, connectors.clone(), txn_type).await?;
+
+    // update profile config
+    update_merchant_default_config(db, profile_id_str, connectors, txn_type).await?;
+
+    Ok(())
+}
+
