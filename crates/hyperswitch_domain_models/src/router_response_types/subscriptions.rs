@@ -16,7 +16,7 @@ pub struct SubscriptionCreateResponse {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SubscriptionInvoiceData {
-    pub id: String,
+    pub id: id_type::InvoiceId,
     pub total: MinorUnit,
     pub currency_code: Currency,
     pub status: Option<common_enums::connector_enums::InvoiceStatus>,
