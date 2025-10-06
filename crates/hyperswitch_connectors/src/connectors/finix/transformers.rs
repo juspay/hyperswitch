@@ -529,10 +529,8 @@ impl<F> TryFrom<&FinixRouterData<'_, F, RefundsData, RefundsResponseData>>
     fn try_from(
         item: &FinixRouterData<'_, F, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let id = item.router_data.request.connector_transaction_id.clone();
         let refund_amount = item.router_data.request.minor_refund_amount;
-        let currency = item.router_data.request.currency;
-        Ok(Self::new(id, refund_amount, currency))
+        Ok(Self::new(refund_amount))
     }
 }
 

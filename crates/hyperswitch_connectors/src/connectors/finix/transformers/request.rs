@@ -76,19 +76,11 @@ pub struct FinixCreatePaymentInstrumentRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCreateRefundRequest {
-    pub linked_transfers: String,
     pub refund_amount: MinorUnit,
-    pub currency: Currency,
-    pub _type: String,
 }
 
 impl FinixCreateRefundRequest {
-    pub fn new(parent_txn_id: String, amount: MinorUnit, currency: Currency) -> Self {
-        Self {
-            linked_transfers: parent_txn_id,
-            refund_amount: amount,
-            currency,
-            _type: "REVERSAL".to_string(),
-        }
+    pub fn new(refund_amount: MinorUnity) -> Self {
+        Self { refund_amount }
     }
 }
