@@ -30,7 +30,7 @@ pub async fn create_subscription(
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<SubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
-
+    
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
@@ -243,7 +243,7 @@ pub async fn confirm_subscription(
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
-        .get_latest_invoice(&state, &merchant_context)
+        .get_latest_invoice(&state)
         .await
         .attach_printable("subscriptions: failed to get latest invoice")?;
     let payment_response = invoice_handler

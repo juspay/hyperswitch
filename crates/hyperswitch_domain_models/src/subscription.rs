@@ -38,7 +38,7 @@ pub struct CreateSubscriptionPaymentDetails {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct CreateSubscriptionResponse {
+pub struct SubscriptionResponse {
     pub id: common_utils::id_type::SubscriptionId,
     pub merchant_reference_id: Option<String>,
     pub status: SubscriptionStatus,
@@ -115,10 +115,10 @@ impl From<api_models::subscription::CreateSubscriptionPaymentDetails>
     }
 }
 
-/// Convert from domain model `CreateSubscriptionResponse` to API model `CreateSubscriptionResponse`
+/// Convert from domain model `SubscriptionResponse` to API model `SubscriptionResponse`
 #[cfg(feature = "v1")]
-impl From<CreateSubscriptionResponse> for api_models::subscription::SubscriptionResponse {
-    fn from(domain_response: CreateSubscriptionResponse) -> Self {
+impl From<SubscriptionResponse> for api_models::subscription::SubscriptionResponse {
+    fn from(domain_response: SubscriptionResponse) -> Self {
         Self {
             id: domain_response.id,
             merchant_reference_id: domain_response.merchant_reference_id,
@@ -152,49 +152,49 @@ impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     }
 }
 
-impl CreateSubscriptionRequest {
-    pub fn to_subscription(
-        self,
-        id: common_utils::id_type::SubscriptionId,
-        profile_id: common_utils::id_type::ProfileId,
-        merchant_id: common_utils::id_type::MerchantId,
-    ) -> Subscription {
-        Subscription {
-            id,
-            status: SubscriptionStatus::Created.to_string(),
-            billing_processor: None,
-            payment_method_id: None,
-            merchant_connector_id: None,
-            client_secret: None,
-            connector_subscription_id: None,
-            merchant_id,
-            customer_id: self.customer_id,
-            metadata: None,
-            profile_id,
-            merchant_reference_id: self.merchant_reference_id,
-        }
-    }
-}
+// impl CreateSubscriptionRequest {
+//     pub fn to_subscription(
+//         self,
+//         id: common_utils::id_type::SubscriptionId,
+//         profile_id: common_utils::id_type::ProfileId,
+//         merchant_id: common_utils::id_type::MerchantId,
+//     ) -> Subscription {
+//         Subscription {
+//             id,
+//             status: SubscriptionStatus::Created.to_string(),
+//             billing_processor: None,
+//             payment_method_id: None,
+//             merchant_connector_id: None,
+//             client_secret: None,
+//             connector_subscription_id: None,
+//             merchant_id,
+//             customer_id: self.customer_id,
+//             metadata: None,
+//             profile_id,
+//             merchant_reference_id: self.merchant_reference_id,
+//         }
+//     }
+// }
 
-impl CreateSubscriptionResponse {
-    pub fn from_subscription_db(
-        subscription: Subscription,
-        customer_id: common_utils::id_type::CustomerId,
-    ) -> Self {
-        Self {
-            id: subscription.id,
-            merchant_reference_id: subscription.merchant_reference_id,
-            status: SubscriptionStatus::from_str(&subscription.status)
-                .unwrap_or(SubscriptionStatus::Created),
-            plan_id: None, // Not stored in the current DB schema
-            profile_id: subscription.profile_id,
-            client_secret: subscription.client_secret.map(Secret::new),
-            merchant_id: subscription.merchant_id,
-            coupon_code: None, // Not stored in the current DB schema
-            customer_id,
-        }
-    }
-}
+// impl CreateSubscriptionResponse {
+//     pub fn from_subscription_db(
+//         subscription: Subscription,
+//         customer_id: common_utils::id_type::CustomerId,
+//     ) -> Self {
+//         Self {
+//             id: subscription.id,
+//             merchant_reference_id: subscription.merchant_reference_id,
+//             status: SubscriptionStatus::from_str(&subscription.status)
+//                 .unwrap_or(SubscriptionStatus::Created),
+//             plan_id: None, // Not stored in the current DB schema
+//             profile_id: subscription.profile_id,
+//             client_secret: subscription.client_secret.map(Secret::new),
+//             merchant_id: subscription.merchant_id,
+//             coupon_code: None, // Not stored in the current DB schema
+//             customer_id,
+//         }
+//     }
+// }
 
 /// Add FromStr implementation for SubscriptionStatus
 impl FromStr for SubscriptionStatus {

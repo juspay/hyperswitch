@@ -234,15 +234,22 @@ impl InvoiceHandler {
     pub async fn get_latest_invoice(
         &self,
         state: &SessionState,
-        merchant_context: &hyperswitch_domain_models::merchant_context::MerchantContext,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
-        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                self.merchant_account.get_id(),
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .get_latest_invoice_for_subscription(
                 key_manager_state,
-                merchant_key_store,
+                &merchant_key_store,
                 self.subscription.id.get_string_repr().to_string(),
             )
             .await
@@ -255,16 +262,23 @@ impl InvoiceHandler {
     pub async fn get_invoice_by_id(
         &self,
         state: &SessionState,
-        merchant_context: &hyperswitch_domain_models::merchant_context::MerchantContext,
         invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
-        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                self.merchant_account.get_id(),
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .find_invoice_by_invoice_id(
                 key_manager_state,
-                merchant_key_store,
+                &merchant_key_store,
                 invoice_id.get_string_repr().to_string(),
             )
             .await
