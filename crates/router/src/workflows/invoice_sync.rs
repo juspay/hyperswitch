@@ -103,7 +103,11 @@ impl<'a> InvoiceSyncHandler<'a> {
 
         let invoice = state
             .store
-            .find_invoice_by_invoice_id(&state.into(), &key_store,tracking_data.invoice_id.get_string_repr().to_string())
+            .find_invoice_by_invoice_id(
+                &state.into(),
+                &key_store,
+                tracking_data.invoice_id.get_string_repr().to_string(),
+            )
             .await
             .attach_printable("invoices: unable to get latest invoice from database")?;
 
