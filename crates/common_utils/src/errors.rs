@@ -78,7 +78,7 @@ pub enum ValidationError {
 }
 
 /// Integrity check errors.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize)]
 pub struct IntegrityCheckError {
     /// Field names for which integrity check failed!
     pub field_names: String,

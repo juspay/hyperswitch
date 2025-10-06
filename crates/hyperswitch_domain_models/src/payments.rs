@@ -846,7 +846,7 @@ impl PaymentIntent {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub client_source: Option<String>,

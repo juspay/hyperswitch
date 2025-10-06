@@ -23,7 +23,7 @@ use crate::{
     router_flow_types, router_request_types, router_response_types,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: id_type::MerchantId,
@@ -271,7 +271,7 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
@@ -383,7 +383,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub card_network: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDecryptedData {
     pub client_id: Secret<String>,
@@ -396,7 +396,7 @@ pub struct PazeDecryptedData {
     pub eci: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
     pub payment_token: NetworkTokenNumber,
@@ -405,7 +405,7 @@ pub struct PazeToken {
     pub payment_account_reference: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
@@ -413,7 +413,7 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
     pub name: Option<Secret<String>>,
@@ -426,7 +426,7 @@ pub struct PazeAddress {
     pub country_code: Option<common_enums::enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeConsumer {
     // This is consumer data not customer data.
@@ -439,14 +439,14 @@ pub struct PazeConsumer {
     pub language_code: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazePhoneNumber {
     pub country_code: Secret<String>,
     pub phone_number: Secret<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, serde::Serialize)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
@@ -454,7 +454,7 @@ pub struct RecurringMandatePaymentData {
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PaymentMethodBalance {
     pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,

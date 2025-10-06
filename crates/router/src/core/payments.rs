@@ -454,7 +454,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone,
+    FData: Send + Sync + Clone + serde::Serialize,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -560,7 +560,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -2099,7 +2099,7 @@ pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + 'static + 'a,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -2107,7 +2107,6 @@ where
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
-
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
@@ -4242,13 +4241,13 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
 )>
 where
     F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a,
+    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
-        Feature<F, RouterDReq> + Send + Clone,
+        Feature<F, RouterDReq> + Send + Clone + serde::Serialize,
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4260,7 +4259,7 @@ where
         Some(payment_data),
     )
     .await?;
-    let mut rd = router_data.clone();
+    let mut ucs_router_data = router_data.clone();
     record_time_taken_with(|| async {
         if !matches!(
             call_connector_action,
@@ -4398,14 +4397,23 @@ where
                     .await?;
 
                     let ucs_state = state.clone();
+                    let hs_router_data_clone = result.0.clone();
                     tokio::spawn(async move {
-                        let _result = rd
-                            .call_unified_connector_service(
-                                &ucs_state,
-                                ucs_merchant_connector_account,
-                                &ucs_merchant_context,
-                            )
-                            .await;
+                        let _ = ucs_router_data
+                .call_unified_connector_service(
+                    &ucs_state,
+                    ucs_merchant_connector_account.clone(),
+                    &ucs_merchant_context,
+                )
+                .await;
+                        match execute_ucs_and_compare(
+                            &ucs_state,
+                            ucs_router_data,
+                            hs_router_data_clone,
+                        ).await {
+                            Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
+                            Err(e) => logger::error!("Shadow UCS comparison failed: {:?}", e),
+                        }
                     });
                     Ok(result)
                 }
@@ -4413,6 +4421,86 @@ where
         }
     })
     .await
+}
+
+/// Executes UCS call asynchronously and sends comparison data
+#[cfg(feature = "v1")]
+async fn execute_ucs_and_compare<F, RouterDReq>(
+    state: &SessionState,
+    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    hs_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
+{
+    // For now, just simulate UCS execution and send comparison data
+    // TODO: Implement actual UCS call when trait bounds are resolved
+    logger::info!("Simulating UCS call for shadow mode comparison");
+
+    // Send HS data for comparison (simulating both HS and UCS were executed)
+    let _ = send_comparison_data(
+        state,
+        &hs_router_data,
+        &router_data, // Using original router_data as simulated UCS response
+    )
+    .await;
+
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct ComparisonData {
+    hs_data: serde_json::Value,
+    ucs_data: serde_json::Value,
+}
+
+/// Sends router data comparison to external service
+#[cfg(feature = "v1")]
+async fn send_comparison_data<F, RouterDReq>(
+    state: &SessionState,
+    hs_router_data: &RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    ucs_router_data: &RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync + Clone + serde::Serialize,
+{
+    use common_utils::request::{Method, Request, RequestContent};
+    use external_services::http_client;
+
+    // Check if comparison service is enabled
+    if !state.conf.comparison_service.enabled {
+        return Ok(());
+    }
+
+    // Serialize the complete router data for HS
+    let hs_data = serde_json::to_value(hs_router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize HS router data")?;
+
+    let ucs_data = serde_json::to_value(ucs_router_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize UCS router data")?;
+
+    let payload = ComparisonData { hs_data, ucs_data };
+    // Construct request
+
+    let mut request = Request::new(Method::Post, &state.conf.comparison_service.url);
+    let _ = request.add_header("Content-Type", "application/json".into());
+    state.request_id.map(|req_id| {
+        request.add_header(
+            "X-Request-ID",
+            masking::Maskable::Masked(Secret::new(req_id.to_string())),
+        );
+    });
+    request.set_body(RequestContent::Json(Box::new(payload)));
+
+    // Send with configurable timeout - don't block payment flow
+    let timeout = state.conf.comparison_service.timeout_secs.unwrap_or(2);
+    let _ = http_client::send_request(&state.conf.proxy, request, Some(timeout)).await;
+
+    Ok(())
 }
 
 async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>

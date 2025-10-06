@@ -169,6 +169,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub comparison_service: ComparisonServiceConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -195,6 +196,14 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ComparisonServiceConfig {
+    pub url: String,
+    pub enabled: bool,
+    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
