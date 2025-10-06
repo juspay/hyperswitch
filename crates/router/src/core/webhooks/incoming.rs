@@ -1090,10 +1090,7 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await
                 {
-                    logger::warn!(
-                        ?e,
-                        "Failed to update additional payment method data"
-                    );
+                    logger::warn!(?e, "Failed to update additional payment method data");
                 }
             }
 
