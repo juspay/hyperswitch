@@ -11,8 +11,10 @@ use masking::{ExposeInterface, PeekInterface};
 use rdkafka::message::ToBytes;
 use router_env::logger;
 
-use crate::{core::errors::StorageErrorExt, routes::SessionState};
-
+use crate::{
+    core::{errors::StorageErrorExt, payment_methods::cards::create_encrypted_data},
+    routes::SessionState,
+};
 fn parse_merchant_connector_ids(
     ids_str: Option<String>,
 ) -> Option<Vec<id_type::MerchantConnectorAccountId>> {
@@ -77,6 +79,8 @@ pub async fn update_payment_method_record(
     let payment_method_id = req.payment_method_id.clone();
     let network_transaction_id = req.network_transaction_id.clone();
     let status = req.status;
+    let key_manager_state = state.into();
+    let mut updated_card_expiry = false;
 
     let payment_method = db
         .find_payment_method(
@@ -94,42 +98,33 @@ pub async fn update_payment_method_record(
                 }.into());
     }
 
-    // Extract existing payment_method_data and update expiry fields if provided
     let updated_payment_method_data = match payment_method.payment_method_data.as_ref() {
         Some(data) => {
             match serde_json::from_value::<pm_api::PaymentMethodsData>(
                 data.clone().into_inner().expose(),
             ) {
                 Ok(pm_api::PaymentMethodsData::Card(mut card_data)) => {
-                    let mut updated = false;
-
                     if let Some(new_month) = &req.card_expiry_month {
                         card_data.expiry_month = Some(new_month.clone());
-                        updated = true;
+                        updated_card_expiry = true;
                     }
 
                     if let Some(new_year) = &req.card_expiry_year {
                         card_data.expiry_year = Some(new_year.clone());
-                        updated = true;
+                        updated_card_expiry = true;
                     }
 
-                    if updated {
-                        let payment_method_data = pm_api::PaymentMethodsData::Card(card_data);
-
+                    if updated_card_expiry {
                         Some(
-                            serde_json::to_vec(&payment_method_data)
-                                .map_err(|err| {
-                                    logger::error!(
-                                        "Failed to serialize payment method data: {:?}",
-                                        err
-                                    );
-                                    errors::ApiErrorResponse::InternalServerError
-                                })
-                                .map(|bytes| {
-                                    common_utils::encryption::Encryption::new(masking::Secret::new(
-                                        bytes,
-                                    ))
-                                }),
+                            create_encrypted_data(
+                                &key_manager_state,
+                                merchant_context.get_merchant_key_store(),
+                                pm_api::PaymentMethodsData::Card(card_data),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt payment method data")
+                            .map(Into::into),
                         )
                     } else {
                         None
@@ -293,6 +288,7 @@ pub async fn update_payment_method_record(
             connector_mandate_details: response
                 .connector_mandate_details
                 .map(pii::SecretSerdeValue::new),
+            updated_payment_method_data: Some(updated_card_expiry),
         },
     ))
 }

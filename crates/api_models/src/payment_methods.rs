@@ -294,6 +294,7 @@ pub struct PaymentMethodRecordUpdateResponse {
     pub status: common_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub updated_payment_method_data: Option<bool>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -2703,6 +2704,7 @@ pub struct PaymentMethodUpdateResponse {
     pub update_status: UpdateStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_error: Option<String>,
+    pub updated_payment_method_data: Option<bool>,
     pub line_number: Option<i64>,
 }
 
@@ -2843,6 +2845,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 status: Some(res.status),
                 network_transaction_id: res.network_transaction_id,
                 connector_mandate_details: res.connector_mandate_details,
+                updated_payment_method_data: res.updated_payment_method_data,
                 update_status: UpdateStatus::Success,
                 update_error: None,
                 line_number: record.line_number,
@@ -2852,6 +2855,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 status: record.status,
                 network_transaction_id: record.network_transaction_id,
                 connector_mandate_details: None,
+                updated_payment_method_data: None,
                 update_status: UpdateStatus::Failed,
                 update_error: Some(e),
                 line_number: record.line_number,
