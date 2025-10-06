@@ -9602,12 +9602,20 @@ pub enum GooglePayCardFundingSource {
 impl From<IntentStatus> for InvoiceStatus {
     fn from(value: IntentStatus) -> Self {
         match value {
-            IntentStatus::Succeeded => Self::InvoicePaid,
+            IntentStatus::Succeeded
+            | IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyCaptured
+            | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture => Self::InvoicePaid,
             IntentStatus::Processing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
             | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
-            _ => Self::PaymentFailed,
+            IntentStatus::RequiresMerchantAction => Self::ManualReview,
+            IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
+            IntentStatus::Failed | IntentStatus::Conflicted | IntentStatus::Expired => {
+                Self::PaymentFailed
+            }
         }
     }
 }

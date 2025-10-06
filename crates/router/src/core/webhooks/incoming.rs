@@ -2657,8 +2657,6 @@ async fn subscription_incoming_webhook_flow(
         )
         .await?;
 
-    logger::info!(">>>payment response: {:?}", payment_response);
-
     let updated_invoice = invoice_handler
         .update_invoice(
             &state,
