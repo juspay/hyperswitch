@@ -169,6 +169,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub internal_services: InternalServicesConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -970,6 +971,12 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct InternalServicesConfig {
+    pub payments_base_url: String,
 }
 
 impl Settings<SecuredSecret> {
