@@ -107,10 +107,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = finix::FinixRouterData::try_from((MinorUnit::zero(), req))?;
         let connector_req = finix::FinixCreateIdentityRequest::try_from(&connector_router_data)?;
-        println!(
-            "nitt customer req {:?}",
-            serde_json::to_string(&connector_req)
-        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -145,8 +141,6 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         errors::ConnectorError,
     > {
-        println!("nitt customer res {:?}", res.response);
-
         let response: finix::FinixIdentityResponse = res
             .response
             .parse_struct("Finix IdentityResponse")
@@ -200,10 +194,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         let connector_router_data = finix::FinixRouterData::try_from((MinorUnit::zero(), req))?;
         let connector_req =
             finix::FinixCreatePaymentInstrumentRequest::try_from(&connector_router_data)?;
-        println!(
-            "nitt instrument req {:?}",
-            serde_json::to_string(&connector_req)
-        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -240,7 +230,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        println!("nitt instrument res {:?}", res.response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),

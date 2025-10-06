@@ -10,7 +10,7 @@ pub struct FinixPaymentsResponse {
     pub id: String,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
-    pub application: Option<String>,
+    pub application: Option<Secret<String>>,
     pub amount: MinorUnit,
     pub captured_amount: Option<MinorUnit>,
     pub currency: Currency,
@@ -31,11 +31,11 @@ pub struct FinixPaymentsResponse {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixIdentityResponse {
     pub id: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub application: String,
-    pub entity: HashMap<String, serde_json::Value>,
-    pub tags: FinixTags,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub application: Option<String>,
+    pub entity: Option<HashMap<String, serde_json::Value>>,
+    pub tags: Option<FinixTags>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -48,10 +48,6 @@ pub struct FinixInstrumentResponse {
     #[serde(rename = "type")]
     pub instrument_type: FinixPaymentInstrumentType,
     pub tags: Option<FinixTags>,
-    pub expiration_month: Option<i32>,
-    pub expiration_year: Option<i32>,
-    pub last_four: Option<String>,
-    pub bin: Option<String>,
     pub card_type: Option<FinixCardType>,
     pub card_brand: Option<FinixCardBrand>,
     pub fingerprint: Option<String>,

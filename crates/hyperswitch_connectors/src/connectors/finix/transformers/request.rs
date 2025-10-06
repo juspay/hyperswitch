@@ -11,8 +11,6 @@ pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub source: Secret<String>,
-    #[serde(rename = "type")]
-    pub auth_type: Option<String>,
     pub merchant: Secret<String>,
     pub tags: Option<FinixTags>,
     pub three_d_secure: Option<FinixThreeDSecure>,

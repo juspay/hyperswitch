@@ -101,6 +101,8 @@ pub enum FinixPaymentInstrumentType {
 
     #[serde(rename = "BANK_ACCOUNT")]
     BankAccount,
+    #[serde(other)]
+    Unknown,
 }
 
 /// Represents the type of a payment card.
@@ -109,6 +111,7 @@ pub enum FinixCardType {
     DEBIT,
     CREDIT,
     PREPAID,
+    #[serde(other)]
     UNKNOWN,
 }
 
@@ -173,16 +176,6 @@ impl From<&Address> for FinixAddress {
             },
         }
     }
-}
-
-/// The type of the business.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixBusinessType {
-    #[serde(rename = "SOLE_PROPRIETORSHIP")]
-    SoleProprietorship,
-    PARTNERSHIP,
-    LLC,
-    CORPORATION,
 }
 
 /// The type of the business.
@@ -294,9 +287,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
-                // Check if we have a payment instrument token already
                 let source = item.router_data.get_payment_method_token()?;
-
                 Ok(Self {
                     amount: item.amount,
                     currency: item.router_data.request.currency,
@@ -312,8 +303,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                             Err(unimplemented_payment_method!("Google Pay", "Stax"))?
                         }
                     },
-                    auth_type: Some("AUTHORIZATION".to_string()),
-                    merchant: item.merchant_id.clone(), // todo
+                    merchant: item.merchant_id.clone(),
                     tags: None,
                     three_d_secure: None,
                 })
