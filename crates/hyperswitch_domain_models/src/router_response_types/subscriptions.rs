@@ -80,6 +80,7 @@ pub struct SubscriptionPlanPrices {
     pub trial_period_unit: Option<PeriodUnit>,
 }
 
+#[cfg(feature = "v1")]
 impl From<SubscriptionPlanPrices> for api_models::subscription::SubscriptionPlanPrices {
     fn from(item: SubscriptionPlanPrices) -> Self {
         Self {
@@ -103,6 +104,7 @@ pub enum PeriodUnit {
     Year,
 }
 
+#[cfg(feature = "v1")]
 impl From<PeriodUnit> for api_models::subscription::PeriodUnit {
     fn from(unit: PeriodUnit) -> Self {
         match unit {
