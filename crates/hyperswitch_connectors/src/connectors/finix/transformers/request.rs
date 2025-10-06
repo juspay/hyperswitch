@@ -1,13 +1,9 @@
+use super::*;
 use common_enums::Currency;
 use common_utils::{pii::Email, types::MinorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::connectors::finix::transformers::finix_common::*;
-
-/// Request structure for creating an authorization
-/// API Reference: https://docs.finix.com/api/authorizations/createauthorization
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
@@ -35,16 +31,13 @@ impl FinixCancelRequest {
         Self { void_me: true }
     }
 }
-/// Request structure for capturing an authorization.
-/// API Reference: https://docs.finix.com/api/authorizations/captureauthorization
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCaptureAuthorizationRequest {
     pub amount: Option<MinorUnit>,
     pub tags: Option<FinixTags>,
 }
 
-/// Request structure for creating an identity.
-/// API Reference: https://docs.finix.com/api/identities/createidentity
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCreateIdentityRequest {
     pub entity: FinixIdentityEntity,
@@ -58,11 +51,10 @@ pub struct FinixIdentityEntity {
     pub phone: Option<Secret<String>>,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
-    pub email: Option<Email>, // Make email type
+    pub email: Option<Email>,
     pub personal_address: Option<FinixAddress>,
 }
-/// Request structure for creating a payment instrument.
-/// API Reference: https://docs.finix.com/api/payment-instruments/createpaymentinstrument
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(rename = "type")]

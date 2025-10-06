@@ -1,11 +1,8 @@
-use crate::connectors::finix::transformers::finix_common::*;
+use super::*;
 use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-/// Represents a generic Authorization response object.
-/// This structure is used for create, get, capture, and void responses.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixPaymentsResponse {
     pub id: String,
@@ -29,8 +26,6 @@ pub struct FinixPaymentsResponse {
     // Add other fields from the API response as needed.
 }
 
-/// Represents the response object for an Identity.
-/// API Reference: https://docs.finix.com/api/identities/createidentity
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixIdentityResponse {
     pub id: String,
@@ -41,8 +36,6 @@ pub struct FinixIdentityResponse {
     pub tags: FinixTags,
 }
 
-/// Represents the response object for a payment instrument.
-/// API Reference: https://docs.finix.com/api/payment-instruments/createpaymentinstrument
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixInstrumentResponse {
     pub id: String,
