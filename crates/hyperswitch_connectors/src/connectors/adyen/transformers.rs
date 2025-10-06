@@ -6273,7 +6273,7 @@ pub fn parse_expiry_date(
     let (month_str_raw, year_str_raw) = match (parts.first(), parts.get(1)) {
         (Some(m), Some(y)) => (*m, *y),
         _ => {
-            router_env::tracing::error!(
+            router_env::logger::warn!(
                 "Failed to parse month and year from input parts: {:?}",
                 parts
             );
