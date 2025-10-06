@@ -449,7 +449,6 @@ pub async fn change_password(
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
 
-    let user_id = user.get_user_id();
     let _ = state
         .global_store
         .update_user_by_user_id(
@@ -459,7 +458,7 @@ pub async fn change_password(
             },
         )
         .await
-        .attach_printable_lazy(|| format!("Failed to update password in database for user_id: {}", user_id))
+        .attach_printable("Failed to update user password in the database")?;
         .change_context(UserErrors::InternalServerError)?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
