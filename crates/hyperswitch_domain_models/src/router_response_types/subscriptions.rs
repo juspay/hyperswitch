@@ -33,6 +33,7 @@ pub enum SubscriptionStatus {
     Onetime,
     Cancelled,
     Failed,
+    Created,
 }
 
 #[cfg(feature = "v1")]
@@ -47,6 +48,7 @@ impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
             SubscriptionStatus::Onetime => Self::Onetime,
             SubscriptionStatus::Cancelled => Self::Cancelled,
             SubscriptionStatus::Failed => Self::Failed,
+            SubscriptionStatus::Created => Self::Created,
         }
     }
 }

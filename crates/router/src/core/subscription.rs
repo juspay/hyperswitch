@@ -14,6 +14,7 @@ use crate::{
     },
     routes::SessionState,
 };
+use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
 
 pub mod billing_processor_handler;
 pub mod invoice_handler;
@@ -28,7 +29,7 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<SubscriptionResponse> {
+) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
     let profile =
@@ -65,7 +66,7 @@ pub async fn create_subscription(
         .create_payment_with_confirm_false(subscription.handler.state, &request)
         .await
         .attach_printable("subscriptions: failed to create payment")?;
-    invoice_handler
+    let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
             billing_handler.merchant_connector_id,
@@ -88,9 +89,13 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    Ok(ApplicationResponse::Json(
-        subscription.to_subscription_response(),
-    ))
+    let response = subscription.generate_response(
+        &invoice_entry,
+        &payment,
+        subscription_response_types::SubscriptionStatus::Created,
+    )?;
+
+    Ok(ApplicationResponse::Json(response))
 }
 
 pub async fn get_subscription_plans(
