@@ -1397,10 +1397,10 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 [list_dispute_supported_connectors]
 connector_list = "worldpayvantiv"
 
-#[proxy]
-#http_url = "http://127.0.0.1:8081"     # Proxy all HTTP traffic via this proxy
-#https_url = "http://127.0.0.1:8081"                 # Proxy all HTTPS traffic via this proxy
-#bypass_proxy_urls = ""
+[proxy]
+http_url = "http://127.0.0.1:8081"     # Proxy all HTTP traffic via this proxy
+https_url = "http://127.0.0.1:8081"                 # Proxy all HTTPS traffic via this proxy
+bypass_proxy_urls = ""
 
 [internal_merchant_id_profile_id_auth]
 enabled = false

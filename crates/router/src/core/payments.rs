@@ -4379,6 +4379,11 @@ where
             );
                     let ucs_merchant_connector_account = merchant_connector_account.clone();
                     let ucs_merchant_context = merchant_context.clone();
+                    let lineage_ids = grpc_client::LineageIds::new(
+                business_profile.merchant_id.clone(),
+                business_profile.get_id().clone(),
+            );
+            let ucs_header_payload = header_payload.clone();
 
                     // Update feature metadata to track Direct routing usage for stickiness
                     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
@@ -4411,6 +4416,8 @@ where
                         let _ = ucs_router_data
                 .call_unified_connector_service(
                     &ucs_state,
+                    &ucs_header_payload,
+                    lineage_ids,
                     ucs_merchant_connector_account.clone(),
                     &ucs_merchant_context,
                 )
