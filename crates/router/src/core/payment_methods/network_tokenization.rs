@@ -848,7 +848,7 @@ pub async fn check_token_status_with_tokenization_service(
 
     let check_token_status_response: pm_types::CheckTokenStatusResponse = res
         .response
-        .parse_struct("Network Token Status Response")
+        .parse_struct("CheckTokenStatusResponse")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
     Ok(check_token_status_response)

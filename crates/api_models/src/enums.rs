@@ -495,11 +495,13 @@ impl From<PermissionScope> for ReconPermissionScope {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
     ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[serde(rename_all = "UPPERCASE")]
@@ -507,7 +509,7 @@ impl From<PermissionScope> for ReconPermissionScope {
 pub enum TokenStatus {
     /// Indicates that the token is active and can be used for payments
     Active,
-    /// Indicates that the token is suspended and can't be used for payments
+    /// Indicates that the token is suspended from network's end for some reason and can't be used for payments right now
     Suspended,
     /// Indicates that the token is deactivated and can't be used for payments
     Deactivated,

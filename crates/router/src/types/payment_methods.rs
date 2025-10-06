@@ -358,9 +358,9 @@ pub struct CheckTokenStatusResponse {
     pub token_status: TokenStatus,
     pub token_expiry_month: Secret<String>,
     pub token_expiry_year: Secret<String>,
-    pub card_last_4: Option<String>,
-    pub card_expiry: Option<String>,
-    pub token_last_4: Option<String>,
+    pub card_last_4: String,
+    pub card_expiry: String,
+    pub token_last_4: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

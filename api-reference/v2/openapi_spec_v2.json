@@ -15269,42 +15269,102 @@
           }
         }
       },
-      "NetworkTokenStatusCheckResponse": {
+      "NetworkTokenStatusCheckFailureResponse": {
         "type": "object",
         "required": [
+          "error_message"
+        ],
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Error message describing what went wrong"
+          }
+        }
+      },
+      "NetworkTokenStatusCheckResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckSuccessResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "success_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckFailureResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "failure_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "NetworkTokenStatusCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "token_expiry_month",
+          "token_expiry_year",
+          "card_last_four",
+          "token_last_four",
+          "card_expiry",
           "payment_method_id",
           "customer_id"
         ],
         "properties": {
           "status": {
-            "type": "string",
-            "description": "The status of the network token",
-            "nullable": true
+            "$ref": "#/components/schemas/TokenStatus"
           },
           "token_expiry_month": {
             "type": "string",
-            "description": "The expiry month of the network token if active",
-            "nullable": true
+            "description": "The expiry month of the network token if active"
           },
           "token_expiry_year": {
             "type": "string",
-            "description": "The expiry year of the network token if active",
-            "nullable": true
+            "description": "The expiry year of the network token if active"
           },
           "card_last_four": {
             "type": "string",
-            "description": "The last four digits of the card",
-            "nullable": true
+            "description": "The last four digits of the card"
           },
           "token_last_four": {
             "type": "string",
-            "description": "The last four digits of the network token",
-            "nullable": true
+            "description": "The last four digits of the network token"
           },
           "card_expiry": {
             "type": "string",
-            "description": "The expiry date of the card in MM/YY format",
-            "nullable": true
+            "description": "The expiry date of the card in MM/YY format"
           },
           "payment_method_id": {
             "type": "string",
@@ -15315,11 +15375,6 @@
             "type": "string",
             "description": "The customer ID associated with the payment method",
             "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
-          },
-          "error_message": {
-            "type": "string",
-            "description": "Error message",
-            "nullable": true
           }
         }
       },
@@ -25981,6 +26036,14 @@
           {
             "$ref": "#/components/schemas/NetworkTokenDetailsResponse"
           }
+        ]
+      },
+      "TokenStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "SUSPENDED",
+          "DEACTIVATED"
         ]
       },
       "TokenType": {

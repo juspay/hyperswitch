@@ -3259,30 +3259,27 @@ pub struct AuthenticationDetails {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct NetworkTokenStatusCheckResponse {
+pub struct NetworkTokenStatusCheckSuccessResponse {
     /// The status of the network token
-    #[schema(value_type = Option<api_enums::TokenStatus>)]
-    pub status: Option<api_enums::TokenStatus>,
+    #[schema(value_type = TokenStatus)]
+    pub status: api_enums::TokenStatus,
 
     /// The expiry month of the network token if active
-    #[schema(value_type = Option<String>)]
-    pub token_expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type = String)]
+    pub token_expiry_month: masking::Secret<String>,
 
     /// The expiry year of the network token if active
-    #[schema(value_type = Option<String>)]
-    pub token_expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type = String)]
+    pub token_expiry_year: masking::Secret<String>,
 
     /// The last four digits of the card
-    #[schema(value_type = Option<String>)]
-    pub card_last_four: Option<String>,
+    pub card_last_four: String,
 
     /// The last four digits of the network token
-    #[schema(value_type = Option<String>)]
-    pub token_last_four: Option<String>,
+    pub token_last_four: String,
 
     /// The expiry date of the card in MM/YY format
-    #[schema(value_type = Option<String>)]
-    pub card_expiry: Option<String>,
+    pub card_expiry: String,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
@@ -3291,11 +3288,24 @@ pub struct NetworkTokenStatusCheckResponse {
     /// The customer ID associated with the payment method
     #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
     pub customer_id: id_type::GlobalCustomerId,
-
-    /// Error message
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_message: Option<String>,
 }
 
 #[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckFailureResponse {
+    /// Error message describing what went wrong
+    pub error_message: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NetworkTokenStatusCheckResponse {
+    /// Successful network token status check response
+    SuccessResponse(NetworkTokenStatusCheckSuccessResponse),
+    /// Error response for network token status check
+    FailureResponse(NetworkTokenStatusCheckFailureResponse),
+}
