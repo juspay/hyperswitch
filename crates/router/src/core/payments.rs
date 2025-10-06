@@ -6624,17 +6624,14 @@ where
                 )
             } else if connector.connector_name == router_types::Connector::Paysafe {
                 match payment_data.get_payment_method_data() {
-                    Some(domain::PaymentMethodData::Wallet(wallet_data))
-                        if matches!(wallet_data, domain::WalletData::ApplePay(_)) =>
-                    {
+                    Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(_))) => {
                         router_data = router_data.preprocessing_steps(state, connector).await?;
                         let is_error_in_response = router_data.response.is_err();
                         (router_data, !is_error_in_response)
                     }
                     _ => (router_data, should_continue_payment),
                 }
-            }
-            else {
+            } else {
                 (router_data, should_continue_payment)
             }
         }
