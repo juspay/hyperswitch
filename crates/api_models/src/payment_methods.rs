@@ -2689,7 +2689,7 @@ pub struct UpdatePaymentMethodRecord {
     pub network_transaction_id: Option<String>,
     pub line_number: Option<i64>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_ids: Option<String>,
     pub card_expiry_month: Option<masking::Secret<String>>,
     pub card_expiry_year: Option<masking::Secret<String>>,
 }
