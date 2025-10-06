@@ -112,14 +112,6 @@ where
                 headers::AUTHORIZATION.to_string(),
                 format!("Bearer {}", access_token.token.peek()).into(),
             ),
-            // (
-            //     headers::ACCEPT.to_string(),
-            //     ACCEPT_HEADER.to_string().into(),
-            // ),
-            // (
-            //     headers::USER_AGENT.to_string(),
-            //     USER_AGENT.to_string().into(),
-            // ),
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),

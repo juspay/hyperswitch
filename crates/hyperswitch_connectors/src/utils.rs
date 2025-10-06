@@ -6828,7 +6828,6 @@ pub fn generate_12_digit_number() -> u64 {
     rng.gen_range(100_000_000_000..=999_999_999_999)
 }
 
-
 pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
     let mut rng = rand::thread_rng();
     let len = rng.gen_range(min_len..=max_len);
