@@ -2,9 +2,7 @@ use common_enums::enums;
 use common_utils::{request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{
-        BankRedirectData, Card, PaymentMethodData, WalletData,
-    },
+    payment_method_data::{BankRedirectData, Card, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
