@@ -100,6 +100,9 @@ pub mod consts {
 
     /// Header key for sending the merchant reference id to UCS
     pub(crate) const UCS_HEADER_REFERENCE_ID: &str = "x-reference-id";
+
+    /// Header key for sending the session id to UCS
+    pub(crate) const UCS_HEADER_SESSION_ID: &str = "x-session-id";
 }
 
 /// Metrics for interactions with external systems.

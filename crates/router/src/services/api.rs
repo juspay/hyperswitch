@@ -715,6 +715,15 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id);
+
+    // Capture upstream request ID from x-request-id header if present
+    if let Some(upstream_request_id) = incoming_request_header
+        .get(common_utils::consts::X_REQUEST_ID)
+        .and_then(|value| value.to_str().ok())
+    {
+        session_state.add_upstream_request_id(upstream_request_id.to_string());
+    }
+
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id);

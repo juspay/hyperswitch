@@ -469,5 +469,12 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
+    if let Some(session_id) = grpc_headers.session_id {
+        metadata.append(
+            consts::UCS_HEADER_SESSION_ID,
+            parse(consts::UCS_HEADER_SESSION_ID, &session_id)?,
+        );
+    }
+
     Ok(metadata)
 }

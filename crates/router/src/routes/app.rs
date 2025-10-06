@@ -137,6 +137,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub upstream_request_id: Option<String>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -157,7 +158,9 @@ impl SessionState {
     }
     pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
-        GrpcHeadersUcs::builder().tenant_id(tenant_id)
+        GrpcHeadersUcs::builder()
+            .tenant_id(tenant_id)
+            .session_id(self.upstream_request_id.clone())
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -173,6 +176,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn add_upstream_request_id(&mut self, upstream_request_id: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -196,6 +200,9 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
+    }
+    fn add_upstream_request_id(&mut self, upstream_request_id: String) {
+        self.upstream_request_id = Some(upstream_request_id);
     }
 
     #[cfg(feature = "partial-auth")]
@@ -261,6 +268,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub upstream_request_id: Option<String>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -273,6 +281,7 @@ pub trait AppStateInfo {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<Box<dyn EmailService>>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn add_upstream_request_id(&mut self, upstream_request_id: String);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
@@ -297,6 +306,9 @@ impl AppStateInfo for AppState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
         self.request_id.replace(request_id);
+    }
+    fn add_upstream_request_id(&mut self, upstream_request_id: String) {
+        self.upstream_request_id = Some(upstream_request_id);
     }
 
     fn add_flow_name(&mut self, flow_name: String) {
@@ -449,6 +461,7 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
+                upstream_request_id: None,
             }
         })
         .await
@@ -545,6 +558,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            upstream_request_id: self.upstream_request_id.clone(),
         })
     }
 

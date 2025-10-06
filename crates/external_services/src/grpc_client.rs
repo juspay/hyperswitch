@@ -162,16 +162,20 @@ pub struct GrpcHeadersUcs {
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+    /// Session ID from upstream x-request-id header
+    session_id: Option<String>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), (), ())>;
+pub type GrpcHeadersUcsBuilderInitial =
+    GrpcHeadersUcsBuilder<((String,), (), (), (), (Option<String>,))>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
+    (Option<String>,),
 )>;
 
 /// struct to represent set of Lineage ids
