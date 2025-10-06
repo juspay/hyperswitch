@@ -399,6 +399,17 @@ pub struct Proxy {
 
     /// A comma-separated list of hosts that should bypass the proxy.
     pub bypass_proxy_hosts: Option<String>,
+
+    pub observer_proxy: Option<ObserverProxy>,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(default)]
+pub struct ObserverProxy {
+    pub enabled: bool,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+    pub percentage: u8,
 }
 
 impl Default for Proxy {
@@ -408,8 +419,103 @@ impl Default for Proxy {
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
             bypass_proxy_hosts: Default::default(),
+            observer_proxy: Default::default(),
         }
     }
+}
+
+impl Default for ObserverProxy {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            http_url: Default::default(),
+            https_url: Default::default(),
+            percentage: 0,
+        }
+    }
+}
+
+impl Proxy {
+    pub fn get_effective_proxy_urls(&self) -> (Option<&String>, Option<&String>) {
+        if let Some(observer_proxy) = &self.observer_proxy {
+            if observer_proxy.enabled && observer_proxy.percentage > 0 {
+                let random_value = (std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos() % 100) as u8 + 1;
+                
+                if random_value <= observer_proxy.percentage {
+                    let observer_http = observer_proxy.http_url.as_ref();
+                    let observer_https = observer_proxy.https_url.as_ref();
+                    let effective_http = observer_http.or(self.http_url.as_ref());
+                    let effective_https = observer_https.or(self.https_url.as_ref());
+                    return (effective_http, effective_https);
+                }
+            }
+        }
+        (self.http_url.as_ref(), self.https_url.as_ref())
+    }
+
+    pub async fn get_effective_proxy_urls_with_redis<T>(
+        &self,
+        redis_interface: &T,
+        request_id: &str,
+    ) -> (Option<&String>, Option<&String>)
+    where
+        T: RedisInterface,
+    {
+        if let Some(observer_proxy) = &self.observer_proxy {
+            if observer_proxy.enabled && observer_proxy.percentage > 0 {
+                match should_use_observer_proxy_accurate(redis_interface, observer_proxy.percentage, request_id).await {
+                    Ok(should_use_observer) if should_use_observer => {
+                        let observer_http = observer_proxy.http_url.as_ref();
+                        let observer_https = observer_proxy.https_url.as_ref();
+                        let effective_http = observer_http.or(self.http_url.as_ref());
+                        let effective_https = observer_https.or(self.https_url.as_ref());
+                        return (effective_http, effective_https);
+                    }
+                    Err(_) => return self.get_effective_proxy_urls(),
+                    _ => {}
+                }
+            }
+        }
+        (self.http_url.as_ref(), self.https_url.as_ref())
+    }
+}
+
+pub trait RedisInterface {
+    async fn incr(&self, key: &str) -> Result<u64, Box<dyn std::error::Error + Send + Sync>>;
+    async fn get(&self, key: &str) -> Result<Option<u64>, Box<dyn std::error::Error + Send + Sync>>;
+}
+
+async fn should_use_observer_proxy_accurate<T>(
+    redis: &T,
+    target_percentage: u8,
+    _request_id: &str,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>
+where
+    T: RedisInterface,
+{
+    const TOTAL_REQUESTS_KEY: &str = "observer_proxy_total";
+    const OBSERVER_REQUESTS_KEY: &str = "observer_proxy_observer";
+    
+    let total_requests = redis.get(TOTAL_REQUESTS_KEY).await?.unwrap_or(0);
+    let observer_requests = redis.get(OBSERVER_REQUESTS_KEY).await?.unwrap_or(0);
+    
+    let current_percentage = if total_requests > 0 {
+        (observer_requests * 100) / total_requests
+    } else {
+        0
+    };
+    
+    let should_use_observer = (current_percentage as u8) < target_percentage;
+    
+    redis.incr(TOTAL_REQUESTS_KEY).await?;
+    if should_use_observer {
+        redis.incr(OBSERVER_REQUESTS_KEY).await?;
+    }
+    
+    Ok(should_use_observer)
 }
 
 /// Type alias for `ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, PaymentsResponseData>`

@@ -84,8 +84,10 @@ pub fn get_client_builder(
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
 
+    let (effective_http_url, effective_https_url) = proxy_config.get_effective_proxy_urls();
+
     // Proxy all HTTPS traffic through the configured HTTPS proxy
-    if let Some(url) = proxy_config.https_url.as_ref() {
+    if let Some(url) = effective_https_url {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
@@ -95,7 +97,7 @@ pub fn get_client_builder(
     }
 
     // Proxy all HTTP traffic through the configured HTTP proxy
-    if let Some(url) = proxy_config.http_url.as_ref() {
+    if let Some(url) = effective_http_url {
         client_builder = client_builder.proxy(
             reqwest::Proxy::http(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)

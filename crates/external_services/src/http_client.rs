@@ -2,11 +2,9 @@ use common_utils::{consts, errors::CustomResult, request::Request};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use request::{HeaderExt, RequestBuilderExt};
 use router_env::{instrument, logger, tracing};
-/// client module
 pub mod client;
-/// metrics module
 pub mod metrics;
-/// request module
+pub mod observer_proxy;
 pub mod request;
 use std::{error::Error, time::Duration};
 

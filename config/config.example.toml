@@ -28,6 +28,12 @@ certificate = "/path/to/certificate.pem"
 idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
 bypass_proxy_hosts = "localhost, cluster.local" # A comma-separated list of domains or IP addresses that should not use the proxy. Whitespace between entries would be ignored.
 
+[proxy.recording_proxy]
+# enabled = true
+# http_url = "http://recording-proxy:8080"
+# https_url = "https://recording-proxy:8080"
+# percentage = 25
+
 # Configuration for the Key Manager Service
 [key_manager]
 url = "http://localhost:5000" # URL of the encryption service
