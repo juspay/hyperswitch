@@ -10,5 +10,3 @@ WHERE 'merchant_details_manage' = ANY(groups);
 UPDATE roles
 SET groups = array_replace(groups, 'organization_manage', 'account_manage')
 WHERE 'organization_manage' = ANY(groups);
-
-
