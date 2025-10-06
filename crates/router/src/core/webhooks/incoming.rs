@@ -2401,19 +2401,26 @@ async fn should_update_additional_payment_method_data(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     object_ref_id: api::ObjectReferenceId,
-) -> Result<bool, error_stack::Report<errors::ApiErrorResponse>> {
+) -> bool {
     let db = state.store.as_ref();
-    let payment_attempt =
-        get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_context)
-            .await?;
 
-    let payment_method_id = payment_attempt
-        .payment_method_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)
-        .attach_printable("No payment method id found in payment attempt")?;
+    let payment_attempt = match get_payment_attempt_from_object_reference_id(
+        &state,
+        object_ref_id,
+        &merchant_context,
+    )
+    .await
+    {
+        Ok(pa) => pa,
+        Err(_) => return false,
+    };
 
-    let pm = db
+    let payment_method_id = match payment_attempt.payment_method_id.clone() {
+        Some(id) => id,
+        None => return false,
+    };
+
+    let pm = match db
         .find_payment_method(
             &((&state).into()),
             merchant_context.get_merchant_key_store(),
@@ -2421,13 +2428,16 @@ async fn should_update_additional_payment_method_data(
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    {
+        Ok(pm) => pm,
+        Err(_) => return false,
+    };
 
     if pm.locker_id.is_some() {
-        return Ok(false);
+        return false;
     }
 
-    Ok(true)
+    true
 }
 
 async fn update_additional_payment_method_data(
