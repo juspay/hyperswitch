@@ -67,7 +67,7 @@ impl InvoiceHandler {
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                &self.merchant_account.get_id(),
+                self.merchant_account.get_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
@@ -100,7 +100,7 @@ impl InvoiceHandler {
             .store
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                &self.merchant_account.get_id(),
+                self.merchant_account.get_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await

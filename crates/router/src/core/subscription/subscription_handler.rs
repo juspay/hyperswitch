@@ -37,8 +37,6 @@ impl<'a> SubscriptionHandler<'a> {
     /// Helper function to create a subscription entry in the database.
     pub async fn create_subscription_entry(
         &self,
-        // state: SessionState,
-        // merchant_context: MerchantContext,
         subscription_id: common_utils::id_type::SubscriptionId,
         customer_id: &common_utils::id_type::CustomerId,
         billing_processor: connector_enums::Connector,
@@ -65,7 +63,7 @@ impl<'a> SubscriptionHandler<'a> {
             customer_id: customer_id.clone(),
             metadata: None,
             profile_id: profile.get_id().clone(),
-            merchant_reference_id: merchant_reference_id,
+            merchant_reference_id,
         };
 
         subscription.generate_and_set_client_secret();

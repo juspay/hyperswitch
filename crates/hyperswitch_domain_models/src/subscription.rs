@@ -84,6 +84,7 @@ impl std::fmt::Display for SubscriptionStatus {
 // Type conversions between API models and domain models
 
 /// Convert from API model `CreateSubscriptionRequest` to domain model `CreateSubscriptionRequest`
+#[cfg(feature = "v1")]
 impl From<api_models::subscription::CreateSubscriptionRequest> for CreateSubscriptionRequest {
     fn from(api_request: api_models::subscription::CreateSubscriptionRequest) -> Self {
         Self {
@@ -100,6 +101,7 @@ impl From<api_models::subscription::CreateSubscriptionRequest> for CreateSubscri
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<api_models::subscription::CreateSubscriptionPaymentDetails>
     for CreateSubscriptionPaymentDetails
 {
@@ -114,6 +116,7 @@ impl From<api_models::subscription::CreateSubscriptionPaymentDetails>
 }
 
 /// Convert from domain model `CreateSubscriptionResponse` to API model `CreateSubscriptionResponse`
+#[cfg(feature = "v1")]
 impl From<CreateSubscriptionResponse> for api_models::subscription::SubscriptionResponse {
     fn from(domain_response: CreateSubscriptionResponse) -> Self {
         Self {
@@ -131,6 +134,7 @@ impl From<CreateSubscriptionResponse> for api_models::subscription::Subscription
 }
 
 /// Convert from domain model `SubscriptionStatus` to API model `SubscriptionStatus`
+#[cfg(feature = "v1")]
 impl From<SubscriptionStatus> for api_models::subscription::SubscriptionStatus {
     fn from(domain_status: SubscriptionStatus) -> Self {
         match domain_status {
