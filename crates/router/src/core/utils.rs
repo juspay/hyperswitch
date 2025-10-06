@@ -19,12 +19,12 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
-};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
+    merchant_connector_account::MerchantConnectorAccount,
+    payment_address::PaymentAddress,
+    router_data::ErrorResponse,
+    router_data_v2::flow_common_types::VaultConnectorFlowData,
+    router_request_types,
+    types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
@@ -140,8 +140,19 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let webhook_url = helpers::create_webhook_url(
+        &state.base_url,
+        &merchant_context.get_merchant_account().get_id().to_owned(),
+        merchant_connector_account
+            .get_mca_id()
+            .get_required_value("merchant_connector_id")?
+            .get_string_repr(),
+    );
+
     let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
+    let browser_info = payout_data.browser_info.to_owned();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -187,6 +198,8 @@ pub async fn construct_payout_router_data<'a, F>(
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                 }),
             connector_transfer_method_id,
+            webhook_url: Some(webhook_url),
+            browser_info,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -218,6 +231,7 @@ pub async fn construct_payout_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -392,6 +406,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -598,6 +613,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1041,6 +1057,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1144,6 +1161,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1256,6 +1274,7 @@ pub async fn construct_upload_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1329,6 +1348,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 
@@ -1434,6 +1454,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1562,6 +1583,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1668,6 +1690,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1768,6 +1791,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -2350,25 +2374,22 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
-#[cfg(feature = "v2")]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-    payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_connector_account: &MerchantConnectorAccount,
+    payment_method_vaulting_data: Option<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    >,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let resource_common_data = VaultConnectorFlowData {
-        merchant_id: merchant_account.get_id().to_owned(),
+        merchant_id: merchant_id.to_owned(),
     };
 
     let router_data = types::RouterDataV2 {
@@ -2616,7 +2637,10 @@ pub fn should_proceed_with_accept_dispute(
 ) -> bool {
     matches!(
         dispute_stage,
-        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
     ) && matches!(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened

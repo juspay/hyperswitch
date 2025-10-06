@@ -111,6 +111,7 @@ pub struct ApiModelMetaData {
     pub tenant_id: Option<String>,
     pub platform_url: Option<String>,
     pub account_id: Option<serde_json::Value>,
+    pub site: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

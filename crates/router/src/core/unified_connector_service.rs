@@ -55,6 +55,15 @@ pub mod transformers;
 // Re-export webhook transformer types for easier access
 pub use transformers::WebhookTransformData;
 
+/// Type alias for return type used by unified connector service response handlers
+type UnifiedConnectorServiceResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
@@ -550,7 +559,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault => None,
+        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
@@ -570,82 +579,46 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
     response: payments_grpc::PaymentServiceRegisterResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
     response: payments_grpc::PaymentServiceRepeatEverythingResponse,
-) -> CustomResult<
-    (
-        AttemptStatus,
-        Result<PaymentsResponseData, ErrorResponse>,
-        u16,
-    ),
-    UnifiedConnectorServiceError,
-> {
-    let status = AttemptStatus::foreign_try_from(response.status())?;
-
+) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((status, router_data_response, status_code))
+    Ok((router_data_response, status_code))
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(
@@ -767,12 +740,16 @@ pub async fn call_unified_connector_service_for_webhook(
                 "Missing merchant connector account for UCS webhook transformation",
             )
         })?;
-
+    let profile_id = merchant_connector_account
+        .as_ref()
+        .map(|mca| mca.profile_id.clone())
+        .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
     let grpc_headers = state
         .get_grpc_headers_ucs()
         .lineage_ids(LineageIds::new(
             merchant_context.get_merchant_account().get_id().clone(),
+            profile_id,
         ))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
@@ -818,7 +795,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp>(
     router_data: RouterData<T, Req, Resp>,
     state: &SessionState,
     grpc_request: GrpcReq,
-    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderIntermediate,
+    grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     handler: F,
 ) -> RouterResult<RouterData<T, Req, Resp>>
 where
@@ -845,9 +822,7 @@ where
     let merchant_id = router_data.merchant_id.clone();
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
-    let grpc_header = grpc_header_builder
-        .lineage_ids(LineageIds::new(merchant_id.clone()))
-        .build();
+    let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));

@@ -6,7 +6,10 @@ use crate::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         revenue_recovery::InvoiceRecordBack,
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
@@ -20,7 +23,10 @@ use crate::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest},
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -42,7 +48,10 @@ use crate::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
         VerifyWebhookSourceResponseData,
@@ -138,6 +147,12 @@ pub type InvoiceRecordBackRouterData =
 pub type GetSubscriptionPlansRouterData =
     RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>;
 
+pub type GetSubscriptionEstimateRouterData = RouterData<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>;
+
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
 
@@ -195,3 +210,6 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
     ExternalVaultProxyPaymentsData,
     PaymentsResponseData,
 >;
+
+pub type SubscriptionCreateRouterData =
+    RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;

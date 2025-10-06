@@ -66,6 +66,8 @@ pub enum IncomingWebhookEvent {
     RecoveryPaymentPending,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     RecoveryInvoiceCancel,
+    SetupWebhook,
+    InvoiceGenerated,
 }
 
 impl IncomingWebhookEvent {
@@ -143,6 +145,7 @@ pub enum WebhookFlow {
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     Recovery,
+    Setup,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -297,6 +300,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
+            IncomingWebhookEvent::SetupWebhook => Self::Setup,
+            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
         }
     }
 }
@@ -338,6 +343,7 @@ pub enum ObjectReferenceId {
     PayoutId(PayoutIdType),
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     InvoiceId(InvoiceIdType),
+    SubscriptionId(common_utils::id_type::SubscriptionId),
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -385,7 +391,12 @@ impl ObjectReferenceId {
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "PaymentId is required but received InvoiceId",
                 },
-            )
+            ),
+            Self::SubscriptionId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received SubscriptionId",
+                },
+            ),
         }
     }
 }

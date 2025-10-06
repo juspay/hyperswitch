@@ -1,10 +1,10 @@
 use api_models::chat as chat_api;
-use common_utils::{type_name, types::keymanager::Identifier};
-use diesel_models::hyperswitch_ai_interaction::{
-    HyperswitchAiInteraction, HyperswitchAiInteractionNew,
+use common_utils::{
+    crypto::{EncodeMessage, GcmAes256},
+    encryption::Encryption,
 };
+use diesel_models::hyperswitch_ai_interaction::HyperswitchAiInteractionNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::ExposeInterface;
 
 use crate::{
@@ -29,29 +29,20 @@ pub async fn construct_hyperswitch_ai_interaction(
             encryption_key.as_bytes().to_vec()
         }
     };
-    let encrypted_user_query = crypto_operation::<String, masking::WithType>(
-        &state.into(),
-        type_name!(HyperswitchAiInteraction),
-        CryptoOperation::Encrypt(req.message.clone()),
-        Identifier::Merchant(user_from_token.merchant_id.clone()),
-        &key,
-    )
-    .await
-    .and_then(|val| val.try_into_operation())
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt user query")?;
+    let encrypted_user_query_bytes = GcmAes256
+        .encode_message(&key, &req.message.clone().expose().into_bytes())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt user query")?;
 
-    let encrypted_response = crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(HyperswitchAiInteraction),
-        CryptoOperation::Encrypt(response.response.clone()),
-        Identifier::Merchant(user_from_token.merchant_id.clone()),
-        &key,
-    )
-    .await
-    .and_then(|val| val.try_into_operation())
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt response")?;
+    let encrypted_response_bytes = serde_json::to_vec(&response.response.clone())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize response for encryption")
+        .and_then(|bytes| {
+            GcmAes256
+                .encode_message(&key, &bytes)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Failed to encrypt response")?;
 
     Ok(HyperswitchAiInteractionNew {
         id: request_id.to_owned(),
@@ -61,8 +52,8 @@ pub async fn construct_hyperswitch_ai_interaction(
         profile_id: Some(user_from_token.profile_id.get_string_repr().to_string()),
         org_id: Some(user_from_token.org_id.get_string_repr().to_string()),
         role_id: Some(user_from_token.role_id.clone()),
-        user_query: Some(encrypted_user_query.into()),
-        response: Some(encrypted_response.into()),
+        user_query: Some(Encryption::new(encrypted_user_query_bytes.into())),
+        response: Some(Encryption::new(encrypted_response_bytes.into())),
         database_query: response.query_executed.clone().map(|q| q.expose()),
         interaction_status: Some(response.status.clone()),
         created_at: common_utils::date_time::now(),

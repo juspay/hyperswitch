@@ -9,12 +9,12 @@ pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::ProductType;
-use common_types::payments as common_payments_types;
+use common_enums::{GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
+use common_types::{payments as common_payments_types, primitive_wrappers};
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -310,6 +310,10 @@ pub struct PaymentsCreateIntentRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -486,6 +490,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<UpdateActiveAttempt>)]
     /// Whether to set / unset the active attempt id
     pub set_active_attempt_id: Option<api_enums::UpdateActiveAttempt>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -518,6 +526,7 @@ impl PaymentsUpdateIntentRequest {
             session_expiry: None,
             frm_metadata: None,
             request_external_three_ds_authentication: None,
+            enable_partial_authorization: None,
         }
     }
 }
@@ -662,6 +671,10 @@ pub struct PaymentsIntentResponse {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = PaymentType)]
     pub payment_type: api_enums::PaymentType,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1271,12 +1284,21 @@ pub struct PaymentsRequest {
     pub order_date: Option<PrimitiveDateTime>,
 
     /// Allow partial authorization for this payment
-    pub enable_partial_authorization: Option<bool>,
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Boolean indicating whether to enable overcapture for this payment
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1431,6 +1453,37 @@ impl PaymentsRequest {
             })
             .transpose()
     }
+    pub fn validate_stored_credential(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.is_stored_credential == Some(false)
+            && (self.recurring_details.is_some()
+                || self.payment_token.is_some()
+                || self.mandate_id.is_some())
+        {
+            Err(ValidationError::InvalidValue {
+                message:
+                    "is_stored_credential should be true when reusing stored payment method data"
+                        .to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.mit_category.is_some()
+            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
+        {
+            return Err(ValidationError::InvalidValue {
+                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1561,6 +1614,12 @@ pub struct BrowserInformation {
 
     /// The device model of the client
     pub device_model: Option<String>,
+
+    /// Accept-language of the browser
+    pub accept_language: Option<String>,
+
+    /// Identifier of the source that initiated the request.
+    pub referer: Option<String>,
 }
 
 impl RequestSurchargeDetails {
@@ -2657,6 +2716,16 @@ pub struct PaymentMethodDataRequest {
     /// This billing details will be passed to the processor as billing address.
     /// If not passed, then payment.billing will be considered
     pub billing: Option<Address>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SplitPaymentMethodDataRequest {
+    pub payment_method_data: PaymentMethodData,
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method_type: api_enums::PaymentMethod,
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
 /// The payment method information provided for making a payment
@@ -4237,6 +4306,8 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
     //assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4873,6 +4944,56 @@ pub struct PaymentsCaptureResponse {
     pub amount: PaymentAmountDetailsResponse,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsCancelRequest {
+    /// The reason for the payment cancel
+    pub cancellation_reason: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct PaymentsCancelResponse {
+    /// The unique identifier for the payment
+    pub id: id_type::GlobalPaymentId,
+
+    /// Status of the payment
+    #[schema(value_type = IntentStatus, example = "cancelled")]
+    pub status: common_enums::IntentStatus,
+
+    /// Cancellation reason for the payment cancellation
+    #[schema(example = "Requested by merchant")]
+    pub cancellation_reason: Option<String>,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
+
+    /// The unique identifier for the customer associated with the payment
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The connector used for the payment
+    #[schema(example = "stripe")]
+    pub connector: Option<api_enums::Connector>,
+
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+
+    /// The payment method type for this payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+
+    /// List of payment attempts associated with payment intent
+    pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// The url to which user must be redirected to after completion of the purchase
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<common_utils::types::Url>,
+}
+
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct UrlDetails {
     pub url: String,
@@ -5002,9 +5123,8 @@ pub struct ThreeDsData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-#[serde(tag = "three_ds_method_key")]
+#[serde(untagged)]
 pub enum ThreeDsMethodData {
-    #[serde(rename = "threeDSMethodData")]
     AcsThreeDsMethodData {
         /// Whether ThreeDS method data submission is required
         three_ds_method_data_submission: bool,
@@ -5012,7 +5132,19 @@ pub enum ThreeDsMethodData {
         three_ds_method_data: Option<String>,
         /// ThreeDS method url
         three_ds_method_url: Option<String>,
+        /// Three DS Method Key
+        three_ds_method_key: Option<ThreeDsMethodKey>,
+        /// Indicates whethere to wait for Post message after 3DS method data submission
+        consume_post_message_for_three_ds_method_completion: bool,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub enum ThreeDsMethodKey {
+    #[serde(rename = "threeDSMethodData")]
+    ThreeDsMethodData,
+    #[serde(rename = "JWT")]
+    JWT,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -5544,6 +5676,12 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<bool>)]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
+    /// Optional boolean value to extent authorization period of this payment
+    ///
+    /// capture method must be manual or manual_multiple
+    #[schema(value_type = Option<bool>, default = false)]
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
     /// date and time after which this payment cannot be captured
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
@@ -5587,19 +5725,28 @@ pub struct PaymentsResponse {
     pub whole_connector_response: Option<Secret<String>>,
 
     /// Allow partial authorization for this payment
-    pub enable_partial_authorization: Option<bool>,
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// Bool indicating if overcapture  must be requested for this payment
     #[schema(value_type = Option<bool>)]
-    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
 
     /// Boolean indicating whether overcapture is effectively enabled for this payment
     #[schema(value_type = Option<bool>)]
-    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
+    pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
 
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
     pub network_details: Option<NetworkDetails>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[cfg(feature = "v2")]
@@ -5750,6 +5897,9 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// The payment instrument data to be used for the payment
     pub payment_method_data: PaymentMethodDataRequest,
+
+    /// The payment instrument data to be used for the payment in case of split payments
+    pub split_payment_method_data: Option<Vec<SplitPaymentMethodDataRequest>>,
 
     /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethod, example = "card")]
@@ -6019,6 +6169,10 @@ pub struct PaymentsRequest {
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
     pub return_raw_connector_response: Option<bool>,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[cfg(feature = "v2")]
@@ -6053,6 +6207,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication,
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
+            enable_partial_authorization: request.enable_partial_authorization,
         }
     }
 }
@@ -6072,6 +6227,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             payment_token: None,
             merchant_connector_details: request.merchant_connector_details.clone(),
             return_raw_connector_response: request.return_raw_connector_response,
+            split_payment_method_data: None,
         }
     }
 }
@@ -7848,6 +8004,8 @@ pub enum NextActionCall {
     Sync,
     /// The next action call is Complete Authorize
     CompleteAuthorize,
+    /// The next action is to await for a merchant callback
+    AwaitMerchantCallback,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -8210,6 +8368,7 @@ pub struct PaymentsCompleteAuthorizeRequest {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
@@ -9115,6 +9274,26 @@ pub struct ClickToPaySessionResponse {
     pub dpa_client_id: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityRequest {
+    /// Token used for client side verification
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Secret<String>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: api_enums::PaymentMethod,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    /// The payment instrument data to be used for the payment
+    pub payment_method_data: PaymentMethodDataRequest,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityResponse {
+    pub sdk_next_action: Option<SdkNextAction>,
+}
+
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_request_api_contract {
@@ -9701,6 +9880,10 @@ pub struct RecoveryPaymentsCreate {
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     pub action: common_payments_types::RecoveryAction,
+
+    /// Allow partial authorization for this payment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]

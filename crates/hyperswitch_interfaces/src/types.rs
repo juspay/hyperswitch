@@ -16,7 +16,10 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
-        subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate,
+        },
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
@@ -32,7 +35,10 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
-        subscriptions::{GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest},
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -57,7 +63,10 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        subscriptions::{GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse},
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
@@ -303,6 +312,13 @@ pub type InvoiceRecordBackType = dyn ConnectorIntegration<
     InvoiceRecordBackResponse,
 >;
 
+/// Type alias for `ConnectorIntegration<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>`
+pub type SubscriptionCreateType = dyn ConnectorIntegration<
+    SubscriptionCreate,
+    SubscriptionCreateRequest,
+    SubscriptionCreateResponse,
+>;
+
 /// Type alias for `ConnectorIntegration<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
 pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSync,
@@ -346,6 +362,13 @@ pub type GetSubscriptionPlansType = dyn ConnectorIntegration<
     GetSubscriptionPlans,
     GetSubscriptionPlansRequest,
     GetSubscriptionPlansResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<GetSubscriptionEstimate, GetSubscriptionEstimateRequest, GetSubscriptionEstimateResponse>`
+pub type GetSubscriptionEstimateType = dyn ConnectorIntegration<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
