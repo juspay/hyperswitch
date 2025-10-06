@@ -1,4 +1,10 @@
 pub mod transformers;
+use crate::utils::{
+    get_authorise_integrity_object, 
+    get_sync_integrity_object,
+    get_refund_integrity_object,
+    get_capture_integrity_object,
+};
 use std::sync::LazyLock;
 
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
@@ -242,14 +248,26 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Coingate PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Integrity check: Authorize
+        let integrity = get_authorise_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount,
+            &data.request.currency,
+        )?;
+
+        integrity.check_integrity(response.amount.clone(), response.currency.clone())?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
     }
+
 
     fn get_error_response(
         &self,
@@ -318,6 +336,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coi
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Integrity check: PSync
+        let integrity = get_sync_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount,
+            &data.request.currency,
+        )?;
+
+        integrity.check_integrity(response.amount.clone(), response.currency.clone())?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -435,6 +463,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Coingat
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        // Integrity check: Refund
+        let integrity = get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            &data.request.currency,
+        )?;
+
+        integrity.check_integrity(response.amount.clone(), response.currency.clone())?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -505,6 +542,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Coingate 
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Integrity check: RSync
+        let integrity = get_refund_integrity_object(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            &req.request.currency,
+        )?;
+
+        integrity.check_integrity(response.amount.clone(), response.currency.clone())?;
 
         RouterData::try_from(ResponseRouterData {
             response,
