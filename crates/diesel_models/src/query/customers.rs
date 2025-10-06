@@ -20,6 +20,7 @@ impl CustomerNew {
 pub struct CustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl Customer {
@@ -54,19 +55,66 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            Some(constraints.limit),
-            constraints.offset,
-            Some(dsl::created_at),
-        )
-        .await
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::customer_id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        } else {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        constraints: CustomerListConstraints,
+    ) -> StorageResult<Vec<Self>> {
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::merchant_reference_id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        } else {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
     }
 
     #[cfg(feature = "v2")]

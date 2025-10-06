@@ -267,6 +267,10 @@ pub enum Flow {
     CreateSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
+    /// Subscription create and confirm flow,
+    CreateAndConfirmSubscription,
+    /// Get Subscription flow
+    GetSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -660,6 +664,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Revenue recovery Redis operations flow
+    RevenueRecoveryRedis,
     /// Gift card balance check flow
     GiftCardBalanceCheck,
 }

@@ -148,7 +148,9 @@ pub struct FilesFlowData {
 }
 
 #[derive(Debug, Clone)]
-pub struct InvoiceRecordBackData;
+pub struct InvoiceRecordBackData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCustomerData {

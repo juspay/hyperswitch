@@ -8,7 +8,7 @@ use common_enums::{CallConnectorAction, PaymentAction};
 use common_utils::errors::CustomResult;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -17,12 +17,10 @@ use hyperswitch_domain_models::router_request_types::authentication::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-    InvoiceRecordBackRequest,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    InvoiceRecordBackResponse,
 };
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
@@ -43,11 +41,12 @@ use hyperswitch_domain_models::{
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
-        ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
-        SubscriptionCreate as SubscriptionCreateFlow,
+        ExternalVaultProxy, ExternalVaultRetrieveFlow, InvoiceRecordBack, PostAuthenticate,
+        PreAuthenticate, SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCreateRequest,
@@ -70,6 +69,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
             GetSubscriptionPlansResponse, SubscriptionCreateResponse,
@@ -139,7 +139,7 @@ use hyperswitch_interfaces::{
         revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCreate, Subscriptions,
+            SubscriptionCreate, SubscriptionRecordBackFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -231,6 +231,7 @@ default_imp_for_authorize_session_token!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -377,6 +378,7 @@ default_imp_for_calculate_tax!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -517,6 +519,7 @@ default_imp_for_session_update!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
@@ -664,6 +667,7 @@ default_imp_for_post_session_tokens!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Rapyd,
     connectors::Razorpay,
     connectors::Recurly,
@@ -809,6 +813,7 @@ default_imp_for_create_order!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Rapyd,
     connectors::Recurly,
     connectors::Redsys,
@@ -956,6 +961,7 @@ default_imp_for_update_metadata!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Paypal,
     connectors::Paysafe,
     connectors::Rapyd,
@@ -1103,6 +1109,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Paypal,
     connectors::Paysafe,
     connectors::Rapyd,
@@ -1249,6 +1256,7 @@ default_imp_for_complete_authorize!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Moneris,
     connectors::Mpgs,
@@ -1383,6 +1391,7 @@ default_imp_for_incremental_authorization!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -1522,6 +1531,7 @@ default_imp_for_create_customer!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -1664,6 +1674,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Moneris,
     connectors::Mpgs,
@@ -1796,6 +1807,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -1942,6 +1954,7 @@ default_imp_for_authenticate_steps!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -2088,6 +2101,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -2231,6 +2245,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nomupay,
     connectors::Noon,
@@ -2367,6 +2382,7 @@ default_imp_for_post_processing_steps!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -2515,6 +2531,7 @@ default_imp_for_approve!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nomupay,
     connectors::Noon,
@@ -2664,6 +2681,7 @@ default_imp_for_reject!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -2814,6 +2832,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -2960,6 +2979,7 @@ default_imp_for_accept_dispute!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -3106,6 +3126,7 @@ default_imp_for_submit_evidence!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -3250,6 +3271,7 @@ default_imp_for_defend_dispute!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Helcim,
     connectors::Netcetera,
     connectors::Nmi,
@@ -3398,6 +3420,7 @@ default_imp_for_fetch_disputes!(
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Katapult,
     connectors::Helcim,
     connectors::Netcetera,
@@ -3546,6 +3569,7 @@ default_imp_for_dispute_sync!(
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Katapult,
     connectors::Helcim,
     connectors::Netcetera,
@@ -3703,6 +3727,7 @@ default_imp_for_file_upload!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -3840,6 +3865,7 @@ default_imp_for_payouts!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -3855,7 +3881,6 @@ default_imp_for_payouts!(
     connectors::Nmi,
     connectors::Noon,
     connectors::Novalnet,
-    connectors::Nuvei,
     connectors::Payeezy,
     connectors::Payload,
     connectors::Payme,
@@ -3967,7 +3992,6 @@ default_imp_for_payouts_create!(
     connectors::Flexiti,
     connectors::Forte,
     connectors::Getnet,
-    connectors::Gigadat,
     connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
@@ -3983,6 +4007,7 @@ default_imp_for_payouts_create!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4130,6 +4155,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4275,6 +4301,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4405,7 +4432,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Flexiti,
     connectors::Forte,
     connectors::Getnet,
-    connectors::Gigadat,
     connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
@@ -4421,6 +4447,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Noon,
     connectors::Nordea,
@@ -4430,7 +4457,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nmi,
-    connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
     connectors::Payload,
@@ -4564,6 +4590,7 @@ default_imp_for_payouts_cancel!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4695,7 +4722,6 @@ default_imp_for_payouts_quote!(
     connectors::Flexiti,
     connectors::Forte,
     connectors::Getnet,
-    connectors::Gigadat,
     connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
@@ -4711,6 +4737,7 @@ default_imp_for_payouts_quote!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4859,6 +4886,7 @@ default_imp_for_payouts_recipient!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -5007,6 +5035,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -5156,6 +5185,7 @@ default_imp_for_frm_sale!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nomupay,
     connectors::Nmi,
@@ -5305,6 +5335,7 @@ default_imp_for_frm_checkout!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -5454,6 +5485,7 @@ default_imp_for_frm_transaction!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -5603,6 +5635,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -5752,6 +5785,7 @@ default_imp_for_frm_record_return!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -5896,6 +5930,7 @@ default_imp_for_revoking_mandates!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6042,6 +6077,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Jpmorgan,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6188,6 +6224,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Jpmorgan,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6335,6 +6372,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Jpmorgan,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6474,6 +6512,7 @@ default_imp_for_connector_request_id!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6616,6 +6655,7 @@ default_imp_for_fraud_check!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -6786,6 +6826,7 @@ default_imp_for_connector_authentication!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Nmi,
     connectors::Nomupay,
     connectors::Noon,
@@ -6930,6 +6971,7 @@ default_imp_for_uas_authentication!(
     connectors::Jpmorgan,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -7070,6 +7112,7 @@ default_imp_for_revenue_recovery!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -7143,6 +7186,7 @@ macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
         $(  impl Subscriptions for $path::$connector {}
             impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl SubscriptionRecordBackFlow for $path::$connector {}
             impl SubscriptionCreate for $path::$connector {}
             impl
             ConnectorIntegration<
@@ -7150,6 +7194,9 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionPlansRequest,
             GetSubscriptionPlansResponse
             > for $path::$connector
+            {}
+            impl
+           ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse> for $path::$connector
             {}
             impl GetSubscriptionPlanPricesFlow for $path::$connector {}
             impl
@@ -7241,6 +7288,7 @@ default_imp_for_subscriptions!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -7286,7 +7334,6 @@ default_imp_for_subscriptions!(
     connectors::Stax,
     connectors::Stripe,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
     connectors::Threedsecureio,
@@ -7391,6 +7438,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Nomupay,
     connectors::Netcetera,
     connectors::Nmi,
@@ -7463,13 +7511,6 @@ default_imp_for_billing_connector_payment_sync!(
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            InvoiceRecordBack,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse
-            > for $path::$connector
-            {}
         )*
     };
 }
@@ -7539,6 +7580,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Nomupay,
@@ -7687,6 +7729,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Nomupay,
     connectors::Nmi,
     connectors::Noon,
@@ -7829,6 +7872,7 @@ default_imp_for_external_vault!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nordea,
     connectors::Nomupay,
@@ -7976,6 +8020,7 @@ default_imp_for_external_vault_insert!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nordea,
     connectors::Nomupay,
@@ -8121,6 +8166,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -8270,6 +8316,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nordea,
     connectors::Nomupay,
@@ -8417,6 +8464,7 @@ default_imp_for_external_vault_delete!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nordea,
     connectors::Nomupay,
@@ -8565,6 +8613,7 @@ default_imp_for_external_vault_create!(
     connectors::Katapult,
     connectors::Jpmorgan,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nordea,
     connectors::Nomupay,
@@ -8714,6 +8763,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Jpmorgan,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mpgs,
     connectors::Netcetera,
     connectors::Nomupay,
@@ -8860,6 +8910,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
+    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -9506,6 +9557,9 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionRecordBackFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
@@ -9513,6 +9567,13 @@ impl<const T: u8>
         GetSubscriptionPlansRequest,
         GetSubscriptionPlansResponse,
     > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+impl<const T: u8>
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+    for connectors::DummyConnector<T>
 {
 }
 
