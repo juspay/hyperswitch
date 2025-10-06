@@ -1,9 +1,9 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
-use common_enums::CaptureMethod;
-use common_enums::PaymentMethodType;
-use common_enums::{enums, ConnectorIntegrationStatus};
+use common_enums::{enums, CaptureMethod, ConnectorIntegrationStatus, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -11,9 +11,6 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_response_types::PaymentMethodDetails;
-use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
-use hyperswitch_domain_models::types::PaymentsCancelRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -29,11 +26,12 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -48,7 +46,6 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use std::sync::LazyLock;
 use transformers as finix;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};

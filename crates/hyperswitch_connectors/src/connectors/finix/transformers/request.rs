@@ -1,9 +1,11 @@
-use super::*;
+use std::collections::HashMap;
+
 use common_enums::Currency;
 use common_utils::{pii::Email, types::MinorUnit};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use super::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,

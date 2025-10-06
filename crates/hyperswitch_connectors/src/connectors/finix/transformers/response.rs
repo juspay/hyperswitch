@@ -1,8 +1,10 @@
-use super::*;
+use std::collections::HashMap;
+
 use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use super::*;
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct FinixPaymentsResponse {
     pub id: String,
