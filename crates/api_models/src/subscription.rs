@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{
     enums as api_enums,
+    mandates::RecurringDetails,
     payments::{Address, PaymentMethodDataRequest},
 };
 
@@ -228,6 +229,17 @@ pub struct PaymentResponseData {
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CreateMitPaymentRequestData {
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
+    pub confirm: bool,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub recurring_details: Option<RecurringDetails>,
+    pub off_session: Option<bool>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.
