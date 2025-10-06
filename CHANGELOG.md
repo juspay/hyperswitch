@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.01.0-hotfix1
+
+### Refactors
+
+- **routing:** Update configs on updation of mca ([#9689](https://github.com/juspay/hyperswitch/pull/9689)) ([`9bea807`](https://github.com/juspay/hyperswitch/commit/9bea8072c15a06bfa08977f1017c7565d93aef1e))
+
+**Full Changelog:** [`2025.10.01.0...2025.10.01.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.01.0...2025.10.01.0-hotfix1)
+
+- - -
+
 ## 2025.10.01.0
 
 ### Features
