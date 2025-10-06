@@ -3831,6 +3831,7 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

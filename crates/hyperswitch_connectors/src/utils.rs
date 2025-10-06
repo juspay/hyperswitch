@@ -51,7 +51,10 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     network_tokenization::NetworkTokenNumber,
-    payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
+    payment_method_data::{
+        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
+        PaymentMethodData,
+    },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
@@ -238,13 +241,6 @@ pub struct GooglePayWalletData {
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayPaymentMethodInfo {
-    pub card_network: String,
-    pub card_details: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct CardMandateInfo {
     pub card_exp_month: Secret<String>,
@@ -277,6 +273,8 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
+                assurance_details: data.info.assurance_details,
+                card_funding_source: data.info.card_funding_source,
             },
             tokenization_data,
         })
@@ -6397,8 +6395,9 @@ pub trait PayoutsData {
         &self,
     ) -> Result<hyperswitch_domain_models::router_request_types::CustomerDetails, Error>;
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
-    #[cfg(feature = "payouts")]
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6420,11 +6419,20 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
             .clone()
             .ok_or_else(missing_field_err("vendor_details"))
     }
-    #[cfg(feature = "payouts")]
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error> {
         self.payout_type
             .to_owned()
             .ok_or_else(missing_field_err("payout_type"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .to_owned()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 pub trait RevokeMandateRequestData {
@@ -6759,6 +6767,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: data.request.is_stored_credential,
+        mit_category: None,
     }
 }
 
@@ -6820,6 +6830,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
+        authorized_amount: data.authorized_amount,
     }
 }
 

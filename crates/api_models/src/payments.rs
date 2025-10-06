@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::ProductType;
+use common_enums::{GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -1291,6 +1291,14 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<bool>, example = true)]
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1445,6 +1453,37 @@ impl PaymentsRequest {
             })
             .transpose()
     }
+    pub fn validate_stored_credential(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.is_stored_credential == Some(false)
+            && (self.recurring_details.is_some()
+                || self.payment_token.is_some()
+                || self.mandate_id.is_some())
+        {
+            Err(ValidationError::InvalidValue {
+                message:
+                    "is_stored_credential should be true when reusing stored payment method data"
+                        .to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if self.mit_category.is_some()
+            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
+        {
+            return Err(ValidationError::InvalidValue {
+                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1575,6 +1614,12 @@ pub struct BrowserInformation {
 
     /// The device model of the client
     pub device_model: Option<String>,
+
+    /// Accept-language of the browser
+    pub accept_language: Option<String>,
+
+    /// Identifier of the source that initiated the request.
+    pub referer: Option<String>,
 }
 
 impl RequestSurchargeDetails {
@@ -4261,6 +4306,8 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_details: String,
     //assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -5692,6 +5739,14 @@ pub struct PaymentsResponse {
     /// Contains card network response details (e.g., Visa/Mastercard advice codes).
     #[schema(value_type = Option<NetworkDetails>)]
     pub network_details: Option<NetworkDetails>,
+
+    /// Boolean flag indicating whether this payment method is stored and has been previously used for payments
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_stored_credential: Option<bool>,
+
+    /// The category of the MIT transaction
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
+    pub mit_category: Option<api_enums::MitCategory>,
 }
 
 #[cfg(feature = "v2")]
@@ -7949,6 +8004,8 @@ pub enum NextActionCall {
     Sync,
     /// The next action call is Complete Authorize
     CompleteAuthorize,
+    /// The next action is to await for a merchant callback
+    AwaitMerchantCallback,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -9215,6 +9272,26 @@ pub struct ClickToPaySessionResponse {
     #[schema(value_type = Option<CtpServiceProvider>)]
     pub provider: Option<api_enums::CtpServiceProvider>,
     pub dpa_client_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityRequest {
+    /// Token used for client side verification
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Secret<String>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "wallet")]
+    pub payment_method_type: api_enums::PaymentMethod,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    /// The payment instrument data to be used for the payment
+    pub payment_method_data: PaymentMethodDataRequest,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityResponse {
+    pub sdk_next_action: Option<SdkNextAction>,
 }
 
 #[cfg(feature = "v1")]
