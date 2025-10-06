@@ -63,8 +63,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, CustomResult},
-        payments, unified_connector_service,
-        utils as core_utils,
+        payments, unified_connector_service, utils as core_utils,
     },
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
