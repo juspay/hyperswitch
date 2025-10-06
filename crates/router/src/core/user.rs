@@ -458,8 +458,9 @@ pub async fn change_password(
             },
         )
         .await
+        .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to update user password in the database")?;
-        .change_context(UserErrors::InternalServerError)?;
+
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
         .await
