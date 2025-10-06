@@ -67,7 +67,7 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub identity: String,
     pub tags: Option<FinixTags>,
     pub address: Option<FinixAddress>,
-    pub card_brand: Option<FinixCardBrand>,
+    pub card_brand: Option<String>,
     pub card_type: Option<FinixCardType>,
     pub additional_data: Option<HashMap<String, String>>,
 }
@@ -78,7 +78,7 @@ pub struct FinixCreateRefundRequest {
 }
 
 impl FinixCreateRefundRequest {
-    pub fn new(refund_amount: MinorUnity) -> Self {
+    pub fn new(refund_amount: MinorUnit) -> Self {
         Self { refund_amount }
     }
 }

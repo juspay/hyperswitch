@@ -49,7 +49,7 @@ pub struct FinixInstrumentResponse {
     pub instrument_type: FinixPaymentInstrumentType,
     pub tags: Option<FinixTags>,
     pub card_type: Option<FinixCardType>,
-    pub card_brand: Option<FinixCardBrand>,
+    pub card_brand: Option<String>,
     pub fingerprint: Option<String>,
     pub address: Option<FinixAddress>,
     pub name: Option<String>,

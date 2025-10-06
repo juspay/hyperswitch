@@ -115,17 +115,6 @@ pub enum FinixCardType {
     UNKNOWN,
 }
 
-/// Represents the brand of a payment card.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixCardBrand {
-    Visa,
-    Mastercard,
-    AmericanExpress,
-    Discover,
-    JCB,
-    DinersClub,
-}
-
 /// 3D Secure authentication details.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixThreeDSecure {

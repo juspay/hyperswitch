@@ -7218,8 +7218,24 @@ type = "Text"
 api_key = "Username"
 api_secret = "Password"
 key1 = "Merchant Id"
-
-
+[[finix.credit]]
+payment_method_type = "Mastercard"
+[[finix.credit]]
+payment_method_type = "Visa"
+[[finix.credit]]
+payment_method_type = "AmericanExpress"
+[[finix.credit]]
+payment_method_type = "Discover"
+[[finix.credit]]
+payment_method_type = "JCB"
+[[finix.credit]]
+payment_method_type = "DinersClub"
+[[finix.credit]]
+payment_method_type = "UnionPay"
+[[finix.credit]]
+payment_method_type = "Interac"
+[[finix.credit]]
+payment_method_type = "Maestro"
 
 
 [loonio]

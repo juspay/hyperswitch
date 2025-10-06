@@ -923,6 +923,8 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         common_enums::CardNetwork::JCB,
         common_enums::CardNetwork::DinersClub,
         common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::Maestro,
     ];
 
     let mut finix_supported_payment_methods = SupportedPaymentMethods::new();
