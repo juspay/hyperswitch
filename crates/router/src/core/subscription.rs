@@ -378,8 +378,14 @@ pub async fn get_estimate(
     )
     .await
     .attach_printable("subscriptions: failed to find customer in get_estimate")?;
-    let billing_handler =
-        BillingHandler::create(&state, &merchant_context, customer, profile).await?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        customer,
+        profile,
+    )
+    .await?;
     let estimate = billing_handler
         .get_subscription_estimate(&state, estimate_request)
         .await?;

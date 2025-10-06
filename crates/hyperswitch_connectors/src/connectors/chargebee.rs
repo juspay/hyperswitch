@@ -1204,7 +1204,6 @@ impl
         req: &GetSubscriptionEstimateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        
         let metadata: chargebee::ChargebeeMetadata =
             utils::to_connector_meta_from_secret(req.connector_meta_data.clone())?;
 
