@@ -30,7 +30,7 @@ pub async fn create_subscription(
     request: subscription_types::CreateSubscriptionRequest,
 ) -> RouterResponse<SubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
-    
+
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
