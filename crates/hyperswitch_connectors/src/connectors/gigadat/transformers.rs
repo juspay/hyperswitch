@@ -214,7 +214,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // Will be raising a sepearte PR to populate a field connect_base_url in routerData and use it here
+        // Will be raising a separate PR to populate a field connect_base_url in routerData and use it here
         let base_url = CONNECTOR_BASE_URL;
 
         let redirect_url = format!(
