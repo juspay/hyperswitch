@@ -1,6 +1,6 @@
 // crates/smithy-core/types.rs
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -135,33 +135,33 @@ pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
 }
 
-impl ToString for SmithyTrait {
-    fn to_string(&self) -> String {
+impl Display for SmithyTrait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SmithyTrait::Pattern { pattern } => {
-                format!("pattern(\"{}\")", pattern)
+            Self::Pattern { pattern } => {
+                write!(f, "pattern(\"{}\")", pattern)
             }
-            SmithyTrait::Range { min, max } => match (min, max) {
-                (Some(min), Some(max)) => format!("range(min: {}, max: {})", min, max),
-                (Some(min), None) => format!("range(min: {})", min),
-                (None, Some(max)) => format!("range(max: {})", max),
-                (None, None) => "range".to_string(),
+            Self::Range { min, max } => match (min, max) {
+                (Some(min), Some(max)) => write!(f, "range(min: {}, max: {})", min, max),
+                (Some(min), None) => write!(f, "range(min: {})", min),
+                (None, Some(max)) => write!(f, "range(max: {})", max),
+                (None, None) => write!(f, "range"),
             },
-            SmithyTrait::Required => "required".to_string(),
-            SmithyTrait::Documentation { documentation } => {
-                format!("documentation(\"{}\")", documentation)
+            Self::Required => write!(f, "required"),
+            Self::Documentation { documentation } => {
+                write!(f, "documentation(\"{}\")", documentation)
             }
-            SmithyTrait::Length { min, max } => match (min, max) {
-                (Some(min), Some(max)) => format!("length(min: {}, max: {})", min, max),
-                (Some(min), None) => format!("length(min: {})", min),
-                (None, Some(max)) => format!("length(max: {})", max),
-                (None, None) => "length".to_string(),
+            Self::Length { min, max } => match (min, max) {
+                (Some(min), Some(max)) => write!(f, "length(min: {}, max: {})", min, max),
+                (Some(min), None) => write!(f, "length(min: {})", min),
+                (None, Some(max)) => write!(f, "length(max: {})", max),
+                (None, None) => write!(f, "length"),
             },
-            SmithyTrait::HttpLabel => "httpLabel".to_string(),
-            SmithyTrait::HttpQuery { name } => {
-                format!("httpQuery(\"{}\")", name)
+            Self::HttpLabel => write!(f, "httpLabel"),
+            Self::HttpQuery { name } => {
+                write!(f, "httpQuery(\"{}\")", name)
             }
-            SmithyTrait::Mixin => "mixin".to_string(),
+            Self::Mixin => write!(f, "mixin"),
         }
     }
 }

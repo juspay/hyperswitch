@@ -95,7 +95,7 @@ impl SmithyGenerator {
                 }
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "structure {} {{", name)?;
@@ -106,7 +106,7 @@ impl SmithyGenerator {
                     }
 
                     for smithy_trait in &member.traits {
-                        writeln!(def, "    @{}", smithy_trait.to_string())?;
+                        writeln!(def, "    @{}", smithy_trait)?;
                     }
 
                     let resolved_target = resolve_target(&member.target);
@@ -128,7 +128,7 @@ impl SmithyGenerator {
                 }
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "union {} {{", name)?;
@@ -139,7 +139,7 @@ impl SmithyGenerator {
                     }
 
                     for smithy_trait in &member.traits {
-                        writeln!(def, "    @{}", smithy_trait.to_string())?;
+                        writeln!(def, "    @{}", smithy_trait)?;
                     }
 
                     let resolved_target = resolve_target(&member.target);
@@ -161,7 +161,7 @@ impl SmithyGenerator {
                 }
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "enum {} {{", name)?;
@@ -180,7 +180,7 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "string {}", name)?;
@@ -190,7 +190,7 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "integer {}", name)?;
@@ -200,7 +200,7 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "long {}", name)?;
@@ -210,7 +210,7 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "boolean {}", name)?;
@@ -220,7 +220,7 @@ impl SmithyGenerator {
                 let mut def = String::new();
 
                 for smithy_trait in traits {
-                    writeln!(def, "@{}", smithy_trait.to_string())?;
+                    writeln!(def, "@{}", smithy_trait)?;
                 }
 
                 writeln!(def, "list {} {{", name)?;
