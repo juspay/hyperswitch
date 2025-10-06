@@ -6623,12 +6623,18 @@ where
                     false,
                 )
             } else if connector.connector_name == router_types::Connector::Paysafe {
-                router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                let is_error_in_response = router_data.response.is_err();
-                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                (router_data, !is_error_in_response)
-            } else {
+                match payment_data.get_payment_method_data() {
+                    Some(domain::PaymentMethodData::Wallet(wallet_data))
+                        if matches!(wallet_data, domain::WalletData::ApplePay(_)) =>
+                    {
+                        router_data = router_data.preprocessing_steps(state, connector).await?;
+                        let is_error_in_response = router_data.response.is_err();
+                        (router_data, !is_error_in_response)
+                    }
+                    _ => (router_data, should_continue_payment),
+                }
+            }
+            else {
                 (router_data, should_continue_payment)
             }
         }
