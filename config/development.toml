@@ -1403,9 +1403,3 @@ internal_api_key = "test_internal_api_key"
 
 [internal_services]
 payments_base_url = "http://localhost:8080"
-
-
-[comparison_service]
-enabled = true
-url = "http://localhost:9000/receive"
-timeout_secs = 2

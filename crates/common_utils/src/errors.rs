@@ -1,6 +1,7 @@
 //! Errors and error specific types for universal use
 
 use crate::types::MinorUnit;
+use serde::Serialize;
 
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
@@ -78,7 +79,7 @@ pub enum ValidationError {
 }
 
 /// Integrity check errors.
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct IntegrityCheckError {
     /// Field names for which integrity check failed!
     pub field_names: String,

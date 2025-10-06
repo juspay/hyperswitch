@@ -9,6 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
+use serde::Serialize;
 
 use crate::{
     network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
@@ -23,7 +24,7 @@ use crate::{
     router_flow_types, router_request_types, router_response_types,
 };
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: id_type::MerchantId,
@@ -117,7 +118,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub is_payment_id_from_merchant: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
 pub struct L2L3Data {
     pub order_date: Option<time::PrimitiveDateTime>,
     pub tax_status: Option<common_enums::TaxStatus>,
@@ -139,7 +140,7 @@ pub struct L2L3Data {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -262,19 +263,19 @@ impl ConnectorAuthType {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, Serialize, Debug, Clone)]
 pub struct AccessTokenAuthenticationResponse {
     pub code: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
@@ -386,7 +387,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub card_network: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDecryptedData {
     pub client_id: Secret<String>,
@@ -399,7 +400,7 @@ pub struct PazeDecryptedData {
     pub eci: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
     pub payment_token: NetworkTokenNumber,
@@ -408,7 +409,7 @@ pub struct PazeToken {
     pub payment_account_reference: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
@@ -416,7 +417,7 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
     pub name: Option<Secret<String>>,
@@ -429,7 +430,7 @@ pub struct PazeAddress {
     pub country_code: Option<common_enums::enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeConsumer {
     // This is consumer data not customer data.
@@ -442,14 +443,14 @@ pub struct PazeConsumer {
     pub language_code: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazePhoneNumber {
     pub country_code: Secret<String>,
     pub phone_number: Secret<String>,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
@@ -457,13 +458,13 @@ pub struct RecurringMandatePaymentData {
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodBalance {
     pub amount: MinorUnit,
     pub currency: common_enums::enums::Currency,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
@@ -503,7 +504,7 @@ impl ConnectorResponseData {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
     Card {
         /// Details regarding the authentication details of the connector, if this is a 3ds payment.
@@ -520,19 +521,19 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,

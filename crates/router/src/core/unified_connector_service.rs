@@ -4,14 +4,21 @@ use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
-#[cfg(feature = "v2")]
-use common_utils::consts::BASE64_ENGINE;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{
+    request::{Method, Request, RequestContent},
+};
+use common_utils::{
+    errors::CustomResult, 
+    ext_traits::ValueExt,
+};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::{
-    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-    LineageIds,
+use external_services::{
+    grpc_client::{
+        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+        LineageIds,
+    },
+    http_client,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -47,6 +54,7 @@ use crate::{
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
+    headers::X_REQUEST_ID,
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
@@ -65,13 +73,6 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Execution {
-    Direct,
-    UCS,
-    ShadowUCS,
-}
-
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
@@ -79,7 +80,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
     payment_data: Option<&D>,
-) -> RouterResult<Execution>
+) -> RouterResult<GatewaySystem>
 where
     D: OperationSessionGetters<F>,
 {
@@ -88,7 +89,7 @@ where
         router_env::logger::debug!(
             "Unified Connector Service client is not available, skipping UCS decision"
         );
-        return Ok(Execution::Direct);
+        return Ok(GatewaySystem::Direct);
     }
 
     let ucs_config_key = consts::UCS_ENABLED;
@@ -96,7 +97,7 @@ where
         router_env::logger::debug!(
             "Unified Connector Service is not enabled, skipping UCS decision"
         );
-        return Ok(Execution::Direct);
+        return Ok(GatewaySystem::Direct);
     }
 
     // Continue with normal UCS gateway system logic
@@ -124,7 +125,7 @@ where
             "Payment gateway system decision: UCS (forced) - merchant_id={}, connector={}, payment_method={}, flow={}",
             merchant_id, connector_name, payment_method, flow_name
         );
-        return Ok(Execution::UCS);
+        return Ok(GatewaySystem::UnifiedConnectorService);
     }
 
     let config_key = format!(
@@ -153,7 +154,7 @@ where
                 router_env::logger::info!(
                     "Payment gateway system decision: UCS (sticky) - payment intent previously used UCS"
                 );
-                return Ok(Execution::UCS);
+                return Ok(GatewaySystem::UnifiedConnectorService);
             }
             Some(GatewaySystem::Direct) => {
                 // Payment intent previously used Direct, maintain stickiness to Direct (return false for UCS)
@@ -161,14 +162,15 @@ where
                     router_env::logger::info!(
                         "Payment gateway system decision: Direct (sticky) but also ShadowUCS - payment intent previously used Direct"
                     );
-                    return Ok(Execution::ShadowUCS);
+                    return Ok(GatewaySystem::ShadowUnifiedConnectorService);
+                } else {
+                    router_env::logger::info!(
+                        "Payment gateway system decision: Direct (sticky) - payment intent previously used Direct"
+                    );
+                    return Ok(GatewaySystem::Direct);
                 }
-                router_env::logger::info!(
-                    "Payment gateway system decision: Direct (sticky) - payment intent previously used Direct"
-                );
-                return Ok(Execution::Direct);
             }
-            None => {
+            _ => {
                 // No previous gateway system set, continue with normal gateway system logic
                 router_env::logger::debug!(
                     "UCS stickiness: No previous gateway system set, applying normal gateway system logic"
@@ -183,21 +185,21 @@ where
                 "Payment gateway system decision: ShadowUCS - merchant_id={}, connector={}, payment_method={}, flow={}",
                 merchant_id, connector_name, payment_method, flow_name
             );
-            Ok(Execution::ShadowUCS)
+            Ok(GatewaySystem::ShadowUnifiedConnectorService)
         }
         (true, false) => {
             router_env::logger::info!(
             "Payment gateway system decision: UCS - merchant_id={}, connector={}, payment_method={}, flow={}",
             merchant_id, connector_name, payment_method, flow_name
         );
-            Ok(Execution::UCS)
+            Ok(GatewaySystem::UnifiedConnectorService)
         }
         (false, false) => {
             router_env::logger::info!(
                 "Payment gateway system decision: Direct - merchant_id={}, connector={}, payment_method={}, flow={}",
                 merchant_id, connector_name, payment_method, flow_name
             );
-            Ok(Execution::Direct)
+            Ok(GatewaySystem::Direct)
         }
     }
 }
@@ -774,7 +776,7 @@ pub async fn call_unified_connector_service_for_webhook(
         .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
     let grpc_headers = state
-        .get_grpc_headers_ucs()
+        .get_grpc_headers_ucs(false)
         .lineage_ids(LineageIds::new(
             merchant_context.get_merchant_account().get_id().clone(),
             profile_id,
@@ -910,7 +912,7 @@ where
         std::any::type_name::<T>(),
         grpc_request_body,
         "grpc://unified-connector-service".to_string(),
-        common_utils::request::Method::Post,
+        Method::Post,
         payment_id,
         merchant_id,
         state.request_id.as_ref(),
@@ -936,4 +938,60 @@ where
     state.event_handler.log_event(&connector_event);
 
     router_result
+}
+
+#[derive(serde::Serialize)]
+pub struct ComparisonData {
+    pub hyperswitch_data: serde_json::Value,
+    pub unified_connector_service_data: serde_json::Value,
+}
+
+/// Sends router data comparison to external service
+pub async fn send_comparison_data(
+    state: &SessionState,
+    comparison_data: ComparisonData,
+) -> RouterResult<()> {
+    // Check if comparison service is enabled
+    let enabled = state.conf.comparison_service
+        .as_ref()
+        .map(|config| config.enabled)
+        .unwrap_or_else(|| {
+            tracing::warn!("Comparison service configuration missing, skipping comparison data send");
+            false
+        });
+
+    if !enabled {
+        return Ok(());
+    }
+
+    // Construct request
+    let url = match state.conf.comparison_service.as_ref().map(|config| &config.url) {
+        Some(url) => url,
+        None => {
+            tracing::warn!("Comparison service URL missing, skipping comparison data send");
+            return Ok(());
+        }
+    };
+
+    let mut request = Request::new(Method::Post, url);
+    if let Some(req_id) = &state.request_id {
+        request.add_header(
+            X_REQUEST_ID,
+            masking::Maskable::Masked(Secret::new(req_id.to_string())),
+        );
+    }
+
+    request.set_body(RequestContent::Json(Box::new(comparison_data)));
+
+    // Send with configurable timeout - don't block payment flow
+    let timeout = state.conf.comparison_service
+        .as_ref()
+        .and_then(|config| config.timeout_secs)
+        .unwrap_or(2);
+    if let Err(e) = http_client::send_request(&state.conf.proxy, request, Some(timeout)).await {
+        tracing::error!("Failed to send comparison data: {:?}", e);
+        return Ok(());
+    }
+
+    Ok(())
 }

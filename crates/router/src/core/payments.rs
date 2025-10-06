@@ -99,7 +99,9 @@ use super::{
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
     routing::TransactionData,
-    unified_connector_service::{should_call_unified_connector_service, Execution},
+    unified_connector_service::{
+        send_comparison_data, should_call_unified_connector_service, ComparisonData,
+    },
 };
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -4263,7 +4265,6 @@ where
         Some(payment_data),
     )
     .await?;
-    let mut ucs_router_data = router_data.clone();
     record_time_taken_with(|| async {
         if !matches!(
             call_connector_action,
@@ -4271,7 +4272,7 @@ where
         ) && !matches!(
             call_connector_action,
             CallConnectorAction::HandleResponse(_),
-        ) && should_call_unified_connector_service == Execution::UCS
+        ) && should_call_unified_connector_service == GatewaySystem::UnifiedConnectorService
         {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system - payment_id={}, attempt_id={}",
@@ -4326,13 +4327,14 @@ where
                     lineage_ids,
                     merchant_connector_account.clone(),
                     merchant_context,
+                    false,
                 )
                 .await?;
 
             Ok((router_data, merchant_connector_account))
         } else {
             match should_call_unified_connector_service {
-                Execution::Direct => {
+                GatewaySystem::Direct => {
                     router_env::logger::info!(
                 "Processing payment through Direct gateway system - payment_id={}, attempt_id={}",
                 payment_data
@@ -4377,13 +4379,14 @@ where
                     .get_string_repr(),
                 payment_data.get_payment_attempt().attempt_id
             );
-                    let ucs_merchant_connector_account = merchant_connector_account.clone();
-                    let ucs_merchant_context = merchant_context.clone();
+            let mut unified_connector_service_router_data = router_data.clone();
+                    let unified_connector_service_merchant_connector_account = merchant_connector_account.clone();
+                    let unified_connector_service_merchant_context = merchant_context.clone();
                     let lineage_ids = grpc_client::LineageIds::new(
                 business_profile.merchant_id.clone(),
                 business_profile.get_id().clone(),
             );
-            let ucs_header_payload = header_payload.clone();
+            let unified_connector_service_header_payload = header_payload.clone();
 
                     // Update feature metadata to track Direct routing usage for stickiness
                     update_gateway_system_in_feature_metadata(payment_data, GatewaySystem::Direct)?;
@@ -4410,22 +4413,23 @@ where
                     )
                     .await?;
 
-                    let ucs_state = state.clone();
-                    let hs_router_data_clone = result.0.clone();
+                    let unified_connector_service_state = state.clone();
+                    let hyperswitch_router_data = result.0.clone();
                     tokio::spawn(async move {
-                        let _ = ucs_router_data
+                        let _ = unified_connector_service_router_data
                 .call_unified_connector_service(
-                    &ucs_state,
-                    &ucs_header_payload,
+                    &unified_connector_service_state,
+                    &unified_connector_service_header_payload,
                     lineage_ids,
-                    ucs_merchant_connector_account.clone(),
-                    &ucs_merchant_context,
+                    unified_connector_service_merchant_connector_account.clone(),
+                    &unified_connector_service_merchant_context,
+                    true,
                 )
                 .await;
-                        match execute_ucs_and_compare(
-                            &ucs_state,
-                            ucs_router_data,
-                            hs_router_data_clone,
+                        match serialize_router_data_and_compare(
+                            &unified_connector_service_state,
+                            hyperswitch_router_data,
+                            unified_connector_service_router_data,
                         ).await {
                             Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
                             Err(e) => logger::error!("Shadow UCS comparison failed: {:?}", e),
@@ -4439,83 +4443,42 @@ where
     .await
 }
 
-/// Executes UCS call asynchronously and sends comparison data
-#[cfg(feature = "v1")]
-async fn execute_ucs_and_compare<F, RouterDReq>(
+async fn serialize_router_data_and_compare<F, RouterDReq>(
     state: &SessionState,
-    router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    hs_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    hyperswitch_router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    unified_connector_service_router_data: RouterData<
+        F,
+        RouterDReq,
+        router_types::PaymentsResponseData,
+    >,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync + 'static,
     RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
 {
-    // For now, just simulate UCS execution and send comparison data
-    // TODO: Implement actual UCS call when trait bounds are resolved
     logger::info!("Simulating UCS call for shadow mode comparison");
+    let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
+        Ok(data) => data,
+        Err(err) => {
+            logger::error!("Failed to serialize HS router data: {}", err);
+            return Ok(());
+        }
+    };
 
-    // Send HS data for comparison (simulating both HS and UCS were executed)
-    let _ = send_comparison_data(
-        state,
-        &hs_router_data,
-        &router_data, // Using original router_data as simulated UCS response
-    )
-    .await;
+    let unified_connector_service_data =
+        match serde_json::to_value(unified_connector_service_router_data) {
+            Ok(data) => data,
+            Err(err) => {
+                logger::error!("Failed to serialize UCS router data: {}", err);
+                return Ok(());
+            }
+        };
 
-    Ok(())
-}
-
-#[derive(serde::Serialize)]
-struct ComparisonData {
-    hs_data: serde_json::Value,
-    ucs_data: serde_json::Value,
-}
-
-/// Sends router data comparison to external service
-#[cfg(feature = "v1")]
-async fn send_comparison_data<F, RouterDReq>(
-    state: &SessionState,
-    hs_router_data: &RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    ucs_router_data: &RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync,
-    RouterDReq: Send + Sync + Clone + serde::Serialize,
-{
-    use common_utils::request::{Method, Request, RequestContent};
-    use external_services::http_client;
-
-    // Check if comparison service is enabled
-    if !state.conf.comparison_service.enabled {
-        return Ok(());
-    }
-
-    // Serialize the complete router data for HS
-    let hs_data = serde_json::to_value(hs_router_data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize HS router data")?;
-
-    let ucs_data = serde_json::to_value(ucs_router_data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize UCS router data")?;
-
-    let payload = ComparisonData { hs_data, ucs_data };
-    // Construct request
-
-    let mut request = Request::new(Method::Post, &state.conf.comparison_service.url);
-    let _ = request.add_header("Content-Type", "application/json".into());
-    state.request_id.map(|req_id| {
-        request.add_header(
-            "X-Request-ID",
-            masking::Maskable::Masked(Secret::new(req_id.to_string())),
-        );
-    });
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    // Send with configurable timeout - don't block payment flow
-    let timeout = state.conf.comparison_service.timeout_secs.unwrap_or(2);
-    let _ = http_client::send_request(&state.conf.proxy, request, Some(timeout)).await;
-
+    let comparison_data = ComparisonData {
+        hyperswitch_data,
+        unified_connector_service_data,
+    };
+    let _ = send_comparison_data(state, comparison_data).await;
     Ok(())
 }
 

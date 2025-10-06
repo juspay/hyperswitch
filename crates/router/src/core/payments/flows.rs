@@ -215,6 +215,7 @@ pub trait Feature<F, T> {
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _shadow_mode: bool,
     ) -> RouterResult<()>
     where
         F: Clone,

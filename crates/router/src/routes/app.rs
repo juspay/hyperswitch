@@ -155,12 +155,14 @@ impl SessionState {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
-    pub fn get_grpc_headers_ucs(&self) -> GrpcHeadersUcsBuilderInitial {
+    pub fn get_grpc_headers_ucs(&self, shadow_mode: bool) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.map(|req_id| (*req_id).to_string());
+        let shadow_mode = Some(shadow_mode.to_string());
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
+            .shadow_mode(shadow_mode)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {

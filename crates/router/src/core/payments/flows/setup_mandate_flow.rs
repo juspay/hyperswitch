@@ -270,6 +270,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
+        shadow_mode: bool,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -299,7 +300,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let header_payload = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(shadow_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .lineage_ids(lineage_ids);

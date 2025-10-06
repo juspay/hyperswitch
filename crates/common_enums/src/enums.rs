@@ -2274,6 +2274,7 @@ pub enum GatewaySystem {
     #[default]
     Direct,
     UnifiedConnectorService,
+    ShadowUnifiedConnectorService,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.

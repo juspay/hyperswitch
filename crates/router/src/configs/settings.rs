@@ -170,7 +170,7 @@ pub struct Settings<S: SecretState> {
     pub enhancement: Option<HashMap<String, String>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub internal_services: InternalServicesConfig,
-    pub comparison_service: ComparisonServiceConfig,
+    pub comparison_service: Option<ComparisonServiceConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

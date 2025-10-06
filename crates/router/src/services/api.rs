@@ -20,7 +20,9 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
-    consts::{DEFAULT_TENANT, TENANT_HEADER, X_CONNECTOR, X_FLOW, X_HS_LATENCY, X_REQUEST_ID},
+    consts::{
+        DEFAULT_TENANT, TENANT_HEADER, X_CONNECTOR_NAME, X_FLOW_NAME, X_HS_LATENCY, X_REQUEST_ID,
+    },
     errors::{ErrorSwitch, ReportSwitchExt},
     request::RequestContent,
 };
@@ -62,6 +64,7 @@ use crate::{
         api_locking,
         errors::{self, CustomResult},
         payments, unified_connector_service,
+        utils as core_utils,
     },
     events::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
@@ -296,10 +299,8 @@ where
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
-                        std::any::type_name::<T>()
-                            .split("::")
-                            .last()
-                            .unwrap_or_default()
+                        core_utils::get_flow_name::<T>()
+                            .unwrap_or_else(|_| "UnknownFlow".to_string())
                     ),
                 ),
             );
@@ -339,19 +340,17 @@ where
                         },
                         None => serde_json::Value::Null,
                     };
-                    let flow_name = std::any::type_name::<T>()
-                        .split("::")
-                        .last()
-                        .unwrap_or_default();
+                    let flow_name = core_utils::get_flow_name::<T>()
+                        .unwrap_or_else(|_| "UnknownFlow".to_string());
 
                     request.headers.insert((
-                        X_FLOW.to_string(),
+                        X_FLOW_NAME.to_string(),
                         Maskable::Masked(Secret::new(flow_name.to_string())),
                     ));
 
                     let connector_name = req.connector.clone();
                     request.headers.insert((
-                        X_CONNECTOR.to_string(),
+                        X_CONNECTOR_NAME.to_string(),
                         Maskable::Masked(Secret::new(connector_name.clone().to_string())),
                     ));
                     state.request_id.as_ref().map(|id| {
