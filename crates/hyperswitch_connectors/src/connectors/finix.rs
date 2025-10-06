@@ -13,6 +13,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_response_types::PaymentMethodDetails;
 use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
+use hyperswitch_domain_models::types::PaymentsCancelRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -653,7 +654,89 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Finix {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Finix {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/authorizations/{}",
+            self.base_url(connectors),
+            connector_transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = finix::FinixCancelRequest::new();
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: finix::FinixPaymentsResponse = res
+            .response
+            .parse_struct("Finix PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        finix::get_finix_response(
+            ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            finix::FinixFlow::Transfer,
+        )
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
     fn get_headers(
@@ -670,10 +753,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/transfers/{}/reversals",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -688,7 +775,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
         )?;
 
         let connector_router_data = finix::FinixRouterData::try_from((refund_amount, req))?;
-        let connector_req = finix::FinixRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = finix::FinixCreateRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -717,9 +804,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: finix::RefundResponse = res
+        let response: finix::FinixPaymentsResponse = res
             .response
-            .parse_struct("finix RefundResponse")
+            .parse_struct("FinixPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -754,10 +841,19 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Finix {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+        Ok(format!(
+            "{}/transfers/{}",
+            self.base_url(connectors),
+            refund_id
+        ))
     }
 
     fn build_request(
@@ -784,9 +880,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Finix {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: finix::RefundResponse = res
+        let response: finix::FinixPaymentsResponse = res
             .response
-            .parse_struct("finix RefundSyncResponse")
+            .parse_struct("FinixPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

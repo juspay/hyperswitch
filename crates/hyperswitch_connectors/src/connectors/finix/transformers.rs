@@ -3,7 +3,6 @@ pub mod request;
 pub mod response;
 use common_enums::{enums, AttemptStatus, CaptureMethod};
 use common_utils::types::MinorUnit;
-use error_stack::ResultExt;
 pub use finix_common::*;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -20,9 +19,9 @@ use hyperswitch_domain_models::{
     router_response_types::{
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
+    types::RefundsRouterData,
 };
-use hyperswitch_interfaces::errors::{self, ConnectorError};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
@@ -35,12 +34,8 @@ use crate::{
 };
 
 pub enum FinixFlow {
-    // CreateConnectorCustomer,
-    // Tokenization,
     Auth,
     Transfer,
-    Void,
-    Refund,
 }
 
 impl FinixFlow {
@@ -55,7 +50,7 @@ impl FinixFlow {
 }
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit,
     pub router_data: &'a RouterData<Flow, Req, Res>,
     pub merchant_id: Secret<String>,
 }
@@ -77,7 +72,6 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     }
 }
 
-//------------------------
 impl
     TryFrom<
         &FinixRouterData<
@@ -98,7 +92,6 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
-        // Create entity data
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
@@ -110,7 +103,6 @@ impl
                 .map(FinixAddress::from),
         };
 
-        // Create the request
         Ok(Self {
             entity,
             tags: None,
@@ -119,7 +111,6 @@ impl
     }
 }
 
-// Implement response handling for Identity creation
 impl<F, T> TryFrom<ResponseRouterData<F, FinixIdentityResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -134,15 +125,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixIdentityResponse, T, PaymentsRespo
             ..item.data
         })
     }
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct FinixCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
 }
 
 impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
@@ -305,7 +287,7 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FinixPaymentStatus {
@@ -315,8 +297,17 @@ pub enum FinixPaymentStatus {
     Processing,
 }
 
-fn get_finix_status(_state: FinixState, flow: FinixFlow) -> AttemptStatus {
-    match (flow, _state) {
+fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>) -> AttemptStatus {
+    if is_void == Some(true) {
+        return match state {
+            FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                AttemptStatus::VoidFailed
+            }
+            FinixState::PENDING => AttemptStatus::Voided,
+            FinixState::SUCCEEDED => AttemptStatus::Voided,
+        };
+    }
+    match (flow, state) {
         (FinixFlow::Auth, FinixState::PENDING) => AttemptStatus::Authorizing,
         (FinixFlow::Auth, FinixState::SUCCEEDED) => AttemptStatus::Authorized,
         (FinixFlow::Auth, FinixState::FAILED) => AttemptStatus::AuthorizationFailed,
@@ -329,28 +320,19 @@ fn get_finix_status(_state: FinixState, flow: FinixFlow) -> AttemptStatus {
         (FinixFlow::Transfer, FinixState::FAILED)
         | (FinixFlow::Transfer, FinixState::CANCELED)
         | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
-
-        (FinixFlow::Void, FinixState::PENDING) => AttemptStatus::VoidInitiated,
-        (FinixFlow::Void, FinixState::SUCCEEDED) => AttemptStatus::Voided,
-        (FinixFlow::Void, FinixState::FAILED)
-        | (FinixFlow::Void, FinixState::CANCELED)
-        | (FinixFlow::Void, FinixState::UNKNOWN) => AttemptStatus::VoidFailed,
-
-        (FinixFlow::Refund, FinixState::PENDING) => todo!(),
-        (FinixFlow::Refund, FinixState::SUCCEEDED) => todo!(),
-        (FinixFlow::Refund, FinixState::FAILED) => todo!(),
-        (FinixFlow::Refund, FinixState::CANCELED) => todo!(),
-        (FinixFlow::Refund, FinixState::UNKNOWN) => todo!(),
     }
 }
-//TODO: Fill the struct with respective fields
 
 pub(crate) fn get_finix_response<F, T>(
     router_data: ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsResponseData>,
     finix_flow: FinixFlow,
 ) -> Result<RouterData<F, T, PaymentsResponseData>, error_stack::Report<ConnectorError>> {
     Ok(RouterData {
-        status: get_finix_status(router_data.response.state, finix_flow),
+        status: get_attempt_status(
+            router_data.response.state,
+            finix_flow,
+            router_data.response.is_void,
+        ),
         response: Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
             redirection_data: Box::new(None),
@@ -365,78 +347,56 @@ pub(crate) fn get_finix_response<F, T>(
     })
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct FinixRefundRequest {
-    pub amount: MinorUnit,
-}
-
-impl<F> TryFrom<&FinixRouterData<'_, F, RefundsData, RefundsResponseData>> for FinixRefundRequest {
+impl<F> TryFrom<&FinixRouterData<'_, F, RefundsData, RefundsResponseData>>
+    for FinixCreateRefundRequest
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: &FinixRouterData<'_, F, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
+        let id = item.router_data.request.connector_transaction_id.clone();
+        let refund_amount = item.router_data.request.minor_refund_amount;
+        let currency = item.router_data.request.currency;
+        Ok(Self::new(id, refund_amount, currency))
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<FinixState> for enums::RefundStatus {
+    fn from(item: FinixState) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            FinixState::PENDING => Self::Pending,
+            FinixState::SUCCEEDED => Self::Success,
+            FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => Self::Failure,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, FinixPaymentsResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, FinixPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, FinixPaymentsResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, FinixPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(item.response.state),
             }),
             ..item.data
         })

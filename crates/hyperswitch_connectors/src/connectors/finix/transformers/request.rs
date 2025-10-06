@@ -25,6 +25,16 @@ pub struct FinixCaptureRequest {
     pub amount: MinorUnit,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixCancelRequest {
+    pub void_me: bool,
+}
+
+impl FinixCancelRequest {
+    pub fn new() -> Self {
+        Self { void_me: true }
+    }
+}
 /// Request structure for capturing an authorization.
 /// API Reference: https://docs.finix.com/api/authorizations/captureauthorization
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -68,4 +78,23 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub card_brand: Option<FinixCardBrand>,
     pub card_type: Option<FinixCardType>,
     pub additional_data: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixCreateRefundRequest {
+    pub linked_transfers: String,
+    pub refund_amount: MinorUnit,
+    pub currency: Currency,
+    pub _type: String,
+}
+
+impl FinixCreateRefundRequest {
+    pub fn new(parent_txn_id: String, amount: MinorUnit, currency: Currency) -> Self {
+        Self {
+            linked_transfers: parent_txn_id,
+            refund_amount: amount,
+            currency,
+            _type: "REVERSAL".to_string(),
+        }
+    }
 }

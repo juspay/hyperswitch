@@ -38,11 +38,24 @@ pub enum FinixState {
     SUCCEEDED,
     FAILED,
     CANCELED,
+    #[serde(other)]
     UNKNOWN,
     // RETURNED
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixPaymentType {
+    DEBIT,
+    CREDIT,
+    REVERSAL,
+    FEE,
+    ADJUSTMENT,
+    DISPUTE,
+    RESERVE,
+    SETTLEMENT,
+    #[serde(other)]
+    UNKNOWN,
+}
 
-/// Represents the type of a payment instrument.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FinixPaymentInstrumentType {
     #[serde(rename = "PAYMENT_CARD")]
