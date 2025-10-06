@@ -279,6 +279,10 @@ where
                         .await?
                     }
                     (false, true) => {
+                        let payment_method_status = common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        );
+                        pm_status = Some(payment_method_status);
                         let card_data = payment_method_create_request.card.clone();
                         let external_vault_details = match &business_profile.external_vault_details {
                             domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
