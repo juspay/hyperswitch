@@ -2495,7 +2495,6 @@ pub async fn create_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-
     let id = uuid::Uuid::new_v4().to_string().clone();
 
     let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
@@ -2530,10 +2529,11 @@ pub async fn create_user_authentication_method(
         (auth_method.auth_id.clone(), email_domain.clone())
     } else {
         let email_domain =
-            req.email_domain.clone().ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
+            req.email_domain
+                .clone()
+                .ok_or(UserErrors::InvalidAuthMethodOperationWithMessage(
                     "Email domain not found".to_string(),
                 ))?;
-
         (uuid::Uuid::new_v4().to_string(), email_domain.clone())
     };
 
@@ -2581,7 +2581,7 @@ pub async fn create_user_authentication_method(
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
 
-    let response:user_api::CreateUserAuthenticationMethodResponse =
+    Ok(ApplicationResponse::Json(
         user_api::CreateUserAuthenticationMethodResponse {
             id,
             auth_id,
@@ -2590,9 +2590,8 @@ pub async fn create_user_authentication_method(
             auth_type,
             email_domain: Some(email_domain),
             allow_signup: req.allow_signup,
-        };
-
-    Ok(ApplicationResponse::Json(response))
+        },
+    ))
 }
 
 pub async fn update_user_authentication_method(
