@@ -8,7 +8,7 @@ use crate::{ExposeInterface, Secret};
 pub enum Maskable<T: Eq + PartialEq + Clone> {
     /// Variant which masks the data by wrapping in a Secret
     Masked(Secret<T>),
-    /// Varant which doesn't mask the data
+    /// Variant which doesn't mask the data
     Normal(T),
 }
 
