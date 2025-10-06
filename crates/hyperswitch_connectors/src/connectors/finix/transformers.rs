@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::RouterData as _,
+    utils::{CardData, RouterData as _},
 };
 
 #[derive(Debug, Clone)]
@@ -361,11 +361,6 @@ impl
 
         match &tokenization_data.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // let address = item
-                //     .router_data
-                //     .get_billing_address()
-                //     .map(FinixAddress::from);
-
                 Ok(Self {
                     instrument_type: FinixPaymentInstrumentType::PaymentCard,
                     name: card_data.card_holder_name.clone(),
@@ -381,7 +376,7 @@ impl
                     )),
                     expiration_year: Some(Secret::new(
                         card_data
-                            .card_exp_year
+                            .get_expiry_year_4_digit()
                             .clone()
                             .expose()
                             .parse::<i32>()

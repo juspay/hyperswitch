@@ -4,7 +4,7 @@ import { customerAcceptance, cardRequiredField } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Visa test card
   card_exp_month: "10",
-  card_exp_year: "50",
+  card_exp_year: "2050",
   card_holder_name: "Test User",
   card_cvc: "123",
 };
@@ -13,7 +13,7 @@ const successfulNo3DSCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002", // Failed card
   card_exp_month: "01",
-  card_exp_year: "35",
+  card_exp_year: "2035",
   card_holder_name: "Test User",
   card_cvc: "123",
 };
@@ -22,20 +22,16 @@ const failedNo3DSCardDetails = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "TestBank",
-    card_issuing_country: "US",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
-    card_exp_year: "50",
+    card_exp_year: "2050",
     card_holder_name: "Test User",
-    payment_checks: {
-      cvc_check: "pass",
-      address_line1_check: "pass",
-      address_postal_code_check: "pass",
-    },
+    payment_checks: null,
     authentication_data: null,
   },
   billing: null,
@@ -73,6 +69,38 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        amount: 11500,
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 11500,
+        },
+      },
+    },
+    // Payment confirmation with shipping cost
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -196,7 +224,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -208,7 +236,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
