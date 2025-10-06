@@ -25774,7 +25774,7 @@
               },
               "consume_post_message_for_three_ds_method_completion": {
                 "type": "boolean",
-                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+                "description": "Indicates whether to wait for Post message after 3DS method data submission"
               }
             }
           }
