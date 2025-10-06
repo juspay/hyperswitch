@@ -1,9 +1,9 @@
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method, types::StringMinorUnit};
+use common_utils::{request::Method, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
-        BankRedirectData, BankTransferData, Card, PaymentMethodData, WalletData,
+        BankRedirectData, Card, PaymentMethodData, WalletData,
     },
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use url;
 
 use crate::{
-    connectors::Trustpayments,
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, CardData, RefundsRequestData, RouterData as RouterDataExt},
 };
