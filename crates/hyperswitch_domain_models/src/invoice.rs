@@ -32,32 +32,6 @@ pub struct Invoice {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-// pub enum InvoiceStatus {
-//     InvoiceCreated,
-//     PaymentPending,
-//     PaymentPendingTimeout,
-//     PaymentSucceeded,
-//     PaymentFailed,
-//     PaymentCanceled,
-//     InvoicePaid,
-//     ManualReview,
-// }
-
-// impl std::fmt::Display for InvoiceStatus {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Self::InvoiceCreated => write!(f, "InvoiceCreated"),
-//             Self::PaymentPending => write!(f, "PaymentPending"),
-//             Self::PaymentPendingTimeout => write!(f, "PaymentPendingTimeout"),
-//             Self::PaymentSucceeded => write!(f, "PaymentSucceeded"),
-//             Self::PaymentFailed => write!(f, "PaymentFailed"),
-//             Self::PaymentCanceled => write!(f, "PaymentCanceled"),
-//             Self::InvoicePaid => write!(f, "InvoicePaid"),
-//             Self::ManualReview => write!(f, "ManualReview"),
-//         }
-//     }
-// }
-
 #[async_trait::async_trait]
 
 impl super::behaviour::Conversion for Invoice {
@@ -104,11 +78,6 @@ impl super::behaviour::Conversion for Invoice {
             payment_method_id: item.payment_method_id,
             customer_id: item.customer_id,
             amount: item.amount,
-            // currency: Currency::from_str(&item.currency).change_context(
-            //     ValidationError::InvalidValue {
-            //         message: "Invalid currency value".to_string(),
-            //     },
-            // )?,
             currency: item.currency,
             status: item.status,
             provider_name: item.provider_name,
@@ -155,7 +124,6 @@ impl Invoice {
         provider_name: common_enums::connector_enums::Connector,
         metadata: Option<SecretSerdeValue>,
     ) -> Self {
-        // let now = common_utils::date_time::now();
         Self {
             id: common_utils::id_type::InvoiceId::generate(),
             subscription_id,

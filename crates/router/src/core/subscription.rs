@@ -68,7 +68,6 @@ pub async fn create_subscription(
     invoice_handler
         .create_invoice_entry(
             &state,
-            &merchant_context,
             billing_handler.merchant_connector_id,
             Some(payment.payment_id.clone()),
             request.amount,
@@ -171,7 +170,6 @@ pub async fn create_and_confirm_subscription(
     let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
-            &merchant_context,
             profile.get_billing_processor_id()?,
             Some(payment_response.payment_id.clone()),
             amount,
@@ -296,7 +294,6 @@ pub async fn confirm_subscription(
     let invoice_entry = invoice_handler
         .update_invoice(
             &state,
-            &merchant_context,
             invoice.id,
             payment_response.payment_method_id.clone(),
             invoice_details

@@ -64,7 +64,7 @@ impl<'a> SubscriptionHandler<'a> {
                 .clone(),
             customer_id: customer_id.clone(),
             metadata: None,
-            profile_id: self.profile.get_id().clone(),
+            profile_id: profile.get_id().clone(),
             merchant_reference_id: merchant_reference_id,
         };
 
@@ -158,7 +158,6 @@ impl<'a> SubscriptionHandler<'a> {
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler<'a>,
     pub subscription: Subscription,
-    pub profile: hyperswitch_domain_models::business_profile::Profile,
     pub merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
 }
 

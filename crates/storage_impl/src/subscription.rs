@@ -153,39 +153,3 @@ impl SubscriptionInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 }
-
-// #[async_trait::async_trait]
-// impl SubscriptionInterface for KafkaStore {
-//     #[instrument(skip_all)]
-//     async fn insert_subscription_entry(
-//         &self,
-//         subscription_new: DomainSubscription,
-//     ) -> CustomResult<storage::Subscription, errors::StorageError> {
-//         self.diesel_store
-//             .insert_subscription_entry(subscription_new)
-//             .await
-//     }
-
-//     #[instrument(skip_all)]
-//     async fn find_by_merchant_id_subscription_id(
-//         &self,
-//         merchant_id: &common_utils::id_type::MerchantId,
-//         subscription_id: String,
-//     ) -> CustomResult<storage::Subscription, errors::StorageError> {
-//         self.diesel_store
-//             .find_by_merchant_id_subscription_id(merchant_id, subscription_id)
-//             .await
-//     }
-
-//     #[instrument(skip_all)]
-//     async fn update_subscription_entry(
-//         &self,
-//         merchant_id: &common_utils::id_type::MerchantId,
-//         subscription_id: String,
-//         data: storage::SubscriptionUpdate,
-//     ) -> CustomResult<storage::Subscription, errors::StorageError> {
-//         self.diesel_store
-//             .update_subscription_entry(merchant_id, subscription_id, data)
-//             .await
-//     }
-// }
