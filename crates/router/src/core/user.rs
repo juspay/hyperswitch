@@ -2583,7 +2583,7 @@ pub async fn create_user_authentication_method(
             auth_id: res.auth_id,
             owner_id: res.owner_id,
             owner_type: res.owner_type,
-            auth_type: (&req.auth_method).foreign_into(),
+            auth_type: res.auth_type,
             email_domain: Some(res.email_domain),
             allow_signup: res.allow_signup,
         },
