@@ -4,7 +4,10 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    router_response_types::subscriptions as subscription_response_types,
+};
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -14,7 +17,6 @@ use crate::{
     },
     routes::SessionState,
 };
-use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
 
 pub mod billing_processor_handler;
 pub mod invoice_handler;
