@@ -1028,14 +1028,17 @@ async fn payments_incoming_webhook_flow(
             )
             .await
             {
-                update_additional_payment_method_data(
+                if let Err(e) = update_additional_payment_method_data(
                     &state,
                     &merchant_context,
                     webhook_details.object_reference_id.clone(),
                     connector,
                     request_details,
                 )
-                .await?;
+                .await
+                {
+                    tracing::error!("Failed to update additional payment method data: {:?}", e);
+                }
             }
 
             lock_action

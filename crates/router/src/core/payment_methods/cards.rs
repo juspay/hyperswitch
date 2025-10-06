@@ -1643,13 +1643,6 @@ pub async fn update_customer_payment_method(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        if pm.locker_id.is_some() {
-        } else {
-            return Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Payment method stored in locker, so it cannot be updated".into()
-            }));
-        }
-
         if let Some(cs) = &req.client_secret {
             let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
 

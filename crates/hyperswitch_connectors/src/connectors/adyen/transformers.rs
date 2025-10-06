@@ -6272,7 +6272,13 @@ pub fn parse_expiry_date(
 
     let (month_str_raw, year_str_raw) = match (parts.first(), parts.get(1)) {
         (Some(m), Some(y)) => (*m, *y),
-        _ => return Err(errors::ConnectorError::ParsingFailed),
+        _ => {
+            router_env::tracing::error!(
+                "Failed to parse month and year from input parts: {:?}",
+                parts
+            );
+            return Err(errors::ConnectorError::ParsingFailed);
+        }
     };
 
     let month: u32 = month_str_raw
