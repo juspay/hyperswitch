@@ -122,9 +122,9 @@ pub fn generate_emv_string(
     let merchant_city = format_field("60", city); // to consume from req
 
     // Format subfield 05 with the actual TXID
-    // let dummy_txnid = "ZXCV0987654321QWER5678901";
-    let reference_label = format_field("05", &transaction_id);
-    // let reference_label = format_field("05", dummy_txnid);
+    // This is an optional field to be sent while creating the copy-and-paste data for Pix QR Code
+    // If sent, pass the first 25 or last 25 letters, if not passed then pass 3 astericks
+    let reference_label = format_field("05", &transaction_id.chars().take(25).collect::<String>());
 
     // Wrap it inside ID 62
     let additional_data = format_field("62", &reference_label);
@@ -752,7 +752,7 @@ pub enum SantanderVoidStatus {
 impl From<SantanderPaymentStatus> for AttemptStatus {
     fn from(item: SantanderPaymentStatus) -> Self {
         match item {
-            SantanderPaymentStatus::Active => Self::Authorizing,
+            SantanderPaymentStatus::Active => Self::AuthenticationPending,
             SantanderPaymentStatus::Completed => Self::Charged,
             SantanderPaymentStatus::RemovedByReceivingUser => Self::Voided,
             SantanderPaymentStatus::RemovedByPSP => Self::Failure,
@@ -836,6 +836,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
     pub request_payer: Option<String>,
     #[serde(rename = "infoAdicionais")]
     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+    pub pix: Option<Vec<SantanderPix>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -876,21 +877,15 @@ pub struct SantanderCalendarResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
-    PixQRCode(Box<SantanderPixPSyncResponse>),
+    PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderBoletoPSyncResponse {
     pub link: Option<Url>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixPSyncResponse {
-    #[serde(flatten)]
-    pub base: SantanderPixQRCodePaymentsResponse,
-    pub pix: Vec<SantanderPix>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -924,11 +919,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
 
         match response {
             SantanderPaymentsSyncResponse::PixQRCode(pix_data) => {
-                let attempt_status = AttemptStatus::from(pix_data.base.status.clone());
+                let attempt_status = AttemptStatus::from(pix_data.status.clone());
                 match attempt_status {
                     AttemptStatus::Failure => {
                         let response = Err(get_error_response(
-                            Box::new(pix_data.base),
+                            Box::new(*pix_data),
                             item.http_code,
                             attempt_status,
                         ));
@@ -938,16 +933,20 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         })
                     }
                     _ => {
-                        let connector_metadata = pix_data.pix.first().map(|pix| {
-                            serde_json::json!({
-                                "end_to_end_id": pix.end_to_end_id.clone().expose()
-                            })
-                        });
+                        let connector_metadata = pix_data
+                            .pix
+                            .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
+                            .first()
+                            .map(|pix| {
+                                serde_json::json!({
+                                    "end_to_end_id": pix.end_to_end_id.clone().expose()
+                                })
+                            });
                         Ok(Self {
-                            status: AttemptStatus::from(pix_data.base.status),
+                            status: AttemptStatus::from(pix_data.status),
                             response: Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
-                                    pix_data.base.transaction_id.clone(),
+                                    pix_data.transaction_id.clone(),
                                 ),
                                 redirection_data: Box::new(None),
                                 mandate_reference: Box::new(None),
@@ -1178,7 +1177,6 @@ fn get_qr_code_data<F, T>(
         pix_data.transaction_id.clone(),
         location,
     )?;
-    println!("QR CODE DATA: {:?}", dynamic_pix_code);
 
     let image_data = QrImage::new_from_data(dynamic_pix_code.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;

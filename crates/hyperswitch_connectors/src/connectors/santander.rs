@@ -485,7 +485,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 Ok(format!(
                     "{}{}{}",
                     self.base_url(connectors),
-                    "cob/",
+                    "api/v1/cob/",
                     connector_payment_id
                 ))
             }
@@ -535,11 +535,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = santander::SantanderAuthType::try_from(&req.connector_auth_type)?;
+
         match req.request.payment_method_type {
             Some(enums::PaymentMethodType::Pix) => Ok(Some(
                 RequestBuilder::new()
                     .method(Method::Get)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .add_certificate(Some(auth_details.certificate))
+                    .add_certificate_key(Some(auth_details.certificate_key))
                     .attach_default_headers()
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .build(),
@@ -575,7 +579,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
 
         let original_amount = match response {
             santander::SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
-                pix_data.base.value.original.clone()
+                pix_data.value.original.clone()
             }
             santander::SantanderPaymentsSyncResponse::Boleto(_) => convert_amount(
                 self.amount_converter,
@@ -1128,7 +1132,10 @@ impl ConnectorSpecifications for Santander {
         {
             payment_attempt.payment_id.get_string_repr().to_owned()
         } else {
-            connector_utils::generate_alphanumeric_code(santander_constants::MIN_LEN_PAYMENT_ID, santander_constants::MIN_LEN_PAYMENT_ID)
+            connector_utils::generate_alphanumeric_code(
+                santander_constants::MIN_LEN_PAYMENT_ID,
+                santander_constants::MIN_LEN_PAYMENT_ID,
+            )
         }
     }
 }
