@@ -42,6 +42,14 @@ pub enum FinixState {
     UNKNOWN,
     // RETURNED
 }
+impl FinixState {
+    pub fn is_failure(&self) -> bool {
+        match self {
+            FinixState::PENDING | FinixState::SUCCEEDED => false,
+            FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => true,
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FinixPaymentType {
     DEBIT,

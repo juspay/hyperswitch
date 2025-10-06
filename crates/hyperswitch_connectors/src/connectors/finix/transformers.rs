@@ -6,7 +6,7 @@ use common_utils::types::MinorUnit;
 pub use finix_common::*;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{
         self as flows,
         refunds::{Execute, RSync},
@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     },
     types::RefundsRouterData,
 };
-use hyperswitch_interfaces::errors::ConnectorError;
+use hyperswitch_interfaces::{consts, errors::ConnectorError};
 use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
@@ -327,22 +327,44 @@ pub(crate) fn get_finix_response<F, T>(
     router_data: ResponseRouterData<F, FinixPaymentsResponse, T, PaymentsResponseData>,
     finix_flow: FinixFlow,
 ) -> Result<RouterData<F, T, PaymentsResponseData>, error_stack::Report<ConnectorError>> {
+    let status = get_attempt_status(
+        router_data.response.state.clone(),
+        finix_flow,
+        router_data.response.is_void,
+    );
     Ok(RouterData {
-        status: get_attempt_status(
-            router_data.response.state,
-            finix_flow,
-            router_data.response.is_void,
-        ),
-        response: Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
-            redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: None,
-            incremental_authorization_allowed: None,
-            charges: None,
-        }),
+        status: status.clone(),
+        response: if router_data.response.state.is_failure() {
+            Err(ErrorResponse {
+                code: router_data
+                    .response
+                    .failure_code
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: router_data
+                    .response
+                    .messages
+                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |msg| msg.join(",")),
+                reason: router_data.response.failure_message,
+                status_code: router_data.http_code,
+                attempt_status: Some(status.clone()),
+                connector_transaction_id: Some(router_data.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+            })
+        },
         ..router_data.data
     })
 }

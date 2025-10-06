@@ -18,6 +18,9 @@ pub struct FinixPaymentsResponse {
     pub is_void: Option<bool>,
     pub source: Option<String>,
     pub state: FinixState,
+    pub failure_code: Option<String>,
+    pub messages: Option<Vec<String>>,
+    pub failure_message: Option<String>,
     pub tags: FinixTags,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
