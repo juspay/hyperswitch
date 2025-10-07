@@ -11,9 +11,7 @@ use masking::ExposeInterface;
 use superposition_provider;
 pub use types::*;
 
-fn convert_open_feature_value(
-    v: open_feature::Value,
-) -> Result<serde_json::Value, String> {
+fn convert_open_feature_value(v: open_feature::Value) -> Result<serde_json::Value, String> {
     match v {
         open_feature::Value::String(s) => Ok(serde_json::Value::String(s)),
         open_feature::Value::Bool(b) => Ok(serde_json::Value::Bool(b)),
