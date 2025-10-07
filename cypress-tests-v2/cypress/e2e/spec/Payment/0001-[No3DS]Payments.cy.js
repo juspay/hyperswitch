@@ -59,7 +59,7 @@ describe("[Payment] [No 3DS] [Payment Method: Card]", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.paymentIntentConfirmCall(
+      cy.paymentConfirmCall(
         fixtures.confirmBody,
         req_data,
         res_data,
@@ -116,7 +116,7 @@ describe("[Payment] [No 3DS] [Payment Method: Card]", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.paymentIntentConfirmCall(
+      cy.paymentConfirmCall(
         fixtures.confirmBody,
         req_data,
         res_data,

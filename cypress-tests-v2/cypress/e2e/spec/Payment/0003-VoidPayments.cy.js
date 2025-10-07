@@ -52,7 +52,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
       ]["No3DSManualCapture"];
       const req_data = data["Request"];
 
-      cy.paymentIntentConfirmCall(globalState, req_data, data);
+      cy.paymentConfirmCall(globalState, req_data, data);
 
       if (should_continue) should_continue = should_continue_further(data);
     });
@@ -62,7 +62,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
         "card_pm"
       ]["VoidAfterConfirm"];
 
-      cy.paymentIntentVoidCall(globalState, fixtures.void_payment_body, data);
+      cy.paymentVoidCall(globalState, fixtures.void_payment_body, data);
 
       if (should_continue) should_continue = should_continue_further(data);
     });
@@ -112,7 +112,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
           Response: data.ResponseCustom,
         };
 
-        cy.paymentIntentVoidCall(
+        cy.paymentVoidCall(
           globalState,
           fixtures.void_payment_body,
           void_data
@@ -161,7 +161,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
       ]["No3DSAutoCapture"];
       const req_data = data["Request"];
 
-      cy.paymentIntentConfirmCall(globalState, req_data, data);
+      cy.paymentConfirmCall(globalState, req_data, data);
 
       if (should_continue) should_continue = should_continue_further(data);
     });
@@ -177,7 +177,7 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
         Response: data.ResponseCustom,
       };
 
-      cy.paymentIntentVoidCall(
+      cy.paymentVoidCall(
         globalState,
         fixtures.void_payment_body,
         void_data

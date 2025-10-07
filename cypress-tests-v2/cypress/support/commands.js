@@ -1359,7 +1359,7 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
 // Below is an example of how the payment intent create call should look like (update the below command as per the need)
 
 Cypress.Commands.add(
-  "paymentIntentVoidCall",
+  "paymentVoidCall",
   (globalState, voidRequestBody, data) => {
     const { Request: reqData = {}, Response: resData } = data || {};
 
@@ -1370,7 +1370,7 @@ Cypress.Commands.add(
     const payment_id = globalState.get("paymentID");
     const url = `${base_url}/v2/payments/${payment_id}/cancel`;
 
-    // Apply connector-specific request data (including cancellation_reason) like v1
+    // Apply connector-specific request data (including cancellation_reason)
     for (const key in reqData) {
       voidRequestBody[key] = reqData[key];
     }
@@ -1475,7 +1475,7 @@ Cypress.Commands.add(
   }
 );
 Cypress.Commands.add(
-  "paymentIntentConfirmCall",
+  "paymentConfirmCall",
   (globalState, paymentConfirmRequestBody, data) => {
     const { Request: reqData = {}, Response: resData } = data || {};
 
@@ -1486,7 +1486,7 @@ Cypress.Commands.add(
     const payment_id = globalState.get("paymentID");
     const url = `${base_url}/v2/payments/${payment_id}/confirm-intent`;
 
-    // Apply connector-specific request data like v1
+    // Apply connector-specific request data
     for (const key in reqData) {
       paymentConfirmRequestBody[key] = reqData[key];
     }
@@ -1513,14 +1513,14 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
-          // Validate the payment confirm response - V2 uses different ID format
+          // Validate the payment confirm response
           expect(response.body).to.have.property("id").and.to.be.a("string").and
             .not.be.empty;
           expect(response.body).to.have.property("status");
 
           globalState.set("paymentID", response.body.id);
 
-          // Validate response body against expected data - more flexible validation for V2
+          // Validate response body against expected data
           if (resData && resData.body) {
             for (const key in resData.body) {
               // Skip validation if expected value is null or undefined

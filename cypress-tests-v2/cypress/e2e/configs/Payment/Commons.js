@@ -52,6 +52,36 @@ const multiUseMandateData = {
   },
 };
 
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  email: "example@example.com",
+};
+
+const shippingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  email: "example@example.com",
+};
+
 export const payment_methods_enabled = [
   {
     payment_method_type: "bank_debit",
@@ -570,34 +600,8 @@ export const connectorDetails = {
         },
         capture_method: "manual",
         authentication_type: "no_three_ds",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          email: "example@example.com",
-        },
-        shipping: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          email: "example@example.com",
-        },
+        billing: billingAddress,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -614,34 +618,8 @@ export const connectorDetails = {
         },
         capture_method: "automatic",
         authentication_type: "no_three_ds",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          email: "example@example.com",
-        },
-        shipping: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          email: "example@example.com",
-        },
+        billing: billingAddress,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
