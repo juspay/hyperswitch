@@ -6332,16 +6332,6 @@ name = "merchant_name"
 label = "merchant_name"
 placeholder = "Enter Merchant Name"
 required = true
-[[juspaythreedsserver.metadata.three_ds_requestor_name]]
-name = "three_ds_requestor_name"
-label = "three_ds_requestor_name"
-placeholder = "Enter ThreeDS Requestor Name"
-required = true
-[[juspaythreedsserver.metadata.three_ds_requestor_id]]
-name = "three_ds_requestor_id"
-label = "three_ds_requestor_id"
-placeholder = "Enter ThreeDS Requestor ID"
-required = true
 [[juspaythreedsserver.metadata.acquirer_bin]]
 name = "acquirer_bin"
 label = "acquirer_bin"
