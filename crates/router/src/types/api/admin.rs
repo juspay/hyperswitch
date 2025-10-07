@@ -241,6 +241,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             external_vault_connector_details: external_vault_connector_details
                 .map(ForeignFrom::foreign_from),
             billing_processor_id: item.billing_processor_id,
+            is_l2_l3_enabled: item.is_l2_l3_enabled,
         })
     }
 }
@@ -511,5 +512,6 @@ pub async fn create_profile_from_merchant_account(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error while generating external_vault_details")?,
         billing_processor_id: request.billing_processor_id,
+        is_l2_l3_enabled: request.is_l2_l3_enabled,
     }))
 }
