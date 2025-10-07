@@ -214,11 +214,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             header_payload,
             |mut router_data, payment_void_request, grpc_headers| async move {
                 let response = client
-                    .payment_cancel(
-                        payment_void_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
+                    .payment_cancel(payment_void_request, connector_auth_metadata, grpc_headers)
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to Cancel payment")?;

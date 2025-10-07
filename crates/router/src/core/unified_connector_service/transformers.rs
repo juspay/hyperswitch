@@ -19,7 +19,6 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use crate::types::api;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::tracing;
 use unified_connector_service_client::payments::{
@@ -30,7 +29,7 @@ use url::Url;
 
 use crate::{
     core::{errors, unified_connector_service},
-    types::transformers::ForeignTryFrom,
+    types::{api, transformers::ForeignTryFrom},
 };
 impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceGetRequest
