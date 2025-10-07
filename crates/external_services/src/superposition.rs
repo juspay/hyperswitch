@@ -10,9 +10,7 @@ use error_stack::report;
 use masking::ExposeInterface;
 use superposition_provider;
 
-fn convert_open_feature_value(
-    v: open_feature::Value,
-) -> Result<serde_json::Value, String> {
+fn convert_open_feature_value(v: open_feature::Value) -> Result<serde_json::Value, String> {
     match v {
         open_feature::Value::String(s) => Ok(serde_json::Value::String(s)),
         open_feature::Value::Bool(b) => Ok(serde_json::Value::Bool(b)),
@@ -39,7 +37,9 @@ pub struct SuperpositionClient {
 
 impl SuperpositionClient {
     /// Create a new Superposition client
-    pub async fn new(config: types::SuperpositionClientConfig) -> CustomResult<Self, types::SuperpositionError> {
+    pub async fn new(
+        config: types::SuperpositionClientConfig,
+    ) -> CustomResult<Self, types::SuperpositionError> {
         let provider_options = superposition_provider::SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
             token: config.token.expose(),
