@@ -1401,6 +1401,10 @@ merchant_secret="Source verification key"
   payment_method_type = "UnionPay"
 [[braintree.debit]]
   payment_method_type = "UnionPay"
+[[braintree.wallet]]
+  payment_method_type = "apple_pay"
+[[braintree.wallet]]
+  payment_method_type = "google_pay"
 [braintree.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -1423,6 +1427,33 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[[braintree.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[braintree.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=false
+type="Text"
+[[braintree.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=false
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[braintree.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -7281,7 +7312,9 @@ payment_method_type = "JCB"
 payment_method_type = "Maestro"
 [[tesouro.wallet]]
   payment_method_type = "apple_pay"
-  
+[[tesouro.wallet]]
+  payment_method_type = "google_pay"
+
 [tesouro.connector_auth.SignatureKey]
 api_key = "Client ID"
 api_secret = "Client Secret"
