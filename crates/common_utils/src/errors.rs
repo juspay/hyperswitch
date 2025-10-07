@@ -1,7 +1,8 @@
 //! Errors and error specific types for universal use
 
-use crate::types::MinorUnit;
 use serde::Serialize;
+
+use crate::types::MinorUnit;
 
 /// Custom Result
 /// A custom datatype that wraps the error variant <E> into a report, allowing
