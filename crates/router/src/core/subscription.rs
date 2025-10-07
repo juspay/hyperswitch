@@ -4,7 +4,10 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    router_response_types::subscriptions as subscription_response_types,
+};
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -28,7 +31,7 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<SubscriptionResponse> {
+) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
     let profile =
@@ -43,7 +46,7 @@ pub async fn create_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -65,7 +68,7 @@ pub async fn create_subscription(
         .create_payment_with_confirm_false(subscription.handler.state, &request)
         .await
         .attach_printable("subscriptions: failed to create payment")?;
-    invoice_handler
+    let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
             billing_handler.merchant_connector_id,
@@ -88,9 +91,67 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    Ok(ApplicationResponse::Json(
-        subscription.to_subscription_response(),
-    ))
+    let response = subscription.generate_response(
+        &invoice_entry,
+        &payment,
+        subscription_response_types::SubscriptionStatus::Created,
+    )?;
+
+    Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn get_subscription_plans(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    query: subscription_types::GetPlansQuery,
+) -> RouterResponse<Vec<subscription_types::GetPlansResponse>> {
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable("subscriptions: failed to find business profile")?;
+
+    let subscription_handler = SubscriptionHandler::new(&state, &merchant_context);
+
+    if let Some(client_secret) = query.client_secret {
+        subscription_handler
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    };
+
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        None,
+        profile.clone(),
+    )
+    .await?;
+
+    let get_plans_response = billing_handler
+        .get_subscription_plans(&state, query.limit, query.offset)
+        .await?;
+
+    let mut response = Vec::new();
+
+    for plan in &get_plans_response.list {
+        let plan_price_response = billing_handler
+            .get_subscription_plan_prices(&state, plan.subscription_provider_plan_id.clone())
+            .await?;
+
+        response.push(subscription_types::GetPlansResponse {
+            plan_id: plan.subscription_provider_plan_id.clone(),
+            name: plan.name.clone(),
+            description: plan.description.clone(),
+            price_id: plan_price_response
+                .list
+                .into_iter()
+                .map(subscription_types::SubscriptionPlanPrices::from)
+                .collect::<Vec<_>>(),
+        })
+    }
+
+    Ok(ApplicationResponse::Json(response))
 }
 
 /// Creates and confirms a subscription in one operation.
@@ -116,7 +177,7 @@ pub async fn create_and_confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -259,7 +320,7 @@ pub async fn confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -293,6 +354,7 @@ pub async fn confirm_subscription(
             &state,
             invoice.id,
             payment_response.payment_method_id.clone(),
+            Some(payment_response.payment_id.clone()),
             invoice_details
                 .clone()
                 .and_then(|invoice| invoice.status)
