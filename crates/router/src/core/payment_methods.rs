@@ -948,7 +948,7 @@ pub async fn create_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
-            create_payment_method_card_core(
+            Box::pin(create_payment_method_card_core(
                 state,
                 req,
                 merchant_context,
@@ -957,7 +957,7 @@ pub async fn create_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-            )
+            ))
             .await
         }
         api::PaymentMethodCreateData::ProxyCard(_) => {
