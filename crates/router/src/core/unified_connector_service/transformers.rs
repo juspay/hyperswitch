@@ -547,16 +547,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let image_data = QrImage::new_from_data(uri.uri.clone())
-                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-                        let image_data_url = Url::parse(image_data.data.clone().as_str())
-                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-                        let qr_code_info = QrCodeInformation::QrDataUrl {
-                            image_data_url,
-                            display_to_timestamp: None,
+                        // For UPI intent, store the URI in connector_metadata for fetch QR code pattern
+                        let qr_code_fetch_info = api_models::payments::FetchQrCodeInformation {
+                            qr_code_fetch_url: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                         };
                         (
-                            Some(qr_code_info.encode_to_value())
+                            Some(qr_code_fetch_info.encode_to_value())
                                 .transpose()
                                 .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                             None,
