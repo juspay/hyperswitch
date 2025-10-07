@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     payment_methods::PaymentMethodUpdate,
 };
 use masking::{ExposeInterface, PeekInterface};
+use payment_methods::core::migration::MerchantConnectorValidator;
 use rdkafka::message::ToBytes;
 use router_env::logger;
 
@@ -15,21 +16,6 @@ use crate::{
     core::{errors::StorageErrorExt, payment_methods::cards::create_encrypted_data},
     routes::SessionState,
 };
-fn parse_merchant_connector_ids(
-    ids_str: Option<String>,
-) -> Option<Vec<id_type::MerchantConnectorAccountId>> {
-    use std::borrow::Cow;
-
-    ids_str?
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| id_type::MerchantConnectorAccountId::try_from(Cow::Owned(s.to_string())))
-        .collect::<Result<Vec<_>, _>>()
-        .ok()
-        .filter(|vec| !vec.is_empty())
-}
-
 type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
 
 #[cfg(feature = "v1")]
@@ -137,11 +123,14 @@ pub async fn update_payment_method_record(
     }
     .transpose()?;
 
-    let mca_ids = parse_merchant_connector_ids(req.merchant_connector_ids.clone());
-
     // Process mandate details when both payment_instrument_id and merchant_connector_ids are present
-    let pm_update = match (&req.payment_instrument_id, &mca_ids) {
+    let pm_update = match (
+        &req.payment_instrument_id,
+        &req.merchant_connector_ids.clone(),
+    ) {
         (Some(payment_instrument_id), Some(merchant_connector_ids)) => {
+            let parsed_mca_ids =
+                MerchantConnectorValidator::parse_comma_separated_ids(merchant_connector_ids)?;
             let mandate_details = payment_method
                 .get_common_mandate_reference()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -150,18 +139,18 @@ pub async fn update_payment_method_record(
             let mut existing_payments_mandate = mandate_details
                 .payments
                 .clone()
-                .unwrap_or_else(|| PaymentsMandateReference(HashMap::new()));
+                .unwrap_or(PaymentsMandateReference(HashMap::new()));
             let mut existing_payouts_mandate = mandate_details
                 .payouts
                 .clone()
-                .unwrap_or_else(|| PayoutsMandateReference(HashMap::new()));
+                .unwrap_or(PayoutsMandateReference(HashMap::new()));
 
-            for merchant_connector_id in merchant_connector_ids {
+            for merchant_connector_id in parsed_mca_ids {
                 let mca = db
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                         &state.into(),
                         merchant_context.get_merchant_account().get_id(),
-                        merchant_connector_id,
+                        &merchant_connector_id,
                         merchant_context.get_merchant_key_store(),
                     )
                     .await
@@ -180,7 +169,7 @@ pub async fn update_payment_method_record(
 
                         // Check if record exists for this merchant_connector_id
                         if let Some(existing_record) =
-                            existing_payouts_mandate.0.get_mut(merchant_connector_id)
+                            existing_payouts_mandate.0.get_mut(&merchant_connector_id)
                         {
                             if let Some(transfer_method_id) = &new_payout_record.transfer_method_id
                             {
@@ -198,7 +187,7 @@ pub async fn update_payment_method_record(
                         // Handle PaymentsMandateReference
                         // Check if record exists for this merchant_connector_id
                         if let Some(existing_record) =
-                            existing_payments_mandate.0.get_mut(merchant_connector_id)
+                            existing_payments_mandate.0.get_mut(&merchant_connector_id)
                         {
                             existing_record.connector_mandate_id =
                                 payment_instrument_id.peek().to_string();
@@ -241,7 +230,7 @@ pub async fn update_payment_method_record(
                     errors::ApiErrorResponse::MandateUpdateFailed
                 })?;
 
-            PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+            PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details: Some(pii::SecretSerdeValue::new(
                     connector_mandate_details_value,
                 )),
