@@ -73,6 +73,12 @@ pub struct SubscriptionResponse {
 
     /// Optional customer ID associated with this subscription.
     pub customer_id: common_utils::id_type::CustomerId,
+
+    /// Payment details for the invoice.
+    pub payment: Option<PaymentResponseData>,
+
+    /// Invoice Details for the subscription.
+    pub invoice: Option<Invoice>,
 }
 
 /// Possible states of a subscription lifecycle.
@@ -126,6 +132,8 @@ impl SubscriptionResponse {
         merchant_id: common_utils::id_type::MerchantId,
         client_secret: Option<Secret<String>>,
         customer_id: common_utils::id_type::CustomerId,
+        payment: Option<PaymentResponseData>,
+        invoice: Option<Invoice>,
     ) -> Self {
         Self {
             id,
@@ -137,6 +145,8 @@ impl SubscriptionResponse {
             merchant_id,
             coupon_code: None,
             customer_id,
+            payment,
+            invoice,
         }
     }
 }
@@ -180,6 +190,10 @@ impl ClientSecret {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn as_string(&self) -> &String {
+        &self.0
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug)]
@@ -189,10 +203,16 @@ pub struct GetPlansQuery {
     pub offset: Option<u32>,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct GetSubscriptionQuery {
+    pub client_secret: Option<ClientSecret>,
+}
+
 impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 impl ApiEventMetric for GetPlansQuery {}
 impl ApiEventMetric for GetPlansResponse {}
+impl ApiEventMetric for GetSubscriptionQuery {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
@@ -277,7 +297,7 @@ pub struct PaymentResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub client_secret: Option<String>,
+    pub client_secret: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {

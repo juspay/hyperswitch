@@ -250,8 +250,12 @@ impl SubscriptionWithHandler<'_> {
         })
     }
 
-    pub fn to_subscription_response(&self) -> SubscriptionResponse {
-        SubscriptionResponse::new(
+    pub fn to_subscription_response(
+        &self,
+        payment: Option<subscription_types::PaymentResponseData>,
+        invoice: Option<&diesel_models::invoice::Invoice>,
+    ) -> errors::RouterResult<SubscriptionResponse> {
+        Ok(SubscriptionResponse::new(
             self.subscription.id.clone(),
             self.subscription.merchant_reference_id.clone(),
             SubscriptionStatus::from_str(&self.subscription.status)
@@ -261,7 +265,34 @@ impl SubscriptionWithHandler<'_> {
             self.subscription.merchant_id.to_owned(),
             self.subscription.client_secret.clone().map(Secret::new),
             self.subscription.customer_id.clone(),
-        )
+            payment,
+            invoice
+                .map(
+                    |invoice| -> errors::RouterResult<subscription_types::Invoice> {
+                        Ok(subscription_types::Invoice {
+                            id: invoice.id.clone(),
+                            subscription_id: invoice.subscription_id.clone(),
+                            merchant_id: invoice.merchant_id.clone(),
+                            profile_id: invoice.profile_id.clone(),
+                            merchant_connector_id: invoice.merchant_connector_id.clone(),
+                            payment_intent_id: invoice.payment_intent_id.clone(),
+                            payment_method_id: invoice.payment_method_id.clone(),
+                            customer_id: invoice.customer_id.clone(),
+                            amount: invoice.amount,
+                            currency: api_enums::Currency::from_str(invoice.currency.as_str())
+                                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                    field_name: "currency",
+                                })
+                                .attach_printable(format!(
+                                    "unable to parse currency name {currency:?}",
+                                    currency = invoice.currency
+                                ))?,
+                            status: invoice.status.clone(),
+                        })
+                    },
+                )
+                .transpose()?,
+        ))
     }
 
     pub async fn update_subscription(

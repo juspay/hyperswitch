@@ -4,10 +4,7 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse, merchant_context::MerchantContext,
-    router_response_types::subscriptions as subscription_response_types,
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -31,7 +28,7 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+) -> RouterResponse<SubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
     let profile =
@@ -68,7 +65,7 @@ pub async fn create_subscription(
         .create_payment_with_confirm_false(subscription.handler.state, &request)
         .await
         .attach_printable("subscriptions: failed to create payment")?;
-    let invoice_entry = invoice_handler
+    let invoice = invoice_handler
         .create_invoice_entry(
             &state,
             billing_handler.merchant_connector_id,
@@ -91,11 +88,7 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    let response = subscription.generate_response(
-        &invoice_entry,
-        &payment,
-        subscription_response_types::SubscriptionStatus::Created,
-    )?;
+    let response = subscription.to_subscription_response(Some(payment), Some(&invoice))?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -148,9 +141,8 @@ pub async fn get_subscription_plans(
                 .into_iter()
                 .map(subscription_types::SubscriptionPlanPrices::from)
                 .collect::<Vec<_>>(),
-        })
+        });
     }
-
     Ok(ApplicationResponse::Json(response))
 }
 
@@ -417,7 +409,7 @@ pub async fn get_subscription(
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
-    Ok(ApplicationResponse::Json(
-        subscription.to_subscription_response(),
-    ))
+    let response = subscription.to_subscription_response(None, None)?;
+
+    Ok(ApplicationResponse::Json(response))
 }

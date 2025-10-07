@@ -4327,6 +4327,27 @@ impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::GetPlansQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::GetSubscriptionQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
