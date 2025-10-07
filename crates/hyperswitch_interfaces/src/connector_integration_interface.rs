@@ -416,6 +416,18 @@ impl IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_revenue_recovery_attempt_details(request),
         }
     }
+    fn get_subscription_mit_payment_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_subscription_mit_payment_data(request),
+            Self::New(connector) => connector.get_subscription_mit_payment_data(request),
+        }
+    }
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {
@@ -562,6 +574,17 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => {
                 connector.generate_connector_request_reference_id(payment_intent, payment_attempt)
             }
+        }
+    }
+
+    /// Check if connector requires create customer call
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
+            Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
         }
     }
 }

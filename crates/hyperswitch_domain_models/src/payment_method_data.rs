@@ -6,11 +6,9 @@ use api_models::{
     payment_methods::{self},
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
-use common_enums::enums as api_enums;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::OptionExt;
+use common_enums::{enums as api_enums, GooglePayCardFundingSource};
 use common_utils::{
-    ext_traits::StringExt,
+    ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
@@ -18,7 +16,7 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -470,8 +468,10 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
-    //assurance_details of the card
+    /// assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1267,6 +1267,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                         account_verified: info.account_verified,
                     }
                 }),
+                card_funding_source: value.info.card_funding_source,
             },
             tokenization_data: value.tokenization_data,
         }
@@ -2327,6 +2328,13 @@ impl PaymentMethodsData {
             Self::BankDetails(_) | Self::WalletDetails(_) | Self::NetworkToken(_) => None,
         }
     }
+    pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
+        if let Self::Card(card) = self {
+            Some(card.clone())
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2593,8 +2601,6 @@ impl
 
         // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
         let name_on_card = if let Some(name) = card_holder_name.clone() {
-            use masking::ExposeInterface;
-
             if name.clone().expose().is_empty() {
                 card_token_data
                     .and_then(|token_data| token_data.card_holder_name.clone())
@@ -2624,5 +2630,65 @@ impl
             nick_name,
             co_badged_card_data,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    TryFrom<(
+        cards::CardNumber,
+        Option<&CardToken>,
+        Option<payment_methods::CoBadgedCardData>,
+        CardDetailsPaymentMethod,
+    )> for Card
+{
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+    fn try_from(
+        value: (
+            cards::CardNumber,
+            Option<&CardToken>,
+            Option<payment_methods::CoBadgedCardData>,
+            CardDetailsPaymentMethod,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (card_number, card_token_data, co_badged_card_data, card_details) = value;
+
+        // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+        let name_on_card = if let Some(name) = card_details.card_holder_name.clone() {
+            if name.clone().expose().is_empty() {
+                card_token_data
+                    .and_then(|token_data| token_data.card_holder_name.clone())
+                    .or(Some(name))
+            } else {
+                Some(name)
+            }
+        } else {
+            card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+        };
+
+        Ok(Self {
+            card_number,
+            card_exp_month: card_details
+                .expiry_month
+                .get_required_value("expiry_month")?
+                .clone(),
+            card_exp_year: card_details
+                .expiry_year
+                .get_required_value("expiry_year")?
+                .clone(),
+            card_holder_name: name_on_card,
+            card_cvc: card_token_data
+                .cloned()
+                .unwrap_or_default()
+                .card_cvc
+                .unwrap_or_default(),
+            card_issuer: card_details.card_issuer,
+            card_network: card_details.card_network,
+            card_type: card_details.card_type,
+            card_issuing_country: card_details.issuer_country,
+            bank_code: None,
+            nick_name: card_details.nick_name,
+            co_badged_card_data,
+        })
     }
 }

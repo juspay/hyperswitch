@@ -1934,7 +1934,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
-
+        let is_stored_credential = helpers::is_stored_credential(
+            &payment_data.recurring_details,
+            &payment_data.pm_token,
+            payment_data.mandate_id.is_some(),
+            payment_data.payment_attempt.is_stored_credential,
+        );
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1988,6 +1993,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .network_transaction_id
                             .clone(),
+                        is_stored_credential,
+                        request_extended_authorization: payment_data
+                            .payment_attempt
+                            .request_extended_authorization,
                     },
                     storage_scheme,
                 )
@@ -2197,7 +2206,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
+        request.validate_stored_credential().change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "is_stored_credential should be true when reusing stored payment method data"
+                        .to_string(),
+            },
+        )?;
         let payment_id = request
             .payment_id
             .clone()

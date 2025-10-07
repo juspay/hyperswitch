@@ -445,6 +445,7 @@ pub fn get_payout_variant_values(key: &str) -> Result<JsValue, JsValue> {
     let variants: &[&str] = match key {
         dir::PayoutDirKeyKind::BusinessCountry => dir_enums::BusinessCountry::VARIANTS,
         dir::PayoutDirKeyKind::BillingCountry => dir_enums::BillingCountry::VARIANTS,
+        dir::PayoutDirKeyKind::PayoutCurrency => dir_enums::PaymentCurrency::VARIANTS,
         dir::PayoutDirKeyKind::PayoutType => dir_enums::PayoutType::VARIANTS,
         dir::PayoutDirKeyKind::WalletType => dir_enums::PayoutWalletType::VARIANTS,
         dir::PayoutDirKeyKind::BankTransferType => dir_enums::PayoutBankTransferType::VARIANTS,

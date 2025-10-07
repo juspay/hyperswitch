@@ -18,17 +18,16 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{self},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use time::OffsetDateTime;
 use url::Url;
 
 use crate::{
@@ -51,16 +50,35 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
         }
     }
 }
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
-    pub expiration_time: i32,
     pub cpf: Secret<String>,
     pub merchant_city: String,
     pub merchant_name: String,
     pub workspace_id: String,
     pub covenant_code: String, // max_size : 9
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoUpdateRequest {
+    #[serde(skip_deserializing)]
+    pub covenant_code: String,
+    #[serde(skip_deserializing)]
+    pub bank_number: String,
+    pub due_date: Option<String>,
+    pub discount: Option<Discount>,
+    pub min_value_or_percentage: Option<f64>,
+    pub max_value_or_percentage: Option<f64>,
+    pub interest: Option<InterestPercentage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterestPercentage {
+    pub interest_percentage: String,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadataObject {
@@ -74,6 +92,54 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
             })?;
         Ok(metadata)
     }
+}
+
+impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
+        let update_metadata_fields = validate_metadata_fields(&item.request.metadata.clone())?;
+
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+
+        Ok(Self {
+            covenant_code: santander_mca_metadata.covenant_code,
+            bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+            due_date: update_metadata_fields.due_date,
+            discount: update_metadata_fields.discount,
+            min_value_or_percentage: update_metadata_fields.min_value_or_percentage,
+            max_value_or_percentage: update_metadata_fields.max_value_or_percentage,
+            interest: update_metadata_fields.interest,
+        })
+    }
+}
+
+fn validate_metadata_fields(
+    metadata: &common_utils::pii::SecretSerdeValue,
+) -> Result<SantanderBoletoUpdateRequest, errors::ConnectorError> {
+    let metadata_value = metadata.clone().expose();
+
+    let metadata_map = match metadata_value.as_object() {
+        Some(map) => map,
+        None => {
+            return Err(errors::ConnectorError::GenericError {
+                error_message: "Metadata should be a key value pair".to_string(),
+                error_object: metadata_value,
+            });
+        }
+    };
+
+    if metadata_map.len() > 10 {
+        return Err(errors::ConnectorError::GenericError {
+            error_message: "Metadata field limit exceeded".to_string(),
+            error_object: Value::Object(metadata_map.clone()),
+        });
+    }
+
+    let parsed_metadata: SantanderBoletoUpdateRequest =
+        serde_json::from_value(metadata_value.clone())
+            .map_err(|_| errors::ConnectorError::ParsingFailed)?;
+
+    Ok(parsed_metadata)
 }
 
 pub fn format_emv_field(id: &str, value: &str) -> String {
@@ -189,7 +255,7 @@ pub struct SantanderTokenErrorResponse {
     pub detail: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct SantanderCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
@@ -378,10 +444,19 @@ impl
             value.0.router_data.payment_id.clone()
         };
 
+        let due_date = value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .clone()
+            .and_then(|fm| fm.boleto_expiry_details)
+            .unwrap_or_else(|| "boleto_expiry_details".to_string());
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Environment::from(router_env::env::which()),
             nsu_code,
-            nsu_date: OffsetDateTime::now_utc()
+            nsu_date: time::OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -392,12 +467,8 @@ impl
                 }
             })?, // size: 13
             client_number: Some(value.0.router_data.get_customer_id()?),
-            due_date: voucher_data.due_date.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "due_date",
-                },
-            )?,
-            issue_date: OffsetDateTime::now_utc()
+            due_date,
+            issue_date: time::OffsetDateTime::now_utc()
                 .date()
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
@@ -431,20 +502,48 @@ impl
                 zipcode: value.0.router_data.get_billing_zip()?,
             },
             beneficiary: None,
-            document_kind: BoletoDocumentKind::BillProposal, // to change
+            document_kind: BoletoDocumentKind::BillProposal, // Need confirmation
             discount: Some(Discount {
                 discount_type: DiscountType::Free,
                 discount_one: None,
                 discount_two: None,
                 discount_three: None,
             }),
-            fine_percentage: voucher_data.fine_percentage.clone(),
-            fine_quantity_days: voucher_data.fine_quantity_days.clone(),
-            interest_percentage: voucher_data.interest_percentage.clone(),
+            fine_percentage: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|fine| fine.fine_percentage.clone()),
+            fine_quantity_days: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|days| days.fine_quantity_days.clone()),
+            interest_percentage: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|interest| interest.interest_percentage.clone()),
             deduction_value: None,
             protest_type: None,
             protest_quantity_days: None,
-            write_off_quantity_days: voucher_data.write_off_quantity_days.clone(),
+            write_off_quantity_days: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|days| days.write_off_quantity_days.clone()),
             payment_type: PaymentType::Registration,
             parcels_quantity: None,
             value_type: None,
@@ -454,7 +553,14 @@ impl
             sharing: None,
             key: None,
             tx_id: None,
-            messages: voucher_data.messages.clone(),
+            messages: value
+                .0
+                .router_data
+                .request
+                .feature_metadata
+                .as_ref()
+                .and_then(|fm| fm.pix_additional_details.as_ref())
+                .and_then(|messages| messages.messages.clone()),
         })))
     }
 }
@@ -478,12 +584,41 @@ impl
         let debtor = Some(SantanderDebtor {
             cnpj: santander_mca_metadata.cpf.clone(),
             name: value.0.router_data.get_billing_full_name()?,
+            // email: value.0.router_data.get_optional_billing_email(),
+            // street: value.0.router_data.get_optional_billing_line1(),
+            // city: value.0.router_data.get_optional_billing_city(),
+            // uf: value.0.router_data.get_billing_state()?,
+            // zip_code: value.0.router_data.get_optional_billing_zip(),
         });
 
+        let calendar = match &value
+            .0
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|f| f.pix_qr_expiry_time.as_ref())
+        {
+            Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
+                SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                    expiration: val.time,
+                })
+            }
+            Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
+                SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
+                    expiration_date: val.date.clone(),
+                    validity_after_expiration: val.validity_after_expiration,
+                })
+            }
+            None => {
+                SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                    expiration: 3600, // default 1 hour
+                })
+            }
+        };
+
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
-            calender: SantanderCalendar {
-                expiration: santander_mca_metadata.expiration_time,
-            },
+            calendar,
             debtor,
             value: SantanderValue {
                 original: value.0.amount.to_owned(),
@@ -511,7 +646,7 @@ pub struct Discount {
     pub discount_three: Option<DiscountObject>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBoletoPaymentRequest {
     pub environment: Environment,
@@ -676,41 +811,24 @@ pub struct Key {
     pub dict_key: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixQRCodeRequest {
-    #[serde(rename = "calendario")]
-    pub calender: SantanderCalendar,
-    #[serde(rename = "devedor")]
-    pub debtor: SantanderDebtor,
-    #[serde(rename = "valor")]
-    pub value: SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-}
+// #[derive(Debug, Serialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SantanderPixQRCodeRequest {
+//     #[serde(rename = "calendario")]
+//     pub calender: SantanderPixCalendar,
+//     #[serde(rename = "devedor")]
+//     pub debtor: SantanderDebtor,
+//     #[serde(rename = "valor")]
+//     pub value: SantanderValue,
+//     #[serde(rename = "chave")]
+//     pub key: Secret<String>,
+//     #[serde(rename = "solicitacaoPagador")]
+//     pub request_payer: Option<String>,
+//     #[serde(rename = "infoAdicionais")]
+//     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+// }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixQRPaymentRequest {
-    #[serde(rename = "calendario")]
-    pub calender: SantanderCalendar,
-    #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
-    #[serde(rename = "valor")]
-    pub value: SantanderValue,
-    #[serde(rename = "chave")]
-    pub key: Secret<String>,
-    #[serde(rename = "solicitacaoPagador")]
-    pub request_payer: Option<String>,
-    #[serde(rename = "infoAdicionais")]
-    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderDebtor {
     pub cnpj: Secret<String>,
@@ -743,7 +861,7 @@ pub enum SantanderPaymentStatus {
     RemovedByPSP,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderVoidStatus {
     RemovedByReceivingUser,
@@ -782,7 +900,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub nsu_code: String,
     pub nsu_date: String,
     pub covenant_code: String,
-    pub bank_number: String,
+    pub bank_number: Secret<String>,
     pub client_number: Option<id_type::CustomerId>,
     pub due_date: String,
     pub issue_date: String,
@@ -817,6 +935,20 @@ pub struct SantanderBoletoPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderPixRequestCalendar {
+    Immediate(SantanderPixImmediateCalendarRequest),
+    Scheduled(SantanderPixDueDateCalendarRequest),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixDueDateCalendarRequest {
+    #[serde(rename = "dataDeVencimento")]
+    pub expiration_date: String,
+    #[serde(rename = "validadeAposVencimento")]
+    pub validity_after_expiration: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderPixQRCodePaymentsResponse {
     #[serde(rename = "calendario")]
     pub calendar: SantanderCalendarResponse,
@@ -839,11 +971,27 @@ pub struct SantanderPixQRCodePaymentsResponse {
     pub pix: Option<Vec<SantanderPix>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixQRPaymentRequest {
+    #[serde(rename = "calendario")]
+    pub calendar: SantanderPixRequestCalendar,
+    #[serde(rename = "devedor")]
+    pub debtor: Option<SantanderDebtor>,
+    #[serde(rename = "valor")]
+    pub value: SantanderValue,
+    #[serde(rename = "chave")]
+    pub key: Secret<String>,
+    #[serde(rename = "solicitacaoPagador")]
+    pub request_payer: Option<String>,
+    #[serde(rename = "infoAdicionais")]
+    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixVoidResponse {
     #[serde(rename = "calendario")]
-    pub calendar: SantanderCalendar,
+    pub calendar: SantanderCalendarResponse,
     #[serde(rename = "txid")]
     pub transaction_id: String,
     #[serde(rename = "revisao")]
@@ -863,7 +1011,7 @@ pub struct SantanderPixVoidResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SantanderCalendar {
+pub struct SantanderPixImmediateCalendarRequest {
     #[serde(rename = "expiracao")]
     pub expiration: i32,
 }
@@ -902,10 +1050,43 @@ pub struct SantanderPix {
     pub info_payer: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderPaymentsCancelRequest {
+pub struct SantanderPixCancelRequest {
     pub status: Option<SantanderVoidStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderPaymentsCancelRequest {
+    PixQR(SantanderPixCancelRequest),
+    Boleto(SantanderBoletoCancelRequest),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoCancelRequest {
+    pub covenant_code: String,
+    pub bank_number: String,
+    pub operation: SantanderBoletoCancelOperation,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub enum SantanderBoletoCancelOperation {
+    #[serde(rename = "PROTESTAR")]
+    Protest,
+    #[serde(rename = "CANCELAR_PROTESTO")]
+    CancelProtest,
+    #[serde(rename = "BAIXAR")]
+    #[default]
+    WriteOff,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderUpdateBoletoResponse {
+    pub covenant_code: Option<String>,
+    pub bank_number: Option<String>,
+    pub message: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, PaymentsResponseData>>
@@ -1060,6 +1241,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     entry_date: boleto_data.entry_date,
                     download_url: None,
                     instructions_url: None,
+                    bank_number: Some(boleto_data.bank_number.clone()),
                 };
 
                 let connector_metadata = Some(voucher_data.encode_to_value())
@@ -1074,13 +1256,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 let connector_response_reference_id = Some(
                     boleto_data
                         .digitable_line
-                        .as_ref()
-                        .map(|s| s.peek().to_owned())
                         .clone()
+                        .map(|data| data.expose())
                         .or_else(|| {
                             boleto_data.beneficiary.as_ref().map(|beneficiary| {
                                 format!(
-                                    "{}.{:?}",
+                                    "{:?}.{:?}",
                                     boleto_data.bank_number,
                                     beneficiary.document_number.clone()
                                 )
@@ -1137,11 +1318,57 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPixVoidResponse, T, PaymentsRe
 
 impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
     type Error = Error;
-    fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: Some(SantanderVoidStatus::RemovedByReceivingUser),
-        })
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+
+        match item.payment_method {
+            enums::PaymentMethod::BankTransfer => match item.request.payment_method_type {
+                Some(enums::PaymentMethodType::Pix) => Ok(Self::PixQR(SantanderPixCancelRequest {
+                    status: Some(SantanderVoidStatus::RemovedByReceivingUser),
+                })),
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method",
+                }
+                .into()),
+            },
+            enums::PaymentMethod::Voucher => match item.request.payment_method_type {
+                Some(enums::PaymentMethodType::Boleto) => {
+                    Ok(Self::Boleto(SantanderBoletoCancelRequest {
+                        operation: SantanderBoletoCancelOperation::WriteOff,
+                        covenant_code: santander_mca_metadata.covenant_code.clone(),
+                        bank_number: extract_bank_number(item.request.connector_meta.clone())?,
+                    }))
+                }
+                _ => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method",
+                }
+                .into()),
+            },
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method",
+            }
+            .into()),
+        }
     }
+}
+
+fn extract_bank_number(value: Option<Value>) -> Result<String, errors::ConnectorError> {
+    let value = value.ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let map = value
+        .as_object()
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let bank_number = map
+        .get("bank_number")
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+
+    let bank_number_str = bank_number
+        .as_str()
+        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?
+        .to_string();
+
+    Ok(bank_number_str)
 }
 
 fn get_qr_code_data<F, T>(
@@ -1353,7 +1580,8 @@ pub struct SantanderWebhookBody {
     pub final_beneficiary_name: String,
     pub due_date: String,
     pub nominal_value: StringMajorUnit,
-    pub payed_value: String,
+    #[serde(rename = "payed_value")]
+    pub paid_value: String,
     pub interest_value: String,
     pub fine: String,
     pub deduction_value: String,
@@ -1387,25 +1615,32 @@ pub enum WebhookPaymentType {
 /// Represents the channel through which a boleto payment was made.
 pub enum PaymentChannel {
     /// Payment made at a bank branch or ATM (self-service).
-    AgenciasAutoAtendimento,
+    #[serde(rename = "AgenciasAutoAtendimento")]
+    BankBranchOrAtm,
 
     /// Payment made through online banking.
-    InternetBanking,
+    #[serde(rename = "InternetBanking")]
+    OnlineBanking,
 
     /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
-    CorrespondenteBancarioFisico,
+    #[serde(rename = "CorrespondenteBancarioFisico")]
+    PhysicalCorrespondentAgent,
 
     /// Payment made via Santander’s call center.
-    CentralDeAtendimento,
+    #[serde(rename = "CentralDeAtendimento")]
+    CallCenter,
 
     /// Payment made via electronic file, typically for bulk company payments.
-    ArquivoEletronico,
+    #[serde(rename = "ArquivoEletronico")]
+    ElectronicFile,
 
     /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
-    Dda,
+    #[serde(rename = "Dda")]
+    DirectDebitAuthorized,
 
     /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
-    CorrespondenteBancarioDigital,
+    #[serde(rename = "CorrespondenteBancarioDigital")]
+    DigitalCorrespondentAgent,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

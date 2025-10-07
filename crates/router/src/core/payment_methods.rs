@@ -2086,7 +2086,7 @@ pub async fn get_external_vault_token(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing vault token data")?;
 
-    let decrypted_addtional_payment_method_data = payment_method
+    let decrypted_additional_payment_method_data = payment_method
         .payment_method_data
         .clone()
         .map(Encryptable::into_inner)
@@ -2094,7 +2094,7 @@ pub async fn get_external_vault_token(
         .attach_printable("Failed to convert payment method data")?;
 
     convert_from_saved_payment_method_data(
-        decrypted_addtional_payment_method_data,
+        decrypted_additional_payment_method_data,
         external_vault_token_data,
         vault_token,
     )
@@ -2201,18 +2201,7 @@ pub async fn create_pm_additional_data_update(
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
-        .map(
-            |payment_method_vaulting_data| match payment_method_vaulting_data {
-                domain::PaymentMethodVaultingData::Card(card) => domain::PaymentMethodsData::Card(
-                    domain::CardDetailsPaymentMethod::from(card.clone()),
-                ),
-                domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                    domain::PaymentMethodsData::NetworkToken(
-                        domain::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
-                    )
-                }
-            },
-        )
+        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
@@ -3448,6 +3437,7 @@ fn construct_zero_auth_payments_request(
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
         return_raw_connector_response: None,
+        enable_partial_authorization: None,
     })
 }
 
@@ -3841,6 +3831,7 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

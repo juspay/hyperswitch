@@ -123,11 +123,20 @@ pub struct AccountIdConfigForRedirect {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+
+pub struct AccountIdConfigForApplePay {
+    pub encrypt: Option<Vec<InputData>>,
+    pub decrypt: Option<Vec<InputData>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AccountIDSupportedMethods {
+    apple_pay: HashMap<String, AccountIdConfigForApplePay>,
     card: HashMap<String, AccountIdConfigForCard>,
-    skrill: HashMap<String, AccountIdConfigForRedirect>,
     interac: HashMap<String, AccountIdConfigForRedirect>,
     pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
+    skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -177,6 +186,7 @@ pub struct ConfigMetadata {
     pub route: Option<InputData>,
     pub mid: Option<InputData>,
     pub tid: Option<InputData>,
+    pub site: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -267,6 +277,7 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
+    pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
@@ -274,6 +285,8 @@ pub struct ConnectorConfig {
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
     pub gigadat: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
@@ -285,6 +298,7 @@ pub struct ConnectorConfig {
     pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
+    pub loonio: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
@@ -297,6 +311,7 @@ pub struct ConnectorConfig {
     pub noon: Option<ConnectorTomlConfig>,
     pub nordea: Option<ConnectorTomlConfig>,
     pub novalnet: Option<ConnectorTomlConfig>,
+    pub nuvei_payout: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
@@ -330,6 +345,7 @@ pub struct ConnectorConfig {
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
+    pub tersouro: Option<ConnectorTomlConfig>,
     pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
@@ -355,6 +371,7 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub tesouro: Option<ConnectorTomlConfig>,
     pub ctp_mastercard: Option<ConnectorTomlConfig>,
     pub unified_authentication_service: Option<ConnectorTomlConfig>,
 }
@@ -385,7 +402,9 @@ impl ConnectorConfig {
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
+            PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
             PayoutConnectors::Nomupay => Ok(connector_data.nomupay_payout),
+            PayoutConnectors::Nuvei => Ok(connector_data.nuvei_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
@@ -486,6 +505,7 @@ impl ConnectorConfig {
             Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
             Connector::Getnet => Ok(connector_data.getnet),
+            Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
@@ -497,6 +517,7 @@ impl ConnectorConfig {
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
+            Connector::Loonio => Ok(connector_data.loonio),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),
@@ -535,6 +556,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Tesouro => Ok(connector_data.tesouro),
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),

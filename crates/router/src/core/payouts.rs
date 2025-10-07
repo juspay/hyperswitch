@@ -79,6 +79,7 @@ pub struct PayoutData {
     pub current_locale: String,
     pub payment_method: Option<PaymentMethod>,
     pub connector_transfer_method_id: Option<String>,
+    pub browser_info: Option<domain_models::router_request_types::BrowserInformation>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -533,12 +534,12 @@ pub async fn payouts_retrieve_core(
         )
         .await?;
 
-        complete_payout_retrieve(
+        Box::pin(complete_payout_retrieve(
             &state,
             &merchant_context,
             connector_call_type,
             &mut payout_data,
-        )
+        ))
         .await?;
     }
 
@@ -1474,8 +1475,8 @@ pub async fn check_payout_eligibility(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -1689,8 +1690,8 @@ pub async fn create_payout(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -2076,8 +2077,8 @@ pub async fn create_recipient_disburse_account(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id.clone(),
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -2413,8 +2414,8 @@ pub async fn fulfill_payout(
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status,
-                error_code: None,
-                error_message: None,
+                error_code: payout_response_data.error_code,
+                error_message: payout_response_data.error_message,
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
@@ -2874,6 +2875,7 @@ pub async fn payout_create_db_entries(
         current_locale: locale.to_string(),
         payment_method,
         connector_transfer_method_id: None,
+        browser_info: req.browser_info.clone().map(Into::into),
     })
 }
 
@@ -2904,6 +2906,12 @@ pub async fn make_payout_data(
             r.payout_id.clone().unwrap_or(id_type::PayoutId::generate())
         }
         payouts::PayoutRequest::PayoutRetrieveRequest(r) => r.payout_id.clone(),
+    };
+
+    let browser_info = match req {
+        payouts::PayoutRequest::PayoutActionRequest(_) => None,
+        payouts::PayoutRequest::PayoutCreateRequest(r) => r.browser_info.clone().map(Into::into),
+        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
     let payouts = db
@@ -3100,6 +3108,7 @@ pub async fn make_payout_data(
         current_locale: locale.to_string(),
         payment_method,
         connector_transfer_method_id: None,
+        browser_info,
     })
 }
 

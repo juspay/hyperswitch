@@ -22,6 +22,8 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod hyperswitch_ai_interaction;
+pub mod invoice;
+pub mod invoice_sync;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;
@@ -76,9 +78,9 @@ pub use self::{
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, callback_mapper::*,
     capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
     dynamic_routing_stats::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
-    generic_link::*, gsm::*, hyperswitch_ai_interaction::*, locker_mock_up::*, mandate::*,
-    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
-    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
+    generic_link::*, gsm::*, hyperswitch_ai_interaction::*, invoice::*, locker_mock_up::*,
+    mandate::*, merchant_account::*, merchant_connector_account::*, merchant_key_store::*,
+    payment_link::*, payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
     routing_algorithm::*, subscription::*, unified_translations::*, user::*,
     user_authentication_method::*, user_role::*,
 };

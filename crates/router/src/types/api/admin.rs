@@ -240,6 +240,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_external_vault_enabled,
             external_vault_connector_details: external_vault_connector_details
                 .map(ForeignFrom::foreign_from),
+            billing_processor_id: item.billing_processor_id,
         })
     }
 }
@@ -328,6 +329,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_country_code: item.merchant_country_code,
             split_txns_enabled: item.split_txns_enabled,
             revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
+            billing_processor_id: item.billing_processor_id,
         })
     }
 }
@@ -508,5 +510,6 @@ pub async fn create_profile_from_merchant_account(
         ))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error while generating external_vault_details")?,
+        billing_processor_id: request.billing_processor_id,
     }))
 }

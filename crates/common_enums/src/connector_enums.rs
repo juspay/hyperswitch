@@ -102,6 +102,7 @@ pub enum RoutableConnectors {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -112,6 +113,7 @@ pub enum RoutableConnectors {
     Itaubank,
     Jpmorgan,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -154,6 +156,7 @@ pub enum RoutableConnectors {
     Stax,
     Stripe,
     Stripebilling,
+    Tesouro,
     // Taxjar,
     Trustpay,
     Trustpayments,
@@ -277,6 +280,7 @@ pub enum Connector {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -291,6 +295,7 @@ pub enum Connector {
     Jpmorgan,
     Juspaythreedsserver,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -336,6 +341,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tesouro,
     Tokenex,
     Tokenio,
     Trustpay,
@@ -405,6 +411,7 @@ impl Connector {
                     Self::Trustpay,
                     PaymentMethod::BankRedirect | PaymentMethod::BankTransfer
                 )
+                | (Self::Tesouro, _)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
@@ -476,6 +483,7 @@ impl Connector {
             | Self::Flexiti
             | Self::Forte
             | Self::Getnet
+            | Self::Gigadat
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -489,6 +497,7 @@ impl Connector {
             | Self::Jpmorgan
             | Self::Juspaythreedsserver
             | Self::Klarna
+            | Self::Loonio
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -521,6 +530,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Tesouro
             // | Self::Thunes
             | Self::Trustpay
             | Self::Trustpayments
@@ -661,6 +671,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
+            RoutableConnectors::Gigadat => Self::Gigadat,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -669,6 +680,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
+            RoutableConnectors::Loonio => Self::Loonio,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -707,6 +719,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Trustpayments => Self::Trustpayments,
@@ -805,6 +818,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
+            Connector::Loonio => Ok(Self::Loonio),
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
@@ -842,6 +856,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tesouro => Ok(Self::Tesouro),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
@@ -858,6 +873,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
@@ -876,4 +892,19 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
         }
     }
+}
+
+// Enum representing different status an invoice can have.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum InvoiceStatus {
+    InvoiceCreated,
+    PaymentPending,
+    PaymentPendingTimeout,
+    PaymentSucceeded,
+    PaymentFailed,
+    PaymentCanceled,
+    InvoicePaid,
+    ManualReview,
+    Voided,
 }

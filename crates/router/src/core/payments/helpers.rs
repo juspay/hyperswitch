@@ -2512,10 +2512,30 @@ pub async fn fetch_card_details_from_external_vault(
     )
     .await?;
 
+    let payment_methods_data = payment_method_info.get_payment_methods_data();
+
     match vault_resp {
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => Ok(
             domain::Card::from((card, card_token_data, co_badged_card_data)),
         ),
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(card_number) => {
+            let payment_methods_data = payment_methods_data
+                .get_required_value("PaymentMethodsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payment methods data not present")?;
+
+            let card = payment_methods_data
+                .get_card_details()
+                .get_required_value("CardDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Card details not present")?;
+
+            Ok(
+                domain::Card::try_from((card_number, card_token_data, co_badged_card_data, card))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to generate card data")?,
+            )
+        }
     }
 }
 #[cfg(feature = "v1")]
@@ -3949,6 +3969,7 @@ mod tests {
             connector_id: None,
             shipping_address_id: None,
             billing_address_id: None,
+            mit_category: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             created_at: common_utils::date_time::now(),
@@ -4034,6 +4055,7 @@ mod tests {
             metadata: None,
             connector_id: None,
             shipping_address_id: None,
+            mit_category: None,
             billing_address_id: None,
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
@@ -4115,6 +4137,7 @@ mod tests {
             return_url: None,
             metadata: None,
             connector_id: None,
+            mit_category: None,
             shipping_address_id: None,
             billing_address_id: None,
             statement_descriptor_name: None,
@@ -4525,6 +4548,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
         l2_l3_data: router_data.l2_l3_data,
         minor_amount_capturable: router_data.minor_amount_capturable,
+        authorized_amount: router_data.authorized_amount,
     }
 }
 
@@ -4784,6 +4808,8 @@ impl AttemptType {
             connector_request_reference_id: None,
             network_transaction_id: None,
             network_details: None,
+            is_stored_credential: old_payment_attempt.is_stored_credential,
+            authorized_amount: old_payment_attempt.authorized_amount,
         }
     }
 
@@ -7821,5 +7847,22 @@ pub async fn get_merchant_connector_account_v2(
             field_name: "merchant_connector_id",
         })
         .attach_printable("merchant_connector_id is not provided"),
+    }
+}
+
+pub fn is_stored_credential(
+    recurring_details: &Option<RecurringDetails>,
+    payment_token: &Option<String>,
+    is_mandate: bool,
+    is_stored_credential_prev: Option<bool>,
+) -> Option<bool> {
+    if is_stored_credential_prev == Some(true)
+        || recurring_details.is_some()
+        || payment_token.is_some()
+        || is_mandate
+    {
+        Some(true)
+    } else {
+        is_stored_credential_prev
     }
 }

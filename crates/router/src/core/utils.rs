@@ -140,8 +140,19 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let webhook_url = helpers::create_webhook_url(
+        &state.base_url,
+        &merchant_context.get_merchant_account().get_id().to_owned(),
+        merchant_connector_account
+            .get_mca_id()
+            .get_required_value("merchant_connector_id")?
+            .get_string_repr(),
+    );
+
     let connector_transfer_method_id =
         payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+
+    let browser_info = payout_data.browser_info.to_owned();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -187,6 +198,8 @@ pub async fn construct_payout_router_data<'a, F>(
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                 }),
             connector_transfer_method_id,
+            webhook_url: Some(webhook_url),
+            browser_info,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -218,6 +231,7 @@ pub async fn construct_payout_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -350,6 +364,7 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_method_type: None,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -392,6 +407,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -560,6 +576,7 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_method_type: payment_attempt.payment_method_type,
         },
 
         response: Ok(types::RefundsResponseData {
@@ -598,6 +615,7 @@ pub async fn construct_refund_router_data<'a, F>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -1041,6 +1059,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1144,6 +1163,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1256,6 +1276,7 @@ pub async fn construct_upload_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1329,6 +1350,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 
@@ -1434,6 +1456,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1562,6 +1585,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1668,6 +1692,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -1768,6 +1793,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
     Ok(router_data)
 }
@@ -2613,7 +2639,10 @@ pub fn should_proceed_with_accept_dispute(
 ) -> bool {
     matches!(
         dispute_stage,
-        DisputeStage::PreDispute | DisputeStage::Dispute | DisputeStage::PreArbitration
+        DisputeStage::PreDispute
+            | DisputeStage::Dispute
+            | DisputeStage::PreArbitration
+            | DisputeStage::Arbitration
     ) && matches!(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
