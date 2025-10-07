@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.01.0-hotfix2
+
+### Bug Fixes
+
+- **connectors:** [Nexixpay] MIT & order_id fix ([#9709](https://github.com/juspay/hyperswitch/pull/9709)) ([`dc07ea7`](https://github.com/juspay/hyperswitch/commit/dc07ea72a338ecb4b68465c8b288f11099647f80))
+
+**Full Changelog:** [`2025.10.01.0-hotfix1...2025.10.01.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.10.01.0-hotfix1...2025.10.01.0-hotfix2)
+
+- - -
+
 ## 2025.10.01.0-hotfix1
 
 ### Refactors
