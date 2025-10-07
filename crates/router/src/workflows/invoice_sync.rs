@@ -171,7 +171,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             self.state,
             &self.merchant_account,
             &self.key_store,
-            self.customer.clone(),
+            Some(self.customer.clone()),
             self.profile.clone(),
         )
         .await
