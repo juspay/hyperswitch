@@ -256,8 +256,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Inespay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Call Authorize integrity function
+        utils::get_authorise_integrity_object(
+            self.amount_converter,
+            data.request.StringMinorUnit,
+            data.request.currency.to_string(),
+        )?;
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -328,10 +336,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ine
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: inespay::InespayPSyncResponse = res
             .response
-            .parse_struct("inespay PaymentsSyncResponse")
+            .parse_struct("Inespay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Call Payments Sync integrity function
+        utils::get_sync_integrity_object(
+            self.amount_converter,
+            data.request.StringMinorUnit,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -407,8 +424,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Inespay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Call Capture integrity function
+        utils::get_capture_integrity_object(
+            self.amount_converter,
+            data.request.StringMinorUnit,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -493,8 +519,17 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Inespay
             .response
             .parse_struct("inespay InespayRefundsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        // Call Refund integrity function
+        utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -562,16 +597,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Inespay {
 
     fn handle_response(
         &self,
-        data: &RefundSyncRouterData,
+        data: &RefundsRouterData<RSync>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: inespay::InespayRSyncResponse = res
+    ) -> CustomResult<RefundsRouterData<RSync>, errors::ConnectorError> {
+        let response: inespay::InespayRefundsResponse = res
             .response
-            .parse_struct("inespay RefundSyncResponse")
+            .parse_struct("inespay InespayRefundsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+
+        if let Some(builder) = event_builder {
+            builder.set_response_body(&response);
+        }
         router_env::logger::info!(connector_response=?response);
+        utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
