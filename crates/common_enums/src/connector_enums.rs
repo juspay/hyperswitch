@@ -374,6 +374,7 @@ impl Connector {
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
+                | (Self::Loonio, _)
         )
     }
     #[cfg(feature = "payouts")]

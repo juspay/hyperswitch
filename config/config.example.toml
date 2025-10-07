@@ -1029,6 +1029,9 @@ debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
+[payout_method_filters.loonio]
+interac = { currency = "CAD" }
+
 [payment_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
 

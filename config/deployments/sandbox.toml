@@ -862,6 +862,9 @@ apple_pay = {country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
+[payout_method_filters.loonio]
+interac = { currency = "CAD" }
+
 [temp_locker_enable_config]
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
