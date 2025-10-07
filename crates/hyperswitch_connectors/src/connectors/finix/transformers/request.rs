@@ -26,12 +26,6 @@ pub struct FinixCancelRequest {
     pub void_me: bool,
 }
 
-impl FinixCancelRequest {
-    pub fn new() -> Self {
-        Self { void_me: true }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCaptureAuthorizationRequest {
     pub amount: Option<MinorUnit>,

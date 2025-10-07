@@ -671,7 +671,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = finix::FinixCancelRequest::new();
+        let connector_req = finix::FinixCancelRequest { void_me: true };
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

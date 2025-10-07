@@ -52,7 +52,7 @@ pub struct FinixInstrumentResponse {
     pub card_brand: Option<String>,
     pub fingerprint: Option<String>,
     pub address: Option<FinixAddress>,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub currency: Option<Currency>,
     pub enabled: bool,
 }

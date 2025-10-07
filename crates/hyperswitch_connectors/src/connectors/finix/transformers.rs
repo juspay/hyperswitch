@@ -75,8 +75,8 @@ pub enum FinixState {
 impl FinixState {
     pub fn is_failure(&self) -> bool {
         match self {
-            FinixState::PENDING | FinixState::SUCCEEDED => false,
-            FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => true,
+            Self::PENDING | Self::SUCCEEDED => false,
+            Self::FAILED | Self::CANCELED | Self::UNKNOWN => true,
         }
     }
 }
@@ -150,10 +150,7 @@ impl From<&Address> for FinixAddress {
                 city: address.city.clone(),
                 region: address.state.clone(),
                 postal_code: address.zip.clone(),
-                country: address
-                    .country
-                    .clone()
-                    .map(CountryAlpha2::from_alpha2_to_alpha3),
+                country: address.country.map(CountryAlpha2::from_alpha2_to_alpha3),
             },
             None => Self {
                 line1: None,
@@ -418,16 +415,6 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
         }
     }
 }
-// PaymentsResponse
-
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum FinixPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
 fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>) -> AttemptStatus {
     if is_void == Some(true) {
@@ -478,7 +465,7 @@ pub(crate) fn get_finix_response<F, T>(
                     .map_or(consts::NO_ERROR_MESSAGE.to_string(), |msg| msg.join(",")),
                 reason: router_data.response.failure_message,
                 status_code: router_data.http_code,
-                attempt_status: Some(status.clone()),
+                attempt_status: Some(status),
                 connector_transaction_id: Some(router_data.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
