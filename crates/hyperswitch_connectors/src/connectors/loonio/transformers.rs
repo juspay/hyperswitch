@@ -379,28 +379,14 @@ pub enum LoonioWebhookTransactionType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LoonioCustomerInfo {
-    pub customer_phone_number: Option<String>,
-    pub customer_email: Option<String>,
-    pub customer_name: Option<String>,
-    pub customer_bank_name: Option<String>,
-    pub customer_bank_id: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct LoonioWebhookBody {
     pub amount: FloatMajorUnit,
-    // pub api_merchant_id: String,
-    // pub api_customer_id: String,
     pub api_transaction_id: String,
     pub signature: Option<String>,
     pub event_code: LoonioWebhookEventCode,
     pub id: i32,
     #[serde(rename = "type")]
     pub transaction_type: LoonioWebhookTransactionType,
-    // pub customer_info: LoonioCustomerInfo,
-    // pub params: Option<Vec<String>>,
-    // pub event_time: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
