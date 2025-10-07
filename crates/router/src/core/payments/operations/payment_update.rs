@@ -521,6 +521,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             vault_operation: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
+            is_manual_retry_enabled: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1061,7 +1062,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.payment_token,
             &request.mandate_id,
         )?;
-
         let _request_straight_through: Option<api::routing::StraightThroughAlgorithm> = request
             .routing
             .clone()

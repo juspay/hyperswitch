@@ -1291,6 +1291,8 @@ mod tests {
             dispute_polling_interval: None,
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
+            external_vault_details: domain::ExternalVaultDetails::Skip,
+            billing_processor_id: None,
         });
 
         let business_profile = state
@@ -1397,6 +1399,7 @@ mod tests {
             connector_mandate_id: None,
             shipping_cost: None,
             card_discovery: None,
+            mit_category: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             issuer_error_code: None,
@@ -1408,6 +1411,9 @@ mod tests {
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
             enable_overcapture: None,
+            network_details: None,
+            is_stored_credential: None,
+            request_extended_authorization: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

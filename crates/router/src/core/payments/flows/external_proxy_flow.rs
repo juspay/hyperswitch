@@ -1,9 +1,15 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use common_enums as enums;
+use common_utils::{id_type, ucs_types, ucs_types::UcsReferenceId};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+use external_services::grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse, payments as domain_payments,
+};
 use masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -44,7 +50,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        header_payload: Option<domain_payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<
             api::ExternalVaultProxy,
@@ -79,7 +85,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        header_payload: domain_payments::HeaderPayload,
         return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -363,6 +369,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     async fn call_unified_connector_service_with_external_vault_proxy<'a>(
         &mut self,
         state: &SessionState,
+        header_payload: &domain_payments::HeaderPayload,
+        lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
@@ -393,9 +401,20 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
+        let merchant_order_reference_id = header_payload
+            .x_reference_id
+            .clone()
+            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
+            .transpose()
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+            .ok()
+            .flatten()
+            .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
             .get_grpc_headers_ucs()
-            .external_vault_proxy_metadata(Some(external_vault_proxy_metadata));
+            .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
+            .merchant_reference_id(merchant_order_reference_id)
+            .lineage_ids(lineage_ids);
         let updated_router_data = Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
@@ -414,14 +433,17 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
                 let payment_authorize_response = response.into_inner();
 
-                let (status, router_data_response, status_code) =
+                let (router_data_response, status_code) =
                     unified_connector_service::handle_unified_connector_service_response_for_payment_authorize(
                         payment_authorize_response.clone(),
                     )
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                router_data.status = status;
+                let router_data_response = router_data_response.map(|(response, status)|{
+                    router_data.status = status;
+                    response
+                });
                 router_data.response = router_data_response;
                 router_data.raw_connector_response = payment_authorize_response
                     .raw_connector_response

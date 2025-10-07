@@ -130,6 +130,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     })
 }
 
@@ -223,6 +224,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         challenge_request: authentication_details
                             .authn_flow_type
                             .get_challenge_request(),
+                        challenge_request_key: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request_key(),
                         acs_reference_number: authentication_details
                             .authn_flow_type
                             .get_acs_reference_number(),
