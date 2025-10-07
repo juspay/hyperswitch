@@ -37,6 +37,7 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod transformers;

@@ -74,6 +74,27 @@ pub async fn get_groups_and_resources_for_role_from_token(
     ))
     .await
 }
+
+pub async fn get_parent_groups_info_for_role_from_token(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetParentGroupsInfoForRoleFromToken;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| async move {
+            role_core::get_parent_groups_info_for_role_from_token(state, user).await
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 // TODO: To be deprecated
 pub async fn create_role(
     state: web::Data<AppState>,
