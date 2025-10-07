@@ -131,6 +131,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -190,6 +191,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_requestor_reference_id,
                     network_token_locker_id,
                     network_token_payment_method_data,
+                    vault_source_details: vault_source_details
+                        .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
                 },
                 self.merchant_context.get_merchant_account().storage_scheme,
             )
@@ -320,6 +323,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
+                        Default::default(),
                     )
                     .await
                 } else {
@@ -464,6 +468,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
+        vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = resp.card.clone().map(|card| {
             PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
@@ -497,6 +502,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_requestor_reference_id,
             network_token_locker_id,
             network_token_payment_method_data,
+            vault_source_details,
         )
         .await
     }
@@ -1298,6 +1304,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         None,
+                        Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
                     )
                     .await?;
 
@@ -1372,6 +1379,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 None,
+                Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
             )
             .await?;
 
@@ -2826,11 +2834,11 @@ pub async fn list_payment_methods(
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
             {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.clone().conf.connectors,
-                    &intermediate.connector,
-                    api::GetToken::from(intermediate.payment_method_type),
+                let connector_data = helpers::get_connector_data_with_token(
+                    &state,
+                    intermediate.connector.to_string(),
                     None,
+                    intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("invalid connector name received")?;
@@ -3035,6 +3043,7 @@ pub async fn list_payment_methods(
             surcharge_amount: None,
             tax_amount: None,
             routing_approach,
+            is_stored_credential: None,
         };
 
         state

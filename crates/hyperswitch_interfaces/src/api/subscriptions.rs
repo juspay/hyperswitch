@@ -1,17 +1,33 @@
 //! Subscriptions Interface for V1
-#[cfg(feature = "v1")]
+
 use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::GetSubscriptionPlans,
-    router_request_types::subscriptions::GetSubscriptionPlansRequest,
-    router_response_types::subscriptions::GetSubscriptionPlansResponse,
+    router_flow_types::{
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
+            SubscriptionCreate as SubscriptionCreateFlow,
+        },
+        InvoiceRecordBack,
+    },
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+        },
+    },
+    router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+        },
+    },
 };
 
-#[cfg(feature = "v1")]
 use super::{
     payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon, ConnectorIntegration,
 };
 
-#[cfg(feature = "v1")]
 /// trait GetSubscriptionPlans for V1
 pub trait GetSubscriptionPlansFlow:
     ConnectorIntegration<
@@ -22,21 +38,45 @@ pub trait GetSubscriptionPlansFlow:
 {
 }
 
-/// trait Subscriptions
-#[cfg(feature = "v1")]
-pub trait Subscriptions:
-    ConnectorCommon + GetSubscriptionPlansFlow + PaymentsConnectorCustomer
+/// trait SubscriptionRecordBack for V1
+pub trait SubscriptionRecordBackFlow:
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
 {
 }
 
-/// trait Subscriptions (disabled when not V1)
-#[cfg(not(feature = "v1"))]
-pub trait Subscriptions {}
+/// trait GetSubscriptionPlanPrices for V1
+pub trait GetSubscriptionPlanPricesFlow:
+    ConnectorIntegration<
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
+>
+{
+}
 
-/// trait GetSubscriptionPlansFlow (disabled when not V1)
-#[cfg(not(feature = "v1"))]
-pub trait GetSubscriptionPlansFlow {}
+/// trait SubscriptionCreate
+pub trait SubscriptionCreate:
+    ConnectorIntegration<SubscriptionCreateFlow, SubscriptionCreateRequest, SubscriptionCreateResponse>
+{
+}
 
-#[cfg(not(feature = "v1"))]
-/// trait CreateCustomer (disabled when not V1)
-pub trait ConnectorCustomer {}
+/// trait GetSubscriptionEstimate for V1
+pub trait GetSubscriptionEstimateFlow:
+    ConnectorIntegration<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>
+{
+}
+/// trait Subscriptions
+pub trait Subscriptions:
+    ConnectorCommon
+    + GetSubscriptionPlansFlow
+    + GetSubscriptionPlanPricesFlow
+    + SubscriptionCreate
+    + PaymentsConnectorCustomer
+    + SubscriptionRecordBackFlow
+    + GetSubscriptionEstimateFlow
+{
+}
