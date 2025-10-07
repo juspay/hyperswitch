@@ -7312,7 +7312,9 @@ payment_method_type = "JCB"
 payment_method_type = "Maestro"
 [[tesouro.wallet]]
   payment_method_type = "apple_pay"
-  
+[[tesouro.wallet]]
+  payment_method_type = "google_pay"
+
 [tesouro.connector_auth.SignatureKey]
 api_key = "Client ID"
 api_secret = "Client Secret"
