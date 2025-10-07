@@ -2,14 +2,7 @@ use std::collections::HashMap;
 
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{
-    crypto::{HmacSha256, SignMessage},
-    id_type,
-    pii::Email,
-    request::Method,
-    types::FloatMajorUnit,
-};
-use error_stack::ResultExt;
+use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
@@ -19,7 +12,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -71,7 +64,6 @@ pub struct LoonioPaymentRequest {
     pub redirect_url: Option<LoonioRedirectUrl>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook_url: Option<String>,
-    pub signature: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -98,9 +90,6 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
     fn try_from(
         item: &LoonioRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let auth = LoonioAuthType::try_from(&item.router_data.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => {
                 let transaction_id = item.router_data.connector_request_reference_id.clone();
@@ -115,16 +104,6 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
                     success_url: item.router_data.request.get_router_return_url()?,
                     failed_url: item.router_data.request.get_router_return_url()?,
                 };
-                // Generate HMAC-SHA256 signature using transaction_id and merchant_token
-
-                let signature = HmacSha256::sign_message(
-                    &HmacSha256,
-                    auth.merchant_token.expose().as_bytes(),
-                    transaction_id.as_bytes(),
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)
-                .map(hex::encode)?;
-
                 Ok(Self {
                     currency_code: item.router_data.request.currency,
                     customer_profile,
@@ -134,7 +113,6 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
                     payment_method_type: InteracPaymentMethodType::InteracEtransfer,
                     redirect_url: Some(redirect_url),
                     webhook_url: Some(item.router_data.request.get_webhook_url()?),
-                    signature: Some(signature),
                 })
             }
             PaymentMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotImplemented(

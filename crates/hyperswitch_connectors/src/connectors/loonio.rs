@@ -4,7 +4,7 @@ use common_enums::enums;
 use common_utils::{
     crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
@@ -589,95 +589,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Loonio {
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, errors::ConnectorError>
-    {
-        Ok(Box::new(common_utils::crypto::HmacSha256))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: loonio::LoonioWebhookBody = request
-            .body
-            .parse_struct("LoonioWebhookBody")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        webhook_body
-            .signature
-            .map(|signature| hex::decode(signature))
-            .transpose()
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to decode webhook signature from hex")?
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound.into())
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: loonio::LoonioWebhookBody = request
-            .body
-            .parse_struct("LoonioWebhookBody")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-
-        // Loonio uses the transaction_id to generate the signature, so we use it as the message to verify
-        Ok(webhook_body.api_transaction_id.as_bytes().to_vec())
-    }
-
     async fn verify_webhook_source(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        connector_account_details: Encryptable<Secret<serde_json::Value>>,
-        connector_name: &str,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: Encryptable<Secret<serde_json::Value>>,
+        _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let algorithm = self
-            .get_webhook_source_verification_algorithm(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let connector_auth: ConnectorAuthType = connector_account_details
-            .get_inner()
-            .clone()
-            .parse_value("ConnectorAuthType")
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let auth = loonio::LoonioAuthType::try_from(&connector_auth)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .merchant_token
-            .expose()
-            .into_bytes();
-
-        let connector_webhook_secrets = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_name,
-                connector_webhook_details,
-            )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let message = self
-            .get_webhook_source_verification_message(
-                request,
-                merchant_id,
-                &connector_webhook_secrets,
-            )
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        algorithm
-            .verify_signature(&auth, &signature, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
