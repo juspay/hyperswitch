@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.07.0
+
+### Bug Fixes
+
+- **database:** Percent-encode spaces in Postgres connection URI ([#9685](https://github.com/juspay/hyperswitch/pull/9685)) ([`dbc113f`](https://github.com/juspay/hyperswitch/commit/dbc113fe81c100823088b8615e754e6bf6c48c21))
+
+**Full Changelog:** [`2025.10.06.0...2025.10.07.0`](https://github.com/juspay/hyperswitch/compare/2025.10.06.0...2025.10.07.0)
+
+- - -
+
+## 2025.10.06.0
+
+### Features
+
+- **Customer:** Added search Feature to the Customer Page ([#9619](https://github.com/juspay/hyperswitch/pull/9619)) ([`e186a0f`](https://github.com/juspay/hyperswitch/commit/e186a0f4f4c5b6bf45a695e37cdb505fd66cd986))
+- **subscriptions:** Invoice record back workflow ([#9529](https://github.com/juspay/hyperswitch/pull/9529)) ([`0a35c61`](https://github.com/juspay/hyperswitch/commit/0a35c617e6d7f410e623f1505c80ff57f7326cd5))
+- Implement subscriptions workflow and incoming webhook support ([#9400](https://github.com/juspay/hyperswitch/pull/9400)) ([`32dd9e1`](https://github.com/juspay/hyperswitch/commit/32dd9e10e3103a906cfef49c7baa117778ea02f3))
+
+**Full Changelog:** [`2025.10.02.0...2025.10.06.0`](https://github.com/juspay/hyperswitch/compare/2025.10.02.0...2025.10.06.0)
+
+- - -
+
+## 2025.10.02.0
+
+### Features
+
+- **revenue_recovery:** Add support to fetch data and update additional token data in redis ([#9611](https://github.com/juspay/hyperswitch/pull/9611)) ([`af15986`](https://github.com/juspay/hyperswitch/commit/af159867ae3594e1b66f5b20d1e61132ec1d2bf4))
+- **subscription:** Add support to call payments microservice from subscription service via payments API client ([#9590](https://github.com/juspay/hyperswitch/pull/9590)) ([`df66312`](https://github.com/juspay/hyperswitch/commit/df66312954ea8c7a5e7a6ad4d523b3d6d9daf616))
+
+**Full Changelog:** [`2025.10.01.1...2025.10.02.0`](https://github.com/juspay/hyperswitch/compare/2025.10.01.1...2025.10.02.0)
+
+- - -
+
 ## 2025.10.01.1
 
 ### Features

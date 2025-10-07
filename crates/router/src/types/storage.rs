@@ -23,6 +23,7 @@ pub mod generic_link;
 pub mod gsm;
 pub mod hyperswitch_ai_interaction;
 pub mod invoice;
+pub mod invoice_sync;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;

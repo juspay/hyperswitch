@@ -1177,6 +1177,11 @@ impl Subscription {
         let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
 
         route
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
+            )
             .service(web::resource("/create").route(
                 web::post().to(|state, req, payload| {
                     subscription::create_subscription(state, req, payload)
@@ -1188,6 +1193,10 @@ impl Subscription {
                         subscription::confirm_subscription(state, req, id, payload)
                     },
                 )),
+            )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
             )
     }
 }

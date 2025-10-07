@@ -538,6 +538,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
 pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl From<CustomerListConstraints> for query::CustomerListConstraints {
@@ -545,6 +546,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
+            customer_id: value.customer_id,
         }
     }
 }
