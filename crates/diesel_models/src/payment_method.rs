@@ -251,10 +251,11 @@ pub enum PaymentMethodUpdate {
         connector_mandate_details: Option<pii::SecretSerdeValue>,
         network_transaction_id: Option<Secret<String>>,
     },
-    ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+    PaymentMethodBatchUpdate {
         connector_mandate_details: Option<pii::SecretSerdeValue>,
         network_transaction_id: Option<String>,
         status: Option<storage_enums::PaymentMethodStatus>,
+        payment_method_data: Option<Encryption>,
     },
 }
 
@@ -687,13 +688,13 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_payment_method_data: None,
                 scheme: None,
             },
-            PaymentMethodUpdate::ConnectorNetworkTransactionIdStatusAndMandateDetailsUpdate {
+            PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details,
                 network_transaction_id,
                 status,
+                payment_method_data,
             } => Self {
                 metadata: None,
-                payment_method_data: None,
                 last_used_at: None,
                 status,
                 locker_id: None,
@@ -709,6 +710,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 scheme: None,
+                payment_method_data,
             },
         }
     }
