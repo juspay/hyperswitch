@@ -1074,7 +1074,7 @@ async fn payments_incoming_webhook_flow(
                 .await?
             };
 
-            if let Ok(true) = should_update_additional_payment_method_data(
+            if should_update_additional_payment_method_data(
                 state.clone(),
                 merchant_context.clone(),
                 webhook_details.object_reference_id.clone(),
