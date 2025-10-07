@@ -354,6 +354,7 @@ pub async fn confirm_subscription(
             &state,
             invoice.id,
             payment_response.payment_method_id.clone(),
+            Some(payment_response.payment_id.clone()),
             invoice_details
                 .clone()
                 .and_then(|invoice| invoice.status)

@@ -39,7 +39,7 @@ billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
 bitpay.base_url = "https://test.bitpay.com"
 blackhawknetwork.base_url = "https://api-sandbox.blackhawknetwork.com/"
-bluecode.base_url = "https://dev.eorder.reloadhero.com/"
+calida.base_url = "https://dev.eorder.reloadhero.com/"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
@@ -813,7 +813,7 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 
-[pm_filters.bluecode]
+[pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
 
 [pm_filters.boku]

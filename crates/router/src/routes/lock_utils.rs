@@ -306,6 +306,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleV2
             | Flow::GetRoleFromToken
             | Flow::GetRoleFromTokenV2
+            | Flow::GetParentGroupsInfoForRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo

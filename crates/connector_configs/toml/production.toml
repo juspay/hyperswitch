@@ -5610,18 +5610,18 @@ key1="merchant_id"
 [mpgs.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[bluecode]
-[[bluecode.wallet]]
+[calida]
+[[calida.wallet]]
   payment_method_type = "bluecode"
-[bluecode.connector_auth.HeaderKey]
+[calida.connector_auth.HeaderKey]
 api_key = "E-Order Token"
-[bluecode.metadata.shop_name]
+[calida.metadata.shop_name]
 name="shop_name"
 label="Shop Name"
 placeholder="Enter your Shop Name"
 required=true
 type="Text"
-[bluecode.connector_webhook_details]
+[calida.connector_webhook_details]
 merchant_secret="Source verification key"
 
 [katapult]
@@ -6055,6 +6055,8 @@ payment_method_type = "JCB"
 payment_method_type = "Maestro"
 [[tesouro.wallet]]
   payment_method_type = "apple_pay"
+[[tesouro.wallet]]
+  payment_method_type = "google_pay"
   
 [tesouro.connector_auth.SignatureKey]
 api_key = "Client ID"
