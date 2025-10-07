@@ -7966,7 +7966,7 @@ pub struct PaypalTransactionInfo {
     #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
     /// Total price
-    #[schema(value_type = String, example = "0.00")]
+    #[schema(value_type = String, example = "38.02")]
     pub total_price: StringMajorUnit,
 }
 

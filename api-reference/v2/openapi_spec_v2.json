@@ -21869,7 +21869,7 @@
           "total_price": {
             "type": "string",
             "description": "Total price",
-            "example": "0.00"
+            "example": "38.02"
           }
         }
       },
