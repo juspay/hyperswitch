@@ -101,24 +101,11 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
                     email: item.router_data.get_billing_email()?,
                 };
 
-                // let redirect_url = LoonioRedirectUrl {
-                //     success_url: item.router_data.request.get_router_return_url()?,
-                //     failed_url: item.router_data.request.get_router_return_url()?,
-                // };
-
-                let return_url = item.router_data.request.get_router_return_url()?.replace(
-                    &"http://localhost:8080".to_string(),
-                    &"https://modest-polecat-pleasantly.ngrok-free.app".to_string(),
-                );
-
-                let webhook_url = item.router_data.request.get_webhook_url()?.replace(
-                    &"http://localhost:8080".to_string(),
-                    &"https://modest-polecat-pleasantly.ngrok-free.app".to_string(),
-                );
                 let redirect_url = LoonioRedirectUrl {
-                    success_url: return_url.to_string(),
-                    failed_url: return_url.to_string(),
+                    success_url: item.router_data.request.get_router_return_url()?,
+                    failed_url: item.router_data.request.get_router_return_url()?,
                 };
+
                 Ok(Self {
                     currency_code: item.router_data.request.currency,
                     customer_profile,
@@ -127,7 +114,7 @@ impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentR
                     transaction_id,
                     payment_method_type: InteracPaymentMethodType::InteracEtransfer,
                     redirect_url: Some(redirect_url),
-                    webhook_url: Some(webhook_url),
+                    webhook_url: Some(item.router_data.request.get_webhook_url()?),
                 })
             }
             PaymentMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotImplemented(
