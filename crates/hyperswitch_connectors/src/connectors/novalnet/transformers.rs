@@ -102,6 +102,7 @@ pub struct NovalnetPaymentsRequestCustomer {
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
     no_nc: i64,
+    birth_date: Option<String>, // Mandatory for SEPA Guarentee Payment
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCard {
@@ -249,6 +250,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
+            birth_date: Some(String::from("1992-06-10")),
         };
 
         let lang = item
@@ -1609,6 +1611,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: MINIMAL_CUSTOMER_DATA_PASSED,
+            birth_date: Some(String::from("1992-06-10")),
         };
 
         let lang = item
