@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
@@ -118,7 +118,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub is_payment_id_from_merchant: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
     pub order_date: Option<time::PrimitiveDateTime>,
     pub tax_status: Option<common_enums::TaxStatus>,
@@ -140,7 +140,7 @@ pub struct L2L3Data {
 }
 
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     TemporaryAuth,
@@ -263,19 +263,19 @@ impl ConnectorAuthType {
     }
 }
 
-#[derive(serde::Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessTokenAuthenticationResponse {
     pub code: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(serde::Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AccessToken {
     pub token: Secret<String>,
     pub expires: i64,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<common_payment_types::ApplePayPredecryptData>),
@@ -283,7 +283,7 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptDataInternal {
     pub application_primary_account_number: cards::CardNumber,
@@ -295,7 +295,7 @@ pub struct ApplePayPredecryptDataInternal {
     pub payment_data: ApplePayCryptogramDataInternal,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramDataInternal {
     pub online_payment_cryptogram: Secret<String>,
@@ -365,7 +365,7 @@ impl ApplePayPredecryptDataInternal {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
@@ -375,7 +375,7 @@ pub struct GooglePayPredecryptDataInternal {
     pub payment_method_details: GooglePayPaymentMethodDetails,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayPaymentMethodDetails {
     pub auth_method: common_enums::enums::GooglePayAuthMethod,
@@ -387,7 +387,7 @@ pub struct GooglePayPaymentMethodDetails {
     pub card_network: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDecryptedData {
     pub client_id: Secret<String>,
@@ -400,7 +400,7 @@ pub struct PazeDecryptedData {
     pub eci: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
     pub payment_token: NetworkTokenNumber,
@@ -409,7 +409,7 @@ pub struct PazeToken {
     pub payment_account_reference: Secret<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeDynamicData {
     pub dynamic_data_value: Option<Secret<String>>,
@@ -417,7 +417,7 @@ pub struct PazeDynamicData {
     pub dynamic_data_expiration: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeAddress {
     pub name: Option<Secret<String>>,
@@ -430,7 +430,7 @@ pub struct PazeAddress {
     pub country_code: Option<common_enums::enums::CountryAlpha2>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeConsumer {
     // This is consumer data not customer data.
@@ -443,7 +443,7 @@ pub struct PazeConsumer {
     pub language_code: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazePhoneNumber {
     pub country_code: Secret<String>,
@@ -464,7 +464,7 @@ pub struct PaymentMethodBalance {
     pub currency: common_enums::enums::Currency,
 }
 
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
     extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
@@ -504,7 +504,7 @@ impl ConnectorResponseData {
     }
 }
 
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AdditionalPaymentMethodConnectorResponse {
     Card {
         /// Details regarding the authentication details of the connector, if this is a 3ds payment.
@@ -521,14 +521,14 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
 }
 
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
         Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
 }

@@ -234,6 +234,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _merchant_context: &domain::MerchantContext,
+        _shadow_mode: bool,
     ) -> RouterResult<()>
     where
         F: Clone,

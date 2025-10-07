@@ -5236,6 +5236,7 @@ where
                 merchant_connector_account_type_details.clone(),
                 external_vault_merchant_connector_account_type_details.clone(),
                 merchant_context,
+                false,
             )
             .await?;
 

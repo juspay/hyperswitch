@@ -46,8 +46,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, should_execute_shadow_ucs,
-                MerchantConnectorAccountType,
+                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -142,7 +141,7 @@ where
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
 
     let should_execute_shadow_ucs =
-        should_execute_shadow_ucs(state, &shadow_ucs_config_key).await?;
+        should_execute_based_on_rollout(state, &shadow_ucs_config_key).await?;
 
     // Apply stickiness logic if payment_data is available
     if let Some(payment_data) = payment_data {

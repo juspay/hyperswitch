@@ -2135,27 +2135,6 @@ pub async fn should_execute_based_on_rollout(
     }
 }
 
-pub async fn should_execute_shadow_ucs(
-    state: &SessionState,
-    config_key: &str,
-) -> RouterResult<bool> {
-    let db = state.store.as_ref();
-
-    match db.find_config_by_key(config_key).await {
-        Ok(config) => match config.config.parse::<bool>() {
-            Ok(is_enabled) => Ok(is_enabled),
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to parse shadow UCS enabled config");
-                Ok(false)
-            }
-        },
-        Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch shadow UCS enabled config from DB");
-            Ok(false)
-        }
-    }
-}
-
 pub fn determine_standard_vault_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<api_models::payments::MandateIds>,
