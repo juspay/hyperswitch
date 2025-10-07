@@ -1122,26 +1122,6 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
-        let updated_feature_metadata =
-            payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(|mut feature_metadata| {
-                    if let Some(ref mut payment_revenue_recovery_metadata) =
-                        feature_metadata.payment_revenue_recovery_metadata
-                    {
-                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
-                            .response
-                            .is_ok()
-                        {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                        } else {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
-                        };
-                    }
-                    Box::new(feature_metadata)
-                });
 
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -1150,7 +1130,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: None,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: {
@@ -1166,7 +1146,7 @@ impl
                 },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: None,
             },
         }
     }
@@ -1262,7 +1242,7 @@ impl
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
-                    connector_metadata,
+                    connector_metadata: _,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1342,7 +1322,7 @@ impl
 
     fn get_captured_amount(
         &self,
-        payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::PreAuthenticate>,
     ) -> Option<MinorUnit> {
         // Amount is not captured in PreAuthenticate Flow
         None
@@ -1368,26 +1348,6 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
-        let updated_feature_metadata =
-            payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(|mut feature_metadata| {
-                    if let Some(ref mut payment_revenue_recovery_metadata) =
-                        feature_metadata.payment_revenue_recovery_metadata
-                    {
-                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
-                            .response
-                            .is_ok()
-                        {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
-                        } else {
-                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
-                        };
-                    }
-                    Box::new(feature_metadata)
-                });
 
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -1396,7 +1356,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: None,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: {
@@ -1412,7 +1372,7 @@ impl
                 },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
-                feature_metadata: updated_feature_metadata,
+                feature_metadata: None,
             },
         }
     }
@@ -1508,7 +1468,7 @@ impl
                     network_decline_code,
                     network_advice_code,
                     network_error_message,
-                    connector_metadata,
+                    connector_metadata: _,
                 } = error_response.clone();
 
                 let attempt_status = match error_response.attempt_status {
@@ -1588,7 +1548,7 @@ impl
 
     fn get_captured_amount(
         &self,
-        payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
+        _payment_data: &payments::PaymentConfirmData<router_flow_types::Authenticate>,
     ) -> Option<MinorUnit> {
         // Amount is not captured in Authenticate Flow
         None
