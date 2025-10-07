@@ -219,6 +219,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone(),
             connector_customer: old_router_data.connector_customer.clone(),
+            connector: old_router_data.connector.clone(),
             payment_id: old_router_data.payment_id.clone(),
             attempt_id: old_router_data.attempt_id.clone(),
             status: old_router_data.status,
@@ -265,6 +266,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
             merchant_id,
             customer_id,
             connector_customer,
+            connector,
             payment_id,
             attempt_id,
             status,
@@ -300,6 +302,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for PaymentF
         router_data.merchant_id = merchant_id;
         router_data.customer_id = customer_id;
         router_data.connector_customer = connector_customer;
+        router_data.connector = connector;
         router_data.payment_id = payment_id;
         router_data.attempt_id = attempt_id;
         router_data.status = status;
