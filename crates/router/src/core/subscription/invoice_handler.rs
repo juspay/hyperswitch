@@ -44,6 +44,7 @@ impl InvoiceHandler {
         status: connector_enums::InvoiceStatus,
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
             self.subscription.id.to_owned(),
@@ -58,6 +59,7 @@ impl InvoiceHandler {
             status,
             provider_name,
             metadata,
+            connector_invoice_id,
         );
 
         let invoice = state
@@ -78,10 +80,12 @@ impl InvoiceHandler {
         invoice_id: common_utils::id_type::InvoiceId,
         payment_method_id: Option<Secret<String>>,
         status: connector_enums::InvoiceStatus,
+        connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
+            connector_invoice_id,
         );
         state
             .store

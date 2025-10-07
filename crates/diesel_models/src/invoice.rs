@@ -23,6 +23,7 @@ pub struct InvoiceNew {
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_invoice_id: Option<String>,
 }
 
 #[derive(
@@ -49,6 +50,7 @@ pub struct Invoice {
     pub metadata: Option<SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_invoice_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
@@ -56,6 +58,7 @@ pub struct Invoice {
 pub struct InvoiceUpdate {
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
+    pub connector_invoice_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
 }
 
@@ -74,6 +77,7 @@ impl InvoiceNew {
         status: InvoiceStatus,
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
+        connector_invoice_id: Option<String>,
     ) -> Self {
         let id = common_utils::id_type::InvoiceId::generate();
         let now = common_utils::date_time::now();
@@ -93,15 +97,21 @@ impl InvoiceNew {
             metadata,
             created_at: now,
             modified_at: now,
+            connector_invoice_id,
         }
     }
 }
 
 impl InvoiceUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<InvoiceStatus>) -> Self {
+    pub fn new(
+        payment_method_id: Option<String>,
+        status: Option<InvoiceStatus>,
+        connector_invoice_id: Option<String>,
+    ) -> Self {
         Self {
             payment_method_id,
             status: status.map(|status| status.to_string()),
+            connector_invoice_id,
             modified_at: common_utils::date_time::now(),
         }
     }

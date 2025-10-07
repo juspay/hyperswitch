@@ -75,6 +75,7 @@ pub async fn create_subscription(
             connector_enums::InvoiceStatus::InvoiceCreated,
             billing_handler.connector_data.connector_name,
             None,
+            None,
         )
         .await
         .attach_printable("subscriptions: failed to create invoice")?;
@@ -230,6 +231,9 @@ pub async fn create_and_confirm_subscription(
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
             None,
+            invoice_details
+                .clone()
+                .map(|invoice| invoice.id.get_string_repr().to_string()),
         )
         .await?;
 
@@ -348,6 +352,9 @@ pub async fn confirm_subscription(
                 .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+            invoice_details
+                .clone()
+                .map(|invoice| invoice.id.get_string_repr().to_string()),
         )
         .await?;
 

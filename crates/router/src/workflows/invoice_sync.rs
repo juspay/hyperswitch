@@ -203,6 +203,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 self.invoice.id.to_owned(),
                 None,
                 common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
+                Some(connector_invoice_id),
             )
             .await
             .attach_printable("Failed to update invoice in DB")?;
