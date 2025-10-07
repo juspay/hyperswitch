@@ -37,11 +37,17 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
     it("Create payment intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["PaymentIntentManualCapture"];
+      ]["PaymentIntent"];
       const req_data = data["Request"];
       const res_data = data["Response"];
 
-      cy.paymentIntentCreateCall(globalState, req_data, res_data);
+      cy.paymentIntentCreateCall(
+        globalState,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "manual"
+      );
 
       if (should_continue) should_continue = should_continue_further(data);
     });
@@ -92,11 +98,17 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
       it("Create payment intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentIntentManualCapture"];
+        ]["PaymentIntent"];
         const req_data = data["Request"];
         const res_data = data["Response"];
 
-        cy.paymentIntentCreateCall(globalState, req_data, res_data);
+        cy.paymentIntentCreateCall(
+          globalState,
+          req_data,
+          res_data,
+          "no_three_ds",
+          "manual"
+        );
 
         if (should_continue) should_continue = should_continue_further(data);
       });
@@ -145,12 +157,18 @@ describe("[Payment] [Void/Cancel] [Payment Method: Card]", () => {
     it("Create payment intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["PaymentIntentAutoCapture"];
+      ]["PaymentIntent"];
 
       const req_data = data["Request"];
       const res_data = data["Response"];
 
-      cy.paymentIntentCreateCall(globalState, req_data, res_data);
+      cy.paymentIntentCreateCall(
+        globalState,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic"
+      );
 
       if (should_continue) should_continue = should_continue_further(data);
     });

@@ -40,12 +40,11 @@ describe("[Payment] [No 3DS] [Payment Method: Card]", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.paymentIntentCreateCall(
+        globalState,
         fixtures.createPaymentBody,
-        req_data,
         res_data,
         "no_three_ds",
-        "automatic",
-        globalState
+        "automatic"
       );
     });
 
@@ -97,12 +96,11 @@ describe("[Payment] [No 3DS] [Payment Method: Card]", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.paymentIntentCreateCall(
+        globalState,
         fixtures.createPaymentBody,
-        req_data,
         res_data,
         "no_three_ds",
-        "automatic",
-        globalState
+        "automatic"
       );
     });
 

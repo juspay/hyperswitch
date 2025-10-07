@@ -592,14 +592,12 @@ export const connectorDetails = {
     }),
   },
   card_pm: {
-    PaymentIntentManualCapture: getCustomExchange({
+    PaymentIntent: getCustomExchange({
       Request: {
         amount_details: {
           order_amount: 1001,
           currency: "USD",
         },
-        capture_method: "manual",
-        authentication_type: "no_three_ds",
         billing: billingAddress,
         shipping: shippingAddress,
       },
@@ -610,24 +608,7 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentIntentAutoCapture: getCustomExchange({
-      Request: {
-        amount_details: {
-          order_amount: 1001,
-          currency: "USD",
-        },
-        capture_method: "automatic",
-        authentication_type: "no_three_ds",
-        billing: billingAddress,
-        shipping: shippingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
+    
     PaymentIntentOffSession: getCustomExchange({
       Request: {
         currency: "USD",

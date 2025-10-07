@@ -1412,8 +1412,9 @@ Cypress.Commands.add(
   (
     globalState,
     paymentRequestBody,
-    paymentResponseBody
-    /* Add more variables based on the need*/
+    paymentResponseBody,
+    authentication_type,
+    capture_method
   ) => {
     // Define the necessary variables and constants at the top
     // Also construct the URL here
@@ -1421,6 +1422,10 @@ Cypress.Commands.add(
     const base_url = globalState.get("baseUrl");
     const profile_id = globalState.get("profileId");
     const url = `${base_url}/v2/payments/create-intent`;
+
+    // Set capture_method and authentication_type as parameters (like V1)
+    paymentRequestBody.authentication_type = authentication_type;
+    paymentRequestBody.capture_method = capture_method;
 
     // Pass Custom Headers
     const customHeaders = {
