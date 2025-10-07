@@ -11,7 +11,7 @@ use masking::ExposeInterface;
 use superposition_provider;
 pub use types::*;
 
-pub(crate) fn convert_open_feature_value(
+fn convert_open_feature_value(
     v: open_feature::Value,
 ) -> Result<serde_json::Value, String> {
     match v {
@@ -42,7 +42,7 @@ impl SuperpositionClient {
     /// Create a new Superposition client
     pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
         let provider_options = superposition_provider::SuperpositionProviderOptions {
-            endpoint: config.endpoint.to_string(),
+            endpoint: config.endpoint.clone(),
             token: config.token.expose(),
             org_id: config.org_id.clone(),
             workspace_id: config.workspace_id.clone(),

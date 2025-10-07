@@ -35,7 +35,7 @@ pub struct SuperpositionClientConfig {
     /// Whether Superposition is enabled
     pub enabled: bool,
     /// Superposition API endpoint
-    pub endpoint: url::Url,
+    pub endpoint: String,
     /// Authentication token for Superposition
     pub token: Secret<String>,
     /// Organization ID in Superposition
@@ -52,9 +52,7 @@ impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            #[allow(clippy::expect_used)]
-            endpoint: url::Url::parse("http://localhost:8080")
-                .expect("Failed to parse default Superposition URL"),
+            endpoint: String::new(),
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
@@ -82,7 +80,7 @@ pub enum SuperpositionError {
 #[derive(Debug, Clone, Default)]
 pub struct ConfigContext {
     /// Key-value pairs for configuration context
-    pub(crate) values: HashMap<String, String>,
+    pub(super) values: HashMap<String, String>,
 }
 
 impl SuperpositionClientConfig {
@@ -91,6 +89,18 @@ impl SuperpositionClientConfig {
         if !self.enabled {
             return Ok(());
         }
+
+        when(self.endpoint.is_empty(), || {
+            Err(SuperpositionError::InvalidConfiguration(
+                "Superposition endpoint cannot be empty".to_string(),
+            ))
+        })?;
+
+        when(url::Url::parse(&self.endpoint).is_err(), || {
+            Err(SuperpositionError::InvalidConfiguration(
+                "Superposition endpoint must be a valid URL".to_string(),
+            ))
+        })?;
 
         when(self.token.clone().expose().is_empty(), || {
             Err(SuperpositionError::InvalidConfiguration(
