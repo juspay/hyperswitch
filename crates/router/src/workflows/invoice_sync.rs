@@ -202,6 +202,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 self.state,
                 self.invoice.id.to_owned(),
                 None,
+                None,
                 common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
             )
             .await

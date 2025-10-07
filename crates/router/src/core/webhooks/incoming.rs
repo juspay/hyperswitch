@@ -2622,7 +2622,7 @@ async fn subscription_incoming_webhook_flow(
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
-    let invoice_handler = subscription_with_handler.get_invoice_handler(profile);
+    let invoice_handler = subscription_with_handler.get_invoice_handler(profile.clone());
 
     let payment_method_id = subscription_with_handler
         .subscription
@@ -2635,7 +2635,7 @@ async fn subscription_incoming_webhook_flow(
 
     logger::info!("Payment method ID found: {}", payment_method_id);
 
-    let _invoice_new = invoice_handler
+    let invoice_entry = invoice_handler
         .create_invoice_entry(
             &state,
             billing_connector_mca_id.clone(),
@@ -2645,6 +2645,34 @@ async fn subscription_incoming_webhook_flow(
             InvoiceStatus::PaymentPending,
             connector,
             None,
+        )
+        .await?;
+
+    let payment_response = invoice_handler
+        .create_mit_payment(
+            &state,
+            mit_payment_data.amount_due,
+            mit_payment_data.currency_code,
+            &payment_method_id.clone(),
+        )
+        .await?;
+
+    let updated_invoice = invoice_handler
+        .update_invoice(
+            &state,
+            invoice_entry.id.clone(),
+            payment_response.payment_method_id.clone(),
+            Some(payment_response.payment_id.clone()),
+            InvoiceStatus::from(payment_response.status),
+        )
+        .await?;
+
+    invoice_handler
+        .create_invoice_sync_job(
+            &state,
+            &updated_invoice,
+            mit_payment_data.invoice_id.get_string_repr().to_string(),
+            connector,
         )
         .await?;
 
