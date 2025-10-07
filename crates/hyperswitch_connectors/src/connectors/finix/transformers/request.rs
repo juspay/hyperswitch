@@ -6,6 +6,12 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::*;
+
+#[derive(Deserialize)]
+pub struct FinixMeta {
+    pub merchant_identity_id: Secret<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
@@ -54,9 +60,13 @@ pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(rename = "type")]
     pub instrument_type: FinixPaymentInstrumentType,
     pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub security_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_month: Option<Secret<i32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_year: Option<Secret<i32>>,
     pub identity: String,
     pub tags: Option<FinixTags>,
@@ -64,6 +74,8 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub card_brand: Option<String>,
     pub card_type: Option<FinixCardType>,
     pub additional_data: Option<HashMap<String, String>>,
+    pub merchant_identity: Option<Secret<String>>,
+    pub third_party_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
