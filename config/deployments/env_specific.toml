@@ -1,4 +1,4 @@
-# For explanation of each config, please refer to the `config/config.example.toml` file
+# For explanantion of each config, please refer to the `config/config.example.toml` file
 
 [analytics.clickhouse]
 username = "clickhouse_username"     # Clickhouse username
