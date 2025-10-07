@@ -1248,12 +1248,13 @@ pub struct ChargebeePlanPriceItem {
     pub period: i64,
     pub period_unit: ChargebeePeriodUnit,
     pub trial_period: Option<i64>,
-    pub trial_period_unit: ChargebeeTrialPeriodUnit,
+    pub trial_period_unit: Option<ChargebeeTrialPeriodUnit>,
     pub price: MinorUnit,
     pub pricing_model: ChargebeePricingModel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePricingModel {
     FlatFee,
     PerUnit,
@@ -1263,6 +1264,7 @@ pub enum ChargebeePricingModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePeriodUnit {
     Day,
     Week,
@@ -1271,6 +1273,7 @@ pub enum ChargebeePeriodUnit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeTrialPeriodUnit {
     Day,
     Month,
@@ -1308,8 +1311,9 @@ impl<F, T>
                 interval_count: prices.item_price.period,
                 trial_period: prices.item_price.trial_period,
                 trial_period_unit: match prices.item_price.trial_period_unit {
-                    ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
-                    ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
+                    Some(ChargebeeTrialPeriodUnit::Day) => Some(subscriptions::PeriodUnit::Day),
+                    Some(ChargebeeTrialPeriodUnit::Month) => Some(subscriptions::PeriodUnit::Month),
+                    None => None,
                 },
             })
             .collect();
