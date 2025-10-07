@@ -452,7 +452,7 @@ pub(crate) fn get_finix_response<F, T>(
         router_data.response.is_void,
     );
     Ok(RouterData {
-        status: status.clone(),
+        status: status,
         response: if router_data.response.state.is_failure() {
             Err(ErrorResponse {
                 code: router_data
