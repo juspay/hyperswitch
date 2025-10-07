@@ -9,13 +9,16 @@ use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_response_types::subscriptions as subscription_response_types,
+    router_response_types::{self, subscriptions as subscription_response_types},
 };
 use masking::Secret;
 
 use super::errors;
 use crate::{
-    core::{errors::StorageErrorExt, subscription::invoice_handler::InvoiceHandler},
+    core::{
+        errors::StorageErrorExt, payments as payments_core,
+        subscription::invoice_handler::InvoiceHandler,
+    },
     db::CustomResult,
     routes::SessionState,
     types::domain,
@@ -102,6 +105,56 @@ impl<'a> SubscriptionHandler<'a> {
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
             .attach_printable("subscriptions: unable to fetch customer from database")
+    }
+    pub async fn update_connector_customer_id_in_customer(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        customer: &hyperswitch_domain_models::customer::Customer,
+        customer_create_response: Option<router_response_types::ConnectorCustomerResponseData>,
+    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        if let Some(customer_response) = customer_create_response {
+            if let Some(customer_update) =
+                payments_core::customers::update_connector_customer_in_customers(
+                    merchant_connector_id.get_string_repr(),
+                    Some(customer),
+                    Some(customer_response.connector_customer_id),
+                ).await
+            {
+                return Self::update_customer(state, merchant_context, customer.clone(), customer_update)
+                    .await
+                    .attach_printable("Failed to update customer with connector customer ID");
+            }
+        }
+        Ok(customer.clone())
+    }
+
+    pub async fn update_customer(
+        state: &SessionState,
+        merchant_context: &MerchantContext,
+        customer: hyperswitch_domain_models::customer::Customer,
+        customer_update: domain::CustomerUpdate,
+    ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
+        let key_manager_state = &(state).into();
+        let merchant_key_store = merchant_context.get_merchant_key_store();
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let db = state.store.as_ref();
+
+        let updated_customer = db
+            .update_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                customer.customer_id.clone(),
+                merchant_id.clone(),
+                customer,
+                customer_update,
+                merchant_key_store,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("subscriptions: unable to update customer entry in database")?;
+
+        Ok(updated_customer)
     }
 
     /// Helper function to find business profile.

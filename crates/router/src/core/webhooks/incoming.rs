@@ -2673,7 +2673,7 @@ async fn subscription_incoming_webhook_flow(
         .create_invoice_sync_job(
             &state,
             &updated_invoice,
-            mit_payment_data.invoice_id.get_string_repr().to_string(),
+            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
             connector,
         )
         .await?;

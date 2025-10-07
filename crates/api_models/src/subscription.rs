@@ -151,6 +151,7 @@ pub struct ConfirmSubscriptionPaymentDetails {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -159,6 +160,7 @@ pub struct CreateSubscriptionPaymentDetails {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub authentication_type: Option<api_enums::AuthenticationType>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -171,6 +173,7 @@ pub struct PaymentDetails {
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
     pub authentication_type: Option<api_enums::AuthenticationType>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 // Creating new type for PaymentRequest API call as usage of api_models::PaymentsRequest will result in invalid payment request during serialization
@@ -196,6 +199,7 @@ pub struct ConfirmPaymentsRequestData {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -214,6 +218,7 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: Option<PaymentMethodDataRequest>,
     pub customer_acceptance: Option<CustomerAcceptance>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -228,6 +233,7 @@ pub struct PaymentResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

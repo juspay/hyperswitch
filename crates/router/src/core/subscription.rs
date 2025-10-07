@@ -116,7 +116,7 @@ pub async fn create_and_confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        customer.clone(),
         profile.clone(),
     )
     .await?;
@@ -134,7 +134,7 @@ pub async fn create_and_confirm_subscription(
         .attach_printable("subscriptions: failed to create subscription entry")?;
     let invoice_handler = subs_handler.get_invoice_handler(profile.clone());
 
-    let _customer_create_response = billing_handler
+    let customer_create_response = billing_handler
         .create_customer_on_connector(
             &state,
             request.customer_id.clone(),
@@ -146,6 +146,15 @@ pub async fn create_and_confirm_subscription(
                 .and_then(|data| data.payment_method_data),
         )
         .await?;
+    let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
+        &state,
+        &merchant_context,
+        &billing_handler.merchant_connector_id,
+        &customer,
+        customer_create_response,
+    )
+    .await
+    .attach_printable("Failed to update customer with connector customer ID")?;
 
     let subscription_create_response = billing_handler
         .create_subscription_on_connector(
@@ -186,13 +195,7 @@ pub async fn create_and_confirm_subscription(
         .create_invoice_sync_job(
             &state,
             &invoice_entry,
-            invoice_details
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "invoice_details",
-                })?
-                .id
-                .get_string_repr()
-                .to_string(),
+            invoice_details.map(|details| details.id.get_string_repr().to_string()),
             billing_handler.connector_data.connector_name,
         )
         .await?;
@@ -259,14 +262,14 @@ pub async fn confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        customer,
+        customer.clone(),
         profile.clone(),
     )
     .await?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 
-    let _customer_create_response = billing_handler
+    let customer_create_response = billing_handler
         .create_customer_on_connector(
             &state,
             subscription.customer_id.clone(),
@@ -277,6 +280,15 @@ pub async fn confirm_subscription(
                 .payment_method_data,
         )
         .await?;
+    let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
+        &state,
+        &merchant_context,
+        &billing_handler.merchant_connector_id,
+        &customer,
+        customer_create_response,
+    )
+    .await
+    .attach_printable("Failed to update customer with connector customer ID")?;
 
     let subscription_create_response = billing_handler
         .create_subscription_on_connector(
@@ -305,14 +317,7 @@ pub async fn confirm_subscription(
         .create_invoice_sync_job(
             &state,
             &invoice_entry,
-            invoice_details
-                .clone()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "invoice_details",
-                })?
-                .id
-                .get_string_repr()
-                .to_string(),
+            invoice_details.map(|details| details.id.get_string_repr().to_string()),
             billing_handler.connector_data.connector_name,
         )
         .await?;

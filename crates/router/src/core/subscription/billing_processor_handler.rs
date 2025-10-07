@@ -112,7 +112,15 @@ impl BillingHandler {
         customer_id: common_utils::id_type::CustomerId,
         billing_address: Option<api_models::payments::Address>,
         payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    ) -> errors::RouterResult<ConnectorCustomerResponseData> {
+    ) -> errors::RouterResult<Option<ConnectorCustomerResponseData>> {
+        let connector_customer_map = self.customer.get_connector_customer_map();
+        if connector_customer_map
+            .get(&self.merchant_connector_id)
+            .is_some()
+        {
+            // Customer already exists on the connector, no need to create again
+            return Ok(None);
+        }
         let customer_req = ConnectorCustomerData {
             email: self.customer.email.clone().map(pii::Email::from),
             payment_method_data: payment_method_data.clone().map(|pmd| pmd.into()),
@@ -149,7 +157,7 @@ impl BillingHandler {
         match response {
             Ok(response_data) => match response_data {
                 PaymentsResponseData::ConnectorCustomerResponse(customer_response) => {
-                    Ok(customer_response)
+                    Ok(Some(customer_response))
                 }
                 _ => Err(errors::ApiErrorResponse::SubscriptionError {
                     operation: "Subscription Customer Create".to_string(),
