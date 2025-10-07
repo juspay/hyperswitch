@@ -5,6 +5,8 @@ use api_models::{
     subscription::{self as subscription_types, SubscriptionResponse},
 };
 use common_enums::connector_enums;
+use common_utils::{consts, ext_traits::OptionExt};
+use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
@@ -123,6 +125,60 @@ impl<'a> SubscriptionHandler<'a> {
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_string(),
             })
+    }
+
+    pub async fn find_and_validate_subscription(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+    ) -> errors::RouterResult<()> {
+        let subscription_id = client_secret.get_subscription_id()?;
+
+        let subscription = self
+            .state
+            .store
+            .find_by_merchant_id_subscription_id(
+                self.merchant_context.get_merchant_account().get_id(),
+                subscription_id.to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!("Subscription not found for id: {subscription_id}"),
+            })
+            .attach_printable("Unable to find subscription")?;
+
+        self.validate_client_secret(client_secret, &subscription)?;
+
+        Ok(())
+    }
+
+    pub fn validate_client_secret(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+        subscription: &diesel_models::subscription::Subscription,
+    ) -> errors::RouterResult<()> {
+        let stored_client_secret = subscription
+            .client_secret
+            .clone()
+            .get_required_value("client_secret")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "client_secret",
+            })
+            .attach_printable("client secret not found in db")?;
+
+        if client_secret.to_string() != stored_client_secret {
+            Err(errors::ApiErrorResponse::ClientSecretInvalid.into())
+        } else {
+            let current_timestamp = common_utils::date_time::now();
+            let session_expiry = subscription
+                .created_at
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+            if current_timestamp > session_expiry {
+                Err(errors::ApiErrorResponse::ClientSecretExpired.into())
+            } else {
+                Ok(())
+            }
+        }
     }
 
     pub async fn find_subscription(

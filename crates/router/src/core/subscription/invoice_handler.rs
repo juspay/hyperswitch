@@ -89,11 +89,13 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
         payment_method_id: Option<Secret<String>>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: connector_enums::InvoiceStatus,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let update_invoice = hyperswitch_domain_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
+            payment_intent_id,
         );
         let key_manager_state = &(state).into();
         let merchant_key_store = state
@@ -309,5 +311,32 @@ impl InvoiceHandler {
             .await
             .attach_printable("invoices: unable to create invoice sync job in database")?;
         Ok(())
+    }
+
+    pub async fn create_mit_payment(
+        &self,
+        state: &SessionState,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+        payment_method_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let mit_payment_request = subscription_types::CreateMitPaymentRequestData {
+            amount,
+            currency,
+            confirm: true,
+            customer_id: Some(self.subscription.customer_id.clone()),
+            recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
+                payment_method_id.to_owned(),
+            )),
+            off_session: Some(true),
+        };
+
+        payments_api_client::PaymentsApiClient::create_mit_payment(
+            state,
+            mit_payment_request,
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
     }
 }

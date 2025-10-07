@@ -192,4 +192,27 @@ impl PaymentsApiClient {
         )
         .await
     }
+
+    pub async fn create_mit_payment(
+        state: &SessionState,
+        request: subscription_types::CreateMitPaymentRequestData,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments", base_url);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Create MIT Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
 }
