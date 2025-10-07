@@ -910,9 +910,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         let optional_transaction_status = match notif.transaction {
-            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                Some(data.status)
-            }
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 Some(data.status)
@@ -1074,6 +1072,17 @@ static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         novalnet_supported_payment_methods.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        novalnet_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
