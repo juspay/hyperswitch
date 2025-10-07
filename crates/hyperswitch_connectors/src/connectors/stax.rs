@@ -1111,3 +1111,71 @@ impl ConnectorSpecifications for Stax {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Stax;
+    use common_enums::enums::Currency;
+    use common_utils::types::MinorUnit;
+
+    #[test]
+    fn test_stax_amount_conversion_round_trip_usd() {
+        let stax = Stax::new();
+        let converter = stax.amount_converter();
+
+        let original_minor = MinorUnit::new(12_345); // $123.45
+        let major = crate::utils::convert_amount(converter, original_minor, Currency::USD)
+            .expect("conversion to FloatMajorUnit should succeed");
+        let back_minor = crate::utils::convert_back_amount_to_minor_units(
+            converter,
+            major,
+            Currency::USD,
+        )
+        .expect("conversion back to MinorUnit should succeed");
+
+        assert_eq!(back_minor, original_minor);
+    }
+
+    #[test]
+    fn test_stax_amount_conversion_round_trip_jpy_zero_decimal() {
+        let stax = Stax::new();
+        let converter = stax.amount_converter();
+
+        let original_minor = MinorUnit::new(123); // JPY has 0 decimals, so 123 stays 123
+        let major = crate::utils::convert_amount(converter, original_minor, Currency::JPY)
+            .expect("conversion to FloatMajorUnit should succeed");
+        let back_minor = crate::utils::convert_back_amount_to_minor_units(
+            converter,
+            major,
+            Currency::JPY,
+        )
+        .expect("conversion back to MinorUnit should succeed");
+
+        assert_eq!(back_minor, original_minor);
+    }
+
+    #[test]
+    fn test_stax_amount_conversion_round_trip_bhd_three_decimal() {
+        let stax = Stax::new();
+        let converter = stax.amount_converter();
+
+        let original_minor = MinorUnit::new(12_345); // BHD has 3 decimals, 12.345 BHD
+        let major = crate::utils::convert_amount(converter, original_minor, Currency::BHD)
+            .expect("conversion to FloatMajorUnit should succeed");
+        let back_minor = crate::utils::convert_back_amount_to_minor_units(
+            converter,
+            major,
+            Currency::BHD,
+        )
+        .expect("conversion back to MinorUnit should succeed");
+
+        assert_eq!(back_minor, original_minor);
+    }
+
+    #[test]
+    fn test_stax_currency_unit_is_base() {
+        let stax = Stax::new();
+        let unit = hyperswitch_interfaces::api::ConnectorCommon::get_currency_unit(stax);
+        assert!(matches!(unit, hyperswitch_interfaces::api::CurrencyUnit::Base));
+    }
+}
