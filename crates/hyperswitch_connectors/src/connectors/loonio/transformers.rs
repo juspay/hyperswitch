@@ -2,7 +2,13 @@ use std::collections::HashMap;
 
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    crypto::{HmacSha256, SignMessage},
+    id_type,
+    pii::Email,
+    request::Method,
+    types::FloatMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
@@ -20,7 +26,6 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData, RouterData as _},
 };
-use common_utils::crypto::{HmacSha256, SignMessage};
 pub struct LoonioRouterData<T> {
     pub amount: FloatMajorUnit,
     pub router_data: T,
