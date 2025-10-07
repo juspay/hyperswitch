@@ -1,11 +1,8 @@
-
 use common_utils::{
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
     pii::SecretSerdeValue,
-    types::{
-        keymanager::{self, KeyManagerState},
-    },
+    types::keymanager::{self, KeyManagerState},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use time::PrimitiveDateTime;
