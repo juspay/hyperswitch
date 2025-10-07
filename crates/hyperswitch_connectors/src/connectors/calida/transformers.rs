@@ -27,12 +27,12 @@ use crate::{
     utils::{self as connector_utils, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
-pub struct BluecodeRouterData<T> {
+pub struct CalidaRouterData<T> {
     pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(FloatMajorUnit, T)> for BluecodeRouterData<T> {
+impl<T> From<(FloatMajorUnit, T)> for CalidaRouterData<T> {
     fn from((amount, item): (FloatMajorUnit, T)) -> Self {
         Self {
             amount,
@@ -42,11 +42,11 @@ impl<T> From<(FloatMajorUnit, T)> for BluecodeRouterData<T> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct BluecodeMetadataObject {
+pub struct CalidaMetadataObject {
     pub shop_name: String,
 }
 
-impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for BluecodeMetadataObject {
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for CalidaMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
@@ -60,7 +60,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for BluecodeMetadataO
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub struct BluecodePaymentsRequest {
+pub struct CalidaPaymentsRequest {
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub payment_provider: String,
@@ -79,7 +79,7 @@ pub struct BluecodePaymentsRequest {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BluecodeCard {
+pub struct CalidaCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -87,41 +87,50 @@ pub struct BluecodeCard {
     complete: bool,
 }
 
-impl TryFrom<&BluecodeRouterData<&PaymentsAuthorizeRouterData>> for BluecodePaymentsRequest {
+impl TryFrom<&CalidaRouterData<&PaymentsAuthorizeRouterData>> for CalidaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
+        item: &CalidaRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.capture_method != Some(enums::CaptureMethod::Automatic) {
-            return Err(errors::ConnectorError::FlowNotSupported {
-                flow: format!("{:?}", item.router_data.request.capture_method),
-                connector: "Bluecode".to_string(),
+        match item.router_data.request.capture_method {
+            Some(enums::CaptureMethod::Manual)
+            | Some(enums::CaptureMethod::ManualMultiple)
+            | Some(enums::CaptureMethod::Scheduled)
+            | Some(enums::CaptureMethod::SequentialAutomatic) => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: format!("{:?}", item.router_data.request.capture_method),
+                    connector: "Calida".to_string(),
+                }
+                .into())
             }
-            .into());
-        }
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}) => {
-                let bluecode_mca_metadata =
-                    BluecodeMetadataObject::try_from(&item.router_data.connector_meta_data)?;
-                Self::try_from((item, &bluecode_mca_metadata))
+            Some(enums::CaptureMethod::Automatic) | None => {
+                match item.router_data.request.payment_method_data.clone() {
+                    PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}) => {
+                        let calida_mca_metadata =
+                            CalidaMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+                        Self::try_from((item, &calida_mca_metadata))
+                    }
+                    _ => Err(
+                        errors::ConnectorError::NotImplemented("Payment method".to_string()).into(),
+                    ),
+                }
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
 impl
     TryFrom<(
-        &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
-        &BluecodeMetadataObject,
-    )> for BluecodePaymentsRequest
+        &CalidaRouterData<&PaymentsAuthorizeRouterData>,
+        &CalidaMetadataObject,
+    )> for CalidaPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
         value: (
-            &BluecodeRouterData<&PaymentsAuthorizeRouterData>,
-            &BluecodeMetadataObject,
+            &CalidaRouterData<&PaymentsAuthorizeRouterData>,
+            &CalidaMetadataObject,
         ),
     ) -> Result<Self, Self::Error> {
         let item = value.0;
@@ -146,11 +155,11 @@ impl
     }
 }
 
-pub struct BluecodeAuthType {
+pub struct CalidaAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for BluecodeAuthType {
+impl TryFrom<&ConnectorAuthType> for CalidaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -162,42 +171,42 @@ impl TryFrom<&ConnectorAuthType> for BluecodeAuthType {
     }
 }
 
-impl From<BluecodePaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: BluecodePaymentStatus) -> Self {
+impl From<CalidaPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: CalidaPaymentStatus) -> Self {
         match item {
-            BluecodePaymentStatus::ManualProcessing => Self::Pending,
-            BluecodePaymentStatus::Pending | BluecodePaymentStatus::PaymentInitiated => {
+            CalidaPaymentStatus::ManualProcessing => Self::Pending,
+            CalidaPaymentStatus::Pending | CalidaPaymentStatus::PaymentInitiated => {
                 Self::AuthenticationPending
             }
-            BluecodePaymentStatus::Failed => Self::Failure,
-            BluecodePaymentStatus::Completed => Self::Charged,
+            CalidaPaymentStatus::Failed => Self::Failure,
+            CalidaPaymentStatus::Completed => Self::Charged,
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BluecodePaymentsResponse {
+pub struct CalidaPaymentsResponse {
     pub id: i64,
     pub order_id: String,
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub charged_amount: FloatMajorUnit,
     pub charged_currency: enums::Currency,
-    pub status: BluecodePaymentStatus,
+    pub status: CalidaPaymentStatus,
     pub payment_link: url::Url,
     pub etoken: Secret<String>,
     pub payment_request_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BluecodeSyncResponse {
+pub struct CalidaSyncResponse {
     pub id: Option<i64>,
     pub order_id: String,
     pub user_id: Option<i64>,
     pub customer_id: Option<String>,
     pub customer_email: Option<Email>,
     pub customer_phone: Option<String>,
-    pub status: BluecodePaymentStatus,
+    pub status: CalidaPaymentStatus,
     pub payment_provider: Option<String>,
     pub payment_connector: Option<String>,
     pub payment_method: Option<String>,
@@ -239,7 +248,7 @@ pub struct BluecodeSyncResponse {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BluecodePaymentStatus {
+pub enum CalidaPaymentStatus {
     Pending,
     PaymentInitiated,
     ManualProcessing,
@@ -247,12 +256,12 @@ pub enum BluecodePaymentStatus {
     Completed,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, CalidaPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, CalidaPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let url = item.response.payment_link.clone();
         let redirection_data = Some(RedirectForm::from((url, Method::Get)));
@@ -273,12 +282,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluecodePaymentsResponse, T, PaymentsRe
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, CalidaSyncResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, CalidaSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -289,13 +298,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluecodeSyncResponse, T, PaymentsRespon
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct BluecodeRefundRequest {
+pub struct CalidaRefundRequest {
     pub amount: FloatMajorUnit,
 }
 
-impl<F> TryFrom<&BluecodeRouterData<&RefundsRouterData<F>>> for BluecodeRefundRequest {
+impl<F> TryFrom<&CalidaRouterData<&RefundsRouterData<F>>> for CalidaRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &BluecodeRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &CalidaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -362,24 +371,24 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct BluecodeErrorResponse {
+pub struct CalidaErrorResponse {
     pub message: String,
     pub context_data: HashMap<String, Value>,
 }
 
-pub(crate) fn get_bluecode_webhook_event(
-    status: BluecodePaymentStatus,
+pub(crate) fn get_calida_webhook_event(
+    status: CalidaPaymentStatus,
 ) -> api_models::webhooks::IncomingWebhookEvent {
     match status {
-        BluecodePaymentStatus::Completed => {
+        CalidaPaymentStatus::Completed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
         }
-        BluecodePaymentStatus::PaymentInitiated
-        | BluecodePaymentStatus::ManualProcessing
-        | BluecodePaymentStatus::Pending => {
+        CalidaPaymentStatus::PaymentInitiated
+        | CalidaPaymentStatus::ManualProcessing
+        | CalidaPaymentStatus::Pending => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
         }
-        BluecodePaymentStatus::Failed => {
+        CalidaPaymentStatus::Failed => {
             api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
         }
     }
@@ -387,8 +396,8 @@ pub(crate) fn get_bluecode_webhook_event(
 
 pub(crate) fn get_webhook_object_from_body(
     body: &[u8],
-) -> CustomResult<BluecodeSyncResponse, common_utils::errors::ParsingError> {
-    let webhook: BluecodeSyncResponse = body.parse_struct("BluecodeIncomingWebhook")?;
+) -> CustomResult<CalidaSyncResponse, common_utils::errors::ParsingError> {
+    let webhook: CalidaSyncResponse = body.parse_struct("CalidaIncomingWebhook")?;
 
     Ok(webhook)
 }

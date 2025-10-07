@@ -364,7 +364,7 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
-[bluecode]
+[calida]
 api_key="EOrder Token"
 
 [peachpayments]
