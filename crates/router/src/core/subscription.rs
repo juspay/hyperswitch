@@ -4,7 +4,10 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, merchant_context::MerchantContext,
+    router_response_types::subscriptions as subscription_response_types,
+};
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -28,7 +31,7 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<SubscriptionResponse> {
+) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
     let profile =
@@ -147,15 +150,12 @@ pub async fn get_subscription_plans(
 }
 
 /// Creates and confirms a subscription in one operation.
-/// This method combines the creation and confirmation flow to reduce API calls
 pub async fn create_and_confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateAndConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
-    let subscription_id = common_utils::id_type::SubscriptionId::generate();
-
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
