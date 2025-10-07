@@ -75,6 +75,8 @@ pub enum NovalNetPaymentTypes {
     APPLEPAY,
     #[serde(rename = "DIRECT_DEBIT_SEPA")]
     DirectDebitSepa,
+    #[serde(rename = "GUARANTEED_DIRECT_DEBIT_SEPA")]
+    GuaranteedDirectDebitSepa,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -196,6 +198,9 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
             api_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             api_enums::PaymentMethodType::Sepa => Ok(Self::DirectDebitSepa),
+            api_enums::PaymentMethodType::SepaGuarenteedDebit => {
+                Ok(Self::GuaranteedDirectDebitSepa)
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Novalnet"),
             )
@@ -436,6 +441,17 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
 
                     let (iban, account_holder) = match bank_debit_data {
                         BankDebitData::SepaBankDebit {
+                            iban,
+                            bank_account_holder_name,
+                        } => {
+                            let account_holder = match bank_account_holder_name {
+                                Some(name) => name.clone(),
+                                None => item.router_data.get_billing_full_name()?,
+                            };
+
+                            (iban, account_holder)
+                        }
+                        BankDebitData::SepaGuarenteedBankDebit {
                             iban,
                             bank_account_holder_name,
                         } => {

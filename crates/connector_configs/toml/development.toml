@@ -3468,6 +3468,8 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   payment_method_type = "apple_pay"
 [[novalnet.bank_debit]]
   payment_method_type = "sepa"
+[[novalnet.bank_debit]]
+  payment_method_type = "sepa_guarenteed_debit"
 [novalnet.connector_auth.SignatureKey]
 api_key="Product Activation Key"
 key1="Payment Access Key"
