@@ -19,7 +19,7 @@ use crate::{
     core::{errors::StorageErrorExt, subscription::invoice_handler::InvoiceHandler},
     db::CustomResult,
     routes::SessionState,
-    types::domain,
+    types::{domain, transformers::ForeignTryFrom},
 };
 
 pub struct SubscriptionHandler<'a> {
@@ -227,26 +227,7 @@ impl SubscriptionWithHandler<'_> {
             price_id: None,
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
-            invoice: Some(subscription_types::Invoice {
-                id: invoice.id.clone(),
-                subscription_id: invoice.subscription_id.clone(),
-                merchant_id: invoice.merchant_id.clone(),
-                profile_id: invoice.profile_id.clone(),
-                merchant_connector_id: invoice.merchant_connector_id.clone(),
-                payment_intent_id: invoice.payment_intent_id.clone(),
-                payment_method_id: invoice.payment_method_id.clone(),
-                customer_id: invoice.customer_id.clone(),
-                amount: invoice.amount,
-                currency: api_enums::Currency::from_str(invoice.currency.as_str())
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "currency",
-                    })
-                    .attach_printable(format!(
-                        "unable to parse currency name {currency:?}",
-                        currency = invoice.currency
-                    ))?,
-                status: invoice.status.clone(),
-            }),
+            invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
         })
     }
 
@@ -269,26 +250,7 @@ impl SubscriptionWithHandler<'_> {
             invoice
                 .map(
                     |invoice| -> errors::RouterResult<subscription_types::Invoice> {
-                        Ok(subscription_types::Invoice {
-                            id: invoice.id.clone(),
-                            subscription_id: invoice.subscription_id.clone(),
-                            merchant_id: invoice.merchant_id.clone(),
-                            profile_id: invoice.profile_id.clone(),
-                            merchant_connector_id: invoice.merchant_connector_id.clone(),
-                            payment_intent_id: invoice.payment_intent_id.clone(),
-                            payment_method_id: invoice.payment_method_id.clone(),
-                            customer_id: invoice.customer_id.clone(),
-                            amount: invoice.amount,
-                            currency: api_enums::Currency::from_str(invoice.currency.as_str())
-                                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "currency",
-                                })
-                                .attach_printable(format!(
-                                    "unable to parse currency name {currency:?}",
-                                    currency = invoice.currency
-                                ))?,
-                            status: invoice.status.clone(),
-                        })
+                        Ok(subscription_types::Invoice::foreign_try_from(invoice)?)
                     },
                 )
                 .transpose()?,
@@ -398,5 +360,32 @@ impl SubscriptionWithHandler<'_> {
                 }
             }
         }
+    }
+}
+
+impl ForeignTryFrom<&diesel_models::invoice::Invoice> for subscription_types::Invoice {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(invoice: &diesel_models::invoice::Invoice) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: invoice.id.clone(),
+            subscription_id: invoice.subscription_id.clone(),
+            merchant_id: invoice.merchant_id.clone(),
+            profile_id: invoice.profile_id.clone(),
+            merchant_connector_id: invoice.merchant_connector_id.clone(),
+            payment_intent_id: invoice.payment_intent_id.clone(),
+            payment_method_id: invoice.payment_method_id.clone(),
+            customer_id: invoice.customer_id.clone(),
+            amount: invoice.amount,
+            currency: api_enums::Currency::from_str(invoice.currency.as_str())
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "currency",
+                })
+                .attach_printable(format!(
+                    "unable to parse currency name {currency:?}",
+                    currency = invoice.currency
+                ))?,
+            status: invoice.status.clone(),
+        })
     }
 }

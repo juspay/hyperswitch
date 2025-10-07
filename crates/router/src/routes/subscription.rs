@@ -132,7 +132,13 @@ pub async fn confirm_subscription(
                 subscription_id.clone(),
             )
         },
-        &*auth_type,
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionWrite,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -169,7 +175,13 @@ pub async fn get_subscription_plans(
             ));
             subscription::get_subscription_plans(state, merchant_context, profile_id.clone(), query)
         },
-        &*auth_type,
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -213,7 +225,13 @@ pub async fn get_subscription(
                 subscription_id.clone(),
             )
         },
-        &*auth_type,
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -246,10 +264,16 @@ pub async fn create_and_confirm_subscription(
                 payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionWrite,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
