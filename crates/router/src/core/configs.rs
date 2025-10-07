@@ -61,28 +61,26 @@ pub async fn get_config_bool(
     context: Option<ConfigContext>,
     default_value: bool,
 ) -> CustomResult<bool, errors::StorageError> {
-    let result = if let Some(ref superposition_client) = state.superposition_service {
+    // Try superposition first if available
+    let mut superposition_result = None;
+    if let Some(ref superposition_client) = state.superposition_service {
         match superposition_client
             .get_bool_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(value) => Ok(value),
+            Ok(value) => superposition_result = Some(value),
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
                     err
                 );
-                let config = state
-                    .store
-                    .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-                    .await?;
-
-                config
-                    .config
-                    .parse::<bool>()
-                    .change_context(errors::StorageError::DeserializationFailed)
             }
         }
+    }
+
+    // Use superposition result or fall back to database
+    let result = if let Some(value) = superposition_result {
+        Ok(value)
     } else {
         let config = state
             .store
@@ -106,25 +104,26 @@ pub async fn get_config_string(
     context: Option<ConfigContext>,
     default_value: String,
 ) -> CustomResult<String, errors::StorageError> {
-    let result = if let Some(ref superposition_client) = state.superposition_service {
+    // Try superposition first if available
+    let mut superposition_result = None;
+    if let Some(ref superposition_client) = state.superposition_service {
         match superposition_client
             .get_string_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(value) => Ok(value),
+            Ok(value) => superposition_result = Some(value),
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
                     err
                 );
-                let config = state
-                    .store
-                    .find_config_by_key_unwrap_or(db_key, Some(default_value))
-                    .await?;
-
-                Ok(config.config)
             }
         }
+    }
+
+    // Use superposition result or fall back to database
+    let result = if let Some(value) = superposition_result {
+        Ok(value)
     } else {
         let config = state
             .store
@@ -145,28 +144,26 @@ pub async fn get_config_int(
     context: Option<ConfigContext>,
     default_value: i64,
 ) -> CustomResult<i64, errors::StorageError> {
-    let result = if let Some(ref superposition_client) = state.superposition_service {
+    // Try superposition first if available
+    let mut superposition_result = None;
+    if let Some(ref superposition_client) = state.superposition_service {
         match superposition_client
             .get_int_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(value) => Ok(value),
+            Ok(value) => superposition_result = Some(value),
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
                     err
                 );
-                let config = state
-                    .store
-                    .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-                    .await?;
-
-                config
-                    .config
-                    .parse::<i64>()
-                    .change_context(errors::StorageError::DeserializationFailed)
             }
         }
+    }
+
+    // Use superposition result or fall back to database
+    let result = if let Some(value) = superposition_result {
+        Ok(value)
     } else {
         let config = state
             .store
@@ -190,28 +187,26 @@ pub async fn get_config_float(
     context: Option<ConfigContext>,
     default_value: f64,
 ) -> CustomResult<f64, errors::StorageError> {
-    let result = if let Some(ref superposition_client) = state.superposition_service {
+    // Try superposition first if available
+    let mut superposition_result = None;
+    if let Some(ref superposition_client) = state.superposition_service {
         match superposition_client
             .get_float_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(value) => Ok(value),
+            Ok(value) => superposition_result = Some(value),
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
                     err
                 );
-                let config = state
-                    .store
-                    .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-                    .await?;
-
-                config
-                    .config
-                    .parse::<f64>()
-                    .change_context(errors::StorageError::DeserializationFailed)
             }
         }
+    }
+
+    // Use superposition result or fall back to database
+    let result = if let Some(value) = superposition_result {
+        Ok(value)
     } else {
         let config = state
             .store
@@ -238,33 +233,31 @@ pub async fn get_config_object<T>(
 where
     T: serde::de::DeserializeOwned + serde::Serialize,
 {
-    let result = if let Some(ref superposition_client) = state.superposition_service {
+    // Try superposition first if available
+    let mut superposition_result = None;
+    if let Some(ref superposition_client) = state.superposition_service {
         match superposition_client
             .get_object_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(json_value) => serde_json::from_value::<T>(json_value)
-                .change_context(errors::StorageError::DeserializationFailed),
+            Ok(json_value) => {
+                superposition_result = Some(
+                    serde_json::from_value::<T>(json_value)
+                        .change_context(errors::StorageError::DeserializationFailed)
+                );
+            }
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
                     err
                 );
-                let config = state
-                    .store
-                    .find_config_by_key_unwrap_or(
-                        db_key,
-                        Some(
-                            serde_json::to_string(&default_value)
-                                .change_context(errors::StorageError::SerializationFailed)?,
-                        ),
-                    )
-                    .await?;
-
-                serde_json::from_str::<T>(&config.config)
-                    .change_context(errors::StorageError::DeserializationFailed)
             }
         }
+    }
+
+    // Use superposition result or fall back to database
+    let result = if let Some(superposition_result) = superposition_result {
+        superposition_result
     } else {
         let config = state
             .store
