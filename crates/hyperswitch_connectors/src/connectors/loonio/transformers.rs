@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "payouts")]
 use crate::types::PayoutsResponseRouterData;
 #[cfg(feature = "payouts")]
-use crate::utils::{CustomerDetails as _, RouterData as _};
+use crate::utils::RouterData as _;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, PaymentsAuthorizeRequestData},
