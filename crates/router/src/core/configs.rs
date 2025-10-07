@@ -243,7 +243,7 @@ where
             Ok(json_value) => {
                 superposition_result = Some(
                     serde_json::from_value::<T>(json_value)
-                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::StorageError::DeserializationFailed),
                 );
             }
             Err(err) => {
