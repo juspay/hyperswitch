@@ -5,6 +5,7 @@ use api_models::{
     subscription::{self as subscription_types, SubscriptionResponse, SubscriptionStatus},
 };
 use common_enums::connector_enums;
+use common_utils::{consts, ext_traits::OptionExt};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -14,24 +15,23 @@ use hyperswitch_domain_models::{
 use masking::Secret;
 
 use super::errors;
-use crate::{core::subscription::invoice_handler::InvoiceHandler, routes::SessionState};
+use crate::{
+    core::{errors::StorageErrorExt, subscription::invoice_handler::InvoiceHandler},
+    db::CustomResult,
+    routes::SessionState,
+    types::domain,
+};
 
 pub struct SubscriptionHandler<'a> {
     pub state: &'a SessionState,
     pub merchant_context: &'a MerchantContext,
-    pub profile: hyperswitch_domain_models::business_profile::Profile,
 }
 
 impl<'a> SubscriptionHandler<'a> {
-    pub fn new(
-        state: &'a SessionState,
-        merchant_context: &'a MerchantContext,
-        profile: hyperswitch_domain_models::business_profile::Profile,
-    ) -> Self {
+    pub fn new(state: &'a SessionState, merchant_context: &'a MerchantContext) -> Self {
         Self {
             state,
             merchant_context,
-            profile,
         }
     }
 
@@ -43,6 +43,7 @@ impl<'a> SubscriptionHandler<'a> {
         billing_processor: connector_enums::Connector,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         merchant_reference_id: Option<String>,
+        profile: &hyperswitch_domain_models::business_profile::Profile,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -61,7 +62,7 @@ impl<'a> SubscriptionHandler<'a> {
                 .clone(),
             customer_id.clone(),
             None,
-            self.profile.get_id().clone(),
+            profile.get_id().clone(),
             merchant_reference_id,
         );
 
@@ -76,7 +77,6 @@ impl<'a> SubscriptionHandler<'a> {
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription: new_subscription,
-            profile: self.profile.clone(),
             merchant_account: self.merchant_context.get_merchant_account().clone(),
         })
     }
@@ -123,6 +123,60 @@ impl<'a> SubscriptionHandler<'a> {
             })
     }
 
+    pub async fn find_and_validate_subscription(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+    ) -> errors::RouterResult<()> {
+        let subscription_id = client_secret.get_subscription_id()?;
+
+        let subscription = self
+            .state
+            .store
+            .find_by_merchant_id_subscription_id(
+                self.merchant_context.get_merchant_account().get_id(),
+                subscription_id.to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!("Subscription not found for id: {subscription_id}"),
+            })
+            .attach_printable("Unable to find subscription")?;
+
+        self.validate_client_secret(client_secret, &subscription)?;
+
+        Ok(())
+    }
+
+    pub fn validate_client_secret(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+        subscription: &diesel_models::subscription::Subscription,
+    ) -> errors::RouterResult<()> {
+        let stored_client_secret = subscription
+            .client_secret
+            .clone()
+            .get_required_value("client_secret")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "client_secret",
+            })
+            .attach_printable("client secret not found in db")?;
+
+        if client_secret.to_string() != stored_client_secret {
+            Err(errors::ApiErrorResponse::ClientSecretInvalid.into())
+        } else {
+            let current_timestamp = common_utils::date_time::now();
+            let session_expiry = subscription
+                .created_at
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+            if current_timestamp > session_expiry {
+                Err(errors::ApiErrorResponse::ClientSecretExpired.into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
     pub async fn find_subscription(
         &self,
         subscription_id: common_utils::id_type::SubscriptionId,
@@ -145,7 +199,6 @@ impl<'a> SubscriptionHandler<'a> {
         Ok(SubscriptionWithHandler {
             handler: self,
             subscription,
-            profile: self.profile.clone(),
             merchant_account: self.merchant_context.get_merchant_account().clone(),
         })
     }
@@ -153,7 +206,6 @@ impl<'a> SubscriptionHandler<'a> {
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler<'a>,
     pub subscription: diesel_models::subscription::Subscription,
-    pub profile: hyperswitch_domain_models::business_profile::Profile,
     pub merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
 }
 
@@ -237,11 +289,83 @@ impl SubscriptionWithHandler<'_> {
         Ok(())
     }
 
-    pub fn get_invoice_handler(&self) -> InvoiceHandler {
+    pub fn get_invoice_handler(
+        &self,
+        profile: hyperswitch_domain_models::business_profile::Profile,
+    ) -> InvoiceHandler {
         InvoiceHandler {
             subscription: self.subscription.clone(),
             merchant_account: self.merchant_account.clone(),
-            profile: self.profile.clone(),
+            profile,
+        }
+    }
+    pub async fn get_mca(
+        &mut self,
+        connector_name: &str,
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
+        let db = self.handler.state.store.as_ref();
+        let key_manager_state = &(self.handler.state).into();
+
+        match &self.subscription.merchant_connector_id {
+            Some(merchant_connector_id) => {
+                #[cfg(feature = "v1")]
+                {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        key_manager_state,
+                        self.handler
+                            .merchant_context
+                            .get_merchant_account()
+                            .get_id(),
+                        merchant_connector_id,
+                        self.handler.merchant_context.get_merchant_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.get_string_repr().to_string(),
+                        },
+                    )
+                }
+                #[cfg(feature = "v2")]
+                {
+                    //get mca using id
+                    let _ = key_manager_state;
+                    let _ = connector_name;
+                    let _ = merchant_context.get_merchant_key_store();
+                    let _ = subscription.profile_id;
+                    todo!()
+                }
+            }
+            None => {
+                // Fallback to profile-based lookup when merchant_connector_id is not set
+                #[cfg(feature = "v1")]
+                {
+                    db.find_merchant_connector_account_by_profile_id_connector_name(
+                        key_manager_state,
+                        &self.subscription.profile_id,
+                        connector_name,
+                        self.handler.merchant_context.get_merchant_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {connector_name}",
+                                self.subscription.profile_id.get_string_repr()
+                            ),
+                        },
+                    )
+                }
+                #[cfg(feature = "v2")]
+                {
+                    //get mca using id
+                    let _ = key_manager_state;
+                    let _ = connector_name;
+                    let _ = self.handler.merchant_context.get_merchant_key_store();
+                    let _ = self.subscription.profile_id;
+                    todo!()
+                }
+            }
         }
     }
 }

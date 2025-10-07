@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 pub use ui::*;
 use utoipa::ToSchema;
 
-pub use super::connector_enums::RoutableConnectors;
+pub use super::connector_enums::{InvoiceStatus, RoutableConnectors};
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
@@ -9434,6 +9434,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    InvoiceSyncflow,
 }
 
 #[derive(Debug)]
@@ -9596,4 +9597,24 @@ pub enum GooglePayCardFundingSource {
     Prepaid,
     #[serde(other)]
     Unknown,
+}
+
+impl From<IntentStatus> for InvoiceStatus {
+    fn from(value: IntentStatus) -> Self {
+        match value {
+            IntentStatus::Succeeded => Self::InvoicePaid,
+            IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyCaptured
+            | IntentStatus::PartiallyCapturedAndCapturable
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | IntentStatus::Processing
+            | IntentStatus::RequiresCustomerAction
+            | IntentStatus::RequiresConfirmation
+            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            IntentStatus::RequiresMerchantAction => Self::ManualReview,
+            IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
+            IntentStatus::Expired => Self::PaymentPendingTimeout,
+            IntentStatus::Failed | IntentStatus::Conflicted => Self::PaymentFailed,
+        }
+    }
 }
