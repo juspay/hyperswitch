@@ -1610,6 +1610,19 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Trustpayments,
             fields(vec![], vec![], card_basic()),
         ),
+        (
+            Connector::Tesouro,
+            fields(
+                vec![],
+                vec![],
+                vec![
+                    RequiredField::CardNumber,
+                    RequiredField::CardExpMonth,
+                    RequiredField::CardExpYear,
+                    RequiredField::CardCvc,
+                ],
+            ),
+        ),
         (Connector::Tsys, fields(vec![], card_basic(), vec![])),
         (
             Connector::Wellsfargo,
@@ -2310,10 +2323,37 @@ fn get_bank_redirect_required_fields(
         ),
         (
             enums::PaymentMethodType::Interac,
-            connectors(vec![(
-                Connector::Paysafe,
-                fields(vec![], vec![RequiredField::BillingEmail], vec![]),
-            )]),
+            connectors(vec![
+                (
+                    Connector::Paysafe,
+                    fields(vec![], vec![RequiredField::BillingEmail], vec![]),
+                ),
+                (
+                    Connector::Gigadat,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingEmail,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                            RequiredField::BillingPhone,
+                        ],
+                        vec![],
+                    ),
+                ),
+                (
+                    Connector::Loonio,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingEmail,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                        ],
+                        vec![],
+                    ),
+                ),
+            ]),
         ),
     ])
 }
@@ -2392,6 +2432,17 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 (
                     Connector::Novalnet,
                     fields(vec![], vec![], vec![RequiredField::BillingEmail]),
+                ),
+                (
+                    Connector::Paysafe,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingAddressZip.to_tuple(),
+                            RequiredField::BillingAddressCountries(vec!["ALL"]).to_tuple(),
+                        ]),
+                    },
                 ),
                 (
                     Connector::Wellsfargo,

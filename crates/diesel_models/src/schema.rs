@@ -257,6 +257,10 @@ diesel::table! {
         dispute_polling_interval -> Nullable<Int4>,
         is_manual_retry_enabled -> Nullable<Bool>,
         always_enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        billing_processor_id -> Nullable<Varchar>,
+        is_external_vault_enabled -> Nullable<Bool>,
+        external_vault_connector_details -> Nullable<Jsonb>,
     }
 }
 
@@ -719,6 +723,40 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    invoice (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 128]
+        subscription_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 128]
+        merchant_connector_id -> Varchar,
+        #[max_length = 64]
+        payment_intent_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        amount -> Int8,
+        #[max_length = 3]
+        currency -> Varchar,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 128]
+        provider_name -> Varchar,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (card_id) {
         #[max_length = 255]
         card_id -> Varchar,
@@ -1045,6 +1083,8 @@ diesel::table! {
         network_transaction_id -> Nullable<Varchar>,
         is_overcapture_enabled -> Nullable<Bool>,
         network_details -> Nullable<Jsonb>,
+        is_stored_credential -> Nullable<Bool>,
+        authorized_amount -> Nullable<Int8>,
     }
 }
 
@@ -1149,6 +1189,8 @@ diesel::table! {
         order_date -> Nullable<Timestamp>,
         enable_partial_authorization -> Nullable<Bool>,
         enable_overcapture -> Nullable<Bool>,
+        #[max_length = 64]
+        mit_category -> Nullable<Varchar>,
     }
 }
 
@@ -1240,6 +1282,10 @@ diesel::table! {
         #[max_length = 64]
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        external_vault_source -> Nullable<Varchar>,
+        #[max_length = 64]
+        vault_type -> Nullable<Varchar>,
     }
 }
 
@@ -1730,6 +1776,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     hyperswitch_ai_interaction,
     hyperswitch_ai_interaction_default,
     incremental_authorization,
+    invoice,
     locker_mock_up,
     mandate,
     merchant_account,

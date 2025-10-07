@@ -2904,6 +2904,29 @@ pub enum SplitTxnsEnabled {
     Skip,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ActiveAttemptIDType {
+    AttemptsGroupID,
+    #[default]
+    AttemptID,
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, strum::Display, ToSchema,)]
 #[rustfmt::skip]
 pub enum CountryAlpha3 {
@@ -9335,6 +9358,33 @@ pub enum TriggeredBy {
     Copy,
     Debug,
     Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum MitCategory {
+    /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
+    Installment,
+    /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
+    Unscheduled,
+    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    Recurring,
+    /// A retried MIT after a previous transaction failed or was declined.
+    Resubmission,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -9384,6 +9434,7 @@ pub enum ProcessTrackerRunner {
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
+    InvoiceSyncflow,
 }
 
 #[derive(Debug)]
@@ -9464,9 +9515,8 @@ impl RoutingApproach {
     pub fn from_decision_engine_approach(approach: &str) -> Self {
         match approach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
-            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "SR_V3_HEDGING" | "DEFAULT" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
-            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }
@@ -9490,4 +9540,61 @@ impl RoutingApproach {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CallbackMapperIdType {
     NetworkTokenRequestorReferenceID,
+}
+
+/// Payment Method Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum VaultType {
+    /// Indicates that the payment method is stored in internal vault.
+    Internal,
+    /// Indicates that the payment method is stored in external vault.
+    External,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ExternalVaultEnabled {
+    Enable,
+    #[default]
+    Skip,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum GooglePayCardFundingSource {
+    Credit,
+    Debit,
+    Prepaid,
+    #[serde(other)]
+    Unknown,
 }

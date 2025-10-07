@@ -233,7 +233,7 @@ impl SessionStateInfo for SessionState {
     fn session_state(&self) -> SessionState {
         self.clone()
     }
-    fn global_store(&self) -> Box<(dyn GlobalStorageInterface)> {
+    fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
     }
 }
@@ -743,7 +743,8 @@ impl Payments {
                 .service(
                     web::resource("/check-gift-card-balance")
                         .route(web::post().to(payments::payment_check_gift_card_balance)),
-                ),
+                )
+                .service(web::resource("/cancel").route(web::post().to(payments::payments_cancel))),
         );
 
         route
@@ -1173,13 +1174,33 @@ pub struct Subscription;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Subscription {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/subscription/create")
-            .app_data(web::Data::new(state.clone()))
-            .service(web::resource("").route(
+        let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
+
+        route
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
+            )
+            .service(web::resource("/create").route(
                 web::post().to(|state, req, payload| {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(
+                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+            )
+            .service(
+                web::resource("/{subscription_id}/confirm").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::confirm_subscription(state, req, id, payload)
+                    },
+                )),
+            )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
+            )
     }
 }
 
@@ -2943,8 +2964,16 @@ impl ProcessTracker {
         web::scope("/v2/process-trackers/revenue-recovery-workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/resume")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_resume_api)),
+                    ),
             )
     }
 }
@@ -2966,9 +2995,12 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("{merchant_id}/{authentication_id}/redirect")
+                    .route(web::post().to(authentication::authentication_sync_post_update)),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
-                    .route(web::post().to(authentication::authentication_sync))
-                    .route(web::get().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync)),
             )
     }
 }
@@ -3007,6 +3039,16 @@ impl RecoveryDataBackfill {
             .service(web::resource("/status/{token_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
+            .service(web::resource("/redis-data/{token_id}").route(
+                web::get().to(
+                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
+                ),
+            ))
+            .service(web::resource("/update-token").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
     }
