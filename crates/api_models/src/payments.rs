@@ -4992,6 +4992,9 @@ pub struct PaymentsCancelResponse {
     /// The url to which user must be redirected to after completion of the purchase
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
+
+    /// Error details for the payment
+    pub error: Option<ErrorDetails>,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -6284,6 +6287,8 @@ pub struct ErrorDetails {
     pub code: String,
     /// The error message
     pub message: String,
+    /// The detailed error reason that was returned by the connector.
+    pub reason: Option<String>,
     /// The unified error code across all connectors.
     /// This can be relied upon for taking decisions based on the error.
     pub unified_code: Option<String>,
