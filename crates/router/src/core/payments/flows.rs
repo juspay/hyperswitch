@@ -50,6 +50,8 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     #[cfg(feature = "v2")]
