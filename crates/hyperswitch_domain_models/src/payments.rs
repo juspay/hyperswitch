@@ -879,7 +879,7 @@ pub struct ClickToPayMetaData {
 
 // TODO: uncomment fields as necessary
 #[cfg(feature = "v2")]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, serde::Serialize)]
 pub struct HeaderPayload {
     /// The source with which the payment is confirmed.
     pub payment_confirm_source: Option<common_enums::PaymentSource>,

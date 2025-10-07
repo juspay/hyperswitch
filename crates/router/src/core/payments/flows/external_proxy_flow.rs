@@ -411,7 +411,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .flatten()
             .map(ucs_types::UcsReferenceId::Payment);
         let headers_builder = state
-            .get_grpc_headers_ucs()
+            .get_grpc_headers_ucs(false)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_order_reference_id)
             .lineage_ids(lineage_ids);

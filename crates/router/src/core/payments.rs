@@ -2674,7 +2674,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
 where
     F: Send + Clone + Sync,
     Req: Send + Sync + Authenticate,
-    FData: Send + Sync + Clone,
+    FData: Send + Sync + Clone + serde::Serialize,
     Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,
     D: OperationSessionGetters<F>
@@ -4934,46 +4934,61 @@ where
     )
     .await?;
 
-    let (connector_request, should_continue_further) = if !should_call_unified_connector_service {
-        let mut should_continue_further = true;
+    // Early return for shadow UCS - not implemented in v2
+    if matches!(
+        should_call_unified_connector_service,
+        GatewaySystem::ShadowUnifiedConnectorService
+    ) {
+        router_env::logger::info!(
+            "Shadow UCS mode not implemented in v2 - payment_id={}, attempt_id={}",
+            payment_data.get_payment_intent().id.get_string_repr(),
+            payment_data.get_payment_attempt().id.get_string_repr()
+        );
+        return Ok(router_data);
+    }
 
-        let should_continue = match router_data
-            .create_order_at_connector(state, &connector, should_continue_further)
-            .await?
-        {
-            Some(create_order_response) => {
-                if let Ok(order_id) = create_order_response.clone().create_order_result {
-                    payment_data.set_connector_response_reference_id(Some(order_id))
+    let (connector_request, should_continue_further) =
+        if matches!(should_call_unified_connector_service, GatewaySystem::Direct) {
+            let mut should_continue_further = true;
+
+            let should_continue = match router_data
+                .create_order_at_connector(state, &connector, should_continue_further)
+                .await?
+            {
+                Some(create_order_response) => {
+                    if let Ok(order_id) = create_order_response.clone().create_order_result {
+                        payment_data.set_connector_response_reference_id(Some(order_id))
+                    }
+
+                    // Set the response in routerdata response to carry forward
+                    router_data.update_router_data_with_create_order_response(
+                        create_order_response.clone(),
+                    );
+                    create_order_response.create_order_result.ok().map(|_| ())
                 }
+                // If create order is not required, then we can proceed with further processing
+                None => Some(()),
+            };
 
-                // Set the response in routerdata response to carry forward
-                router_data
-                    .update_router_data_with_create_order_response(create_order_response.clone());
-                create_order_response.create_order_result.ok().map(|_| ())
-            }
-            // If create order is not required, then we can proceed with further processing
-            None => Some(()),
+            let should_continue: (Option<common_utils::request::Request>, bool) =
+                match should_continue {
+                    Some(_) => {
+                        router_data
+                            .build_flow_specific_connector_request(
+                                state,
+                                &connector,
+                                call_connector_action.clone(),
+                            )
+                            .await?
+                    }
+                    None => (None, false),
+                };
+            should_continue
+        } else {
+            // If unified connector service is called, these values are not used
+            // as the request is built in the unified connector service call
+            (None, false)
         };
-
-        let should_continue: (Option<common_utils::request::Request>, bool) = match should_continue
-        {
-            Some(_) => {
-                router_data
-                    .build_flow_specific_connector_request(
-                        state,
-                        &connector,
-                        call_connector_action.clone(),
-                    )
-                    .await?
-            }
-            None => (None, false),
-        };
-        should_continue
-    } else {
-        // If unified connector service is called, these values are not used
-        // as the request is built in the unified connector service call
-        (None, false)
-    };
 
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -4991,7 +5006,7 @@ where
         .await?;
 
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service {
+        if matches!(should_call_unified_connector_service, GatewaySystem::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5006,6 +5021,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    false, // not shadow mode
                 )
                 .await?;
 
@@ -5057,14 +5073,23 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        if should_call_unified_connector_service(
+        let execution = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
         )
-        .await?
-        {
+        .await?;
+        if matches!(execution, GatewaySystem::ShadowUnifiedConnectorService) {
+            router_env::logger::info!(
+                "Shadow UCS mode not implemented in v2 - payment_id={}, attempt_id={}",
+                payment_data.get_payment_intent().id.get_string_repr(),
+                payment_data.get_payment_attempt().id.get_string_repr()
+            );
+            return Ok(router_data);
+        }
+
+        if matches!(execution, GatewaySystem::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5109,6 +5134,7 @@ where
                     lineage_ids,
                     merchant_connector_account_type_details.clone(),
                     merchant_context,
+                    false,
                 )
                 .await?;
 

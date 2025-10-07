@@ -4,12 +4,12 @@ use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
+#[cfg(feature = "v2")]
+use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    request::{Method, Request, RequestContent},
-};
-use common_utils::{
-    errors::CustomResult, 
+    errors::CustomResult,
     ext_traits::ValueExt,
+    request::{Method, Request, RequestContent},
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -952,11 +952,15 @@ pub async fn send_comparison_data(
     comparison_data: ComparisonData,
 ) -> RouterResult<()> {
     // Check if comparison service is enabled
-    let enabled = state.conf.comparison_service
+    let enabled = state
+        .conf
+        .comparison_service
         .as_ref()
         .map(|config| config.enabled)
         .unwrap_or_else(|| {
-            tracing::warn!("Comparison service configuration missing, skipping comparison data send");
+            tracing::warn!(
+                "Comparison service configuration missing, skipping comparison data send"
+            );
             false
         });
 
@@ -965,7 +969,12 @@ pub async fn send_comparison_data(
     }
 
     // Construct request
-    let url = match state.conf.comparison_service.as_ref().map(|config| &config.url) {
+    let url = match state
+        .conf
+        .comparison_service
+        .as_ref()
+        .map(|config| &config.url)
+    {
         Some(url) => url,
         None => {
             tracing::warn!("Comparison service URL missing, skipping comparison data send");
@@ -984,7 +993,9 @@ pub async fn send_comparison_data(
     request.set_body(RequestContent::Json(Box::new(comparison_data)));
 
     // Send with configurable timeout - don't block payment flow
-    let timeout = state.conf.comparison_service
+    let timeout = state
+        .conf
+        .comparison_service
         .as_ref()
         .and_then(|config| config.timeout_secs)
         .unwrap_or(2);
