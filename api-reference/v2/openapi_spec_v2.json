@@ -5033,7 +5033,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -12498,7 +12504,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",

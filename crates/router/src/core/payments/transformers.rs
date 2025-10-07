@@ -135,6 +135,7 @@ where
         attempt_id: payment_data.payment_attempt.get_id().to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: None,
         address: payment_data.address.clone(),
@@ -468,6 +469,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -816,6 +818,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -949,6 +952,7 @@ pub async fn construct_router_data_for_psync<'a>(
         attempt_id: attempt.get_id().get_string_repr().to_owned(),
         status: attempt.status,
         payment_method: attempt.payment_method_type,
+        payment_method_type: Some(attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_intent
             .description
@@ -1245,6 +1249,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     let apple_pay_recurring_details = payment_data
         .payment_intent
         .feature_metadata
+        .clone()
         .and_then(|feature_metadata| feature_metadata.apple_pay_recurring_details)
         .map(|apple_pay_recurring_details| {
             ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
@@ -1256,6 +1261,10 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .tax_details
         .clone()
         .and_then(|tax| tax.get_default_tax_amount());
+
+    let payment_attempt = payment_data.get_payment_attempt();
+    let payment_method = Some(payment_attempt.payment_method_type);
+    let payment_method_type = Some(payment_attempt.payment_method_subtype);
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
@@ -1285,6 +1294,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         metadata: payment_data.payment_intent.metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        payment_method,
+        payment_method_type,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1301,6 +1312,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Started,
         payment_method: enums::PaymentMethod::Wallet,
+        payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -1531,6 +1543,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -1601,6 +1614,8 @@ pub async fn construct_payment_router_data<'a, F, T>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    payment_method: Option<common_enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -1609,8 +1624,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    let (payment_method, router_data);
-
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
@@ -1623,11 +1636,16 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    payment_method = payment_data
+    let payment_method = payment_data
         .payment_attempt
         .payment_method
-        .or(payment_data.payment_attempt.payment_method)
-        .get_required_value("payment_method_type")?;
+        .or(payment_method)
+        .get_required_value("payment_method")?;
+
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method_type
+        .or(payment_method_type);
 
     let resource_id = match payment_data
         .payment_attempt
@@ -1781,7 +1799,7 @@ where
     });
     crate::logger::debug!("unified address details {:?}", unified_address);
 
-    router_data = types::RouterData {
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
         customer_id,
@@ -1795,6 +1813,7 @@ where
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,
@@ -1992,6 +2011,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: payment_data.payment_attempt.payment_method_type,
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         address: unified_address,
@@ -5199,6 +5219,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             metadata: payment_data.payment_intent.metadata,
             order_tax_amount,
             shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+            payment_method: Some(payment_data.payment_attempt.payment_method_type),
+            payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         })
     }
 }
@@ -5302,6 +5324,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_tax_amount,
             shipping_cost,
             metadata,
+            payment_method: payment_data.payment_attempt.payment_method,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
