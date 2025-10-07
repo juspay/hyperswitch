@@ -8,17 +8,20 @@ use std::collections::HashMap;
 use common_utils::errors::CustomResult;
 use error_stack::report;
 use masking::ExposeInterface;
-use superposition_provider;
 
-fn convert_open_feature_value(v: open_feature::Value) -> Result<serde_json::Value, String> {
-    match v {
+pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
+
+fn convert_open_feature_value(
+    value: open_feature::Value,
+) -> Result<serde_json::Value, String> {
+    match value {
         open_feature::Value::String(s) => Ok(serde_json::Value::String(s)),
         open_feature::Value::Bool(b) => Ok(serde_json::Value::Bool(b)),
         open_feature::Value::Int(n) => Ok(serde_json::Value::Number(serde_json::Number::from(n))),
         open_feature::Value::Float(f) => serde_json::Number::from_f64(f)
             .map(serde_json::Value::Number)
             .ok_or_else(|| format!("Invalid number: {f}")),
-        open_feature::Value::Struct(sv) => Ok(types::JsonValue::try_from(sv)?.0),
+        open_feature::Value::Struct(sv) => Ok(types::JsonValue::try_from(sv)?.into_inner()),
         open_feature::Value::Array(values) => Ok(serde_json::Value::Array(
             values
                 .into_iter()
@@ -37,9 +40,7 @@ pub struct SuperpositionClient {
 
 impl SuperpositionClient {
     /// Create a new Superposition client
-    pub async fn new(
-        config: types::SuperpositionClientConfig,
-    ) -> CustomResult<Self, types::SuperpositionError> {
+    pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
         let provider_options = superposition_provider::SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
             token: config.token.expose(),
@@ -74,7 +75,7 @@ impl SuperpositionClient {
     /// Build evaluation context for Superposition requests
     fn build_evaluation_context(
         &self,
-        context: Option<&types::ConfigContext>,
+        context: Option<&ConfigContext>,
     ) -> open_feature::EvaluationContext {
         open_feature::EvaluationContext {
             custom_fields: context.map_or(HashMap::new(), |ctx| {
@@ -96,15 +97,15 @@ impl SuperpositionClient {
     pub async fn get_bool_value(
         &self,
         key: &str,
-        context: Option<&types::ConfigContext>,
-    ) -> CustomResult<bool, types::SuperpositionError> {
+        context: Option<&ConfigContext>,
+    ) -> CustomResult<bool, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context);
 
         self.client
             .get_bool_value(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
-                report!(types::SuperpositionError::ClientError(format!(
+                report!(SuperpositionError::ClientError(format!(
                     "Failed to get bool value for key '{key}': {e:?}"
                 )))
             })
@@ -114,15 +115,15 @@ impl SuperpositionClient {
     pub async fn get_string_value(
         &self,
         key: &str,
-        context: Option<&types::ConfigContext>,
-    ) -> CustomResult<String, types::SuperpositionError> {
+        context: Option<&ConfigContext>,
+    ) -> CustomResult<String, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context);
 
         self.client
             .get_string_value(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
-                report!(types::SuperpositionError::ClientError(format!(
+                report!(SuperpositionError::ClientError(format!(
                     "Failed to get string value for key '{key}': {e:?}"
                 )))
             })
@@ -132,15 +133,15 @@ impl SuperpositionClient {
     pub async fn get_int_value(
         &self,
         key: &str,
-        context: Option<&types::ConfigContext>,
-    ) -> CustomResult<i64, types::SuperpositionError> {
+        context: Option<&ConfigContext>,
+    ) -> CustomResult<i64, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context);
 
         self.client
             .get_int_value(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
-                report!(types::SuperpositionError::ClientError(format!(
+                report!(SuperpositionError::ClientError(format!(
                     "Failed to get int value for key '{key}': {e:?}"
                 )))
             })
@@ -150,15 +151,15 @@ impl SuperpositionClient {
     pub async fn get_float_value(
         &self,
         key: &str,
-        context: Option<&types::ConfigContext>,
-    ) -> CustomResult<f64, types::SuperpositionError> {
+        context: Option<&ConfigContext>,
+    ) -> CustomResult<f64, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context);
 
         self.client
             .get_float_value(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
-                report!(types::SuperpositionError::ClientError(format!(
+                report!(SuperpositionError::ClientError(format!(
                     "Failed to get float value for key '{key}': {e:?}"
                 )))
             })
@@ -168,8 +169,8 @@ impl SuperpositionClient {
     pub async fn get_object_value(
         &self,
         key: &str,
-        context: Option<&types::ConfigContext>,
-    ) -> CustomResult<serde_json::Value, types::SuperpositionError> {
+        context: Option<&ConfigContext>,
+    ) -> CustomResult<serde_json::Value, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context);
 
         let json_result = self
@@ -177,11 +178,11 @@ impl SuperpositionClient {
             .get_struct_value::<types::JsonValue>(key, Some(&evaluation_context), None)
             .await
             .map_err(|e| {
-                report!(types::SuperpositionError::ClientError(format!(
+                report!(SuperpositionError::ClientError(format!(
                     "Failed to get object value for key '{key}': {e:?}"
                 )))
             })?;
 
-        Ok(json_result.0)
+        Ok(json_result.into_inner())
     }
 }

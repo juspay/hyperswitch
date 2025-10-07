@@ -7,7 +7,14 @@ use masking::{ExposeInterface, Secret};
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
-pub struct JsonValue(pub(crate) serde_json::Value);
+pub struct JsonValue(serde_json::Value);
+
+impl JsonValue {
+    /// Consume the wrapper and return the inner JSON value
+    pub(super) fn into_inner(self) -> serde_json::Value {
+        self.0
+    }
+}
 
 impl TryFrom<open_feature::StructValue> for JsonValue {
     type Error = String;
