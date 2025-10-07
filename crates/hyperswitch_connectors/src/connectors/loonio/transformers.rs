@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use api_models::webhooks;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{BankRedirect, PayoutMethodData};
+use api_models::webhooks;
 use common_enums::{enums, Currency};
 use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
