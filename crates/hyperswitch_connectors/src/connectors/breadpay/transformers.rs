@@ -169,6 +169,11 @@ pub struct BreadpayTransactionResponse {
     status: TransactionStatus,
     bread_transactin_id: String,
     merchant_order_id: String,
+    // Optional fields to support integrity checks when provided by connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<enums::Currency>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -304,6 +309,11 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    // Optional fields to support integrity checks when provided by connector
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<enums::Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
