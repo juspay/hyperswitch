@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
-use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, AuthenticationType};
 use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
-use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
@@ -547,13 +545,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        // For UPI intent, store the URI in connector_metadata for fetch QR code pattern
-                        let qr_code_fetch_info = api_models::payments::FetchQrCodeInformation {
-                            qr_code_fetch_url: Url::parse(&uri.uri)
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUriInformation {
+                            sdk_uri: Url::parse(&uri.uri)
                                 .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                         };
                         (
-                            Some(qr_code_fetch_info.encode_to_value())
+                            Some(sdk_uri_info.encode_to_value())
                                 .transpose()
                                 .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                             None,

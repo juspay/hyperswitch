@@ -5060,6 +5060,11 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         qr_code_fetch_url: Url,
     },
+    /// Contains the SDK UPI intent URI for payment processing
+    SdkUpiIntentInformation {
+        #[schema(value_type = String)]
+        sdk_uri: Url,
+    },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
@@ -5193,6 +5198,16 @@ pub struct SdkNextActionData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct FetchQrCodeInformation {
     pub qr_code_fetch_url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SdkUriInformation {
+    pub sdk_uri: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SdkUpiIntentInformation {
+    pub sdk_uri_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
