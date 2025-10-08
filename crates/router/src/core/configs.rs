@@ -247,12 +247,10 @@ where
             .get_object_value(superposition_key, context.as_ref())
             .await
         {
-            Ok(json_value) => {
-                Some(
-                    serde_json::from_value::<T>(json_value)
-                        .change_context(errors::StorageError::DeserializationFailed)
-                )
-            }
+            Ok(json_value) => Some(
+                serde_json::from_value::<T>(json_value)
+                    .change_context(errors::StorageError::DeserializationFailed),
+            ),
             Err(err) => {
                 router_env::logger::warn!(
                     "Failed to retrieve config from superposition, falling back to database: {:?}",
