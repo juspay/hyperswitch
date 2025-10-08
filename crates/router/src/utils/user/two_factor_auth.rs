@@ -20,6 +20,14 @@ pub fn generate_default_totp(
         .to_bytes()
         .change_context(UserErrors::InternalServerError)?;
 
+    // SECURITY NOTE: SHA-1 is deprecated for cryptographic purposes but is still widely used
+    // for TOTP/HOTP due to RFC 6238 compatibility and authenticator app support.
+    // While SHA-256 and SHA-512 are available, they have limited support in authenticator apps.
+    // SHA-1 in TOTP context is considered acceptable because:
+    // 1. TOTP codes are time-limited (typically 30-60 seconds)
+    // 2. TOTP is used as a second factor, not primary authentication
+    // 3. The hash is used for HMAC, not direct collision attacks
+    // TODO: Consider migration to SHA-256 when broader authenticator support is available
     TOTP::new(
         Algorithm::SHA1,
         consts::user::TOTP_DIGITS,
