@@ -184,9 +184,9 @@ pub trait InvoiceInterface {
 pub struct InvoiceUpdate {
     pub status: Option<common_enums::connector_enums::InvoiceStatus>,
     pub payment_method_id: Option<String>,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
-    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for InvoiceUpdate {
@@ -197,9 +197,9 @@ impl super::behaviour::Conversion for InvoiceUpdate {
         Ok(diesel_models::invoice::InvoiceUpdate {
             status: self.status,
             payment_method_id: self.payment_method_id,
+            connector_invoice_id: self.connector_invoice_id,
             modified_at: self.modified_at,
             payment_intent_id: self.payment_intent_id,
-            connector_invoice_id: self.connector_invoice_id,
         })
     }
 
@@ -215,9 +215,9 @@ impl super::behaviour::Conversion for InvoiceUpdate {
         Ok(Self {
             status: item.status,
             payment_method_id: item.payment_method_id,
+            connector_invoice_id: item.connector_invoice_id,
             modified_at: item.modified_at,
             payment_intent_id: item.payment_intent_id,
-            connector_invoice_id: item.connector_invoice_id,
         })
     }
 
@@ -225,9 +225,9 @@ impl super::behaviour::Conversion for InvoiceUpdate {
         Ok(diesel_models::invoice::InvoiceUpdate {
             status: self.status,
             payment_method_id: self.payment_method_id,
+            connector_invoice_id: self.connector_invoice_id,
             modified_at: self.modified_at,
             payment_intent_id: self.payment_intent_id,
-            connector_invoice_id: self.connector_invoice_id,
         })
     }
 }
