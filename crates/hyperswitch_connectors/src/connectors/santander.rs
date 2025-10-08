@@ -443,7 +443,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         Some(api_models::payments::PixQRExpirationDuration::Scheduled(
                             _scheduled,
                         )) => Ok(format!(
-                            "{}cobv/{}",
+                            "{}api/v1/cobv/{}",
                             self.base_url(connectors),
                             req.payment_id
                         )),

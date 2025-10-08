@@ -8731,6 +8731,7 @@ pub struct PixAdditionalDetails {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(untagged)]
 pub enum PixQRExpirationDuration {
     Immediate(ImmediateExpirationTime),
     Scheduled(ScheduledExpirationTime),
