@@ -446,3 +446,52 @@ pub struct Invoice {
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EstimateSubscriptionQuery {
+    /// Identifier for the associated subscription plan.
+    pub plan_id: Option<String>,
+
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: String,
+
+    /// Idenctifier for the coupon code for the subscription.
+    pub coupon_code: Option<String>,
+}
+
+impl ApiEventMetric for EstimateSubscriptionQuery {}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct EstimateSubscriptionResponse {
+    /// Estimated amount to be charged for the invoice.
+    pub amount: MinorUnit,
+    /// Currency for the amount.
+    pub currency: api_enums::Currency,
+    /// Identifier for the associated plan_id.
+    pub plan_id: Option<String>,
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: Option<String>,
+    /// Idenctifier for the coupon code for the subscription.
+    pub coupon_code: Option<String>,
+    /// Identifier for customer.
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub line_items: Vec<SubscriptionLineItem>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct SubscriptionLineItem {
+    /// Unique identifier for the line item.
+    pub item_id: String,
+    /// Type of the line item.
+    pub item_type: String,
+    /// Description of the line item.
+    pub description: String,
+    /// Amount for the line item.
+    pub amount: MinorUnit,
+    /// Currency for the line item
+    pub currency: common_enums::Currency,
+    /// Quantity of the line item.
+    pub quantity: i64,
+}
+
+impl ApiEventMetric for EstimateSubscriptionResponse {}
