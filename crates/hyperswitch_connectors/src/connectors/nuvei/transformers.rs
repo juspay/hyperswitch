@@ -1633,11 +1633,8 @@ where
         billing_address: None,
         shipping_address: None,
     };
-    let is_rebilling = if router_data.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
-    } else {
-        None
-    };
+    let is_rebilling = Some("1".to_string());
+
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
