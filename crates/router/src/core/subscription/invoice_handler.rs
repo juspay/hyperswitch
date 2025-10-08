@@ -48,7 +48,7 @@ impl InvoiceHandler {
         metadata: Option<pii::SecretSerdeValue>,
         connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
-        let invoice_new = hyperswitch_domain_models::invoice::InvoiceNew::new(
+        let invoice_new = hyperswitch_domain_models::invoice::Invoice::to_invoice(
             self.subscription.id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.profile_id.to_owned(),
