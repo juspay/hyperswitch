@@ -2359,6 +2359,7 @@ impl super::behaviour::Conversion for Profile {
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
+            is_l2_l3_enabled:None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
         })
@@ -2527,6 +2528,7 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             merchant_category_code: self.merchant_category_code,
+            is_l2_l3_enabled:self.is_l2_l3_enabled,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
