@@ -56,7 +56,7 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub name: Option<Secret<String>>,
     pub number: Option<Secret<String>>,
     pub security_code: Option<Secret<String>>,
-    pub expiration_month: Option<Secret<i32>>,
+    pub expiration_month: Option<Secret<i8>>,
     pub expiration_year: Option<Secret<i32>>,
     pub identity: String,
     pub tags: Option<FinixTags>,

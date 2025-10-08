@@ -3,7 +3,6 @@ pub mod response;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::{
-    address::Address,
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{
@@ -21,7 +20,7 @@ use hyperswitch_domain_models::{
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 pub use request::*;
 pub use response::*;
 
@@ -30,33 +29,6 @@ use crate::{
     unimplemented_payment_method,
     utils::{AddressDetailsData, CardData, RouterData as _},
 };
-
-impl From<&Address> for FinixAddress {
-    fn from(address: &Address) -> Self {
-        let billing = address.address.as_ref();
-
-        match billing {
-            Some(address) => Self {
-                line1: address.get_optional_line1(),
-                line2: address.get_optional_line2(),
-                city: address.get_optional_city(),
-                region: address.get_optional_state(),
-                postal_code: address.get_optional_zip(),
-                country: address
-                    .get_optional_country()
-                    .map(CountryAlpha2::from_alpha2_to_alpha3),
-            },
-            None => Self {
-                line1: None,
-                line2: None,
-                city: None,
-                region: None,
-                postal_code: None,
-                country: None,
-            },
-        }
-    }
-}
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub amount: MinorUnit,
@@ -101,15 +73,25 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
+        let personal_address = item.router_data.get_optional_billing().and_then(|address| {
+            let billing = address.address.as_ref();
+            billing.map(|billing_address| FinixAddress {
+                line1: billing_address.get_optional_line1(),
+                line2: billing_address.get_optional_line2(),
+                city: billing_address.get_optional_city(),
+                region: billing_address.get_optional_state(),
+                postal_code: billing_address.get_optional_zip(),
+                country: billing_address
+                    .get_optional_country()
+                    .map(CountryAlpha2::from_alpha2_to_alpha3),
+            })
+        });
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
             last_name: item.router_data.get_optional_billing_last_name(),
             email: item.router_data.get_optional_billing_email(),
-            personal_address: item
-                .router_data
-                .get_optional_billing()
-                .map(FinixAddress::from),
+            personal_address,
         };
 
         Ok(Self {
@@ -214,22 +196,8 @@ impl
                     name: card_data.card_holder_name.clone(),
                     number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
                     security_code: Some(card_data.card_cvc.clone()),
-                    expiration_month: Some(Secret::new(
-                        card_data
-                            .card_exp_month
-                            .clone()
-                            .expose()
-                            .parse::<i32>()
-                            .unwrap_or(0),
-                    )),
-                    expiration_year: Some(Secret::new(
-                        card_data
-                            .get_expiry_year_4_digit()
-                            .clone()
-                            .expose()
-                            .parse::<i32>()
-                            .unwrap_or(0),
-                    )),
+                    expiration_month: Some(card_data.get_expiry_month_as_i8()?),
+                    expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
                     identity: item.router_data.get_connector_customer_id()?, // This would come from a previously created identity
                     tags: None,
                     address: None,
@@ -295,7 +263,7 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         };
     }
     match (flow, state) {
-        (FinixFlow::Auth, FinixState::PENDING) => AttemptStatus::Authorizing,
+        (FinixFlow::Auth, FinixState::PENDING) => AttemptStatus::AuthenticationPending,
         (FinixFlow::Auth, FinixState::SUCCEEDED) => AttemptStatus::Authorized,
         (FinixFlow::Auth, FinixState::FAILED) => AttemptStatus::AuthorizationFailed,
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
@@ -417,7 +385,7 @@ impl FinixErrorResponse {
             .and_then(|embedded| embedded.errors.as_ref())
             .and_then(|errors| errors.first())
             .and_then(|error| error.message.clone())
-            .unwrap_or("".to_string())
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
     }
 
     pub fn get_code(&self) -> String {
@@ -426,6 +394,6 @@ impl FinixErrorResponse {
             .and_then(|embedded| embedded.errors.as_ref())
             .and_then(|errors| errors.first())
             .and_then(|error| error.code.clone())
-            .unwrap_or("".to_string())
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
     }
 }
