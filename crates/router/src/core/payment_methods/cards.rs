@@ -4803,6 +4803,12 @@ pub async fn get_bank_from_hs_locker(
             message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
+        api::PayoutMethodData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Expected bank details, found bank redirect details instead".to_string(),
+            }
+            .into())
+        }
     }
 }
 

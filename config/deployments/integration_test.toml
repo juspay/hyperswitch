@@ -787,6 +787,9 @@ debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
+[payout_method_filters.loonio]
+interac = { currency = "CAD" }
+
 [pm_filters.inespay]
 sepa = { country = "ES", currency = "EUR"}
 
