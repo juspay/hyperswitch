@@ -36,13 +36,13 @@ pub struct RoleInfoWithGroupsResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct RoleInfoWithParents {
     pub role_id: String,
-    pub parent_groups: Vec<ParentGroupInfo>,
+    pub parent_groups: Vec<ParentGroupDescription>,
     pub role_name: String,
     pub role_scope: RoleScope,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct ParentGroupInfo {
+pub struct ParentGroupDescription {
     pub name: ParentGroup,
     pub description: String,
     pub scopes: Vec<PermissionScope>,
@@ -74,7 +74,7 @@ pub struct RoleInfoResponseWithParentsGroup {
     pub role_id: String,
     pub role_name: String,
     pub entity_type: EntityType,
-    pub parent_groups: Vec<ParentGroupInfo>,
+    pub parent_groups: Vec<ParentGroupDescription>,
     pub role_scope: RoleScope,
 }
 
@@ -116,4 +116,11 @@ pub struct GroupsAndResources {
 pub enum ListRolesResponse {
     WithGroups(Vec<RoleInfoResponseNew>),
     WithParentGroups(Vec<RoleInfoResponseWithParentsGroup>),
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ParentGroupInfo {
+    pub name: ParentGroup,
+    pub resources: Vec<Resource>,
+    pub scopes: Vec<PermissionScope>,
 }

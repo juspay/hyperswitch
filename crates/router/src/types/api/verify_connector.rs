@@ -69,6 +69,8 @@ impl VerifyConnectorData {
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
         }
     }
 
@@ -97,6 +99,7 @@ impl VerifyConnectorData {
             access_token,
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
+            payment_method_type: None,
             amount_captured: None,
             minor_amount_captured: None,
             preprocessing_id: None,
@@ -135,6 +138,7 @@ impl VerifyConnectorData {
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         }
     }
 }

@@ -334,6 +334,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentLinkSdkLabelType,
         api_models::enums::PaymentLinkShowSdkTerms,
         api_models::enums::OrganizationType,
+        api_models::enums::GooglePayCardFundingSource,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::CardTestingGuardConfig,
