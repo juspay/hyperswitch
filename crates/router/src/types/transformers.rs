@@ -1240,7 +1240,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
-            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1252,7 +1252,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::
             api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
-            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::Bank,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1264,7 +1264,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
-            api_models::enums::PayoutType::BankRedirect => Self::BankTransfer,
+            api_models::enums::PayoutType::BankRedirect => Self::BankRedirect,
         }
     }
 }
