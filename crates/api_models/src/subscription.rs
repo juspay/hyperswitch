@@ -204,16 +204,10 @@ pub struct GetPlansQuery {
     pub offset: Option<u32>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-pub struct GetSubscriptionQuery {
-    pub client_secret: Option<ClientSecret>,
-}
-
 impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
 impl ApiEventMetric for GetPlansQuery {}
 impl ApiEventMetric for GetPlansResponse {}
-impl ApiEventMetric for GetSubscriptionQuery {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
@@ -315,7 +309,7 @@ pub struct CreateMitPaymentRequestData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.
-    pub client_secret: Option<String>,
+    pub client_secret: Option<ClientSecret>,
 
     /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
@@ -325,9 +319,6 @@ pub struct ConfirmSubscriptionRequest {
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
-
-    /// Identifier for customer.
-    pub customer_id: common_utils::id_type::CustomerId,
 
     /// Payment details for the invoice.
     pub payment_details: ConfirmSubscriptionPaymentDetails,

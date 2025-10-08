@@ -193,7 +193,6 @@ pub async fn get_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,
     subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
-    query: web::Query<subscription_types::GetSubscriptionQuery>,
 ) -> impl Responder {
     let flow = Flow::GetSubscription;
     let subscription_id = subscription_id.into_inner();
@@ -202,13 +201,6 @@ pub async fn get_subscription(
         Err(response) => return response,
     };
 
-    let payload = query.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
-        };
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -226,7 +218,10 @@ pub async fn get_subscription(
             )
         },
         auth::auth_type(
-            &*auth_type,
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionRead,
             },

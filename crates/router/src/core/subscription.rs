@@ -286,13 +286,23 @@ pub async fn confirm_subscription(
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
             .attach_printable("subscriptions: failed to find business profile")?;
-    let customer =
-        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
-            .await
-            .attach_printable("subscriptions: failed to find customer")?;
 
     let handler = SubscriptionHandler::new(&state, &merchant_context);
+    if let Some(client_secret) = request.client_secret.clone() {
+        handler
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    };
+
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
+    let customer = SubscriptionHandler::find_customer(
+        &state,
+        &merchant_context,
+        &subscription_entry.subscription.customer_id,
+    )
+    .await
+    .attach_printable("subscriptions: failed to find customer")?;
+
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
         .get_latest_invoice(&state)
