@@ -925,11 +925,15 @@ pub async fn payments_confirm(
         is_platform_allowed: true,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
+        req.headers(),
+        &payload,
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     let locking_action = payload.get_locking_input(flow.clone());
 

@@ -23,6 +23,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -2577,6 +2578,9 @@ pub async fn create_connector(
             },
         )?;
 
+    // redact cgraph cache on new connector creation
+    redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
+
     #[cfg(feature = "v1")]
     disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
 
@@ -2869,7 +2873,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             key_manager_state,
-            mca,
+            mca.clone(),
             payment_connector.into(),
             &key_store,
         )
@@ -2886,6 +2890,37 @@ pub async fn update_connector(
 
             )
         })?;
+
+    // redact cgraph cache on connector updation
+    redact_cgraph_cache(&state, merchant_id, &profile_id).await?;
+
+    // redact routing cache on connector updation
+    #[cfg(feature = "v1")]
+    let merchant_config = MerchantDefaultConfigUpdate {
+        routable_connector: &Some(
+            common_enums::RoutableConnectors::from_str(&mca.connector_name).map_err(|_| {
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector_name",
+                }
+            })?,
+        ),
+        merchant_connector_id: &mca.get_id(),
+        store: db,
+        merchant_id,
+        profile_id: &mca.profile_id,
+        transaction_type: &mca.connector_type.into(),
+    };
+
+    #[cfg(feature = "v1")]
+    if req.disabled.unwrap_or(false) {
+        merchant_config
+            .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    } else {
+        merchant_config
+            .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
+            .await?;
+    }
 
     let response = updated_mca.foreign_try_into()?;
 
@@ -2956,6 +2991,8 @@ pub async fn delete_connector(
         .retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
+    // redact cgraph cache on connector deletion
+    redact_cgraph_cache(&state, &merchant_id, &mca.profile_id).await?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,

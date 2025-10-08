@@ -6,7 +6,7 @@ use api_models::{
     payment_methods::{self},
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
-use common_enums::enums as api_enums;
+use common_enums::{enums as api_enums, GooglePayCardFundingSource};
 use common_utils::{
     ext_traits::{OptionExt, StringExt},
     id_type,
@@ -400,10 +400,14 @@ pub struct RevolutPayData {}
 pub struct GooglePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct GooglePayThirdPartySdkData {}
+pub struct GooglePayThirdPartySdkData {
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct ApplePayThirdPartySdkData {}
+pub struct ApplePayThirdPartySdkData {
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WeChatPayRedirection {}
@@ -468,8 +472,10 @@ pub struct GooglePayPaymentMethodInfo {
     pub card_network: String,
     /// The details of the card
     pub card_details: String,
-    //assurance_details of the card
+    /// assurance_details of the card
     pub assurance_details: Option<GooglePayAssuranceDetails>,
+    /// Card funding source for the selected payment method
+    pub card_funding_source: Option<GooglePayCardFundingSource>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1189,8 +1195,10 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::ApplePayRedirect(_) => {
                 Self::ApplePayRedirect(Box::new(ApplePayRedirectData {}))
             }
-            api_models::payments::WalletData::ApplePayThirdPartySdk(_) => {
-                Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {}))
+            api_models::payments::WalletData::ApplePayThirdPartySdk(apple_pay_sdk_data) => {
+                Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {
+                    token: apple_pay_sdk_data.token,
+                }))
             }
             api_models::payments::WalletData::DanaRedirect {} => Self::DanaRedirect {},
             api_models::payments::WalletData::GooglePay(google_pay_data) => {
@@ -1199,8 +1207,10 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::GooglePayRedirect(_) => {
                 Self::GooglePayRedirect(Box::new(GooglePayRedirectData {}))
             }
-            api_models::payments::WalletData::GooglePayThirdPartySdk(_) => {
-                Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {}))
+            api_models::payments::WalletData::GooglePayThirdPartySdk(google_pay_sdk_data) => {
+                Self::GooglePayThirdPartySdk(Box::new(GooglePayThirdPartySdkData {
+                    token: google_pay_sdk_data.token,
+                }))
             }
             api_models::payments::WalletData::MbWayRedirect(..) => {
                 Self::MbWayRedirect(Box::new(MbWayRedirection {}))
@@ -1265,6 +1275,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                         account_verified: info.account_verified,
                     }
                 }),
+                card_funding_source: value.info.card_funding_source,
             },
             tokenization_data: value.tokenization_data,
         }

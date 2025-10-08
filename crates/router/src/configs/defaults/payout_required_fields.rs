@@ -38,7 +38,7 @@ impl Default for PayoutRequiredFields {
                     // Adyen
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Adyenplatform,
-                        PaymentMethodType::Sepa,
+                        PaymentMethodType::SepaBankTransfer,
                     ),
                     // Ebanx
                     get_connector_payment_method_type_fields(
@@ -117,7 +117,7 @@ fn get_billing_details_for_payment_method(
             ]);
 
             // Add first_name for bank payouts only
-            if payment_method_type == PaymentMethodType::Sepa {
+            if payment_method_type == PaymentMethodType::SepaBankTransfer {
                 fields.insert(
                     "billing.address.first_name".to_string(),
                     RequiredFieldInfo {
@@ -209,7 +209,7 @@ fn get_connector_payment_method_type_fields(
                 },
             )
         }
-        PaymentMethodType::Sepa => {
+        PaymentMethodType::SepaBankTransfer => {
             common_fields.extend(get_sepa_fields());
             (
                 payment_method_type,

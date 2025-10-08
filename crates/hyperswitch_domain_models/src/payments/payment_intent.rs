@@ -1850,6 +1850,7 @@ impl behaviour::Conversion for PaymentIntent {
             order_date: None,
             enable_partial_authorization,
             enable_overcapture: None,
+            mit_category: None,
         })
     }
     async fn convert_back(
@@ -2088,6 +2089,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_channel: None,
             tax_status: None,
             discount_amount: None,
+            mit_category: None,
             shipping_amount_tax: None,
             duty_amount: None,
             order_date: None,
@@ -2175,6 +2177,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
+            mit_category: self.mit_category,
         })
     }
 
@@ -2284,6 +2287,7 @@ impl behaviour::Conversion for PaymentIntent {
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
+                mit_category: storage_model.mit_category,
             })
         }
         .await
@@ -2365,6 +2369,7 @@ impl behaviour::Conversion for PaymentIntent {
             duty_amount: self.duty_amount,
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
+            mit_category: self.mit_category,
         })
     }
 }

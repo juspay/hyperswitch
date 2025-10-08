@@ -50,7 +50,7 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
-    RecoveryDataBackfill,
+    RecoveryRecovery,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -87,9 +87,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
-
-            Flow::CreateSubscription | Flow::ConfirmSubscription => Self::Subscription,
-
+            Flow::CreateSubscription
+            | Flow::ConfirmSubscription
+            | Flow::CreateAndConfirmSubscription
+            | Flow::GetSubscription
+            | Flow::GetPlansForSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
@@ -304,6 +306,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleV2
             | Flow::GetRoleFromToken
             | Flow::GetRoleFromTokenV2
+            | Flow::GetParentGroupsInfoForRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
@@ -350,7 +353,7 @@ impl From<Flow> for ApiIdentifier {
                 Self::GenericTokenization
             }
 
-            Flow::RecoveryDataBackfill => Self::RecoveryDataBackfill,
+            Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
         }
     }
 }
