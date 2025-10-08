@@ -63,7 +63,7 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
             amount,
             router_data,
             merchant_id: auth.merchant_id,
-            merchant_identity_id: connector_meta.merchant_identity_id,
+            merchant_identity_id: connector_meta.merchant_id,
         })
     }
 }

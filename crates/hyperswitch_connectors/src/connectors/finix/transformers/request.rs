@@ -9,7 +9,7 @@ use super::*;
 
 #[derive(Deserialize)]
 pub struct FinixMeta {
-    pub merchant_identity_id: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
