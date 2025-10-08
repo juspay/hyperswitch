@@ -5201,13 +5201,8 @@ pub struct FetchQrCodeInformation {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct SdkUriInformation {
-    pub sdk_uri: Url,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SdkUpiIntentInformation {
-    pub sdk_uri_url: Url,
+    pub sdk_uri: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

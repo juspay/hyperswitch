@@ -2587,14 +2587,14 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
-            let next_action_containing_fetch_qr_code_url =
+            let next_action_containing_sdk_upi_intent =
                 extract_sdk_uri_information(payment_attempt.clone())?;
 
             payment_attempt
                 .redirection_data
                 .as_ref()
                 .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url })
-                .or(next_action_containing_fetch_qr_code_url.map(|sdk_uri_data| {
+                .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
                     api_models::payments::NextActionData::SdkUpiIntentInformation {
                         sdk_uri: sdk_uri_data.sdk_uri,
                     }
@@ -3802,15 +3802,16 @@ pub fn fetch_qr_code_url_next_steps_check(
 
 pub fn extract_sdk_uri_information(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::SdkUriInformation>> {
-    let sdk_uri_steps: Option<Result<api_models::payments::SdkUriInformation, _>> =
+) -> RouterResult<Option<api_models::payments::SdkUpiIntentInformation>> {
+    let sdk_uri_steps: Option<Result<api_models::payments::SdkUpiIntentInformation, _>> =
         payment_attempt
             .connector_metadata
-            .map(|metadata| metadata.parse_value("SdkUriInformation"));
+            .map(|metadata| metadata.parse_value("SdkUpiIntentInformation"));
 
     let sdk_uri_information = sdk_uri_steps.transpose().ok().flatten();
     Ok(sdk_uri_information)
 }
+
 
 pub fn wait_screen_next_steps_check(
     payment_attempt: storage::PaymentAttempt,

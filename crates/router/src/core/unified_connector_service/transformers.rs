@@ -546,7 +546,7 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
                         // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
-                        let sdk_uri_info = api_models::payments::SdkUriInformation {
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
                             sdk_uri: Url::parse(&uri.uri)
                                 .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                         };
