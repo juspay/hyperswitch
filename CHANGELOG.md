@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.08.1
+
+### Bug Fixes
+
+- **core:** Added wasm changes for juspayThreeds server metadata ([#9708](https://github.com/juspay/hyperswitch/pull/9708)) ([`47f7e25`](https://github.com/juspay/hyperswitch/commit/47f7e258bcddad62ef89bb896ae4117b5ac32038))
+- **routing:** Cache redaction on updation of mca ([#9729](https://github.com/juspay/hyperswitch/pull/9729)) ([`b52aafa`](https://github.com/juspay/hyperswitch/commit/b52aafa8873fc4704bd69014cc457daf32d5523c))
+
+**Full Changelog:** [`2025.10.08.0...2025.10.08.1`](https://github.com/juspay/hyperswitch/compare/2025.10.08.0...2025.10.08.1)
+
+- - -
+
 ## 2025.10.08.0
 
 ### Features
