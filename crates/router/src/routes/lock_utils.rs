@@ -87,13 +87,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
-
             Flow::CreateSubscription
             | Flow::ConfirmSubscription
             | Flow::CreateAndConfirmSubscription
             | Flow::GetSubscription
-            | Flow::GetSubscriptionEstimate => Self::Subscription,
-
+            | Flow::GetSubscriptionEstimate
+            | Flow::GetPlansForSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
