@@ -65,7 +65,7 @@ pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expiration_month: Option<Secret<i32>>,
+    pub expiration_month: Option<Secret<i8>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_year: Option<Secret<i32>>,
     pub identity: String,
@@ -87,4 +87,140 @@ impl FinixCreateRefundRequest {
     pub fn new(refund_amount: MinorUnit) -> Self {
         Self { refund_amount }
     }
+}
+
+// ---------- COMMON ENUMS
+
+#[derive(Debug, Clone)]
+pub enum FinixId {
+    Auth(String),
+    Transfer(String),
+}
+
+impl From<String> for FinixId {
+    fn from(id: String) -> Self {
+        if id.starts_with("AU") {
+            Self::Auth(id)
+        } else if id.starts_with("TR") {
+            Self::Transfer(id)
+        } else {
+            // Default to Auth if the prefix doesn't match
+            Self::Auth(id)
+        }
+    }
+}
+
+impl std::fmt::Display for FinixId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auth(id) => write!(f, "{}", id),
+            Self::Transfer(id) => write!(f, "{}", id),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixState {
+    PENDING,
+    SUCCEEDED,
+    FAILED,
+    CANCELED,
+    #[serde(other)]
+    UNKNOWN,
+    // RETURNED
+}
+impl FinixState {
+    pub fn is_failure(&self) -> bool {
+        match self {
+            Self::PENDING | Self::SUCCEEDED => false,
+            Self::FAILED | Self::CANCELED | Self::UNKNOWN => true,
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixPaymentType {
+    DEBIT,
+    CREDIT,
+    REVERSAL,
+    FEE,
+    ADJUSTMENT,
+    DISPUTE,
+    RESERVE,
+    SETTLEMENT,
+    #[serde(other)]
+    UNKNOWN,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixPaymentInstrumentType {
+    #[serde(rename = "PAYMENT_CARD")]
+    PaymentCard,
+    #[serde(rename = "GOOGLE_PAY")]
+    GOOGLEPAY,
+
+    #[serde(rename = "BANK_ACCOUNT")]
+    BankAccount,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Represents the type of a payment card.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixCardType {
+    DEBIT,
+    CREDIT,
+    PREPAID,
+    #[serde(other)]
+    UNKNOWN,
+}
+
+/// 3D Secure authentication details.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixThreeDSecure {
+    pub authenticated: Option<bool>,
+    pub liability_shift: Option<String>,
+    pub version: Option<String>,
+    pub eci: Option<String>,
+    pub cavv: Option<String>,
+    pub xid: Option<String>,
+}
+
+/// Key-value pair tags.
+pub type FinixTags = HashMap<String, String>;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixAddress {
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub city: Option<String>,
+    pub region: Option<Secret<String>>,
+    pub postal_code: Option<Secret<String>>,
+    pub country: Option<CountryAlpha3>,
+}
+
+/// The type of the business.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FinixIdentityType {
+    PERSONAL,
+}
+
+pub enum FinixFlow {
+    Auth,
+    Transfer,
+}
+
+impl FinixFlow {
+    pub fn get_flow_for_auth(capture_method: CaptureMethod) -> Self {
+        match capture_method {
+            CaptureMethod::SequentialAutomatic | CaptureMethod::Automatic => Self::Transfer,
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Self::Auth
+            }
+        }
+    }
+}
+pub struct FinixAuthType {
+    pub finix_user_name: Secret<String>,
+    pub finix_password: Secret<String>,
+    pub merchant_id: Secret<String>,
 }

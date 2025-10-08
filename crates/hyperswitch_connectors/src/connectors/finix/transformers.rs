@@ -1,12 +1,9 @@
 pub mod request;
 pub mod response;
-use std::collections::HashMap;
-
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    address::Address,
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{
@@ -27,167 +24,12 @@ use hyperswitch_interfaces::{consts, errors::ConnectorError};
 use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    unimplemented_payment_method, utils,
-    utils::{CardData, RouterData as _},
+    unimplemented_payment_method,
+    utils::{self, AddressDetailsData, CardData, RouterData as _},
 };
-
-#[derive(Debug, Clone)]
-pub enum FinixId {
-    Auth(String),
-    Transfer(String),
-}
-
-impl From<String> for FinixId {
-    fn from(id: String) -> Self {
-        if id.starts_with("AU") {
-            Self::Auth(id)
-        } else if id.starts_with("TR") {
-            Self::Transfer(id)
-        } else {
-            // Default to Auth if the prefix doesn't match
-            Self::Auth(id)
-        }
-    }
-}
-
-impl std::fmt::Display for FinixId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Auth(id) => write!(f, "{}", id),
-            Self::Transfer(id) => write!(f, "{}", id),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixState {
-    PENDING,
-    SUCCEEDED,
-    FAILED,
-    CANCELED,
-    #[serde(other)]
-    UNKNOWN,
-    // RETURNED
-}
-impl FinixState {
-    pub fn is_failure(&self) -> bool {
-        match self {
-            Self::PENDING | Self::SUCCEEDED => false,
-            Self::FAILED | Self::CANCELED | Self::UNKNOWN => true,
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixPaymentType {
-    DEBIT,
-    CREDIT,
-    REVERSAL,
-    FEE,
-    ADJUSTMENT,
-    DISPUTE,
-    RESERVE,
-    SETTLEMENT,
-    #[serde(other)]
-    UNKNOWN,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixPaymentInstrumentType {
-    #[serde(rename = "PAYMENT_CARD")]
-    PaymentCard,
-    #[serde(rename = "GOOGLE_PAY")]
-    GOOGLEPAY,
-
-    #[serde(rename = "BANK_ACCOUNT")]
-    BankAccount,
-    #[serde(other)]
-    Unknown,
-}
-
-/// Represents the type of a payment card.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixCardType {
-    DEBIT,
-    CREDIT,
-    PREPAID,
-    #[serde(other)]
-    UNKNOWN,
-}
-
-/// 3D Secure authentication details.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FinixThreeDSecure {
-    pub authenticated: Option<bool>,
-    pub liability_shift: Option<String>,
-    pub version: Option<String>,
-    pub eci: Option<String>,
-    pub cavv: Option<String>,
-    pub xid: Option<String>,
-}
-
-/// Key-value pair tags.
-pub type FinixTags = HashMap<String, String>;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FinixAddress {
-    pub line1: Option<Secret<String>>,
-    pub line2: Option<Secret<String>>,
-    pub city: Option<String>,
-    pub region: Option<Secret<String>>,
-    pub postal_code: Option<Secret<String>>,
-    pub country: Option<CountryAlpha3>,
-}
-
-impl From<&Address> for FinixAddress {
-    fn from(address: &Address) -> Self {
-        let billing = address.address.as_ref();
-
-        match billing {
-            Some(address) => Self {
-                line1: address.line1.clone(),
-                line2: address.line2.clone(),
-                city: address.city.clone(),
-                region: address.state.clone(),
-                postal_code: address.zip.clone(),
-                country: address.country.map(CountryAlpha2::from_alpha2_to_alpha3),
-            },
-            None => Self {
-                line1: None,
-                line2: None,
-                city: None,
-                region: None,
-                postal_code: None,
-                country: None,
-            },
-        }
-    }
-}
-
-/// The type of the business.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixIdentityType {
-    PERSONAL,
-}
-
-pub enum FinixFlow {
-    Auth,
-    Transfer,
-}
-
-impl FinixFlow {
-    pub fn get_flow_for_auth(capture_method: CaptureMethod) -> Self {
-        match capture_method {
-            CaptureMethod::SequentialAutomatic | CaptureMethod::Automatic => Self::Transfer,
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Self::Auth
-            }
-        }
-    }
-}
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub amount: MinorUnit,
@@ -243,15 +85,25 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
+        let personal_address = item.router_data.get_optional_billing().and_then(|address| {
+            let billing = address.address.as_ref();
+            billing.map(|billing_address| FinixAddress {
+                line1: billing_address.get_optional_line1(),
+                line2: billing_address.get_optional_line2(),
+                city: billing_address.get_optional_city(),
+                region: billing_address.get_optional_state(),
+                postal_code: billing_address.get_optional_zip(),
+                country: billing_address
+                    .get_optional_country()
+                    .map(CountryAlpha2::from_alpha2_to_alpha3),
+            })
+        });
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
             last_name: item.router_data.get_optional_billing_last_name(),
             email: item.router_data.get_optional_billing_email(),
-            personal_address: item
-                .router_data
-                .get_optional_billing()
-                .map(FinixAddress::from),
+            personal_address,
         };
 
         Ok(Self {
@@ -378,22 +230,8 @@ impl
                     name: card_data.card_holder_name.clone(),
                     number: Some(Secret::new(card_data.card_number.clone().get_card_no())),
                     security_code: Some(card_data.card_cvc.clone()),
-                    expiration_month: Some(Secret::new(
-                        card_data
-                            .card_exp_month
-                            .clone()
-                            .expose()
-                            .parse::<i32>()
-                            .unwrap_or(0),
-                    )),
-                    expiration_year: Some(Secret::new(
-                        card_data
-                            .get_expiry_year_4_digit()
-                            .clone()
-                            .expose()
-                            .parse::<i32>()
-                            .unwrap_or(0),
-                    )),
+                    expiration_month: Some(card_data.get_expiry_month_as_i8()?),
+                    expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
                     identity: item.router_data.get_connector_customer_id()?, // This would come from a previously created identity
                     tags: None,
                     address: None,
@@ -420,10 +258,7 @@ impl
                     expiration_month: None,
                     expiration_year: None,
                     tags: None,
-                    address: item
-                        .router_data
-                        .get_optional_billing()
-                        .map(FinixAddress::from),
+                    address: None,
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
@@ -458,11 +293,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsRes
 }
 
 // Auth Struct
-pub struct FinixAuthType {
-    pub finix_user_name: Secret<String>,
-    pub finix_password: Secret<String>,
-    pub merchant_id: Secret<String>,
-}
+
 impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
@@ -492,7 +323,7 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         };
     }
     match (flow, state) {
-        (FinixFlow::Auth, FinixState::PENDING) => AttemptStatus::Authorizing,
+        (FinixFlow::Auth, FinixState::PENDING) => AttemptStatus::AuthenticationPending,
         (FinixFlow::Auth, FinixState::SUCCEEDED) => AttemptStatus::Authorized,
         (FinixFlow::Auth, FinixState::FAILED) => AttemptStatus::AuthorizationFailed,
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
@@ -607,26 +438,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, FinixPaymentsResponse>> for Refund
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixErrorResponse {
-    // pub status_code: u16,
-    pub total: Option<i64>,
-    #[serde(rename = "_embedded")]
-    pub embedded: Option<FinixErrorEmbedded>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixErrorEmbedded {
-    pub errors: Option<Vec<FinixError>>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixError {
-    // pub logref: Option<String>,
-    pub message: Option<String>,
-    pub code: Option<String>,
-}
-
 impl FinixErrorResponse {
     pub fn get_message(&self) -> String {
         self.embedded
@@ -634,7 +445,7 @@ impl FinixErrorResponse {
             .and_then(|embedded| embedded.errors.as_ref())
             .and_then(|errors| errors.first())
             .and_then(|error| error.message.clone())
-            .unwrap_or("".to_string())
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
     }
 
     pub fn get_code(&self) -> String {
@@ -643,6 +454,6 @@ impl FinixErrorResponse {
             .and_then(|embedded| embedded.errors.as_ref())
             .and_then(|errors| errors.first())
             .and_then(|error| error.code.clone())
-            .unwrap_or("".to_string())
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
     }
 }
