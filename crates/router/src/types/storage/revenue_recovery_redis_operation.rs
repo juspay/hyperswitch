@@ -477,7 +477,6 @@ impl RedisTokenManager {
                 error_code.map(|err| existing_token.error_code = Some(err));
 
                 Self::normalize_retry_window(existing_token, today);
-                existing_token.is_hard_decline = token_data.is_hard_decline;
 
                 for (date, &value) in &token_data.daily_retry_history {
                     existing_token
