@@ -273,6 +273,8 @@ pub enum Flow {
     CreateAndConfirmSubscription,
     /// Get Subscription flow
     GetSubscription,
+    /// Update Subscription flow
+    UpdateSubscription,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing

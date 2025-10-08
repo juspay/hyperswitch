@@ -446,3 +446,11 @@ pub struct Invoice {
 }
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
+
+pub struct UpdateSubscriptionRequest {
+    pub plan_id: String,
+    pub item_price_id: String,
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
+    pub subscription_id: common_utils::id_type::SubscriptionId,
+}

@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, merchant_context::MerchantContext,
     router_response_types::subscriptions as subscription_response_types,
 };
+use masking::Secret;
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -85,6 +86,8 @@ pub async fn create_subscription(
     subscription
         .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
             payment.payment_method_id.clone(),
+            None,
+            None,
             None,
             None,
         ))
@@ -268,6 +271,8 @@ pub async fn create_and_confirm_subscription(
                     .get_string_repr()
                     .to_string(),
             ),
+            None,
+            None,
         ))
         .await?;
 
@@ -342,7 +347,7 @@ pub async fn confirm_subscription(
     let subscription_create_response = billing_handler
         .create_subscription_on_connector(
             &state,
-            subscription,
+            subscription.clone(),
             request.item_price_id,
             request.billing,
         )
@@ -388,6 +393,8 @@ pub async fn confirm_subscription(
                     .get_string_repr()
                     .to_string(),
             ),
+            subscription.price_id.clone(),
+            subscription.plan_id.clone(),
         ))
         .await?;
 
@@ -421,4 +428,44 @@ pub async fn get_subscription(
     Ok(ApplicationResponse::Json(
         subscription.to_subscription_response(),
     ))
+}
+
+pub async fn update_subscription(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    request: subscription_types::UpdateSubscriptionRequest,
+) -> RouterResponse<SubscriptionResponse> {
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable(
+                "subscriptions: failed to find business profile in get_subscription",
+            )?;
+
+    let handler = SubscriptionHandler::new(&state, &merchant_context);
+    let mut subscription_entry = handler.find_subscription(request.subscription_id).await?;
+
+    let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
+    let invoice = invoice_handler
+        .get_latest_invoice(&state)
+        .await
+        .attach_printable("subscriptions: failed to get latest invoice")?;
+
+    let subscription = subscription_entry.subscription.clone();
+
+    subscription_entry
+        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
+            subscription.payment_method_id.map(|pmid| Secret::new(pmid)),
+            Some(subscription.status),
+            subscription.connector_subscription_id,
+            request.item_price_id,
+            request.plan_id,
+        ))
+        .await?;
+
+    let subscription_update_response =
+        get_subscription(state, merchant_context, profile_id, subscription.id).await?;
+
+    Ok(ApplicationResponse::Json(subscription_update_response))
 }

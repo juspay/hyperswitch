@@ -1201,6 +1201,9 @@ impl Subscription {
                 web::resource("/{subscription_id}")
                     .route(web::get().to(subscription::get_subscription)),
             )
+            .service(
+                web::resource("/update").route(web::post().to(subscription::update_subscription)),
+            )
     }
 }
 

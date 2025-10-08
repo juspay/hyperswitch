@@ -1604,6 +1604,10 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 128]
         merchant_reference_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        plan_id -> Nullable<Varchar>,
+        #[max_length = 128]
+        price_id -> Nullable<Varchar>,
     }
 }
 

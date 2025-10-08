@@ -64,6 +64,8 @@ impl<'a> SubscriptionHandler<'a> {
             None,
             profile.get_id().clone(),
             merchant_reference_id,
+            None,
+            None,
         );
 
         subscription.generate_and_set_client_secret();
