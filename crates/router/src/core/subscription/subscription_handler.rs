@@ -304,7 +304,7 @@ impl SubscriptionWithHandler<'_> {
                         "unable to parse currency name {currency:?}",
                         currency = invoice.currency
                     ))?,
-                status: invoice.status.clone(),
+                status: invoice.status.to_string(),
             }),
         })
     }

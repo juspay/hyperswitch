@@ -2600,10 +2600,6 @@ async fn subscription_incoming_webhook_flow(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to extract MIT payment data from subscription webhook")?;
 
-    if mit_payment_data.first_invoice {
-        return Ok(WebhookResponseTracker::NoEffect);
-    }
-
     let profile_id = business_profile.get_id().clone();
 
     let profile =
@@ -2618,11 +2614,29 @@ async fn subscription_incoming_webhook_flow(
     let subscription_id = mit_payment_data.subscription_id.clone();
 
     let subscription_with_handler = handler
-        .find_subscription(subscription_id)
+        .find_subscription(subscription_id.clone())
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
     let invoice_handler = subscription_with_handler.get_invoice_handler(profile.clone());
+    if mit_payment_data.first_invoice {
+        let invoice = invoice_handler
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                &state,
+                subscription_id,
+                mit_payment_data.invoice_id.clone(),
+            )
+            .await
+            .attach_printable(
+                "subscriptions: failed to get invoice by subscription id and connector invoice id",
+            )?;
+        if let Some(invoice) = invoice {
+            if invoice.status != InvoiceStatus::InvoiceCreated {
+                logger::info!("Invoice is already being processed, skipping MIT payment creation");
+                return Ok(WebhookResponseTracker::NoEffect);
+            }
+        }
+    }
 
     let payment_method_id = subscription_with_handler
         .subscription
@@ -2645,6 +2659,7 @@ async fn subscription_incoming_webhook_flow(
             InvoiceStatus::PaymentPending,
             connector,
             None,
+            Some(mit_payment_data.invoice_id.clone()),
         )
         .await?;
 
@@ -2664,6 +2679,7 @@ async fn subscription_incoming_webhook_flow(
             payment_response.payment_method_id.clone(),
             Some(payment_response.payment_id.clone()),
             InvoiceStatus::from(payment_response.status),
+            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
         )
         .await?;
 
@@ -2671,7 +2687,7 @@ async fn subscription_incoming_webhook_flow(
         .create_invoice_sync_job(
             &state,
             &updated_invoice,
-            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
+            Some(mit_payment_data.invoice_id),
             connector,
         )
         .await?;

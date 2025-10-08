@@ -92,6 +92,7 @@ impl Customer {
     }
 
     /// Get the connector customer ID for the specified connector label, if present
+    #[cfg(feature = "v1")]
     pub fn get_connector_customer_map(
         &self,
     ) -> FxHashMap<id_type::MerchantConnectorAccountId, String> {

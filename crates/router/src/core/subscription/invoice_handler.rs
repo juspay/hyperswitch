@@ -44,6 +44,7 @@ impl InvoiceHandler {
         status: connector_enums::InvoiceStatus,
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
             self.subscription.id.to_owned(),
@@ -58,6 +59,7 @@ impl InvoiceHandler {
             status,
             provider_name,
             metadata,
+            connector_invoice_id.map(|id| id.get_string_repr().to_string()),
         );
 
         let invoice = state
@@ -79,11 +81,13 @@ impl InvoiceHandler {
         payment_method_id: Option<Secret<String>>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: connector_enums::InvoiceStatus,
+        connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
             payment_intent_id,
+            connector_invoice_id,
         );
         state
             .store
@@ -171,7 +175,7 @@ impl InvoiceHandler {
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
-            payment_type: payment_details.payment_type.clone(),
+            payment_type: payment_details.payment_type,
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
@@ -196,7 +200,7 @@ impl InvoiceHandler {
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
-            payment_type: payment_details.payment_type.clone(),
+            payment_type: payment_details.payment_type,
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
@@ -237,11 +241,30 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to get invoice by id from database")
     }
 
+    pub async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &SessionState,
+        subscription_id: common_utils::id_type::SubscriptionId,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> errors::RouterResult<Option<diesel_models::invoice::Invoice>> {
+        state
+            .store
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                subscription_id.get_string_repr().to_string(),
+                connector_invoice_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Get Invoice by Subscription ID and Connector Invoice ID".to_string(),
+            })
+            .attach_printable("invoices: unable to get invoice by subscription id and connector invoice id from database")
+    }
+
     pub async fn create_invoice_sync_job(
         &self,
         state: &SessionState,
         invoice: &diesel_models::invoice::Invoice,
-        connector_invoice_id: Option<String>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         connector_name: connector_enums::Connector,
     ) -> errors::RouterResult<()> {
         let request = storage_types::invoice_sync::InvoiceSyncRequest::new(

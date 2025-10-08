@@ -5,8 +5,8 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
-        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData, InvoiceRecordBackData,
-        SubscriptionCreateData, SubscriptionCustomerData,
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest, subscriptions as subscription_request_types,
@@ -112,10 +112,7 @@ impl BillingHandler {
         payment_method_data: Option<api_models::payments::PaymentMethodData>,
     ) -> errors::RouterResult<Option<ConnectorCustomerResponseData>> {
         let connector_customer_map = customer.get_connector_customer_map();
-        if connector_customer_map
-            .get(&self.merchant_connector_id)
-            .is_some()
-        {
+        if connector_customer_map.contains_key(&self.merchant_connector_id) {
             // Customer already exists on the connector, no need to create again
             return Ok(None);
         }

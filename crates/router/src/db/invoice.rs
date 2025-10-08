@@ -32,6 +32,12 @@ pub trait InvoiceInterface {
         &self,
         subscription_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError>;
+
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<storage::Invoice>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -92,6 +98,22 @@ impl InvoiceInterface for Store {
             subscription_id
         ))))
     }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<storage::Invoice>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Invoice::get_invoice_by_subscription_id_connector_invoice_id(
+            &conn,
+            subscription_id,
+            connector_invoice_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -123,6 +145,13 @@ impl InvoiceInterface for MockDb {
         &self,
         _subscription_id: String,
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        _subscription_id: String,
+        _connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<storage::Invoice>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
@@ -164,6 +193,18 @@ impl InvoiceInterface for KafkaStore {
     ) -> CustomResult<storage::Invoice, errors::StorageError> {
         self.diesel_store
             .get_latest_invoice_for_subscription(subscription_id)
+            .await
+    }
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<storage::Invoice>, errors::StorageError> {
+        self.diesel_store
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                subscription_id,
+                connector_invoice_id,
+            )
             .await
     }
 }

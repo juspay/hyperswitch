@@ -203,6 +203,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 None,
                 None,
                 common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
+                Some(connector_invoice_id.clone()),
             )
             .await
             .attach_printable("Failed to update invoice in DB")?;
@@ -214,7 +215,7 @@ impl<'a> InvoiceSyncHandler<'a> {
         &self,
         process: storage::ProcessTracker,
         payment_response: subscription_types::PaymentResponseData,
-        connector_invoice_id: Option<String>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
@@ -223,7 +224,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 Box::pin(self.perform_billing_processor_record_back(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
-                    connector_invoice_id,
+                    connector_invoice_id.get_string_repr().to_string(),
                     invoice_sync_status.clone(),
                 ))
                 .await
