@@ -3,7 +3,9 @@ use std::{str::FromStr, time::Instant};
 use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
-use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
+use common_enums::{
+    connector_enums::Connector, AttemptStatus, ExecutionMode, GatewaySystem, PaymentMethodType,
+};
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
@@ -72,8 +74,6 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-/// Generic version of should_call_unified_connector_service that works with any type
-/// implementing OperationSessionGetters trait
 // pub async fn should_call_unified_connector_service<F: Clone, T, D>(
 //     state: &SessionState,
 //     merchant_context: &MerchantContext,
@@ -203,7 +203,8 @@ type UnifiedConnectorServiceResult = CustomResult<
 //     }
 // }
 
-
+/// Generic version of should_call_unified_connector_service that works with any type
+/// implementing OperationSessionGetters trait
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
@@ -221,9 +222,8 @@ where
 
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven).attach_printable_lazy(|| {
-            format!("Failed to parse connector name: {}", connector_name)
-        })?;
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {}", connector_name))?;
 
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
@@ -251,7 +251,7 @@ where
     }
 
     let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
-    
+
     // Log if UCS configuration is missing
     if ucs_config.is_none() {
         router_env::logger::debug!(
@@ -261,11 +261,10 @@ where
         );
     }
 
-    let ucs_only_connector = ucs_config
-        .map_or(false, |config| config.ucs_only_connectors.contains(&connector_enum));
+    let ucs_only_connector =
+        ucs_config.is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
 
-    let previous_gateway = payment_data
-        .and_then(extract_gateway_system_from_payment_intent);
+    let previous_gateway = payment_data.and_then(extract_gateway_system_from_payment_intent);
 
     // Log previous gateway state
     match previous_gateway {
@@ -294,10 +293,11 @@ where
         payment_method,
         flow_name
     );
-    let shadow_rollout_key = format!("{}_Shadow", rollout_key);
+    let shadow_rollout_key = format!("{}_shadow", rollout_key);
 
     let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
-    let shadow_rollout_enabled = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
+    let shadow_rollout_enabled =
+        should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
     router_env::logger::debug!(
         "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
@@ -319,12 +319,12 @@ where
     ) {
         // ==================== DIRECT GATEWAY DECISIONS ====================
         // All patterns that result in Direct routing
-        
+
         // UCS infrastructure not available (any configuration)
         // - Client not available OR not enabled
         // - Regardless of: ucs_only_connector, previous_gateway, rollouts
         (false, _, _, _, _) |
-        
+
         // UCS available but no rollouts active and no previous gateway
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -332,7 +332,7 @@ where
         // - No shadow rollout
         // - No full rollout
         (true, false, None, false, false) |
-        
+
         // UCS available, continuing with Direct, no rollouts
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -340,7 +340,7 @@ where
         // - No shadow rollout
         // - No full rollout
         (true, false, Some(GatewaySystem::Direct), false, false) |
-        
+
         // UCS available, previous Shadow but rollout ended
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -360,10 +360,10 @@ where
             );
             GatewaySystem::Direct
         }
-        
+
         // ==================== SHADOW UCS DECISIONS ====================
         // All patterns that result in Shadow UCS routing
-        
+
         // Shadow rollout for new payment (no previous gateway)
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -371,7 +371,7 @@ where
         // - Shadow rollout enabled
         // - Full rollout: any (false or true, shadow takes precedence)
         (true, false, None, true, _) |
-        
+
         // Shadow rollout with previous Direct gateway
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -379,7 +379,7 @@ where
         // - Shadow rollout enabled
         // - Full rollout: any (shadow takes precedence)
         (true, false, Some(GatewaySystem::Direct), true, _) |
-        
+
         // Shadow rollout with previous Shadow gateway (continuation)
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -399,10 +399,10 @@ where
             );
             GatewaySystem::ShadowUnifiedConnectorService
         }
-        
+
         // ==================== UNIFIED CONNECTOR SERVICE DECISIONS ====================
         // All patterns that result in UCS routing
-        
+
         // UCS-only connector (mandatory UCS)
         // - Infrastructure ready
         // - UCS-only connector flag set
@@ -410,7 +410,7 @@ where
         // - Any shadow rollout state
         // - Any full rollout state
         (true, true, _, _, _) |
-        
+
         // Sticky routing: Continue with previous UCS
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -418,7 +418,7 @@ where
         // - Any shadow rollout state (doesn't affect existing UCS)
         // - Any full rollout state
         (true, false, Some(GatewaySystem::UnifiedConnectorService), _, _) |
-        
+
         // Full rollout: New payment
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -426,7 +426,7 @@ where
         // - No shadow rollout (shadow would take precedence)
         // - Full rollout enabled
         (true, false, None, false, true) |
-        
+
         // Full rollout: Switch from Direct
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -434,7 +434,7 @@ where
         // - No shadow rollout (shadow would take precedence)
         // - Full rollout enabled
         (true, false, Some(GatewaySystem::Direct), false, true) |
-        
+
         // Full rollout: Promote from Shadow
         // - Infrastructure ready
         // - Not a UCS-only connector
@@ -467,7 +467,6 @@ where
 
     Ok(decision)
 }
-
 
 /// Extracts the gateway system from the payment intent's feature metadata
 /// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system
@@ -1041,7 +1040,7 @@ pub async fn call_unified_connector_service_for_webhook(
         .unwrap_or(consts::PROFILE_ID_UNAVAILABLE.clone());
     // Build gRPC headers
     let grpc_headers = state
-        .get_grpc_headers_ucs(false)
+        .get_grpc_headers_ucs(ExecutionMode::Primary)
         .lineage_ids(LineageIds::new(
             merchant_context.get_merchant_account().get_id().clone(),
             profile_id,
@@ -1217,37 +1216,17 @@ pub async fn send_comparison_data(
     comparison_data: ComparisonData,
 ) -> RouterResult<()> {
     // Check if comparison service is enabled
-    let enabled = state
-        .conf
-        .comparison_service
-        .as_ref()
-        .map(|config| config.enabled)
-        .unwrap_or_else(|| {
+    let comparison_config = match state.conf.comparison_service.as_ref() {
+        Some(comparison_config) => comparison_config,
+        None => {
             tracing::warn!(
                 "Comparison service configuration missing, skipping comparison data send"
             );
-            false
-        });
-
-    if !enabled {
-        return Ok(());
-    }
-
-    // Construct request
-    let url = match state
-        .conf
-        .comparison_service
-        .as_ref()
-        .map(|config| &config.url)
-    {
-        Some(url) => url,
-        None => {
-            tracing::warn!("Comparison service URL missing, skipping comparison data send");
             return Ok(());
         }
     };
 
-    let mut request = Request::new(Method::Post, url);
+    let mut request = Request::new(Method::Post, &comparison_config.url);
     if let Some(req_id) = &state.request_id {
         request.add_header(
             X_REQUEST_ID,
@@ -1257,14 +1236,9 @@ pub async fn send_comparison_data(
 
     request.set_body(RequestContent::Json(Box::new(comparison_data)));
 
-    // Send with configurable timeout - don't block payment flow
-    let timeout = state
-        .conf
-        .comparison_service
-        .as_ref()
-        .and_then(|config| config.timeout_secs)
-        .unwrap_or(2);
-    if let Err(e) = http_client::send_request(&state.conf.proxy, request, Some(timeout)).await {
+    if let Err(e) =
+        http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs).await
+    {
         tracing::error!("Failed to send comparison data: {:?}", e);
         return Ok(());
     }

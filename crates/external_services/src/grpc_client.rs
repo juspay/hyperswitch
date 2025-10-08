@@ -165,12 +165,12 @@ pub struct GrpcHeadersUcs {
 
     request_id: Option<String>,
 
-    shadow_mode: Option<String>,
+    shadow_mode: Option<bool>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (), (), (), (Option<String>,), (Option<String>,))>;
+    GrpcHeadersUcsBuilder<((String,), (), (), (), (Option<String>,), (Option<bool>,))>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
@@ -178,7 +178,7 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
     (Option<String>,),
-    (Option<String>,),
+    (Option<bool>,),
 )>;
 
 /// struct to represent set of Lineage ids

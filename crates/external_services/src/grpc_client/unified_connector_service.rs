@@ -468,7 +468,7 @@ pub fn build_unified_connector_service_grpc_headers(
             common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
             parse(
                 common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
-                &shadow_mode,
+                &shadow_mode.to_string(),
             )?,
         );
     }

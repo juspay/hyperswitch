@@ -533,7 +533,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
-        shadow_mode: bool,
+        unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
         if self.request.mandate_id.is_some() {
             Box::pin(call_unified_connector_service_repeat_payment(
@@ -543,7 +543,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 lineage_ids,
                 merchant_connector_account,
                 merchant_context,
-                shadow_mode,
+                unified_connector_service_execution_mode,
             ))
             .await
         } else {
@@ -554,7 +554,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 lineage_ids,
                 merchant_connector_account,
                 merchant_context,
-                shadow_mode,
+                unified_connector_service_execution_mode,
             ))
             .await
         }
@@ -857,7 +857,7 @@ async fn call_unified_connector_service_authorize(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
-    shadow_mode: bool,
+    unified_connector_service_execution_mode: enums::ExecutionMode,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -885,7 +885,7 @@ async fn call_unified_connector_service_authorize(
         .flatten()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
-        .get_grpc_headers_ucs(shadow_mode)
+        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_order_reference_id)
         .lineage_ids(lineage_ids);
@@ -947,7 +947,7 @@ async fn call_unified_connector_service_repeat_payment(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     merchant_context: &domain::MerchantContext,
-    shadow_mode: bool,
+    unified_connector_service_execution_mode: enums::ExecutionMode,
 ) -> RouterResult<()> {
     let client = state
         .grpc_client
@@ -975,7 +975,7 @@ async fn call_unified_connector_service_repeat_payment(
         .flatten()
         .map(ucs_types::UcsReferenceId::Payment);
     let headers_builder = state
-        .get_grpc_headers_ucs(shadow_mode)
+        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_order_reference_id)
         .lineage_ids(lineage_ids);

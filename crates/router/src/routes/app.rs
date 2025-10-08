@@ -5,7 +5,7 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
-use common_enums::TransactionType;
+use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::id_type;
@@ -155,14 +155,20 @@ impl SessionState {
             request_id: self.request_id.map(|req_id| (*req_id).to_string()),
         }
     }
-    pub fn get_grpc_headers_ucs(&self, shadow_mode: bool) -> GrpcHeadersUcsBuilderInitial {
+    pub fn get_grpc_headers_ucs(
+        &self,
+        unified_connector_service_execution_mode: ExecutionMode,
+    ) -> GrpcHeadersUcsBuilderInitial {
         let tenant_id = self.tenant.tenant_id.get_string_repr().to_string();
         let request_id = self.request_id.map(|req_id| (*req_id).to_string());
-        let shadow_mode = Some(shadow_mode.to_string());
+        let shadow_mode = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => false,
+            ExecutionMode::Shadow => true,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
-            .shadow_mode(shadow_mode)
+            .shadow_mode(Some(shadow_mode))
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
