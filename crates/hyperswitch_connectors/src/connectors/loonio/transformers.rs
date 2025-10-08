@@ -28,7 +28,7 @@ use crate::types::PayoutsResponseRouterData;
 use crate::utils::RouterData as _;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData},
+    utils::{self, PaymentsAuthorizeRequestData, RouterData as _},
 };
 pub struct LoonioRouterData<T> {
     pub amount: FloatMajorUnit,
