@@ -157,3 +157,15 @@ pub fn get_scope_name(scope: PermissionScope) -> &'static str {
         PermissionScope::Write => "View and Manage",
     }
 }
+
+pub fn filter_resources_by_entity_type(
+    resources: Vec<Resource>,
+    entity_type: EntityType,
+) -> Option<Vec<Resource>> {
+    let filtered: Vec<Resource> = resources
+        .into_iter()
+        .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+        .collect();
+
+    (!filtered.is_empty()).then_some(filtered)
+}
