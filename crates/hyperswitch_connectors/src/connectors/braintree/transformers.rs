@@ -1568,7 +1568,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeTokenResponse, T, PaymentsResp
 }
 
 #[derive(Debug, Clone, Display, Deserialize, Serialize)]
-#[serde(untagged)]
 #[serde(rename_all = "snake_case")]
 pub enum GooglePayPriceStatus {
     #[strum(serialize = "FINAL")]
@@ -1576,11 +1575,17 @@ pub enum GooglePayPriceStatus {
 }
 
 #[derive(Debug, Clone, Display, Deserialize, Serialize)]
-#[serde(untagged)]
 #[serde(rename_all = "snake_case")]
 pub enum PaypalFlow {
-    #[strum(serialize = "checkout")]
     Checkout,
+}
+
+impl From<PaypalFlow> for payment_types::PaypalFlow {
+    fn from(item: PaypalFlow) -> Self {
+        match item {
+            PaypalFlow::Checkout => Self::Checkout,
+        }
+    }
 }
 
 impl
@@ -1738,8 +1743,6 @@ impl
                         ))
                     }
                     Some(common_enums::PaymentMethodType::Paypal) => {
-                        let metadata = data.connector_meta_data.clone();
-
                         let paypal_sdk_data = data
                             .connector_meta_data
                             .clone()
@@ -1747,9 +1750,7 @@ impl
                                 "PaypalSdkSessionTokenData",
                             )
                             .change_context(errors::ConnectorError::NoConnectorMetaData)
-                            .attach_printable(format!(
-                                "Failed to parse paypal_sdk metadata from the given value {metadata:?}"
-                            ))?;
+                            .attach_printable("Failed to parse paypal_sdk metadata.".to_string())?;
 
                         SessionToken::Paypal(Box::new(
                             api_models::payments::PaypalSessionTokenResponse {
@@ -1763,7 +1764,7 @@ impl
                                 ),
                                 transaction_info: Some(
                                     api_models::payments::PaypalTransactionInfo {
-                                        flow: PaypalFlow::Checkout.to_string(),
+                                        flow: PaypalFlow::Checkout.into(),
                                         currency_code: data.request.currency,
                                         total_price: StringMajorUnitForConnector
                                             .convert(

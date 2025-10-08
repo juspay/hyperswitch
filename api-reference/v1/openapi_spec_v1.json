@@ -28112,6 +28112,12 @@
           }
         }
       },
+      "PaypalFlow": {
+        "type": "string",
+        "enum": [
+          "checkout"
+        ]
+      },
       "PaypalRedirection": {
         "type": "object",
         "properties": {
@@ -28145,7 +28151,7 @@
           },
           "client_token": {
             "type": "string",
-            "description": "The token used to initialize the PayPal SDK on the client side",
+            "description": "Authorization token used by client to initiate sdk",
             "nullable": true
           },
           "transaction_info": {
@@ -28167,9 +28173,7 @@
         ],
         "properties": {
           "flow": {
-            "type": "string",
-            "description": "Paypal flow type",
-            "example": "checkout"
+            "$ref": "#/components/schemas/PaypalFlow"
           },
           "currency_code": {
             "$ref": "#/components/schemas/Currency"
