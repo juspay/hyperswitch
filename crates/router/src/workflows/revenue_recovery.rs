@@ -553,14 +553,28 @@ pub async fn update_token_expiry_based_on_schedule_time(
 }
 
 #[cfg(feature = "v2")]
+pub struct PaymentProcessorTokenResponse {
+    pub wait_time: Option<i64>,
+    pub all_hard_decline: Option<bool>,
+    pub schedule_time: Option<time::PrimitiveDateTime>,
+    pub reschedule_time: Option<time::PrimitiveDateTime>,
+}
+
+#[cfg(feature = "v2")]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mut scheduled_time = None;
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+
+    let mut payment_processor_token_response = PaymentProcessorTokenResponse {
+        wait_time: None,
+        all_hard_decline: None,
+        schedule_time: None,
+        reschedule_time: None
+    };
 
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
@@ -576,11 +590,45 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .await
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            scheduled_time = Some(time);
+
+            let payment_processor_token = payment_intent
+                .feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+                .and_then(|recovery_metadata| Some(recovery_metadata.billing_connector_payment_details.payment_processor_token.clone()));
+            
+
+            let payment_processor_tokens_details = RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+                state,
+                connector_customer_id,
+            ).await
+            .change_context(errors::ProcessTrackerError::ERedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+
+            // Get the token info from redis
+            let payment_processor_tokens_details_with_retry_info = payment_processor_token
+                .as_ref()
+                .and_then(|t| payment_processor_tokens_details.get(t));
+
+            // Time for next retry
+            payment_processor_token_response.schedule_time = Some(time);
+
+            // Check for hard decline
+            payment_processor_token_response.all_hard_decline = payment_processor_tokens_details_with_retry_info.as_ref()
+            .and_then(|t| t.token_status.is_hard_decline);
+
+            // Wait time, if retry limit exceeded
+            payment_processor_token_response.wait_time = payment_processor_tokens_details_with_retry_info.as_ref().and_then(|t| Some(t.retry_wait_time_hours));
+
+            // If hard decline or wait time > 0, then no schedule time
+            payment_processor_token_response.schedule_time = (payment_processor_token_response.all_hard_decline.unwrap_or(false)
+                || payment_processor_token_response.wait_time > Some(0) ).then(|| None).unwrap_or(payment_processor_token_response.schedule_time);
+    
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
-            scheduled_time = get_best_psp_token_available_for_smart_retry(
+            payment_processor_token_response = get_best_psp_token_available_for_smart_retry(
                 state,
                 connector_customer_id,
                 payment_intent,
@@ -589,17 +637,17 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
         }
     }
-    let delayed_schedule_time =
-        scheduled_time.map(|time| add_random_delay_to_schedule_time(state, time));
+    payment_processor_token_response.schedule_time =
+    payment_processor_token_response.schedule_time.map(|time| add_random_delay_to_schedule_time(state, time));
 
     let _ = update_token_expiry_based_on_schedule_time(
         state,
         connector_customer_id,
-        delayed_schedule_time,
+        payment_processor_token_response.schedule_time,
     )
     .await;
 
-    Ok(delayed_schedule_time)
+    Ok(payment_processor_token_response)
 }
 
 #[cfg(feature = "v2")]
@@ -607,7 +655,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
     let locked = RedisTokenManager::lock_connector_customer_status(
         state,
@@ -619,10 +667,33 @@ pub async fn get_best_psp_token_available_for_smart_retry(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    match !locked {
-        true => Ok(None),
-
+    match locked {
         false => {
+            let token_details= RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
+                state,
+                connector_customer_id,
+            ).await
+            .change_context(errors::ProcessTrackerError::ERedisError(
+                errors::RedisError::RedisConnectionError.into(),
+            ))?;
+
+            // Check token with schedule time in Redis
+            let token_info_with_schedule_time = token_details.values().find(|info| info.token_status.scheduled_at.is_some());
+            
+            // Check for hard decline if info is none 
+            let all_hard_declines = token_details.values().all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+            
+            let payment_processor_token_response = PaymentProcessorTokenResponse {
+                reschedule_time: token_info_with_schedule_time.as_ref().and_then(|t| t.token_status.scheduled_at),
+                all_hard_decline: Some(all_hard_declines),
+                schedule_time: None,
+                wait_time: None,
+            };
+            
+            Ok(payment_processor_token_response)
+        },
+
+        true => {
             // Get existing tokens from Redis
             let existing_tokens =
                 RedisTokenManager::get_connector_customer_payment_processor_tokens(
@@ -634,11 +705,10 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-            // TODO: Insert into payment_intent_feature_metadata (DB operation)
 
             let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &existing_tokens);
 
-            let best_token_time = call_decider_for_payment_processor_tokens_select_closet_time(
+            let payment_processor_token_response = call_decider_for_payment_processor_tokens_select_closet_time(
                 state,
                 &result,
                 payment_intent,
@@ -647,7 +717,7 @@ pub async fn get_best_psp_token_available_for_smart_retry(
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(best_token_time)
+            Ok(payment_processor_token_response)
         }
     }
 }
@@ -714,35 +784,39 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
     processor_tokens: &HashMap<String, PaymentProcessorTokenWithRetryInfo>,
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
-) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    tracing::debug!("Filtered  payment attempts based on payment tokens",);
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+
     let mut tokens_with_schedule_time: Vec<ScheduledToken> = Vec::new();
 
-    for token_with_retry_info in processor_tokens.values() {
-        let token_details = &token_with_retry_info
-            .token_status
-            .payment_processor_token_details;
-        let error_code = token_with_retry_info.token_status.error_code.clone();
+    // Check for successful token
+    let mut token_with_none_error_code = processor_tokens
+        .values()
+        .find(|token| token.token_status.error_code.is_none());
 
-        match error_code {
-            None => {
-                let utc_schedule_time =
-                    time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+    match token_with_none_error_code {
+        Some(token_with_retry_info) => {
+            let token_details = &token_with_retry_info
+                .token_status
+                .payment_processor_token_details;
 
-                let schedule_time = time::PrimitiveDateTime::new(
-                    utc_schedule_time.date(),
-                    utc_schedule_time.time(),
-                );
-                tokens_with_schedule_time = vec![ScheduledToken {
-                    token_details: token_details.clone(),
-                    schedule_time,
-                }];
-                tracing::debug!(
-                    "Found payment processor token with no error code scheduling it for {schedule_time}",
-                );
-                break;
-            }
-            Some(_) => {
+            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
+            let schedule_time = time::PrimitiveDateTime::new(
+                utc_schedule_time.date(),
+                utc_schedule_time.time(),
+            );
+
+            tokens_with_schedule_time = vec![ScheduledToken {
+                token_details: token_details.clone(),
+                schedule_time,
+            }];
+
+            tracing::debug!(
+                "Found payment processor token with no error code, scheduling it for {schedule_time}",
+            );
+        }
+
+        None => {
+            for token_with_retry_info in processor_tokens.values() {
                 process_token_for_retry(state, token_with_retry_info, payment_intent)
                     .await?
                     .map(|token_with_schedule_time| {
@@ -757,13 +831,21 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
         .min_by_key(|token| token.schedule_time)
         .cloned();
 
+
+    let mut payment_processor_token_response ;
     match best_token {
         None => {
+            let all_hard_declines = processor_tokens.values().all(|token| token.token_status.is_hard_decline.unwrap_or(false));
             RedisTokenManager::unlock_connector_customer_status(state, connector_customer_id)
                 .await
                 .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
             tracing::debug!("No payment processor tokens available for scheduling");
-            Ok(None)
+            payment_processor_token_response = PaymentProcessorTokenResponse{
+                wait_time: None,
+                all_hard_decline: Some(all_hard_declines),
+                schedule_time: None,
+                reschedule_time: None,
+            };
         }
 
         Some(token) => {
@@ -778,9 +860,15 @@ pub async fn call_decider_for_payment_processor_tokens_select_closet_time(
             .await
             .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
 
-            Ok(Some(token.schedule_time))
+            payment_processor_token_response = PaymentProcessorTokenResponse{
+                    wait_time: None,
+                    all_hard_decline: Some(false),
+                    schedule_time: Some(token.schedule_time),
+                    reschedule_time: None
+            }; 
         }
     }
+    Ok(payment_processor_token_response)
 }
 
 #[cfg(feature = "v2")]

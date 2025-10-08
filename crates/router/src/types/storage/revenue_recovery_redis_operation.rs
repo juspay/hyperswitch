@@ -413,17 +413,23 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let monthly_wait_hours =
-            if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
-                (0..RETRY_WINDOW_DAYS)
-                    .rev()
-                    .map(|i| today - Duration::days(i.into()))
-                    .find(|date| token.daily_retry_history.get(date).copied().unwrap_or(0) > 0)
-                    .map(|date| Self::calculate_wait_hours(date + Duration::days(31), now))
-                    .unwrap_or(0)
-            } else {
-                0
-            };
+        let monthly_wait_hours = (total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day)
+        .then(|| {
+            let mut accumulated = 0;
+
+            // Iterate from most recent to oldest
+            (0..RETRY_WINDOW_DAYS)
+                .map(|days_ago| today - Duration::days(days_ago.into()))
+                .find(|date| {
+                    let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
+                    accumulated += retries;
+                    accumulated >= card_network_config.max_retry_count_for_thirty_day
+                })
+                .map(|breach_date| Self::calculate_wait_hours(breach_date + Duration::days(31), now))
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+
 
         let today_retries = token
             .daily_retry_history
@@ -471,6 +477,7 @@ impl RedisTokenManager {
                 error_code.map(|err| existing_token.error_code = Some(err));
 
                 Self::normalize_retry_window(existing_token, today);
+                existing_token.is_hard_decline = token_data.is_hard_decline;
 
                 for (date, &value) in &token_data.daily_retry_history {
                     existing_token
@@ -843,4 +850,17 @@ impl RedisTokenManager {
 
         Ok(())
     }
+    pub async fn get_payment_processor_metadata_for_connector_customer(
+        state: &SessionState,
+        customer_id: &str,
+    ) -> CustomResult<HashMap<String, PaymentProcessorTokenWithRetryInfo>, errors::StorageError> {
+    
+        let token_map = Self::get_connector_customer_payment_processor_tokens(state, customer_id).await?;
+    
+        
+        let token_data = Self::get_tokens_with_retry_metadata(state, &token_map);
+    
+        Ok(token_data)
+    }
+    
 }
