@@ -1283,9 +1283,3 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 
 [internal_services] # Internal services base urls and configs
 payments_base_url = "http://localhost:8080"
-
-# Configuration for comparison service to send router data comparisons
-[comparison_service]
-enabled = true # Enable or disable comparison service data sending
-url = "http://localhost:9000/receive" # URL endpoint for comparison service
-timeout_secs = 2 # Timeout in seconds for comparison service requests

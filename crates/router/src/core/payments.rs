@@ -4460,18 +4460,18 @@ where
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
     let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
-        Ok(data) => data,
-        Err(err) => {
-            logger::error!("Failed to serialize HS router data: {}", err);
+        Ok(data) => Secret::new(data),
+        Err(_) => {
+            logger::error!("Failed to serialize HS router data");
             return Ok(());
         }
     };
 
     let unified_connector_service_data =
         match serde_json::to_value(unified_connector_service_router_data) {
-            Ok(data) => data,
-            Err(err) => {
-                logger::error!("Failed to serialize UCS router data: {}", err);
+            Ok(data) => Secret::new(data),
+            Err(_) => {
+                logger::error!("Failed to serialize UCS router data");
                 return Ok(());
             }
         };

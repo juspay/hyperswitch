@@ -163,8 +163,8 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
-/// Shadow Mode
-pub const X_SHADOW_MODE: &str = "x-shadow-mode";
+/// Unified Connector Service Mode
+pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-ucs-mode";
 
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";

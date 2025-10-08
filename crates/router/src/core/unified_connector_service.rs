@@ -74,6 +74,136 @@ type UnifiedConnectorServiceResult = CustomResult<
 
 /// Generic version of should_call_unified_connector_service that works with any type
 /// implementing OperationSessionGetters trait
+// pub async fn should_call_unified_connector_service<F: Clone, T, D>(
+//     state: &SessionState,
+//     merchant_context: &MerchantContext,
+//     router_data: &RouterData<F, T, PaymentsResponseData>,
+//     payment_data: Option<&D>,
+// ) -> RouterResult<GatewaySystem>
+// where
+//     D: OperationSessionGetters<F>,
+// {
+//     // Check basic UCS availability first
+//     if state.grpc_client.unified_connector_service_client.is_none() {
+//         router_env::logger::debug!(
+//             "Unified Connector Service client is not available, skipping UCS decision"
+//         );
+//         return Ok(GatewaySystem::Direct);
+//     }
+
+//     let ucs_config_key = consts::UCS_ENABLED;
+//     if !is_ucs_enabled(state, ucs_config_key).await {
+//         router_env::logger::debug!(
+//             "Unified Connector Service is not enabled, skipping UCS decision"
+//         );
+//         return Ok(GatewaySystem::Direct);
+//     }
+
+//     // Continue with normal UCS gateway system logic
+//     let merchant_id = merchant_context
+//         .get_merchant_account()
+//         .get_id()
+//         .get_string_repr();
+
+//     let connector_name = router_data.connector.clone();
+//     let connector_enum = Connector::from_str(&connector_name)
+//         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
+//     let payment_method = router_data.payment_method.to_string();
+//     let flow_name = get_flow_name::<F>()?;
+
+//     let is_ucs_only_connector = state
+//         .conf
+//         .grpc_client
+//         .unified_connector_service
+//         .as_ref()
+//         .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+
+//     if is_ucs_only_connector {
+//         router_env::logger::info!(
+//             "Payment gateway system decision: UCS (forced) - merchant_id={}, connector={}, payment_method={}, flow={}",
+//             merchant_id, connector_name, payment_method, flow_name
+//         );
+//         return Ok(GatewaySystem::UnifiedConnectorService);
+//     }
+
+//     let config_key = format!(
+//         "{}_{}_{}_{}_{}",
+//         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+//         merchant_id,
+//         connector_name,
+//         payment_method,
+//         flow_name
+//     );
+
+//     let shadow_ucs_config_key = format!("{}_Shadow", config_key);
+
+//     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+
+//     let should_execute_shadow_ucs =
+//         should_execute_based_on_rollout(state, &shadow_ucs_config_key).await?;
+
+//     // Apply stickiness logic if payment_data is available
+//     if let Some(payment_data) = payment_data {
+//         let previous_gateway_system = extract_gateway_system_from_payment_intent(payment_data);
+
+//         match previous_gateway_system {
+//             Some(GatewaySystem::UnifiedConnectorService) => {
+//                 // Payment intent previously used UCS, maintain stickiness to UCS
+//                 router_env::logger::info!(
+//                     "Payment gateway system decision: UCS (sticky) - payment intent previously used UCS"
+//                 );
+//                 return Ok(GatewaySystem::UnifiedConnectorService);
+//             }
+//             Some(GatewaySystem::Direct) => {
+//                 // Payment intent previously used Direct, maintain stickiness to Direct (return false for UCS)
+//                 if should_execute_shadow_ucs {
+//                     router_env::logger::info!(
+//                         "Payment gateway system decision: Direct (sticky) but also ShadowUCS - payment intent previously used Direct"
+//                     );
+//                     return Ok(GatewaySystem::ShadowUnifiedConnectorService);
+//                 } else {
+//                     router_env::logger::info!(
+//                         "Payment gateway system decision: Direct (sticky) - payment intent previously used Direct"
+//                     );
+//                     return Ok(GatewaySystem::Direct);
+//                 }
+//             }
+//             _ => {
+//                 // No previous gateway system set, continue with normal gateway system logic
+//                 router_env::logger::debug!(
+//                     "UCS stickiness: No previous gateway system set, applying normal gateway system logic"
+//                 );
+//             }
+//         }
+//     }
+
+//     match (should_execute, should_execute_shadow_ucs) {
+//         (_, true) => {
+//             router_env::logger::info!(
+//                 "Payment gateway system decision: ShadowUCS - merchant_id={}, connector={}, payment_method={}, flow={}",
+//                 merchant_id, connector_name, payment_method, flow_name
+//             );
+//             Ok(GatewaySystem::ShadowUnifiedConnectorService)
+//         }
+//         (true, false) => {
+//             router_env::logger::info!(
+//             "Payment gateway system decision: UCS - merchant_id={}, connector={}, payment_method={}, flow={}",
+//             merchant_id, connector_name, payment_method, flow_name
+//         );
+//             Ok(GatewaySystem::UnifiedConnectorService)
+//         }
+//         (false, false) => {
+//             router_env::logger::info!(
+//                 "Payment gateway system decision: Direct - merchant_id={}, connector={}, payment_method={}, flow={}",
+//                 merchant_id, connector_name, payment_method, flow_name
+//             );
+//             Ok(GatewaySystem::Direct)
+//         }
+//     }
+// }
+
+
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
@@ -83,51 +213,80 @@ pub async fn should_call_unified_connector_service<F: Clone, T, D>(
 where
     D: OperationSessionGetters<F>,
 {
-    // Check basic UCS availability first
-    if state.grpc_client.unified_connector_service_client.is_none() {
-        router_env::logger::debug!(
-            "Unified Connector Service client is not available, skipping UCS decision"
-        );
-        return Ok(GatewaySystem::Direct);
-    }
-
-    let ucs_config_key = consts::UCS_ENABLED;
-    if !is_ucs_enabled(state, ucs_config_key).await {
-        router_env::logger::debug!(
-            "Unified Connector Service is not enabled, skipping UCS decision"
-        );
-        return Ok(GatewaySystem::Direct);
-    }
-
-    // Continue with normal UCS gateway system logic
+    // Extract context information
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let connector_name = router_data.connector.clone();
-    let connector_enum = Connector::from_str(&connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+    let connector_name = &router_data.connector;
+    let connector_enum = Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven).attach_printable_lazy(|| {
+            format!("Failed to parse connector name: {}", connector_name)
+        })?;
 
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
-    let is_ucs_only_connector = state
-        .conf
-        .grpc_client
-        .unified_connector_service
-        .as_ref()
-        .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
+    // Compute all relevant conditions
+    let ucs_client_available = state.grpc_client.unified_connector_service_client.is_some();
+    let ucs_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
 
-    if is_ucs_only_connector {
-        router_env::logger::info!(
-            "Payment gateway system decision: UCS (forced) - merchant_id={}, connector={}, payment_method={}, flow={}",
-            merchant_id, connector_name, payment_method, flow_name
+    // Log if UCS client is not available
+    if !ucs_client_available {
+        router_env::logger::debug!(
+            "UCS client not available - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
         );
-        return Ok(GatewaySystem::UnifiedConnectorService);
     }
 
-    let config_key = format!(
+    // Log if UCS is not enabled
+    if !ucs_enabled {
+        router_env::logger::debug!(
+            "UCS not enabled in configuration - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    let ucs_config = state.conf.grpc_client.unified_connector_service.as_ref();
+    
+    // Log if UCS configuration is missing
+    if ucs_config.is_none() {
+        router_env::logger::debug!(
+            "UCS configuration not found - merchant_id={}, connector={}",
+            merchant_id,
+            connector_name
+        );
+    }
+
+    let ucs_only_connector = ucs_config
+        .map_or(false, |config| config.ucs_only_connectors.contains(&connector_enum));
+
+    let previous_gateway = payment_data
+        .and_then(extract_gateway_system_from_payment_intent);
+
+    // Log previous gateway state
+    match previous_gateway {
+        Some(gateway) => {
+            router_env::logger::debug!(
+                "Previous gateway system found: {:?} - merchant_id={}, connector={}",
+                gateway,
+                merchant_id,
+                connector_name
+            );
+        }
+        None => {
+            router_env::logger::debug!(
+                "No previous gateway system found (new payment) - merchant_id={}, connector={}",
+                merchant_id,
+                connector_name
+            );
+        }
+    }
+
+    let rollout_key = format!(
         "{}_{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
@@ -135,73 +294,180 @@ where
         payment_method,
         flow_name
     );
+    let shadow_rollout_key = format!("{}_Shadow", rollout_key);
 
-    let shadow_ucs_config_key = format!("{}_Shadow", config_key);
+    let rollout_enabled = should_execute_based_on_rollout(state, &rollout_key).await?;
+    let shadow_rollout_enabled = should_execute_based_on_rollout(state, &shadow_rollout_key).await?;
 
-    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    router_env::logger::debug!(
+        "Rollout status - rollout_enabled={}, shadow_rollout_enabled={}, rollout_key={}, merchant_id={}, connector={}",
+        rollout_enabled,
+        shadow_rollout_enabled,
+        rollout_key,
+        merchant_id,
+        connector_name
+    );
 
-    let should_execute_shadow_ucs =
-        should_execute_based_on_rollout(state, &shadow_ucs_config_key).await?;
-
-    // Apply stickiness logic if payment_data is available
-    if let Some(payment_data) = payment_data {
-        let previous_gateway_system = extract_gateway_system_from_payment_intent(payment_data);
-
-        match previous_gateway_system {
-            Some(GatewaySystem::UnifiedConnectorService) => {
-                // Payment intent previously used UCS, maintain stickiness to UCS
-                router_env::logger::info!(
-                    "Payment gateway system decision: UCS (sticky) - payment intent previously used UCS"
-                );
-                return Ok(GatewaySystem::UnifiedConnectorService);
-            }
-            Some(GatewaySystem::Direct) => {
-                // Payment intent previously used Direct, maintain stickiness to Direct (return false for UCS)
-                if should_execute_shadow_ucs {
-                    router_env::logger::info!(
-                        "Payment gateway system decision: Direct (sticky) but also ShadowUCS - payment intent previously used Direct"
-                    );
-                    return Ok(GatewaySystem::ShadowUnifiedConnectorService);
-                } else {
-                    router_env::logger::info!(
-                        "Payment gateway system decision: Direct (sticky) - payment intent previously used Direct"
-                    );
-                    return Ok(GatewaySystem::Direct);
-                }
-            }
-            _ => {
-                // No previous gateway system set, continue with normal gateway system logic
-                router_env::logger::debug!(
-                    "UCS stickiness: No previous gateway system set, applying normal gateway system logic"
-                );
-            }
-        }
-    }
-
-    match (should_execute, should_execute_shadow_ucs) {
-        (_, true) => {
-            router_env::logger::info!(
-                "Payment gateway system decision: ShadowUCS - merchant_id={}, connector={}, payment_method={}, flow={}",
-                merchant_id, connector_name, payment_method, flow_name
+    // Single decision point using pattern matching
+    // Tuple structure: (ucs_infrastructure_ready, ucs_only_connector, previous_gateway, shadow_rollout_enabled, rollout_enabled)
+    let decision = match (
+        ucs_client_available && ucs_enabled,
+        ucs_only_connector,
+        previous_gateway,
+        shadow_rollout_enabled,
+        rollout_enabled,
+    ) {
+        // ==================== DIRECT GATEWAY DECISIONS ====================
+        // All patterns that result in Direct routing
+        
+        // UCS infrastructure not available (any configuration)
+        // - Client not available OR not enabled
+        // - Regardless of: ucs_only_connector, previous_gateway, rollouts
+        (false, _, _, _, _) |
+        
+        // UCS available but no rollouts active and no previous gateway
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - New payment (no previous gateway)
+        // - No shadow rollout
+        // - No full rollout
+        (true, false, None, false, false) |
+        
+        // UCS available, continuing with Direct, no rollouts
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Direct
+        // - No shadow rollout
+        // - No full rollout
+        (true, false, Some(GatewaySystem::Direct), false, false) |
+        
+        // UCS available, previous Shadow but rollout ended
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Shadow
+        // - No shadow rollout (ended)
+        // - No full rollout
+        (true, false, Some(GatewaySystem::ShadowUnifiedConnectorService), false, false) => {
+            router_env::logger::debug!(
+                "Routing to Direct: ucs_ready={}, ucs_only={}, previous={:?}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                previous_gateway,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
             );
-            Ok(GatewaySystem::ShadowUnifiedConnectorService)
+            GatewaySystem::Direct
         }
-        (true, false) => {
-            router_env::logger::info!(
-            "Payment gateway system decision: UCS - merchant_id={}, connector={}, payment_method={}, flow={}",
-            merchant_id, connector_name, payment_method, flow_name
-        );
-            Ok(GatewaySystem::UnifiedConnectorService)
-        }
-        (false, false) => {
-            router_env::logger::info!(
-                "Payment gateway system decision: Direct - merchant_id={}, connector={}, payment_method={}, flow={}",
-                merchant_id, connector_name, payment_method, flow_name
+        
+        // ==================== SHADOW UCS DECISIONS ====================
+        // All patterns that result in Shadow UCS routing
+        
+        // Shadow rollout for new payment (no previous gateway)
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - No previous gateway
+        // - Shadow rollout enabled
+        // - Full rollout: any (false or true, shadow takes precedence)
+        (true, false, None, true, _) |
+        
+        // Shadow rollout with previous Direct gateway
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Direct
+        // - Shadow rollout enabled
+        // - Full rollout: any (shadow takes precedence)
+        (true, false, Some(GatewaySystem::Direct), true, _) |
+        
+        // Shadow rollout with previous Shadow gateway (continuation)
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Shadow
+        // - Shadow rollout enabled
+        // - Full rollout: any
+        (true, false, Some(GatewaySystem::ShadowUnifiedConnectorService), true, _) => {
+            router_env::logger::debug!(
+                "Routing to ShadowUnifiedConnectorService: ucs_ready={}, ucs_only={}, previous={:?}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                previous_gateway,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
             );
-            Ok(GatewaySystem::Direct)
+            GatewaySystem::ShadowUnifiedConnectorService
         }
-    }
+        
+        // ==================== UNIFIED CONNECTOR SERVICE DECISIONS ====================
+        // All patterns that result in UCS routing
+        
+        // UCS-only connector (mandatory UCS)
+        // - Infrastructure ready
+        // - UCS-only connector flag set
+        // - Any previous gateway
+        // - Any shadow rollout state
+        // - Any full rollout state
+        (true, true, _, _, _) |
+        
+        // Sticky routing: Continue with previous UCS
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was UCS
+        // - Any shadow rollout state (doesn't affect existing UCS)
+        // - Any full rollout state
+        (true, false, Some(GatewaySystem::UnifiedConnectorService), _, _) |
+        
+        // Full rollout: New payment
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - No previous gateway
+        // - No shadow rollout (shadow would take precedence)
+        // - Full rollout enabled
+        (true, false, None, false, true) |
+        
+        // Full rollout: Switch from Direct
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Direct
+        // - No shadow rollout (shadow would take precedence)
+        // - Full rollout enabled
+        (true, false, Some(GatewaySystem::Direct), false, true) |
+        
+        // Full rollout: Promote from Shadow
+        // - Infrastructure ready
+        // - Not a UCS-only connector
+        // - Previous gateway was Shadow
+        // - Shadow rollout ended (now false)
+        // - Full rollout enabled
+        (true, false, Some(GatewaySystem::ShadowUnifiedConnectorService), false, true) => {
+            router_env::logger::debug!(
+                "Routing to UnifiedConnectorService: ucs_ready={}, ucs_only={}, previous={:?}, shadow_rollout={}, full_rollout={} - merchant_id={}, connector={}",
+                ucs_client_available && ucs_enabled,
+                ucs_only_connector,
+                previous_gateway,
+                shadow_rollout_enabled,
+                rollout_enabled,
+                merchant_id,
+                connector_name
+            );
+            GatewaySystem::UnifiedConnectorService
+        }
+    };
+
+    router_env::logger::info!(
+        "Payment gateway system decision: {:?} - merchant_id={}, connector={}, payment_method={}, flow={}",
+        decision,
+        merchant_id,
+        connector_name,
+        payment_method,
+        flow_name
+    );
+
+    Ok(decision)
 }
+
 
 /// Extracts the gateway system from the payment intent's feature metadata
 /// Returns None if metadata is missing, corrupted, or doesn't contain gateway_system
@@ -941,8 +1207,8 @@ where
 
 #[derive(serde::Serialize)]
 pub struct ComparisonData {
-    pub hyperswitch_data: serde_json::Value,
-    pub unified_connector_service_data: serde_json::Value,
+    pub hyperswitch_data: Secret<serde_json::Value>,
+    pub unified_connector_service_data: Secret<serde_json::Value>,
 }
 
 /// Sends router data comparison to external service

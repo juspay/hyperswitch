@@ -465,8 +465,11 @@ pub fn build_unified_connector_service_grpc_headers(
 
     if let Some(shadow_mode) = grpc_headers.shadow_mode {
         metadata.append(
-            common_utils_consts::X_SHADOW_MODE,
-            parse(common_utils_consts::X_SHADOW_MODE, &shadow_mode)?,
+            common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+            parse(
+                common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
+                &shadow_mode,
+            )?,
         );
     }
 
