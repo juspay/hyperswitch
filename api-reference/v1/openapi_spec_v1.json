@@ -28145,7 +28145,7 @@
           },
           "client_token": {
             "type": "string",
-            "description": "Client token",
+            "description": "The token used to initialize the PayPal SDK on the client side",
             "nullable": true
           },
           "transaction_info": {
@@ -28168,7 +28168,7 @@
         "properties": {
           "flow": {
             "type": "string",
-            "description": "Country code",
+            "description": "Paypal flow type",
             "example": "checkout"
           },
           "currency_code": {

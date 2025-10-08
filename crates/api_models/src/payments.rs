@@ -7959,7 +7959,7 @@ pub struct KlarnaSessionTokenResponse {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalTransactionInfo {
-    /// Country code
+    /// Paypal flow type
     #[schema(value_type = String, example = "checkout")]
     pub flow: String,
     /// Currency code
@@ -7979,9 +7979,9 @@ pub struct PaypalSessionTokenResponse {
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
-    /// Client token
+    /// The token used to initialize the PayPal SDK on the client side
     pub client_token: Option<String>,
-    /// Transaction information
+    /// The transaction info Paypal requires
     pub transaction_info: Option<PaypalTransactionInfo>,
 }
 
