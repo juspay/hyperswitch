@@ -10699,7 +10699,6 @@ pub trait OperationSessionGetters<F> {
     #[cfg(feature = "v1")]
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 
-    fn get_l2_l3_enabled(&self) -> Option<bool>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -10946,9 +10945,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.is_manual_retry_enabled
     }
 
-    fn get_l2_l3_enabled(&self) -> Option<bool> {
-        self.is_l2_l3_enabled
-    }
     // #[cfg(feature = "v2")]
     // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
     //     Some(self.payment_intent.capture_method)

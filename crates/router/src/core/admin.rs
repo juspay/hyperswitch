@@ -4147,7 +4147,6 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
-                enable_l2_l3: self.enable_l2_l3,
             },
         )))
     }
