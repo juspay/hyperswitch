@@ -44,9 +44,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FinixMeta {
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
         let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         Ok(metadata)
     }
 }
