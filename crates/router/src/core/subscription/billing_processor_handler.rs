@@ -285,11 +285,10 @@ impl BillingHandler {
     pub async fn get_subscription_estimate(
         &self,
         state: &SessionState,
-        estimate_request: subscription_types::EstimateSubscriptionRequest,
+        estimate_request: subscription_types::EstimateSubscriptionQuery,
     ) -> errors::RouterResult<subscription_response_types::GetSubscriptionEstimateResponse> {
         let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
             price_id: estimate_request.item_price_id.clone(),
-            customer_id: Some(estimate_request.customer_id.clone()),
         };
 
         let router_data = self.build_router_data(

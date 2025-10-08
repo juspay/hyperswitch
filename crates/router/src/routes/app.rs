@@ -2780,51 +2780,54 @@ impl User {
         }
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        // TODO: To be deprecated
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2")
-                        .route(web::post().to(user_role::create_role_v2))
-                        .route(
-                            web::get().to(user_role::get_groups_and_resources_for_role_from_token),
-                        ),
-                )
-                // TODO: To be deprecated
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(
-                            web::resource("").route(web::get().to(user_role::list_roles_with_info)),
-                        )
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            // TODO: To be deprecated
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    .service(
+                        web::resource("/v2")
+                            .route(web::post().to(user_role::create_role_v2))
+                            .route(
+                                web::get()
+                                    .to(user_role::get_groups_and_resources_for_role_from_token),
+                            ),
+                    )
+                    .service(web::resource("/v3").route(
+                        web::get().to(user_role::get_parent_groups_info_for_role_from_token),
+                    ))
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                )
-                .service(
-                    web::resource("/{role_id}/v2")
-                        .route(web::get().to(user_role::get_parent_info_for_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {

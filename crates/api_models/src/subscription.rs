@@ -454,7 +454,7 @@ pub struct Invoice {
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct EstimateSubscriptionRequest {
+pub struct EstimateSubscriptionQuery {
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
 
@@ -463,12 +463,9 @@ pub struct EstimateSubscriptionRequest {
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
-
-    /// Identifier for customer.
-    pub customer_id: common_utils::id_type::CustomerId,
 }
 
-impl ApiEventMetric for EstimateSubscriptionRequest {}
+impl ApiEventMetric for EstimateSubscriptionQuery {}
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct EstimateSubscriptionResponse {

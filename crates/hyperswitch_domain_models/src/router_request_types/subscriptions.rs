@@ -52,5 +52,4 @@ pub struct GetSubscriptionPlanPricesRequest {
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimateRequest {
     pub price_id: String,
-    pub customer_id: Option<id_type::CustomerId>,
 }
