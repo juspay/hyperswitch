@@ -169,6 +169,114 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
 where
     F: Send + Clone + Sync,
     Req: Send + Sync + Authenticate,
+    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+
+    // To create connector flow specific interface data
+    D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
+    RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
+
+    RouterData<F, FData, router_types::PaymentsResponseData>:
+        hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData, D>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, FData, Data = D>,
+    FData: Send + Sync + Clone,
+{
+    // Get the trackers related to track the state of the payment
+    let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+
+    let (
+        payment_resp_data,
+        req,
+        customer,
+        connector_http_status_code,
+        out,
+        connector_response_data,
+    ) = payments_operation_core_executor(
+        state,
+        req_state.clone(),
+        merchant_context.clone(),
+        profile,
+        operation.clone(),
+        req,
+        payment_data.clone(),
+        call_connector_action.clone(),
+        header_payload.clone(),
+    )
+    .await?;
+
+    if let Some(data) = payment_data.get_split_payment_data() {
+        let (payment_attempt, payment_method_data) = data.first().unwrap();
+        payment_data.set_payment_attempt(payment_attempt.clone());
+        payment_data.set_payment_method_data(Some(payment_method_data.clone()));
+        let (
+            payment_resp_data,
+            req,
+            customer,
+            connector_http_status_code,
+            out,
+            connector_response_data,
+        ) = payments_operation_core_executor(
+            state,
+            req_state,
+            merchant_context,
+            profile,
+            operation,
+            req,
+            payment_data.clone(),
+            call_connector_action,
+            header_payload,
+        )
+        .await?;
+        Ok((
+            payment_resp_data,
+            req,
+            customer,
+            connector_http_status_code,
+            None,
+            connector_response_data,
+        ))
+    } else {
+        Ok((
+            payment_resp_data,
+            req,
+            customer,
+            connector_http_status_code,
+            None,
+            connector_response_data,
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn payments_operation_core_executor<F, Req, Op, FData, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: domain::MerchantContext,
+    profile: &domain::Profile,
+    operation: Op,
+    req: Req,
+    mut payment_data: D,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<(
+    D,
+    Req,
+    Option<domain::Customer>,
+    Option<u16>,
+    Option<u128>,
+    common_types::domain::ConnectorResponseData,
+)>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync + Authenticate,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 
@@ -188,9 +296,6 @@ where
     FData: Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
-
-    // Get the trackers related to track the state of the payment
-    let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
     operation
         .to_domain()?
@@ -10647,6 +10752,15 @@ pub trait OperationSessionGetters<F> {
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
     #[cfg(feature = "v2")]
     fn get_client_secret(&self) -> &Option<Secret<String>>;
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    >;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_payment_method_token(&self) -> Option<&PaymentMethodToken>;
     fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
@@ -11141,6 +11255,18 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        None
+    }
+
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         todo!()
     }
@@ -11449,6 +11575,18 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        self.split_payment_details.clone()
+    }
+
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
     }
@@ -11635,8 +11773,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt = payment_attempt;
     }
 
-    fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
-        todo!()
+    fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
+        self.payment_method_data = payment_method_data;
     }
 
     fn set_payment_method_token(&mut self, _payment_method_token: Option<PaymentMethodToken>) {
@@ -11760,6 +11898,18 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        None
+    }
+
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
@@ -12066,6 +12216,18 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        None
+    }
+
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
@@ -12375,6 +12537,18 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        None
+    }
+
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         todo!()
@@ -12541,6 +12715,18 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
+    #[cfg(feature = "v2")]
+    fn get_split_payment_data(
+        &self,
+    ) -> Option<
+        Vec<(
+            domain_payments::payment_attempt::PaymentAttempt,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        )>,
+    > {
+        None
+    }
+
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
