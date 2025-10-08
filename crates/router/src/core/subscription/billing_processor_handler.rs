@@ -5,8 +5,8 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
-        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData, InvoiceRecordBackData,
-        SubscriptionCreateData, SubscriptionCustomerData,
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
+        InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
     },
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest, subscriptions as subscription_request_types,
