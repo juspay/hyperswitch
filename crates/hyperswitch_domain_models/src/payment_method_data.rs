@@ -1496,9 +1496,7 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
             UpiData::UpiIntent(_) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
             }
-            UpiData::UpiQr(_) => {
-                Self::UpiQr(Box::new(api_models::payments::UpiQrData {}))
-            }
+            UpiData::UpiQr(_) => Self::UpiQr(Box::new(api_models::payments::UpiQrData {})),
         }
     }
 }

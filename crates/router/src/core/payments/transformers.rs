@@ -3812,7 +3812,6 @@ pub fn extract_sdk_uri_information(
     Ok(sdk_uri_information)
 }
 
-
 pub fn wait_screen_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
