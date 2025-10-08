@@ -5645,6 +5645,27 @@ placeholder = "Enter ThreeDS request id"
 required = false
 type = "Text"
 [juspaythreedsserver.connector_auth.NoKey]
+[[juspaythreedsserver.metadata.merchant_category_code]]
+name = "merchant_category_code"
+label = "merchant_category_code"
+placeholder = "Enter Merchant Category Code"
+required = true
+[[juspaythreedsserver.metadata.merchant_country_code]]
+name = "merchant_country_code"
+label = "merchant_country_code"
+placeholder = "Enter Merchant Country Code"
+required = true
+[[juspaythreedsserver.metadata.merchant_name]]
+name = "merchant_name"
+label = "merchant_name"
+placeholder = "Enter Merchant Name"
+required = true
+[[juspaythreedsserver.metadata.pull_mechanism_for_external_3ds_enabled]]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=true
+type="Toggle"
 
 [hyperwallet]
 [hyperwallet.connector_auth.BodyKey]
