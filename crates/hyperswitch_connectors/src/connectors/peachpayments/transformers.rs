@@ -4,7 +4,8 @@ use cards::CardNumber;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    network_tokenization::NetworkTokenNumber,
+    payment_method_data::{PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::ResponseId,
     router_response_types::PaymentsResponseData,
@@ -20,7 +21,7 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, CardData, RouterData as OtherRouterData},
+    utils::{self, CardData, RouterData as OtherRouterData, NetworkTokenData as _},
 };
 
 //TODO: Fill the struct with respective fields
@@ -56,7 +57,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
 pub struct PeachpaymentsPaymentsRequest {
     pub charge_method: String,
     pub reference_id: String,
-    pub ecommerce_card_payment_only_transaction_data: EcommerceCardPaymentOnlyTransactionData,
+    pub ecommerce_card_payment_only_transaction_data: EcommercePaymentOnlyTransactionData,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pos_data: Option<serde_json::Value>,
     pub send_date_time: String,
@@ -69,6 +70,22 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing: Routing,
     pub card: CardDetails,
     pub amount: AmountDetails,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde[rename_all = "camelCase"]]
+pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
+    pub merchant_information: MerchantInformation,
+    pub routing: Routing,
+    pub network_token_data: NetworkTokenDetails,
+    pub amount: AmountDetails,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde[rename_all = "camelCase"]]
+pub enum EcommercePaymentOnlyTransactionData {
+    Card(EcommerceCardPaymentOnlyTransactionData),
+    NetworkToken(EcommerceNetworkTokenPaymentOnlyTransactionData),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -147,6 +164,17 @@ pub struct CardDetails {
     pub expiry_month: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde[rename_all = "camelCase"]]
+pub struct NetworkTokenDetails {
+    pub token: NetworkTokenNumber,
+    pub expiry_year: Secret<String>,
+    pub expiry_month: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub scheme: Option<common_enums::CardNetwork>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -370,12 +398,12 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     display_amount: None,
                 };
 
-                let ecommerce_data = EcommerceCardPaymentOnlyTransactionData {
+                let ecommerce_data = EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                     merchant_information,
                     routing,
                     card,
                     amount,
-                };
+                });
 
                 // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
                 let send_date_time = OffsetDateTime::now_utc()
@@ -389,7 +417,79 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     pos_data: None,
                     send_date_time,
                 })
-            }
+            },
+            PaymentMethodData::NetworkToken(token_data) => {
+                let amount_in_cents = item.amount;
+
+                let connector_merchant_config = PeachPaymentsConnectorMetadataObject::try_from(
+                    &item.router_data.connector_meta_data,
+                )?;
+
+                let merchant_information = MerchantInformation {
+                    client_merchant_reference_id: connector_merchant_config
+                        .client_merchant_reference_id,
+                    name: connector_merchant_config.name,
+                    mcc: connector_merchant_config.mcc,
+                    phone: connector_merchant_config.phone,
+                    email: connector_merchant_config.email,
+                    mobile: connector_merchant_config.mobile,
+                    address: connector_merchant_config.address,
+                    city: connector_merchant_config.city,
+                    postal_code: connector_merchant_config.postal_code,
+                    region_code: connector_merchant_config.region_code,
+                    merchant_type: connector_merchant_config.merchant_type,
+                    website_url: connector_merchant_config.website_url,
+                };
+
+                // Get routing configuration from metadata
+                let routing = Routing {
+                    route: connector_merchant_config.route,
+                    mid: connector_merchant_config.mid,
+                    tid: connector_merchant_config.tid,
+                    visa_payment_facilitator_id: connector_merchant_config
+                        .visa_payment_facilitator_id,
+                    master_card_payment_facilitator_id: connector_merchant_config
+                        .master_card_payment_facilitator_id,
+                    sub_mid: connector_merchant_config.sub_mid,
+                    amex_id: connector_merchant_config.amex_id,
+                };
+
+                let network_token_data = NetworkTokenDetails {
+                    token: token_data.get_network_token(),
+                    expiry_year: token_data.get_network_token_expiry_month(),
+                    expiry_month: token_data.get_network_token_expiry_year(),
+                    cryptogram: token_data.get_cryptogram(),
+                    eci: token_data.eci.clone(),
+                    scheme: token_data.card_network.clone(),
+                };
+
+                let amount = AmountDetails {
+                    amount: amount_in_cents,
+                    currency_code: item.router_data.request.currency.to_string(),
+                    display_amount: None,
+                };
+
+                let ecommerce_data =  EcommercePaymentOnlyTransactionData::NetworkToken(EcommerceNetworkTokenPaymentOnlyTransactionData {
+                    merchant_information,
+                    routing,
+                    network_token_data,
+                    amount,
+                });
+
+                // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
+                let send_date_time = OffsetDateTime::now_utc()
+                    .format(&time::format_description::well_known::Iso8601::DEFAULT)
+                    .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+                Ok(Self {
+                    charge_method: "ecommerce_card_payment_only".to_string(),
+                    reference_id: item.router_data.connector_request_reference_id.clone(),
+                    ecommerce_card_payment_only_transaction_data: ecommerce_data,
+                    pos_data: None,
+                    send_date_time,
+                })
+            },
+
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
