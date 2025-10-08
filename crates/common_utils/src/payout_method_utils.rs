@@ -23,6 +23,8 @@ pub enum AdditionalPayoutMethodData {
     Bank(Box<BankAdditionalData>),
     /// Additional data for wallet payout method
     Wallet(Box<WalletAdditionalData>),
+    /// Additional data for Bank Redirect payout method
+    BankRedirect(Box<BankRedirectAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -237,4 +239,26 @@ pub struct VenmoAdditionalData {
     /// mobile number linked to venmo account
     #[schema(value_type = Option<String>, example = "******* 3349")]
     pub telephone_number: Option<MaskedPhoneNumber>,
+}
+
+/// Masked payout method details for wallet payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
+pub enum BankRedirectAdditionalData {
+    /// Additional data for interac bank redirect payout method
+    Interac(Box<InteracAdditionalData>),
+}
+
+/// Masked payout method details for interac bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InteracAdditionalData {
+    /// Email linked with interac account
+    #[schema(value_type = Option<String>, example = "john.doe@example.com")]
+    pub email: Option<MaskedEmail>,
 }

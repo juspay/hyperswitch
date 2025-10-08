@@ -7280,6 +7280,12 @@ key1 = "Merchant Token"
 [[loonio.bank_redirect]]
 payment_method_type = "interac"
 
+[loonio_payout]
+[loonio_payout.connector_auth.BodyKey]
+api_key = "Merchant ID"
+key1 = "Merchant Token"
+[[loonio_payout.bank_redirect]]
+payment_method_type = "interac"
 
 [tesouro]
 [[tesouro.credit]]
