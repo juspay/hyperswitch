@@ -120,11 +120,17 @@ impl<'a> SubscriptionHandler<'a> {
                     merchant_connector_id.get_string_repr(),
                     Some(customer),
                     Some(customer_response.connector_customer_id),
-                ).await
+                )
+                .await
             {
-                return Self::update_customer(state, merchant_context, customer.clone(), customer_update)
-                    .await
-                    .attach_printable("Failed to update customer with connector customer ID");
+                return Self::update_customer(
+                    state,
+                    merchant_context,
+                    customer.clone(),
+                    customer_update,
+                )
+                .await
+                .attach_printable("Failed to update customer with connector customer ID");
             }
         }
         Ok(customer.clone())
