@@ -265,11 +265,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FinixInstrumentResponse, T, PaymentsRes
 }
 
 // Auth Struct
-pub struct FinixAuthType {
-    pub finix_user_name: Secret<String>,
-    pub finix_password: Secret<String>,
-    pub merchant_id: Secret<String>,
-}
+
 impl TryFrom<&ConnectorAuthType> for FinixAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {

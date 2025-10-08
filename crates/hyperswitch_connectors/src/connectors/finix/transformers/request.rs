@@ -205,3 +205,8 @@ impl FinixFlow {
         }
     }
 }
+pub struct FinixAuthType {
+    pub finix_user_name: Secret<String>,
+    pub finix_password: Secret<String>,
+    pub merchant_id: Secret<String>,
+}
