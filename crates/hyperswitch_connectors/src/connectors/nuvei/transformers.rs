@@ -1638,6 +1638,7 @@ where
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
+        user_token_id: router_data.request.get_customer_id_required(),
         is_rebilling,
         ..Default::default()
     })
@@ -1733,7 +1734,8 @@ fn get_amount_details(
 
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
-    Req: NuveiAuthorizePreprocessingCommon,
+    Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
+    F: std::fmt::Debug,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1884,6 +1886,7 @@ where
             ..Default::default()
         })?;
         let return_url = item.request.get_return_url_required()?;
+        let return_url = "https://google.com".to_string();
 
         let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
         let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;
@@ -1914,10 +1917,16 @@ where
         } else {
             request_data.device_details.clone()
         };
-
+        println!(
+            "{:?} {:?} {:?} {:?} cussstooomeridddd ",
+            request_data.user_token_id,
+            item.customer_id,
+            item.get_optional_customer_id(),
+            item
+        );
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
-            user_token_id: item.customer_id.clone(),
+            user_token_id: request_data.user_token_id,
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address,
@@ -1931,7 +1940,7 @@ where
             amount_details,
             items: l2_l3_items,
             is_partial_approval: item.request.get_is_partial_approval(),
-
+            external_scheme_details: request_data.external_scheme_details,
             ..request
         })
     }
