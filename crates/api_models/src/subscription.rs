@@ -5,6 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{
     enums as api_enums,
+    mandates::RecurringDetails,
     payments::{Address, PaymentMethodDataRequest},
 };
 
@@ -141,8 +142,58 @@ impl SubscriptionResponse {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct GetPlansResponse {
+    pub plan_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub price_id: Vec<SubscriptionPlanPrices>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SubscriptionPlanPrices {
+    pub price_id: String,
+    pub plan_id: Option<String>,
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
+    pub interval: PeriodUnit,
+    pub interval_count: i64,
+    pub trial_period: Option<i64>,
+    pub trial_period_unit: Option<PeriodUnit>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub enum PeriodUnit {
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ClientSecret(String);
+
+impl ClientSecret {
+    pub fn new(secret: String) -> Self {
+        Self(secret)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+pub struct GetPlansQuery {
+    pub client_secret: Option<ClientSecret>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
 impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
+impl ApiEventMetric for GetPlansQuery {}
+impl ApiEventMetric for GetPlansResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
@@ -227,7 +278,19 @@ pub struct PaymentResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub client_secret: Option<String>,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CreateMitPaymentRequestData {
+    pub amount: MinorUnit,
+    pub currency: api_enums::Currency,
+    pub confirm: bool,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub recurring_details: Option<RecurringDetails>,
+    pub off_session: Option<bool>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.

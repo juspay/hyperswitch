@@ -8042,7 +8042,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -12113,7 +12119,7 @@
           "bitpay",
           "bluesnap",
           "blackhawknetwork",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",
@@ -16347,7 +16353,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",
@@ -30506,7 +30518,7 @@
           "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",

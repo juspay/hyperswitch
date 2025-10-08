@@ -1381,6 +1381,9 @@ pub struct PaymentsSessionData {
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     pub metadata: Option<Secret<serde_json::Value>>,
+    /// The specific payment method type for which the session token is being generated
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
 }
 
 #[derive(Debug, Clone, Default)]

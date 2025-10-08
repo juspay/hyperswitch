@@ -1069,8 +1069,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
         req: &UploadFileRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = transformers::construct_file_upload_request(req.clone())?;
-        Ok(RequestContent::FormData(connector_req))
+        transformers::construct_file_upload_request(req.clone())
     }
 
     fn build_request(
