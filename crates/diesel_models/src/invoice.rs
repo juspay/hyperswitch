@@ -57,6 +57,7 @@ pub struct InvoiceUpdate {
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
 }
 
 impl InvoiceNew {
@@ -98,10 +99,15 @@ impl InvoiceNew {
 }
 
 impl InvoiceUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<InvoiceStatus>) -> Self {
+    pub fn new(
+        payment_method_id: Option<String>,
+        status: Option<InvoiceStatus>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    ) -> Self {
         Self {
             payment_method_id,
             status: status.map(|status| status.to_string()),
+            payment_intent_id,
             modified_at: common_utils::date_time::now(),
         }
     }

@@ -948,7 +948,7 @@ pub async fn create_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
-            create_payment_method_card_core(
+            Box::pin(create_payment_method_card_core(
                 state,
                 req,
                 merchant_context,
@@ -957,7 +957,7 @@ pub async fn create_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-            )
+            ))
             .await
         }
         api::PaymentMethodCreateData::ProxyCard(_) => {
@@ -3789,6 +3789,7 @@ async fn create_single_use_tokenization_flow(
             tenant_id: state.tenant.tenant_id.clone(),
             status: common_enums::enums::AttemptStatus::default(),
             payment_method: common_enums::enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: auth_type,
             description: None,
             address: payment_method_session_address,

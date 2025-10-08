@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Not};
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
 
-use super::permissions::{self, ResourceExt};
+use super::permissions;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -147,15 +147,8 @@ impl ParentGroupExt for ParentGroup {
                 if !groups.iter().any(|group| group.parent() == parent) {
                     return None;
                 }
-                let filtered_resources: Vec<_> = parent
-                    .resources()
-                    .into_iter()
-                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .collect();
-
-                if filtered_resources.is_empty() {
-                    return None;
-                }
+                let filtered_resources =
+                    permissions::filter_resources_by_entity_type(parent.resources(), entity_type)?;
 
                 let description = filtered_resources
                     .iter()

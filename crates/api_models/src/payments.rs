@@ -4239,10 +4239,16 @@ pub struct PayseraData {}
 pub struct GooglePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GooglePayThirdPartySdkData {}
+pub struct GooglePayThirdPartySdkData {
+    #[schema(value_type = Option<String>)]
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ApplePayThirdPartySdkData {}
+pub struct ApplePayThirdPartySdkData {
+    #[schema(value_type = Option<String>)]
+    pub token: Option<Secret<String>>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -4992,6 +4998,9 @@ pub struct PaymentsCancelResponse {
     /// The url to which user must be redirected to after completion of the purchase
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
+
+    /// Error details for the payment
+    pub error: Option<ErrorDetails>,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -6284,6 +6293,8 @@ pub struct ErrorDetails {
     pub code: String,
     /// The error message
     pub message: String,
+    /// The detailed error reason that was returned by the connector.
+    pub reason: Option<String>,
     /// The unified error code across all connectors.
     /// This can be relied upon for taking decisions based on the error.
     pub unified_code: Option<String>,
@@ -8059,7 +8070,7 @@ pub struct SecretInfoToInitiateSdk {
     pub display: Secret<String>,
     // Authorization secrets used by client for payment
     #[schema(value_type = String)]
-    pub payment: Secret<String>,
+    pub payment: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
