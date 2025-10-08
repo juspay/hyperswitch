@@ -187,7 +187,6 @@ pub struct ConfigMetadata {
     pub mid: Option<InputData>,
     pub tid: Option<InputData>,
     pub site: Option<InputData>,
-    pub merchant_identity_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]

@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 pub use request::*;
 pub use response::*;
 
@@ -38,6 +38,19 @@ pub struct FinixRouterData<'a, Flow, Req, Res> {
     pub merchant_identity_id: Secret<String>,
 }
 
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for FinixMeta {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     for FinixRouterData<'a, Flow, Req, Res>
 {
@@ -46,15 +59,7 @@ impl<'a, Flow, Req, Res> TryFrom<(MinorUnit, &'a RouterData<Flow, Req, Res>)>
     fn try_from(value: (MinorUnit, &'a RouterData<Flow, Req, Res>)) -> Result<Self, Self::Error> {
         let (amount, router_data) = value;
         let auth = FinixAuthType::try_from(&router_data.connector_auth_type)?;
-        let connector_meta: FinixMeta = utils::to_connector_meta(
-            router_data
-                .connector_meta_data
-                .clone()
-                .map(|meta| meta.expose()),
-        )
-        .change_context(ConnectorError::MissingRequiredField {
-            field_name: "metadata",
-        })?;
+        let connector_meta = FinixMeta::try_from(&router_data.connector_meta_data)?;
 
         Ok(Self {
             amount,

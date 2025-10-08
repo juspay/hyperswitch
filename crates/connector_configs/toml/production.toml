@@ -5978,8 +5978,8 @@ type = "Text"
 api_key = "Username"
 api_secret = "Password"
 key1 = "Merchant Id"
-[finix.metadata.merchant_identity_id]
-name = "merchant_identity_id"
+[finix.metadata.merchant_id]
+name = "merchant_id"
 label = "Merchant Identity Id"
 placeholder = "Enter Merchant Identity Id"
 required = true
