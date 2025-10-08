@@ -98,8 +98,8 @@ impl InvoiceHandler {
         let update_invoice = hyperswitch_domain_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
-            payment_intent_id,
             connector_invoice_id,
+            payment_intent_id,
         );
         let key_manager_state = &(state).into();
         let merchant_key_store = state
@@ -221,8 +221,8 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
-            billing: request.billing.clone(),
-            shipping: request.shipping.clone(),
+            billing: request.payment_details.payment_method_data.billing.clone(),
+            shipping: request.payment_details.shipping.clone(),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
