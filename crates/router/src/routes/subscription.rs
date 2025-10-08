@@ -259,7 +259,7 @@ pub async fn create_and_confirm_subscription(
 pub async fn get_estimate(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<subscription_types::EstimateSubscriptionRequest>,
+    query: web::Query<subscription_types::EstimateSubscriptionQuery>,
 ) -> impl Responder {
     let flow = Flow::GetSubscriptionEstimate;
     let profile_id = match extract_profile_id(&req) {
@@ -278,12 +278,12 @@ pub async fn get_estimate(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, payload, _| {
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            subscription::get_estimate(state, merchant_context, profile_id.clone(), payload)
+            subscription::get_estimate(state, merchant_context, profile_id.clone(), query)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,

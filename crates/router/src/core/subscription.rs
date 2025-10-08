@@ -427,29 +427,22 @@ pub async fn get_estimate(
     state: SessionState,
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
-    estimate_request: subscription_types::EstimateSubscriptionRequest,
+    query: subscription_types::EstimateSubscriptionQuery,
 ) -> RouterResponse<subscription_types::EstimateSubscriptionResponse> {
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
             .attach_printable("subscriptions: failed to find business profile in get_estimate")?;
-    let customer = SubscriptionHandler::find_customer(
-        &state,
-        &merchant_context,
-        &estimate_request.customer_id.clone(),
-    )
-    .await
-    .attach_printable("subscriptions: failed to find customer in get_estimate")?;
     let billing_handler = BillingHandler::create(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        Some(customer),
+        None,
         profile,
     )
     .await?;
     let estimate = billing_handler
-        .get_subscription_estimate(&state, estimate_request)
+        .get_subscription_estimate(&state, query)
         .await?;
     Ok(ApplicationResponse::Json(estimate.into()))
 }
