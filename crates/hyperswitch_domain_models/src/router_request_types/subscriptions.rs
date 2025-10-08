@@ -29,6 +29,21 @@ pub struct GetSubscriptionPlansRequest {
     pub offset: Option<u32>,
 }
 
+impl GetSubscriptionPlansRequest {
+    pub fn new(limit: Option<u32>, offset: Option<u32>) -> Self {
+        Self { limit, offset }
+    }
+}
+
+impl Default for GetSubscriptionPlansRequest {
+    fn default() -> Self {
+        Self {
+            limit: Some(10),
+            offset: Some(0),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionPlanPricesRequest {
     pub plan_price_id: String,
