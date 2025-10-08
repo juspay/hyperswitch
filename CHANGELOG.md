@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.06.0-hotfix1
+
+### Bug Fixes
+
+- **router:** Make `endpoint_prefix` optional in three_ds_metadata for unified_authentication_service ([#9719](https://github.com/juspay/hyperswitch/pull/9719)) ([`3ed9688`](https://github.com/juspay/hyperswitch/commit/3ed9688275d7d6906e76bb254bd1a072e9173ef9))
+
+**Full Changelog:** [`2025.10.06.0...2025.10.06.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.10.06.0...2025.10.06.0-hotfix1)
+
+- - -
+
 ## 2025.10.06.0
 
 ### Features
