@@ -11,6 +11,7 @@ pub use accounts::{
 };
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
+use smithy::SmithyModel;
 pub use ui::*;
 use utoipa::ToSchema;
 
@@ -331,6 +332,7 @@ pub enum GsmFeature {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -340,6 +342,7 @@ pub enum GsmFeature {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
     ThreeDs,
@@ -487,6 +490,7 @@ pub enum BlocklistDataKind {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -496,6 +500,7 @@ pub enum BlocklistDataKind {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CaptureMethod {
     /// Post the payment authorization, the capture will be executed on the full amount immediately.
     #[default]
@@ -614,8 +619,10 @@ pub enum DocumentKind {
     strum::EnumIter,
     strum::VariantNames,
     ToSchema,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Currency {
     AED,
     AFN,
@@ -1778,6 +1785,7 @@ impl IntentStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -1787,6 +1795,7 @@ impl IntentStatus {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum FutureUsage {
     OffSession,
     #[default]
@@ -1909,10 +1918,12 @@ impl From<AttemptStatus> for PaymentMethodStatus {
     strum::Display,
     ToSchema,
     Default,
+    SmithyModel
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentExperience {
     /// The URL to which the customer needs to be redirected for completing the payment.
     #[default]
@@ -1955,6 +1966,7 @@ pub enum SamsungPayCardBrand {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -1964,6 +1976,7 @@ pub enum SamsungPayCardBrand {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethodType {
     Ach,
     Affirm,
@@ -2220,6 +2233,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2229,6 +2243,7 @@ impl masking::SerializableSecret for PaymentMethodType {}
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentMethod {
     #[default]
     Card,
@@ -2510,6 +2525,7 @@ pub enum MandateStatus {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    SmithyModel,
     strum::Display,
     strum::VariantNames,
     strum::EnumIter,
@@ -2517,6 +2533,7 @@ pub enum MandateStatus {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
     Visa,
@@ -2831,10 +2848,12 @@ pub struct MerchantCategoryCodeWithName {
     strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
-    Copy
+    Copy,
+    SmithyModel,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[rustfmt::skip]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CountryAlpha2 {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
     AZ, BS, BH, BD, BB, BY, BE, BZ, BJ, BM, BT, BO, BQ, BA, BW,
