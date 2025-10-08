@@ -1132,7 +1132,7 @@ pub async fn unlink_routing_config(
                     )
                     .await?;
 
-                    // redact cgraph cache on rule activation
+                    // redact cgraph cache
                     helpers::redact_cgraph_cache(
                         &state,
                         merchant_context.get_merchant_account().get_id(),
