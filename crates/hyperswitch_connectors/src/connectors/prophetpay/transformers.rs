@@ -5,6 +5,7 @@ use common_utils::{
     consts::{PROPHETPAY_REDIRECT_URL, PROPHETPAY_TOKEN},
     errors::CustomResult,
     request::Method,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -28,20 +29,16 @@ use crate::{
 };
 
 pub struct ProphetpayRouterData<T> {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ProphetpayRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(FloatMajorUnit, T)> for ProphetpayRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 

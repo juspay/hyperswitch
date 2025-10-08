@@ -287,7 +287,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Powertranz)))
                 }
                 enums::Connector::Prophetpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Prophetpay::new())))
                 }
                 enums::Connector::Razorpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
