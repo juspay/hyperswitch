@@ -179,6 +179,7 @@ pub struct InvoiceUpdate {
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
 }
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for InvoiceUpdate {
@@ -190,6 +191,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             status: self.status,
             payment_method_id: self.payment_method_id,
             modified_at: self.modified_at,
+            payment_intent_id: self.payment_intent_id,
         })
     }
 
@@ -206,6 +208,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             status: item.status,
             payment_method_id: item.payment_method_id,
             modified_at: item.modified_at,
+            payment_intent_id: item.payment_intent_id,
         })
     }
 
@@ -214,6 +217,7 @@ impl super::behaviour::Conversion for InvoiceUpdate {
             status: self.status,
             payment_method_id: self.payment_method_id,
             modified_at: self.modified_at,
+            payment_intent_id: self.payment_intent_id,
         })
     }
 }
@@ -222,11 +226,13 @@ impl InvoiceUpdate {
     pub fn new(
         payment_method_id: Option<String>,
         status: Option<common_enums::connector_enums::InvoiceStatus>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
             payment_method_id,
             status: status.map(|status| status.to_string()),
             modified_at: common_utils::date_time::now(),
+            payment_intent_id,
         }
     }
 }

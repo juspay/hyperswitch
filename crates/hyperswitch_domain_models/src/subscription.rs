@@ -1,7 +1,15 @@
-use common_utils::events::ApiEventMetric;
 use error_stack::ResultExt;
-
 use crate::errors::api_error_response::ApiErrorResponse;
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    generate_id_with_default_len,
+    pii::SecretSerdeValue,
+    types::keymanager::{self, KeyManagerState},
+    events::ApiEventMetric
+};
+use masking::{ExposeInterface, PeekInterface, Secret};
+use time::PrimitiveDateTime;
+use crate::merchant_key_store::MerchantKeyStore;
 
 const SECRET_SPLIT: &str = "_secret";
 
@@ -48,16 +56,6 @@ impl From<ClientSecret> for api_models::subscription::ClientSecret {
         Self::new(domain_secret.to_string())
     }
 }
-use common_utils::{
-    errors::{CustomResult, ValidationError},
-    generate_id_with_default_len,
-    pii::SecretSerdeValue,
-    types::keymanager::{self, KeyManagerState},
-};
-use masking::{ExposeInterface, PeekInterface, Secret};
-use time::PrimitiveDateTime;
-
-use crate::merchant_key_store::MerchantKeyStore;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Subscription {
@@ -71,6 +69,8 @@ pub struct Subscription {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::CustomerId,
     pub metadata: Option<SecretSerdeValue>,
+    pub created_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
 }
@@ -160,6 +160,8 @@ impl super::behaviour::Conversion for Subscription {
             merchant_id: item.merchant_id,
             customer_id: item.customer_id,
             metadata: item.metadata.map(SecretSerdeValue::new),
+            created_at: item.created_at,
+            modified_at: item.modified_at,
             profile_id: item.profile_id,
             merchant_reference_id: item.merchant_reference_id,
         })

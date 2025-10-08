@@ -6,7 +6,6 @@ use api_models::{
 };
 use common_enums::connector_enums;
 use common_utils::{consts, ext_traits::OptionExt};
-use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
@@ -66,6 +65,8 @@ impl<'a> SubscriptionHandler<'a> {
             metadata: None,
             profile_id: profile.get_id().clone(),
             merchant_reference_id,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
 
         subscription.generate_and_set_client_secret();
@@ -133,10 +134,15 @@ impl<'a> SubscriptionHandler<'a> {
     ) -> errors::RouterResult<()> {
         let subscription_id = client_secret.get_subscription_id()?;
 
+        let key_manager_state = &(self.state).into();
+        let key_store = self.merchant_context.get_merchant_key_store();
+
         let subscription = self
             .state
             .store
             .find_by_merchant_id_subscription_id(
+                key_manager_state,
+                key_store,
                 self.merchant_context.get_merchant_account().get_id(),
                 subscription_id.to_string(),
             )
@@ -154,7 +160,7 @@ impl<'a> SubscriptionHandler<'a> {
     pub fn validate_client_secret(
         &self,
         client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
-        subscription: &diesel_models::subscription::Subscription,
+        subscription: &Subscription,
     ) -> errors::RouterResult<()> {
         let stored_client_secret = subscription
             .client_secret
