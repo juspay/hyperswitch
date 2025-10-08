@@ -2471,7 +2471,18 @@ payment_method_type = "UnionPay"
 api_key = "Enter API Key"
 [multisafepay.connector_webhook_details]
 merchant_secret = "Source verification key"
-
+[[multisafepay.bank_redirect]]
+payment_method_type = "trustly"
+[[multisafepay.bank_redirect]]
+payment_method_type = "eps"
+[[multisafepay.bank_redirect]]
+payment_method_type = "sofort"
+[[multisafepay.wallet]]
+payment_method_type = "ali_pay"
+[[multisafepay.wallet]]
+payment_method_type = "we_chat_pay"
+[[multisafepay.wallet]]
+payment_method_type = "mb_way"
 
 [nexinets]
 [[nexinets.credit]]
