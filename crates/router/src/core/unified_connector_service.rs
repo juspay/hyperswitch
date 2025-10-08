@@ -346,7 +346,8 @@ pub fn build_unified_connector_service_payment_method(
                     };
                     PaymentMethod::UpiCollect(upi_details)
                 }
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) | hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_)
+                | hyperswitch_domain_models::payment_method_data::UpiData::UpiQr(_) => {
                     let upi_details = payments_grpc::UpiIntent { app_name: None };
                     PaymentMethod::UpiIntent(upi_details)
                 }
