@@ -250,7 +250,7 @@ impl SubscriptionWithHandler<'_> {
             invoice
                 .map(
                     |invoice| -> errors::RouterResult<subscription_types::Invoice> {
-                        Ok(subscription_types::Invoice::foreign_try_from(invoice)?)
+                        subscription_types::Invoice::foreign_try_from(invoice)
                     },
                 )
                 .transpose()?,
