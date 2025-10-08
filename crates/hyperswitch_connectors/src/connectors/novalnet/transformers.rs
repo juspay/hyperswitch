@@ -130,6 +130,7 @@ pub struct NovalnetMandate {
 pub struct NovalnetSepaDebit {
     account_holder: Secret<String>,
     iban: Secret<String>,
+    birth_date: Option<String>, // Mandatory for SEPA Guarantee Payment
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -441,7 +442,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             .ok_or(errors::ConnectorError::MissingPaymentMethodType)?,
                     )?;
 
-                    let (iban, account_holder) = match bank_debit_data {
+                    let (iban, account_holder, dob) = match bank_debit_data {
                         BankDebitData::SepaBankDebit {
                             iban,
                             bank_account_holder_name,
@@ -451,18 +452,19 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                                 None => item.router_data.get_billing_full_name()?,
                             };
 
-                            (iban, account_holder)
+                            (iban, account_holder, None)
                         }
                         BankDebitData::SepaGuarenteedBankDebit {
                             iban,
                             bank_account_holder_name,
+                            dob,
                         } => {
                             let account_holder = match bank_account_holder_name {
                                 Some(name) => name.clone(),
                                 None => item.router_data.get_billing_full_name()?,
                             };
 
-                            (iban, account_holder)
+                            (iban, account_holder, Some(dob))
                         }
                         _ => {
                             return Err(
@@ -483,6 +485,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(NovalNetPaymentData::Sepa(NovalnetSepaDebit {
                             account_holder: account_holder.clone(),
                             iban: iban.clone(),
+                            birth_date: dob.cloned(),
                         })),
                         enforce_3d,
                         create_token,

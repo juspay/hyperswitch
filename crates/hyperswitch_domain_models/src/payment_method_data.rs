@@ -749,6 +749,7 @@ pub enum BankDebitData {
     SepaGuarenteedBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
+        dob: String,
     },
     BecsBankDebit {
         account_number: Secret<String>,
@@ -1762,15 +1763,18 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 payment_additional_types::SepaBankDebitAdditionalData {
                     iban: MaskedIban::from(iban),
                     bank_account_holder_name,
+                    dob: None,
                 },
             )),
             BankDebitData::SepaGuarenteedBankDebit {
                 iban,
                 bank_account_holder_name,
+                dob,
             } => Self::SepaGuarenteedDebit(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
                     iban: MaskedIban::from(iban),
                     bank_account_holder_name,
+                    dob: Some(dob),
                 },
             )),
             BankDebitData::BecsBankDebit {

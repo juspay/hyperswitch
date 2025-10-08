@@ -2479,6 +2479,9 @@ pub enum BankDebitData {
         /// Owner name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
+        /// Date of Birth of the customer in the format of YYYY-MM-DD
+        #[schema(value_type = String, example = "1992-06-10")]
+        dob: String,
     },
     BecsBankDebit {
         /// Billing details for bank debit
@@ -2542,6 +2545,7 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
             | Self::SepaGuarenteedBankDebit {
                 billing_details,
                 bank_account_holder_name,
+                dob: _,
                 ..
             }
             | Self::BecsBankDebit {
