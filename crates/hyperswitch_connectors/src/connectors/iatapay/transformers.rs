@@ -155,6 +155,11 @@ impl
                     None,
                     Some(PreferredCheckoutMethod::Qr),
                 ),
+                UpiData::UpiQr(_) => (
+                    common_enums::CountryAlpha2::IN,
+                    None,
+                    Some(PreferredCheckoutMethod::Qr),
+                ),
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 BankRedirectData::Ideal { .. } => (common_enums::CountryAlpha2::NL, None, None),

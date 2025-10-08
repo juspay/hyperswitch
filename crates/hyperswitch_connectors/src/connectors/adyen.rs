@@ -334,6 +334,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect
                 | PaymentMethodType::UpiIntent
+                | PaymentMethodType::UpiQr
                 | PaymentMethodType::VietQr
                 | PaymentMethodType::Mifinity
                 | PaymentMethodType::LocalBankRedirect

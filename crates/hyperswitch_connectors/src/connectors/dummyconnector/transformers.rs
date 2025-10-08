@@ -213,6 +213,9 @@ impl<const T: u8> TryFrom<&DummyConnectorRouterData<&PaymentsAuthorizeRouterData
                     UpiData::UpiIntent(_) => {
                         Err(ConnectorError::NotImplemented("UPI Intent".to_string()).into())
                     }
+                    UpiData::UpiQr(_) => {
+                        Err(ConnectorError::NotImplemented("UPI QR".to_string()).into())
+                    }
                 },
                 PaymentMethodData::Wallet(ref wallet_data) => Ok(DummyPaymentMethodData::Wallet(
                     wallet_data.clone().try_into()?,
