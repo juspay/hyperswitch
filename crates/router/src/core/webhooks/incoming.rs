@@ -2679,7 +2679,7 @@ async fn subscription_incoming_webhook_flow(
             payment_response.payment_method_id.clone(),
             Some(payment_response.payment_id.clone()),
             InvoiceStatus::from(payment_response.status),
-            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
+            Some(mit_payment_data.invoice_id.clone()),
         )
         .await?;
 

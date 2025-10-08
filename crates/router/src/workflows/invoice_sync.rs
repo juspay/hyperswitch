@@ -5,9 +5,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{StringExt, ValueExt},
 };
-use diesel_models::{
-    invoice::Invoice, process_tracker::business_status, subscription::Subscription,
-};
+use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
@@ -39,8 +37,8 @@ pub struct InvoiceSyncHandler<'a> {
     pub merchant_account: domain::MerchantAccount,
     pub customer: domain::Customer,
     pub profile: domain::Profile,
-    pub subscription: Subscription,
-    pub invoice: Invoice,
+    pub subscription: hyperswitch_domain_models::subscription::Subscription,
+    pub invoice: hyperswitch_domain_models::invoice::Invoice,
 }
 
 #[cfg(feature = "v1")]
@@ -95,6 +93,8 @@ impl<'a> InvoiceSyncHandler<'a> {
         let subscription = state
             .store
             .find_by_merchant_id_subscription_id(
+                &state.into(),
+                &key_store,
                 merchant_account.get_id(),
                 tracking_data.subscription_id.get_string_repr().to_string(),
             )
@@ -103,7 +103,11 @@ impl<'a> InvoiceSyncHandler<'a> {
 
         let invoice = state
             .store
-            .find_invoice_by_invoice_id(tracking_data.invoice_id.get_string_repr().to_string())
+            .find_invoice_by_invoice_id(
+                &state.into(),
+                &key_store,
+                tracking_data.invoice_id.get_string_repr().to_string(),
+            )
             .await
             .attach_printable("invoices: unable to get latest invoice from database")?;
 
@@ -162,7 +166,7 @@ impl<'a> InvoiceSyncHandler<'a> {
         &self,
         payment_response: subscription_types::PaymentResponseData,
         payment_status: common_enums::AttemptStatus,
-        connector_invoice_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         logger::info!("perform_billing_processor_record_back");
@@ -224,7 +228,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 Box::pin(self.perform_billing_processor_record_back(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
-                    connector_invoice_id.get_string_repr().to_string(),
+                    connector_invoice_id,
                     invoice_sync_status.clone(),
                 ))
                 .await

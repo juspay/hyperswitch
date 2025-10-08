@@ -172,7 +172,7 @@ impl BillingHandler {
     pub async fn create_subscription_on_connector(
         &self,
         state: &SessionState,
-        subscription: diesel_models::subscription::Subscription,
+        subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
         billing_address: Option<api_models::payments::Address>,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
@@ -229,7 +229,7 @@ impl BillingHandler {
     pub async fn record_back_to_billing_processor(
         &self,
         state: &SessionState,
-        invoice_id: String,
+        invoice_id: common_utils::id_type::InvoiceId,
         payment_id: common_utils::id_type::PaymentId,
         payment_status: common_enums::AttemptStatus,
         amount: common_utils::types::MinorUnit,
@@ -241,10 +241,7 @@ impl BillingHandler {
             currency,
             payment_method_type,
             attempt_status: payment_status,
-            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(&invoice_id)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "invoice_id",
-                })?,
+            merchant_reference_id: invoice_id,
             connector_params: self.connector_params.clone(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
                 payment_id.get_string_repr().to_string(),
