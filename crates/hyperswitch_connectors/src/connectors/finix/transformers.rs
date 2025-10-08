@@ -1,7 +1,5 @@
 pub mod request;
 pub mod response;
-use std::collections::HashMap;
-
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::{
@@ -26,118 +24,12 @@ use hyperswitch_interfaces::{consts, errors::ConnectorError};
 use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{CardData, RouterData as _},
+    utils::{AddressDetailsData, CardData, RouterData as _},
 };
-
-#[derive(Debug, Clone)]
-pub enum FinixId {
-    Auth(String),
-    Transfer(String),
-}
-
-impl From<String> for FinixId {
-    fn from(id: String) -> Self {
-        if id.starts_with("AU") {
-            Self::Auth(id)
-        } else if id.starts_with("TR") {
-            Self::Transfer(id)
-        } else {
-            // Default to Auth if the prefix doesn't match
-            Self::Auth(id)
-        }
-    }
-}
-
-impl std::fmt::Display for FinixId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Auth(id) => write!(f, "{}", id),
-            Self::Transfer(id) => write!(f, "{}", id),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixState {
-    PENDING,
-    SUCCEEDED,
-    FAILED,
-    CANCELED,
-    #[serde(other)]
-    UNKNOWN,
-    // RETURNED
-}
-impl FinixState {
-    pub fn is_failure(&self) -> bool {
-        match self {
-            Self::PENDING | Self::SUCCEEDED => false,
-            Self::FAILED | Self::CANCELED | Self::UNKNOWN => true,
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixPaymentType {
-    DEBIT,
-    CREDIT,
-    REVERSAL,
-    FEE,
-    ADJUSTMENT,
-    DISPUTE,
-    RESERVE,
-    SETTLEMENT,
-    #[serde(other)]
-    UNKNOWN,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixPaymentInstrumentType {
-    #[serde(rename = "PAYMENT_CARD")]
-    PaymentCard,
-
-    #[serde(rename = "BANK_ACCOUNT")]
-    BankAccount,
-    #[serde(other)]
-    Unknown,
-}
-
-/// Represents the type of a payment card.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixCardType {
-    DEBIT,
-    CREDIT,
-    PREPAID,
-    #[serde(other)]
-    UNKNOWN,
-}
-
-/// 3D Secure authentication details.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FinixThreeDSecure {
-    pub authenticated: Option<bool>,
-    pub liability_shift: Option<String>,
-    pub version: Option<String>,
-    pub eci: Option<String>,
-    pub cavv: Option<String>,
-    pub xid: Option<String>,
-}
-
-/// Key-value pair tags.
-pub type FinixTags = HashMap<String, String>;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FinixAddress {
-    pub line1: Option<Secret<String>>,
-    pub line2: Option<Secret<String>>,
-    pub city: Option<String>,
-    pub region: Option<Secret<String>>,
-    pub postal_code: Option<Secret<String>>,
-    pub country: Option<CountryAlpha3>,
-}
 
 impl From<&Address> for FinixAddress {
     fn from(address: &Address) -> Self {
@@ -145,12 +37,14 @@ impl From<&Address> for FinixAddress {
 
         match billing {
             Some(address) => Self {
-                line1: address.line1.clone(),
-                line2: address.line2.clone(),
-                city: address.city.clone(),
-                region: address.state.clone(),
-                postal_code: address.zip.clone(),
-                country: address.country.map(CountryAlpha2::from_alpha2_to_alpha3),
+                line1: address.get_optional_line1(),
+                line2: address.get_optional_line2(),
+                city: address.get_optional_city(),
+                region: address.get_optional_state(),
+                postal_code: address.get_optional_zip(),
+                country: address
+                    .get_optional_country()
+                    .map(CountryAlpha2::from_alpha2_to_alpha3),
             },
             None => Self {
                 line1: None,
@@ -160,28 +54,6 @@ impl From<&Address> for FinixAddress {
                 postal_code: None,
                 country: None,
             },
-        }
-    }
-}
-
-/// The type of the business.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FinixIdentityType {
-    PERSONAL,
-}
-
-pub enum FinixFlow {
-    Auth,
-    Transfer,
-}
-
-impl FinixFlow {
-    pub fn get_flow_for_auth(capture_method: CaptureMethod) -> Self {
-        match capture_method {
-            CaptureMethod::SequentialAutomatic | CaptureMethod::Automatic => Self::Transfer,
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Self::Auth
-            }
         }
     }
 }
@@ -452,7 +324,7 @@ pub(crate) fn get_finix_response<F, T>(
         router_data.response.is_void,
     );
     Ok(RouterData {
-        status: status,
+        status,
         response: if router_data.response.state.is_failure() {
             Err(ErrorResponse {
                 code: router_data
@@ -540,26 +412,6 @@ impl TryFrom<RefundsResponseRouterData<RSync, FinixPaymentsResponse>> for Refund
             ..item.data
         })
     }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixErrorResponse {
-    // pub status_code: u16,
-    pub total: Option<i64>,
-    #[serde(rename = "_embedded")]
-    pub embedded: Option<FinixErrorEmbedded>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixErrorEmbedded {
-    pub errors: Option<Vec<FinixError>>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FinixError {
-    // pub logref: Option<String>,
-    pub message: Option<String>,
-    pub code: Option<String>,
 }
 
 impl FinixErrorResponse {

@@ -15,7 +15,7 @@ pub struct FinixPaymentsResponse {
     pub captured_amount: Option<MinorUnit>,
     pub currency: Currency,
     pub is_void: Option<bool>,
-    pub source: Option<String>,
+    pub source: Option<Secret<String>>,
     pub state: FinixState,
     pub failure_code: Option<String>,
     pub messages: Option<Vec<String>>,
@@ -55,4 +55,24 @@ pub struct FinixInstrumentResponse {
     pub name: Option<Secret<String>>,
     pub currency: Option<Currency>,
     pub enabled: bool,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FinixErrorResponse {
+    // pub status_code: u16,
+    pub total: Option<i64>,
+    #[serde(rename = "_embedded")]
+    pub embedded: Option<FinixErrorEmbedded>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FinixErrorEmbedded {
+    pub errors: Option<Vec<FinixError>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FinixError {
+    // pub logref: Option<String>,
+    pub message: Option<String>,
+    pub code: Option<String>,
 }
