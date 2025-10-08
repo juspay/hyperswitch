@@ -3339,6 +3339,9 @@ where
             let next_action_containing_wait_screen =
                 wait_screen_next_steps_check(payment_attempt.clone())?;
 
+            let next_action_containing_sdk_upi_intent =
+                extract_sdk_uri_information(payment_attempt.clone())?;
+
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
@@ -3347,6 +3350,7 @@ where
                 || next_action_voucher.is_some()
                 || next_action_containing_qr_code_url.is_some()
                 || next_action_containing_wait_screen.is_some()
+                || next_action_containing_sdk_upi_intent.is_some()
                 || papal_sdk_next_action.is_some()
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
@@ -3378,6 +3382,11 @@ where
                             .or(papal_sdk_next_action.map(|paypal_next_action_data| {
                                 api_models::payments::NextActionData::InvokeSdkClient{
                                     next_action_data: paypal_next_action_data
+                                }
+                            }))
+                            .or(next_action_containing_sdk_upi_intent.map(|sdk_uri_data| {
+                                api_models::payments::NextActionData::SdkUpiIntentInformation {
+                                    sdk_uri: sdk_uri_data.sdk_uri,
                                 }
                             }))
                             .or(next_action_containing_wait_screen.map(|wait_screen_data| {

@@ -150,12 +150,7 @@ impl
                     }),
                     None,
                 ),
-                UpiData::UpiIntent(_) => (
-                    common_enums::CountryAlpha2::IN,
-                    None,
-                    Some(PreferredCheckoutMethod::Qr),
-                ),
-                UpiData::UpiQr(_) => (
+                UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (
                     common_enums::CountryAlpha2::IN,
                     None,
                     Some(PreferredCheckoutMethod::Qr),
