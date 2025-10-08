@@ -5033,7 +5033,13 @@
         }
       },
       "ApplePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "ApplePayWalletData": {
         "type": "object",
@@ -8653,7 +8659,7 @@
           "bitpay",
           "bluesnap",
           "blackhawknetwork",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",
@@ -11060,6 +11066,11 @@
             "type": "string",
             "description": "The error message"
           },
+          "reason": {
+            "type": "string",
+            "description": "The detailed error reason that was returned by the connector.",
+            "nullable": true
+          },
           "unified_code": {
             "type": "string",
             "description": "The unified error code across all connectors.\nThis can be relied upon for taking decisions based on the error.",
@@ -12493,7 +12504,13 @@
         }
       },
       "GooglePayThirdPartySdkData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "GooglePayWalletData": {
         "type": "object",
@@ -23973,7 +23990,7 @@
           "blackhawknetwork",
           "bamboraapac",
           "bluesnap",
-          "bluecode",
+          "calida",
           "boku",
           "braintree",
           "breadpay",
