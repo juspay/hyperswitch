@@ -1140,7 +1140,7 @@ pub async fn unlink_routing_config(
                     )
                     .await?;
 
-                    // redact routing cache on rule activation
+                    // redact routing cache
                     helpers::redact_routing_cache(
                         &state,
                         merchant_context.get_merchant_account().get_id(),
