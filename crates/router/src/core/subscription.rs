@@ -325,7 +325,7 @@ pub async fn confirm_subscription(
         .create_customer_on_connector(
             &state,
             subscription.customer_id.clone(),
-            request.billing.clone(),
+            request.payment_details.payment_method_data.billing.clone(),
             request
                 .payment_details
                 .payment_method_data
@@ -338,7 +338,7 @@ pub async fn confirm_subscription(
             &state,
             subscription,
             request.item_price_id,
-            request.billing,
+            request.payment_details.payment_method_data.billing,
         )
         .await?;
 

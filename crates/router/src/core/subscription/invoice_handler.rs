@@ -193,8 +193,8 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
-            billing: request.billing.clone(),
-            shipping: request.shipping.clone(),
+            billing: request.payment_details.payment_method_data.billing.clone(),
+            shipping: request.payment_details.shipping.clone(),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),

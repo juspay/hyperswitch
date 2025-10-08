@@ -217,6 +217,7 @@ impl ApiEventMetric for GetSubscriptionQuery {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
+    pub shipping: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -328,12 +329,6 @@ pub struct ConfirmSubscriptionRequest {
     /// Identifier for customer.
     pub customer_id: common_utils::id_type::CustomerId,
 
-    /// Billing address for the subscription.
-    pub billing: Option<Address>,
-
-    /// Shipping address for the subscription.
-    pub shipping: Option<Address>,
-
     /// Payment details for the invoice.
     pub payment_details: ConfirmSubscriptionPaymentDetails,
 }
@@ -348,11 +343,15 @@ impl ConfirmSubscriptionRequest {
     }
 
     pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
-        self.billing.clone().ok_or(error_stack::report!(
-            ValidationError::MissingRequiredField {
-                field_name: "billing".to_string()
-            }
-        ))
+        self.payment_details
+            .payment_method_data
+            .billing
+            .clone()
+            .ok_or(error_stack::report!(
+                ValidationError::MissingRequiredField {
+                    field_name: "billing".to_string()
+                }
+            ))
     }
 }
 
