@@ -439,7 +439,9 @@ impl SubscriptionWithHandler<'_> {
 impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscription_types::Invoice {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn foreign_try_from(invoice: &hyperswitch_domain_models::invoice::Invoice) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        invoice: &hyperswitch_domain_models::invoice::Invoice,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: invoice.id.clone(),
             subscription_id: invoice.subscription_id.clone(),
