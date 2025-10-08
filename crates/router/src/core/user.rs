@@ -2559,7 +2559,7 @@ pub async fn create_user_authentication_method(
     }
 
     let now = common_utils::date_time::now();
-    let res = state
+    let insert_user_authentication_method_response = state
         .store
         .insert_user_authentication_method(UserAuthenticationMethodNew {
             id,
@@ -2579,13 +2579,13 @@ pub async fn create_user_authentication_method(
 
     Ok(ApplicationResponse::Json(
         user_api::CreateUserAuthenticationMethodResponse {
-            id: res.id,
-            auth_id: res.auth_id,
-            owner_id: res.owner_id,
-            owner_type: res.owner_type,
-            auth_type: res.auth_type,
-            email_domain: Some(res.email_domain),
-            allow_signup: res.allow_signup,
+            id: insert_user_authentication_method_response.id,
+            auth_id: insert_user_authentication_method_response.auth_id,
+            owner_id: insert_user_authentication_method_response.owner_id,
+            owner_type: insert_user_authentication_method_response.owner_type,
+            auth_type: insert_user_authentication_method_response.auth_type,
+            email_domain: Some(insert_user_authentication_method_response.email_domain),
+            allow_signup: insert_user_authentication_method_response.allow_signup,
         },
     ))
 }
