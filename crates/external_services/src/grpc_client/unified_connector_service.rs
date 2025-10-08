@@ -94,6 +94,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Get from gRPC Server")]
     PaymentGetFailure,
 
+    /// Failed to perform Payment Capture from gRPC Server
+    #[error("Failed to perform Payment Capture from gRPC Server")]
+    PaymentCaptureFailure,
+
     /// Failed to perform Payment Setup Mandate from gRPC Server
     #[error("Failed to perform Setup Mandate from gRPC Server")]
     PaymentRegisterFailure,
@@ -278,6 +282,36 @@ impl UnifiedConnectorServiceClient {
                     method="payment_get",
                     connector_name=?connector_name,
                     "UCS payment get/sync gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Capture
+    pub async fn payment_capture(
+        &self,
+        payment_capture_request: payments_grpc::PaymentServiceCaptureRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceCaptureResponse>>
+    {
+        let mut request = tonic::Request::new(payment_capture_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .capture(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PaymentCaptureFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_capture",
+                    connector_name=?connector_name,
+                    "UCS payment capture gRPC call failed"
                 )
             })
     }
