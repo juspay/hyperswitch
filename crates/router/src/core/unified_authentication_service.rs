@@ -943,7 +943,7 @@ pub async fn authentication_eligibility_core(
     let notification_url = match authentication_connector {
         common_enums::AuthenticationConnectors::Juspaythreedsserver => {
             Some(url::Url::parse(&format!(
-                "{base_url}/authentication/{merchant_id}/{authentication_id}/sync",
+                "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
                 base_url = state.base_url,
                 merchant_id = merchant_id.get_string_repr(),
                 authentication_id = authentication_id.get_string_repr()
@@ -995,7 +995,7 @@ pub async fn authentication_eligibility_core(
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
         merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
         merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.merchant_category_code)),
-        endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+        endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),

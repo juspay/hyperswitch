@@ -1177,17 +1177,29 @@ impl Subscription {
         let route = web::scope("/subscriptions").app_data(web::Data::new(state.clone()));
 
         route
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    subscription::create_and_confirm_subscription(state, req, payload)
+                })),
+            )
             .service(web::resource("/create").route(
                 web::post().to(|state, req, payload| {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
             .service(
+                web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
+            )
+            .service(
                 web::resource("/{subscription_id}/confirm").route(web::post().to(
                     |state, req, id, payload| {
                         subscription::confirm_subscription(state, req, id, payload)
                     },
                 )),
+            )
+            .service(
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
             )
     }
 }
@@ -2767,51 +2779,54 @@ impl User {
         }
 
         // Role information
-        route = route.service(
-            web::scope("/role")
-                .service(
-                    web::resource("")
-                        .route(web::get().to(user_role::get_role_from_token))
-                        // TODO: To be deprecated
-                        .route(web::post().to(user_role::create_role)),
-                )
-                .service(
-                    web::resource("/v2")
-                        .route(web::post().to(user_role::create_role_v2))
-                        .route(
-                            web::get().to(user_role::get_groups_and_resources_for_role_from_token),
-                        ),
-                )
-                // TODO: To be deprecated
-                .service(
-                    web::resource("/v2/list").route(web::get().to(user_role::list_roles_with_info)),
-                )
-                .service(
-                    web::scope("/list")
-                        .service(
-                            web::resource("").route(web::get().to(user_role::list_roles_with_info)),
-                        )
-                        .service(
-                            web::resource("/invite").route(
+        route =
+            route.service(
+                web::scope("/role")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(user_role::get_role_from_token))
+                            // TODO: To be deprecated
+                            .route(web::post().to(user_role::create_role)),
+                    )
+                    .service(
+                        web::resource("/v2")
+                            .route(web::post().to(user_role::create_role_v2))
+                            .route(
+                                web::get()
+                                    .to(user_role::get_groups_and_resources_for_role_from_token),
+                            ),
+                    )
+                    .service(web::resource("/v3").route(
+                        web::get().to(user_role::get_parent_groups_info_for_role_from_token),
+                    ))
+                    // TODO: To be deprecated
+                    .service(
+                        web::resource("/v2/list")
+                            .route(web::get().to(user_role::list_roles_with_info)),
+                    )
+                    .service(
+                        web::scope("/list")
+                            .service(
+                                web::resource("")
+                                    .route(web::get().to(user_role::list_roles_with_info)),
+                            )
+                            .service(web::resource("/invite").route(
                                 web::get().to(user_role::list_invitable_roles_at_entity_level),
-                            ),
-                        )
-                        .service(
-                            web::resource("/update").route(
+                            ))
+                            .service(web::resource("/update").route(
                                 web::get().to(user_role::list_updatable_roles_at_entity_level),
-                            ),
-                        ),
-                )
-                .service(
-                    web::resource("/{role_id}")
-                        .route(web::get().to(user_role::get_role))
-                        .route(web::put().to(user_role::update_role)),
-                )
-                .service(
-                    web::resource("/{role_id}/v2")
-                        .route(web::get().to(user_role::get_parent_info_for_role)),
-                ),
-        );
+                            )),
+                    )
+                    .service(
+                        web::resource("/{role_id}")
+                            .route(web::get().to(user_role::get_role))
+                            .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
+                    ),
+            );
 
         #[cfg(feature = "dummy_connector")]
         {
@@ -2983,9 +2998,12 @@ impl Authentication {
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
             .service(
+                web::resource("{merchant_id}/{authentication_id}/redirect")
+                    .route(web::post().to(authentication::authentication_sync_post_update)),
+            )
+            .service(
                 web::resource("{merchant_id}/{authentication_id}/sync")
-                    .route(web::post().to(authentication::authentication_sync))
-                    .route(web::get().to(authentication::authentication_sync_post_update)),
+                    .route(web::post().to(authentication::authentication_sync)),
             )
     }
 }
@@ -3024,6 +3042,16 @@ impl RecoveryDataBackfill {
             .service(web::resource("/status/{token_id}").route(
                 web::post().to(
                     super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                ),
+            ))
+            .service(web::resource("/redis-data/{token_id}").route(
+                web::get().to(
+                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
+                ),
+            ))
+            .service(web::resource("/update-token").route(
+                web::put().to(
+                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
     }

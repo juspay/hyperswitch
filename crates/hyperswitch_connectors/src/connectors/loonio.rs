@@ -1,12 +1,10 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
-
 use common_enums::enums;
 use common_utils::{
-    crypto,
+    crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
@@ -39,25 +37,23 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts, errors,
+    consts as api_consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask, Secret};
-use ring::hmac;
-use serde_json::Value;
-use transformers as bluecode;
+use transformers as loonio;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
-const BLUECODE_API_VERSION: &str = "v1";
 #[derive(Clone)]
-pub struct Bluecode {
+pub struct Loonio {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Bluecode {
+impl Loonio {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
@@ -65,26 +61,26 @@ impl Bluecode {
     }
 }
 
-impl api::Payment for Bluecode {}
-impl api::PaymentSession for Bluecode {}
-impl api::ConnectorAccessToken for Bluecode {}
-impl api::MandateSetup for Bluecode {}
-impl api::PaymentAuthorize for Bluecode {}
-impl api::PaymentSync for Bluecode {}
-impl api::PaymentCapture for Bluecode {}
-impl api::PaymentVoid for Bluecode {}
-impl api::Refund for Bluecode {}
-impl api::RefundExecute for Bluecode {}
-impl api::RefundSync for Bluecode {}
-impl api::PaymentToken for Bluecode {}
+impl api::Payment for Loonio {}
+impl api::PaymentSession for Loonio {}
+impl api::ConnectorAccessToken for Loonio {}
+impl api::MandateSetup for Loonio {}
+impl api::PaymentAuthorize for Loonio {}
+impl api::PaymentSync for Loonio {}
+impl api::PaymentCapture for Loonio {}
+impl api::PaymentVoid for Loonio {}
+impl api::Refund for Loonio {}
+impl api::RefundExecute for Loonio {}
+impl api::RefundSync for Loonio {}
+impl api::PaymentToken for Loonio {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Bluecode
+    for Loonio
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluecode
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Loonio
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -103,9 +99,9 @@ where
     }
 }
 
-impl ConnectorCommon for Bluecode {
+impl ConnectorCommon for Loonio {
     fn id(&self) -> &'static str {
-        "bluecode"
+        "loonio"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -117,19 +113,25 @@ impl ConnectorCommon for Bluecode {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.bluecode.base_url.as_ref()
+        connectors.loonio.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = bluecode::BluecodeAuthType::try_from(auth_type)
+        let auth = loonio::LoonioAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("token {}", auth.api_key.expose()).into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::MERCHANTID.to_string(),
+                auth.merchant_id.expose().into_masked(),
+            ),
+            (
+                headers::MERCHANT_TOKEN.to_string(),
+                auth.merchant_token.expose().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -137,9 +139,9 @@ impl ConnectorCommon for Bluecode {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: bluecode::BluecodeErrorResponse = res
+        let response: loonio::LoonioErrorResponse = res
             .response
-            .parse_struct("BluecodeErrorResponse")
+            .parse_struct("LoonioErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -147,9 +149,12 @@ impl ConnectorCommon for Bluecode {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or(api_consts::NO_ERROR_CODE.to_string()),
             message: response.message.clone(),
-            reason: Some(response.message),
+            reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -160,7 +165,7 @@ impl ConnectorCommon for Bluecode {
     }
 }
 
-impl ConnectorValidation for Bluecode {
+impl ConnectorValidation for Loonio {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -186,16 +191,15 @@ impl ConnectorValidation for Bluecode {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Bluecode {}
-
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Bluecode {}
-
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Bluecode
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Loonio {
+    //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Loonio {}
+
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Loonio {}
+
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -214,9 +218,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}api/{}/order/payin/start",
+            "{}api/v1/transactions/incoming/payment_form",
             self.base_url(connectors),
-            BLUECODE_API_VERSION
         ))
     }
 
@@ -231,8 +234,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = bluecode::BluecodeRouterData::from((amount, req));
-        let connector_req = bluecode::BluecodePaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = loonio::LoonioRouterData::from((amount, req));
+        let connector_req = loonio::LoonioPaymentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -264,32 +267,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodePaymentsResponse = res
+        let response: loonio::LoonioPaymentsResponse = res
             .response
-            .parse_struct("Bluecode PaymentsAuthorizeResponse")
+            .parse_struct("Loonio PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-
         router_env::logger::info!(connector_response=?response);
-
-        let response_integrity_object = utils::get_authorise_integrity_object(
-            self.amount_converter,
-            response.amount,
-            response.currency.to_string(),
-        )?;
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        });
-
-        new_router_data
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .map(|mut router_data| {
-                router_data.request.integrity_object = Some(response_integrity_object);
-                router_data
-            })
+        })
     }
 
     fn get_error_response(
@@ -301,7 +289,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -319,17 +307,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let base_url = self.base_url(connectors);
+        let connector_payment_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}api/{}/order/{}/status",
-            self.base_url(connectors),
-            BLUECODE_API_VERSION,
-            connector_transaction_id
+            "{base_url}api/v1/transactions/{connector_payment_id}/details"
         ))
     }
 
@@ -354,32 +335,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodeSyncResponse = res
+        let response: loonio::LoonioPaymentResponseData = res
             .response
-            .parse_struct("bluecode PaymentsSyncResponse")
+            .parse_struct("loonio LoonioPaymentResponseData")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
-        let response_integrity_object = utils::get_sync_integrity_object(
-            self.amount_converter,
-            response.amount,
-            response.currency.to_string(),
-        )?;
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        });
-
-        new_router_data
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .map(|mut router_data| {
-                router_data.request.integrity_object = Some(response_integrity_object);
-                router_data
-            })
+        })
     }
 
     fn get_error_response(
@@ -391,7 +357,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Blu
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Bluecode {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -409,11 +375,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -421,11 +383,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Capture".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
@@ -454,9 +412,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: bluecode::BluecodePaymentsResponse = res
+        let response: loonio::LoonioPaymentsResponse = res
             .response
-            .parse_struct("Bluecode PaymentsCaptureResponse")
+            .parse_struct("Loonio PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -476,9 +434,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Bluecode {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Loonio {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecode {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -496,23 +454,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        _req: &RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = loonio::LoonioRouterData::from((refund_amount, req));
+        let connector_req = loonio::LoonioRefundRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -540,10 +498,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: bluecode::RefundResponse = res
-            .response
-            .parse_struct("bluecode RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: loonio::RefundResponse =
+            res.response
+                .parse_struct("loonio RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -562,7 +520,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Bluecod
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Loonio {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -580,23 +538,25 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "RSync".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "RSync".to_string(),
-            connector: "Bluecode".to_string(),
-        }
-        .into())
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -605,9 +565,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: bluecode::RefundResponse = res
+        let response: loonio::RefundResponse = res
             .response
-            .parse_struct("bluecode RefundSyncResponse")
+            .parse_struct("loonio RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -628,78 +588,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Bluecode 
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Bluecode {
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha512))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let security_header = request
-            .headers
-            .get("x-eorder-webhook-signature")
-            .map(|header_value| {
-                header_value
-                    .to_str()
-                    .map(String::from)
-                    .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-            })
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)??;
-        hex::decode(security_header)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
-    }
-
+impl webhooks::IncomingWebhook for Loonio {
     async fn verify_webhook_source(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<Secret<Value>>,
-        connector_name: &str,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: Encryptable<Secret<serde_json::Value>>,
+        _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let connector_webhook_secrets = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_name,
-                connector_webhook_details,
-            )
-            .await?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-
-        let secret_bytes = connector_webhook_secrets.secret.as_ref();
-
-        let parsed: Value = serde_json::from_slice(request.body)
-            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let sorted_payload = bluecode::sort_and_minify_json(&parsed)?;
-
-        let key = hmac::Key::new(hmac::HMAC_SHA512, secret_bytes);
-
-        let verify = hmac::verify(&key, sorted_payload.as_bytes(), &signature)
-            .map(|_| true)
-            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        Ok(verify)
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let webhook_body: loonio::LoonioWebhookBody = request
+            .body
+            .parse_struct("LoonioWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.order_id),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                webhook_body.api_transaction_id,
+            ),
         ))
     }
 
@@ -707,64 +620,67 @@ impl webhooks::IncomingWebhook for Bluecode {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(transformers::get_bluecode_webhook_event(
-            webhook_body.status,
-        ))
+        let webhook_body: loonio::LoonioWebhookBody = request
+            .body
+            .parse_struct("LoonioWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok((&webhook_body.event_code).into())
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        let webhook_body = transformers::get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let webhook_body: loonio::LoonioWebhookBody = request
+            .body
+            .parse_struct("LoonioWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        Ok(Box::new(webhook_body))
+        let resource = loonio::LoonioPaymentResponseData::Webhook(webhook_body);
+
+        Ok(Box::new(resource))
     }
 }
 
-static BLUECODE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
+lazy_static! {
+    static ref LOONIO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut santander_supported_payment_methods = SupportedPaymentMethods::new();
-
-        santander_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::Bluecode,
+        let mut loonio_supported_payment_methods = SupportedPaymentMethods::new();
+        loonio_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Interac,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods,
                 specific_features: None,
             },
         );
 
-        santander_supported_payment_methods
-    });
+        loonio_supported_payment_methods
+    };
+    static ref LOONIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Loonio",
+        description: "Loonio is a payment processing platform that provides APIs for deposits and payouts via methods like Interac, PIX, EFT, and credit cards, with webhook support and transaction sync for real-time and manual status tracking.",
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    };
+    static ref LOONIO_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![
+        enums::EventClass::Payments,
+    ];
+}
 
-static BLUECODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Bluecode",
-    description: "Bluecode is building a global payment network that combines Alipay+, Discover and EMPSA and enables seamless payments in 75 countries. With over 160 million acceptance points, payments are processed according to the highest European security and data protection standards to make Europe less dependent on international players.",
-    connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
-};
-
-static BLUECODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
-
-impl ConnectorSpecifications for Bluecode {
+impl ConnectorSpecifications for Loonio {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&BLUECODE_CONNECTOR_INFO)
+        Some(&*LOONIO_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*BLUECODE_SUPPORTED_PAYMENT_METHODS)
+        Some(&*LOONIO_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&BLUECODE_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&*LOONIO_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

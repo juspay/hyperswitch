@@ -46,8 +46,15 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
+    image: debian:trixie-slim
+    pull_policy: always
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y curl xz-utils &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
+      curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin &&
+      export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
+      just migrate"
     working_dir: /app
     networks:
       - router_net
@@ -64,7 +71,7 @@ services:
         FROM rust:latest
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
-        RUN rustup component add rustfmt clippy  
+        RUN rustup component add rustfmt clippy
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
