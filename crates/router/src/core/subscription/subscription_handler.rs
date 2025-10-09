@@ -363,6 +363,11 @@ impl SubscriptionWithHandler<'_> {
             subscription: self.subscription.clone(),
             merchant_account: self.merchant_account.clone(),
             profile,
+            merchant_key_store: self
+                .handler
+                .merchant_context
+                .get_merchant_key_store()
+                .clone(),
         }
     }
     pub async fn get_mca(

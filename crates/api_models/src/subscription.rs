@@ -316,6 +316,7 @@ pub struct CreateMitPaymentRequestData {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub recurring_details: Option<RecurringDetails>,
     pub off_session: Option<bool>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

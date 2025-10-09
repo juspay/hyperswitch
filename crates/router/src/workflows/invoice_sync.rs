@@ -184,6 +184,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             self.subscription.clone(),
             self.merchant_account.clone(),
             self.profile.clone(),
+            self.key_store.clone(),
         );
 
         // TODO: Handle retries here on failure

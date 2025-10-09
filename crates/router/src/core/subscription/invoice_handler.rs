@@ -10,9 +10,7 @@ use masking::{PeekInterface, Secret};
 
 use super::errors;
 use crate::{
-    core::{errors::utils::StorageErrorExt, subscription::payments_api_client},
-    routes::SessionState,
-    types::storage as storage_types,
+    core::subscription::payments_api_client, routes::SessionState, types::storage as storage_types,
     workflows::invoice_sync as invoice_sync_workflow,
 };
 
@@ -20,6 +18,7 @@ pub struct InvoiceHandler {
     pub subscription: hyperswitch_domain_models::subscription::Subscription,
     pub merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
     pub profile: hyperswitch_domain_models::business_profile::Profile,
+    pub merchant_key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 }
 
 #[allow(clippy::todo)]
@@ -28,11 +27,13 @@ impl InvoiceHandler {
         subscription: hyperswitch_domain_models::subscription::Subscription,
         merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
         profile: hyperswitch_domain_models::business_profile::Profile,
+        merchant_key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> Self {
         Self {
             subscription,
             merchant_account,
             profile,
+            merchant_key_store,
         }
     }
     #[allow(clippy::too_many_arguments)]
@@ -65,18 +66,9 @@ impl InvoiceHandler {
         );
 
         let key_manager_state = &(state).into();
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                self.merchant_account.get_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let invoice = state
             .store
-            .insert_invoice_entry(key_manager_state, &merchant_key_store, invoice_new)
+            .insert_invoice_entry(key_manager_state, &self.merchant_key_store, invoice_new)
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Create Invoice".to_string(),
@@ -102,20 +94,11 @@ impl InvoiceHandler {
             payment_intent_id,
         );
         let key_manager_state = &(state).into();
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                self.merchant_account.get_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .update_invoice_entry(
                 key_manager_state,
-                &merchant_key_store,
+                &self.merchant_key_store,
                 invoice_id.get_string_repr().to_string(),
                 update_invoice,
             )
@@ -247,20 +230,11 @@ impl InvoiceHandler {
         state: &SessionState,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                self.merchant_account.get_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .get_latest_invoice_for_subscription(
                 key_manager_state,
-                &merchant_key_store,
+                &self.merchant_key_store,
                 self.subscription.id.get_string_repr().to_string(),
             )
             .await
@@ -276,20 +250,11 @@ impl InvoiceHandler {
         invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
         let key_manager_state = &(state).into();
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                self.merchant_account.get_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .find_invoice_by_invoice_id(
                 key_manager_state,
-                &merchant_key_store,
+                &self.merchant_key_store,
                 invoice_id.get_string_repr().to_string(),
             )
             .await
@@ -306,20 +271,11 @@ impl InvoiceHandler {
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> errors::RouterResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
         let key_manager_state = &(state).into();
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                self.merchant_account.get_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         state
             .store
             .find_invoice_by_subscription_id_connector_invoice_id(
                 key_manager_state,
-                &merchant_key_store,
+                &self.merchant_key_store,
                 subscription_id.get_string_repr().to_string(),
                 connector_invoice_id,
             )
@@ -369,6 +325,7 @@ impl InvoiceHandler {
                 payment_method_id.to_owned(),
             )),
             off_session: Some(true),
+            profile_id: Some(self.profile.get_id().clone()),
         };
 
         payments_api_client::PaymentsApiClient::create_mit_payment(
