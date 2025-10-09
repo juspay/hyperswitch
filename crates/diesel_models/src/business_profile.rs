@@ -647,7 +647,7 @@ impl ProfileUpdateInternal {
             merchant_category_code,
             merchant_country_code,
             split_txns_enabled,
-            is_l2_l3_enabled
+            is_l2_l3_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -747,7 +747,7 @@ impl ProfileUpdateInternal {
             split_txns_enabled: split_txns_enabled.or(source.split_txns_enabled),
             is_manual_retry_enabled: None,
             always_enable_overcapture: None,
-            is_l2_l3_enabled:None,
+            is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
         }
     }
