@@ -60,6 +60,9 @@ pub struct SubscriptionResponse {
     /// Identifier for the associated subscription plan.
     pub plan_id: Option<String>,
 
+    /// Identifier for the associated item_price_id for the subscription.
+    pub price_id: Option<String>,
+
     /// Associated profile ID.
     pub profile_id: common_utils::id_type::ProfileId,
 
@@ -123,6 +126,7 @@ impl SubscriptionResponse {
         merchant_reference_id: Option<String>,
         status: SubscriptionStatus,
         plan_id: Option<String>,
+        price_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
         client_secret: Option<Secret<String>>,
@@ -133,6 +137,7 @@ impl SubscriptionResponse {
             merchant_reference_id,
             status,
             plan_id,
+            price_id,
             profile_id,
             client_secret,
             merchant_id,
@@ -447,10 +452,12 @@ pub struct Invoice {
 
 impl ApiEventMetric for ConfirmSubscriptionResponse {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UpdateSubscriptionRequest {
     pub plan_id: String,
     pub item_price_id: String,
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
-    pub subscription_id: common_utils::id_type::SubscriptionId,
 }
+
+impl ApiEventMetric for UpdateSubscriptionRequest {}

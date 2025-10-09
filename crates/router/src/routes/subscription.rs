@@ -257,9 +257,11 @@ pub async fn create_and_confirm_subscription(
 pub async fn update_subscription(
     state: web::Data<AppState>,
     req: HttpRequest,
+    subscription_id: web::Path<common_utils::id_type::SubscriptionId>,
     json_payload: web::Json<subscription_types::UpdateSubscriptionRequest>,
 ) -> impl Responder {
     let flow = Flow::UpdateSubscription;
+    let subscription_id = subscription_id.into_inner();
     let profile_id = match extract_profile_id(&req) {
         Ok(id) => id,
         Err(response) => return response,
@@ -277,6 +279,7 @@ pub async fn update_subscription(
                 state,
                 merchant_context,
                 profile_id.clone(),
+                subscription_id.clone(),
                 payload.clone(),
             )
         },

@@ -2660,10 +2660,12 @@ async fn subscription_incoming_webhook_flow(
     let updated_invoice = invoice_handler
         .update_invoice(
             &state,
+            None,
+            None,
             invoice_entry.id.clone(),
             payment_response.payment_method_id.clone(),
             Some(payment_response.payment_id.clone()),
-            InvoiceStatus::from(payment_response.status),
+            Some(InvoiceStatus::from(payment_response.status)),
         )
         .await?;
 

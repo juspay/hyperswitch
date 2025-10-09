@@ -357,13 +357,17 @@ pub async fn confirm_subscription(
     let invoice_entry = invoice_handler
         .update_invoice(
             &state,
+            None,
+            None,
             invoice.id,
             payment_response.payment_method_id.clone(),
             Some(payment_response.payment_id.clone()),
-            invoice_details
-                .clone()
-                .and_then(|invoice| invoice.status)
-                .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+            Some(
+                invoice_details
+                    .clone()
+                    .and_then(|invoice| invoice.status)
+                    .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+            ),
         )
         .await?;
 
@@ -434,6 +438,7 @@ pub async fn update_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
+    subscription_id: common_utils::id_type::SubscriptionId,
     request: subscription_types::UpdateSubscriptionRequest,
 ) -> RouterResponse<SubscriptionResponse> {
     let profile =
@@ -444,7 +449,7 @@ pub async fn update_subscription(
             )?;
 
     let handler = SubscriptionHandler::new(&state, &merchant_context);
-    let mut subscription_entry = handler.find_subscription(request.subscription_id).await?;
+    let mut subscription_entry = handler.find_subscription(subscription_id).await?;
 
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
@@ -459,13 +464,35 @@ pub async fn update_subscription(
             subscription.payment_method_id.map(|pmid| Secret::new(pmid)),
             Some(subscription.status),
             subscription.connector_subscription_id,
-            request.item_price_id,
-            request.plan_id,
+            Some(request.plan_id),
+            Some(request.item_price_id),
         ))
         .await?;
 
-    let subscription_update_response =
-        get_subscription(state, merchant_context, profile_id, subscription.id).await?;
+    let invoice_entry = invoice_handler
+        .update_invoice(
+            &state,
+            Some(request.amount.clone()),
+            Some(request.currency.clone()),
+            invoice.id,
+            None,
+            None,
+            None,
+        )
+        .await?;
 
-    Ok(ApplicationResponse::Json(subscription_update_response))
+    let _payment_response = invoice_handler
+        .update_payment(
+            &state,
+            request.amount,
+            request.currency,
+            invoice_entry.payment_intent_id.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_intent_id",
+                },
+            )?,
+        )
+        .await?;
+
+    get_subscription(state, merchant_context, profile_id, subscription.id).await
 }

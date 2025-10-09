@@ -222,11 +222,11 @@ impl SubscriptionWithHandler<'_> {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
             status: SubscriptionStatus::from(status),
-            plan_id: None,
+            plan_id: self.subscription.plan_id.clone(),
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
-            price_id: None,
+            price_id: self.subscription.price_id.clone(),
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice {
@@ -258,7 +258,8 @@ impl SubscriptionWithHandler<'_> {
             self.subscription.merchant_reference_id.clone(),
             SubscriptionStatus::from_str(&self.subscription.status)
                 .unwrap_or(SubscriptionStatus::Created),
-            None,
+            self.subscription.plan_id.clone(),
+            self.subscription.price_id.clone(),
             self.subscription.profile_id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.client_secret.clone().map(Secret::new),

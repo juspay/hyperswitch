@@ -1198,11 +1198,15 @@ impl Subscription {
                 )),
             )
             .service(
-                web::resource("/{subscription_id}")
-                    .route(web::get().to(subscription::get_subscription)),
+                web::resource("/update/{subscription_id}").route(web::post().to(
+                    |state, req, id, payload| {
+                        subscription::update_subscription(state, req, id, payload)
+                    },
+                )),
             )
             .service(
-                web::resource("/update").route(web::post().to(subscription::update_subscription)),
+                web::resource("/{subscription_id}")
+                    .route(web::get().to(subscription::get_subscription)),
             )
     }
 }

@@ -75,14 +75,18 @@ impl InvoiceHandler {
     pub async fn update_invoice(
         &self,
         state: &SessionState,
+        amount: Option<MinorUnit>,
+        currency: Option<common_enums::Currency>,
         invoice_id: common_utils::id_type::InvoiceId,
         payment_method_id: Option<Secret<String>>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
-        status: connector_enums::InvoiceStatus,
+        status: Option<connector_enums::InvoiceStatus>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
+            amount,
+            currency.map(|c| c.to_string()),
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
-            Some(status),
+            status,
             payment_intent_id,
         );
         state
@@ -279,6 +283,35 @@ impl InvoiceHandler {
         payments_api_client::PaymentsApiClient::create_mit_payment(
             state,
             mit_payment_request,
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
+    }
+
+    pub async fn update_payment(
+        &self,
+        state: &SessionState,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+        payment_id: common_utils::id_type::PaymentId,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let payment_update_request = subscription_types::CreatePaymentsRequestData {
+            amount,
+            currency,
+            customer_id: None,
+            billing: None,
+            shipping: None,
+            setup_future_usage: None,
+            return_url: None,
+            capture_method: None,
+            authentication_type: None,
+        };
+
+        payments_api_client::PaymentsApiClient::update_payment(
+            state,
+            payment_update_request,
+            payment_id.get_string_repr().to_string(),
             self.merchant_account.get_id().get_string_repr(),
             self.profile.get_id().get_string_repr(),
         )
