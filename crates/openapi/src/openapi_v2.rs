@@ -396,6 +396,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::UpiData,
         api_models::payments::UpiCollectData,
         api_models::payments::UpiIntentData,
+        api_models::payments::UpiQrData,
         api_models::payments::VoucherData,
         api_models::payments::BoletoVoucherData,
         api_models::payments::AlfamartVoucherData,

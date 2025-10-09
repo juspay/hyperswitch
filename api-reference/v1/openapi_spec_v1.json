@@ -32896,6 +32896,9 @@
       "UpiIntentData": {
         "type": "object"
       },
+      "UpiQrData": {
+        "type": "object"
+      },
       "UpiResponse": {
         "allOf": [
           {
