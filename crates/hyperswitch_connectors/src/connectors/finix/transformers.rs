@@ -281,16 +281,16 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
             AttemptStatus::AuthorizationFailed
         }
-        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
+        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::Pending,
         (FinixFlow::Transfer, FinixState::SUCCEEDED) => AttemptStatus::Charged,
         (FinixFlow::Transfer, FinixState::FAILED)
         | (FinixFlow::Transfer, FinixState::CANCELED)
-        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
-        (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
-        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::CaptureInitiated, // Psync with Transfer id can determine actuall success
+        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
+        (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
         (FinixFlow::Capture, FinixState::FAILED)
         | (FinixFlow::Capture, FinixState::CANCELED)
-        | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
+        | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,
     }
 }
 

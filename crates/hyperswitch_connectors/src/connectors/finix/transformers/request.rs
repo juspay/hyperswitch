@@ -164,11 +164,11 @@ pub enum FinixCardType {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixThreeDSecure {
     pub authenticated: Option<bool>,
-    pub liability_shift: Option<String>,
+    pub liability_shift: Option<Secret<String>>,
     pub version: Option<String>,
-    pub eci: Option<String>,
-    pub cavv: Option<String>,
-    pub xid: Option<String>,
+    pub eci: Option<Secret<String>>,
+    pub cavv: Option<Secret<String>>,
+    pub xid: Option<Secret<String>>,
 }
 
 /// Key-value pair tags.
