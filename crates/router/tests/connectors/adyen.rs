@@ -128,6 +128,16 @@ impl AdyenTest {
                         paypal_id: None,
                     }),
                 )),
+                enums::PayoutType::BankRedirect => {
+                    Some(types::api::PayoutMethodData::BankRedirect(
+                        types::api::payouts::BankRedirectPayout::Interac(
+                            api_models::payouts::Interac {
+                                email: Email::from_str("EmailUsedForPayPalAccount@example.com")
+                                    .ok()?,
+                            },
+                        ),
+                    ))
+                }
             },
             ..Default::default()
         })

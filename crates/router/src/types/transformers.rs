@@ -1195,6 +1195,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
+            api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
+                Self::foreign_from(bank_redirect)
+            }
         }
     }
 }
@@ -1222,12 +1225,22 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
+        match value {
+            api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1239,6 +1252,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::
             api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
@@ -1250,6 +1264,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
+            api_models::enums::PayoutType::BankRedirect => Self::BankRedirect,
         }
     }
 }

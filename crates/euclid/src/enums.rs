@@ -166,4 +166,5 @@ pub enum PayoutType {
     Card,
     BankTransfer,
     Wallet,
+    BankRedirect,
 }

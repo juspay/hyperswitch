@@ -299,6 +299,8 @@ pub struct ConnectorConfig {
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
     pub moneris: Option<ConnectorTomlConfig>,
@@ -403,6 +405,7 @@ impl ConnectorConfig {
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
+            PayoutConnectors::Loonio => Ok(connector_data.loonio_payout),
             PayoutConnectors::Nomupay => Ok(connector_data.nomupay_payout),
             PayoutConnectors::Nuvei => Ok(connector_data.nuvei_payout),
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),

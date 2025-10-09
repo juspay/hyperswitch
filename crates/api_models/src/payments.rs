@@ -5942,6 +5942,10 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+
+    /// The webhook endpoint URL to receive payment status notifications
+    #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
+    pub webhook_url: Option<common_utils::types::Url>,
 }
 
 // Serialize is implemented because, this will be serialized in the api events.
@@ -6182,6 +6186,10 @@ pub struct PaymentsRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// The webhook endpoint URL to receive payment status notifications
+    #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
+    pub webhook_url: Option<common_utils::types::Url>,
 }
 
 #[cfg(feature = "v2")]
@@ -6237,6 +6245,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             merchant_connector_details: request.merchant_connector_details.clone(),
             return_raw_connector_response: request.return_raw_connector_response,
             split_payment_method_data: None,
+            webhook_url: request.webhook_url.clone(),
         }
     }
 }

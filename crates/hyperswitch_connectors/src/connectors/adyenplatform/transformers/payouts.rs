@@ -458,9 +458,11 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
         let request = &raw_payment.item.router_data.request;
 
         match raw_payment.raw_payout_method_data {
-            payouts::PayoutMethodData::Wallet(_) => Err(ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
-            ))?,
+            payouts::PayoutMethodData::Wallet(_) | payouts::PayoutMethodData::BankRedirect(_) => {
+                Err(ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
+                ))?
+            }
             payouts::PayoutMethodData::Card(c) => {
                 let card_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &c).try_into()?;
@@ -661,10 +663,12 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
         match payout_type {
             enums::PayoutType::Bank => Ok(Self::Bank),
             enums::PayoutType::Card => Ok(Self::Card),
-            enums::PayoutType::Wallet => Err(report!(ConnectorError::NotSupported {
-                message: "Card or wallet payouts".to_string(),
-                connector: "Adyenplatform",
-            })),
+            enums::PayoutType::Wallet | enums::PayoutType::BankRedirect => {
+                Err(report!(ConnectorError::NotSupported {
+                    message: "Bakredirect or wallet payouts".to_string(),
+                    connector: "Adyenplatform",
+                }))
+            }
         }
     }
 }

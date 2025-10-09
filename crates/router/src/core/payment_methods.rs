@@ -3438,6 +3438,7 @@ fn construct_zero_auth_payments_request(
         merchant_connector_details: None,
         return_raw_connector_response: None,
         enable_partial_authorization: None,
+        webhook_url: None,
     })
 }
 

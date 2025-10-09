@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.09.0
+
+### Features
+
+- **connector:** [Loonio] implement payouts ([#9718](https://github.com/juspay/hyperswitch/pull/9718)) ([`abcc70b`](https://github.com/juspay/hyperswitch/commit/abcc70be074130827c14f90ff4cc7de964994efa))
+- **subscription:** Add endpoint to get Subscription estimate ([#9637](https://github.com/juspay/hyperswitch/pull/9637)) ([`15bc0a3`](https://github.com/juspay/hyperswitch/commit/15bc0a3b35b8ff37f68cc46a34d6cbf23e237dd1))
+- **subscriptions:** Add client secret auth support in subscriptions APIs ([#9713](https://github.com/juspay/hyperswitch/pull/9713)) ([`01b4d6a`](https://github.com/juspay/hyperswitch/commit/01b4d6ae7c32b584cfb07d51f839f0ed0fbbd8f5))
+
+### Bug Fixes
+
+- **connectors:** [TSYS] change order of order_number in tsys auth request body ([#9579](https://github.com/juspay/hyperswitch/pull/9579)) ([`0ff6c08`](https://github.com/juspay/hyperswitch/commit/0ff6c08202e5aa19bad9f54a4199cbdbe6fa0ec1))
+- **core:** Add type for fields in juspay threeds server ([#9744](https://github.com/juspay/hyperswitch/pull/9744)) ([`76da7b2`](https://github.com/juspay/hyperswitch/commit/76da7b28bcce8bdeb023431cf69432b7cbaf9ac7))
+- **router:** Fix wasm bug juspay threeds ([#9757](https://github.com/juspay/hyperswitch/pull/9757)) ([`3727995`](https://github.com/juspay/hyperswitch/commit/3727995a0a5f94990ae0094117429c3156a330b5))
+
+### Refactors
+
+- **core:** Add webhook_url for v2 tunnel ([#9625](https://github.com/juspay/hyperswitch/pull/9625)) ([`df51a4f`](https://github.com/juspay/hyperswitch/commit/df51a4ff9430583de205919c54be6bcb71680280))
+
+### Miscellaneous Tasks
+
+- **environment:** [tesouro] update currency environment variables ([#9722](https://github.com/juspay/hyperswitch/pull/9722)) ([`d81baac`](https://github.com/juspay/hyperswitch/commit/d81baac2be28a0cecd959831529835aed067892a))
+- Create indexes on required id columns for v2 application ([#9704](https://github.com/juspay/hyperswitch/pull/9704)) ([`dab0851`](https://github.com/juspay/hyperswitch/commit/dab0851601148669dd6078494cff1cb590e38ca0))
+
+**Full Changelog:** [`2025.10.08.1...2025.10.09.0`](https://github.com/juspay/hyperswitch/compare/2025.10.08.1...2025.10.09.0)
+
+- - -
+
 ## 2025.10.08.1
 
 ### Bug Fixes

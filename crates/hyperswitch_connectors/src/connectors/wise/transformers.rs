@@ -413,9 +413,11 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WiseRecipientCreateR
         }?;
         let payout_type = request.get_payout_type()?;
         match payout_type {
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
             PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(ConnectorError::MissingRequiredField {
@@ -478,9 +480,11 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WisePayoutQuoteReque
                 target_currency: request.destination_currency.to_string(),
                 pay_out: WisePayOutOption::default(),
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -536,9 +540,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                     details: wise_transfer_details,
                 })
             }
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -580,9 +586,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }

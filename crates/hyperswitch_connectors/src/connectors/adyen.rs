@@ -1593,15 +1593,19 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
             &req.connector_meta_data,
         )?;
         let payout_type = req.request.get_payout_type()?;
+        let path_segment = match payout_type {
+            enums::PayoutType::Bank | enums::PayoutType::Wallet => "confirmThirdParty",
+            enums::PayoutType::Card => "payout",
+            enums::PayoutType::BankRedirect => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "bank redirect payouts not supoorted by adyen".to_string(),
+                )
+                .into())
+            }
+        };
         Ok(format!(
             "{}pal/servlet/Payout/{}/{}",
-            endpoint,
-            ADYEN_API_VERSION,
-            match payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet =>
-                    "confirmThirdParty".to_string(),
-                enums::PayoutType::Card => "payout".to_string(),
-            }
+            endpoint, ADYEN_API_VERSION, path_segment
         ))
     }
 
@@ -1627,7 +1631,9 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match payout_type {
-                enums::PayoutType::Bank | enums::PayoutType::Wallet => {
+                enums::PayoutType::Bank
+                | enums::PayoutType::Wallet
+                | enums::PayoutType::BankRedirect => {
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
                 enums::PayoutType::Card => auth.api_key.into_masked(),
