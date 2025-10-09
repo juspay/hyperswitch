@@ -2,9 +2,9 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::crypto::Encryptable;
 use common_utils::{
     consts,
+    crypto::Encryptable,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -846,7 +846,9 @@ fn get_webhook_query_params(
             match key {
                 "transaction" => txn = Some(value.to_string()),
                 "status" => {
-                    if let Ok(status) = transformers::GigadatPaymentStatus::try_from(value.to_string()) {
+                    if let Ok(status) =
+                        transformers::GigadatPaymentStatus::try_from(value.to_string())
+                    {
                         sts = Some(status);
                     }
                 }

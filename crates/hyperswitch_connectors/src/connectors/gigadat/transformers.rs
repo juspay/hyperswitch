@@ -216,8 +216,7 @@ impl From<GigadatPaymentStatus> for api_models::webhooks::IncomingWebhookEvent {
             | GigadatPaymentStatus::StatusAborted1 => {
                 api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
             }
-            GigadatPaymentStatus::StatusInited
-            | GigadatPaymentStatus::StatusPending => {
+            GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
                 api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
             }
         }
