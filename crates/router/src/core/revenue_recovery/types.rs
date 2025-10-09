@@ -493,19 +493,14 @@ impl Action {
                                 );
                             };
 
-                            let is_hard_decline = revenue_recovery::check_hard_decline(
-                                state,
-                                &payment_data.payment_attempt,
-                            )
-                            .await
-                            .ok();
 
                             // update the status of token in redis
                             let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                                 state,
                                 &connector_customer_id,
                                 &None,
-                                &is_hard_decline,
+                                // Since this is succeeded payment attempt, 'is_hard_decine' will be false.
+                                &Some(false),
                                 Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
                             )
                             .await;
@@ -659,7 +654,7 @@ impl Action {
                 logger::info!(
                     process_id = %process.id,
                     connector_customer_id = %connector_customer_id,
-                    "No token available, finishing CALCULATE_WORKFLOW"
+                    "No token available, finishing EXECUTE_WORKFLOW"
                 );
 
                 state
@@ -671,12 +666,12 @@ impl Action {
                     )
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
-                    .attach_printable("Failed to finish CALCULATE_WORKFLOW")?;
+                    .attach_printable("Failed to finish EXECUTE_WORKFLOW")?;
 
                 logger::info!(
                     process_id = %process.id,
                     connector_customer_id = %connector_customer_id,
-                    "CALCULATE_WORKFLOW finished successfully"
+                    "EXECUTE_WORKFLOW finished successfully"
                 );
                 Ok(Self::TerminalFailure(payment_attempt.clone()))
             }
