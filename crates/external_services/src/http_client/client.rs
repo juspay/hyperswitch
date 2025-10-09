@@ -20,53 +20,48 @@ pub fn create_client(
     client_certificate_key: Option<masking::Secret<String>>,
     ca_certificate: Option<masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
-    // Case 1: Mutual TLS with client certificate and key
-    if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
-        (client_certificate.clone(), client_certificate_key.clone())
-    {
-        if ca_certificate.is_some() {
-            logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
-        }
+    logger::info!(
+        has_client_cert = client_certificate.is_some(),
+        has_ca_cert = ca_certificate.is_some(),
+        has_mitm_ca_cert = proxy_config.mitm_ca_cert.is_some(),
+        "HTTP client configuration summary"
+    );
 
-        logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder = get_client_builder(proxy_config)?;
+    // Check if any certificates are provided
+    let has_certificates = client_certificate.is_some() 
+        || client_certificate_key.is_some() 
+        || ca_certificate.is_some() 
+        || proxy_config.mitm_ca_cert.is_some();
 
-        let identity = create_identity_from_certificate_and_key(
-            encoded_certificate.clone(),
-            encoded_certificate_key,
-        )?;
-        let certificate_list = create_certificate(encoded_certificate)?;
-        let client_builder = certificate_list
-            .into_iter()
-            .fold(client_builder, |client_builder, certificate| {
-                client_builder.add_root_certificate(certificate)
-            });
-        return client_builder
-            .identity(identity)
-            .use_rustls_tls()
-            .build()
-            .change_context(HttpClientError::ClientConstructionFailed)
-            .attach_printable("Failed to construct client with certificate and certificate key");
+    // Use cached default client if no certificates are provided
+    if !has_certificates {
+        logger::debug!("Using cached default HTTP client (no certificates)");
+        return get_base_client(proxy_config);
     }
 
-    // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
-    if let Some(ca_pem) = ca_certificate {
-        logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
-        let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
-        let cert = reqwest::Certificate::from_pem(pem.as_bytes())
-            .change_context(HttpClientError::ClientConstructionFailed)
-            .attach_printable("Failed to parse CA certificate PEM block")?;
-        let client_builder = get_client_builder(proxy_config)?.add_root_certificate(cert);
-        return client_builder
-            .use_rustls_tls()
-            .build()
-            .change_context(HttpClientError::ClientConstructionFailed)
-            .attach_printable("Failed to construct client with CA certificate");
-    }
+    // Build custom client with certificates
+    logger::debug!("Building custom HTTP client with certificates");
 
-    // Case 3: Default client (no certs)
-    logger::debug!("Creating default HTTP client (no client or CA certificates)");
-    get_base_client(proxy_config)
+    // Step 1: Get base client builder with proxy configuration
+    let mut client_builder = get_client_builder(proxy_config)?;
+
+    // Step 2: Handle existing certificate cases (mutual TLS, one-way TLS)
+    client_builder = handle_request_certificates(
+        client_builder,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate,
+    )?;
+
+    // Step 3: ALWAYS apply MITM CA certificate if present
+    client_builder = process_mitm_ca_certificate(proxy_config, client_builder)?;
+
+    // Step 4: Build final client
+    client_builder
+        .use_rustls_tls()
+        .build()
+        .change_context(HttpClientError::ClientConstructionFailed)
+        .attach_printable("Failed to construct HTTP client")
 }
 
 #[allow(missing_docs)]
@@ -145,10 +140,76 @@ pub fn create_certificate(
         .change_context(HttpClientError::CertificateDecodeFailed)
 }
 
+/// Handle request-level certificates (mutual TLS and one-way TLS)
+fn handle_request_certificates(
+    client_builder: reqwest::ClientBuilder,
+    client_certificate: Option<masking::Secret<String>>,
+    client_certificate_key: Option<masking::Secret<String>>,
+    ca_certificate: Option<masking::Secret<String>>,
+) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
+    // Case 1: Mutual TLS with client certificate and key
+    if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
+        (client_certificate.clone(), client_certificate_key.clone())
+    {
+        if ca_certificate.is_some() {
+            logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
+        }
+
+        logger::debug!("Setting up mutual TLS (client cert + key)");
+        let identity = create_identity_from_certificate_and_key(
+            encoded_certificate.clone(),
+            encoded_certificate_key,
+        )?;
+        let certificate_list = create_certificate(encoded_certificate)?;
+        let client_builder = certificate_list
+            .into_iter()
+            .fold(client_builder, |builder, certificate| {
+                builder.add_root_certificate(certificate)
+            });
+        return Ok(client_builder.identity(identity));
+    }
+
+    // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+    if let Some(ca_pem) = ca_certificate {
+        logger::debug!("Setting up one-way TLS (CA certificate)");
+        let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
+        let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to parse CA certificate PEM block")?;
+        return Ok(client_builder.add_root_certificate(cert));
+    }
+
+    // Case 3: No additional certificates
+    logger::debug!("No additional certificates configured");
+    Ok(client_builder)
+}
+
+/// Process MITM CA certificate for proxy authentication
+fn process_mitm_ca_certificate(
+    proxy_config: &Proxy,
+    client_builder: reqwest::ClientBuilder,
+) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
+    if let Some(mitm_ca_cert) = &proxy_config.mitm_ca_cert {
+        logger::debug!("Adding MITM CA certificate for proxy authentication");
+        let pem = mitm_ca_cert.replace("\\r\\n", "\n"); // Fix escaped newlines
+        let cert = reqwest::Certificate::from_pem(pem.as_bytes())
+            .change_context(HttpClientError::ClientConstructionFailed)
+            .attach_printable("Failed to parse MITM CA certificate PEM block - ensure certificate is in valid PEM format")?;
+        Ok(client_builder.add_root_certificate(cert))
+    } else {
+        Ok(client_builder)
+    }
+}
+
 fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     Ok(DEFAULT_CLIENT
         .get_or_try_init(|| {
-            get_client_builder(proxy_config)?
+            let mut client_builder = get_client_builder(proxy_config)?;
+            
+            // Apply MITM CA certificate for the default client as well
+            client_builder = process_mitm_ca_certificate(proxy_config, client_builder)?;
+            
+            client_builder
                 .build()
                 .change_context(HttpClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct base client")

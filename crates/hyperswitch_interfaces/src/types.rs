@@ -351,6 +351,12 @@ pub struct Proxy {
 
     /// A comma-separated list of hosts that should bypass the proxy.
     pub bypass_proxy_hosts: Option<String>,
+
+    /// The CA certificate to use for man-in-the-middle proxy authentication.
+    /// This certificate will be added to the trust store for all connections through the proxy.
+    /// Format: PEM-encoded certificate string.
+    /// This field is always applied when present, regardless of other certificate configurations.
+    pub mitm_ca_cert: Option<String>,
 }
 
 impl Default for Proxy {
@@ -360,6 +366,7 @@ impl Default for Proxy {
             https_url: Default::default(),
             idle_pool_connection_timeout: Some(90),
             bypass_proxy_hosts: Default::default(),
+            mitm_ca_cert: None,
         }
     }
 }
