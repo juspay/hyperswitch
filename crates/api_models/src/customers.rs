@@ -54,6 +54,9 @@ pub struct CustomerListRequest {
     pub limit: Option<u16>,
     /// Unique identifier for a customer
     pub customer_id: Option<id_type::CustomerId>,
+    /// filter with created date
+    #[serde(flatten)]
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[cfg(feature = "v1")]
@@ -387,4 +390,12 @@ pub struct CustomerUpdateRequestInternal {
 pub struct CustomerUpdateRequestInternal {
     pub id: id_type::GlobalCustomerId,
     pub request: CustomerUpdateRequest,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CustomerListResponse {
+    /// List of customers
+    pub data: Vec<CustomerResponse>,
+    /// Total count of customers
+    pub count: usize,
 }
