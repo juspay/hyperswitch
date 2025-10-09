@@ -4,7 +4,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
-    dsl::{count_star,Find, IsNotNull, Limit},
+    dsl::{count_star, Find, IsNotNull, Limit},
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},

@@ -299,7 +299,6 @@ pub async fn customers_list_with_count(
                 request,
             )
         },
-        
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 is_connected_allowed: false,

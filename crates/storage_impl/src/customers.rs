@@ -677,7 +677,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         )
         .await
     }
-    
+
     #[instrument(skip_all)]
     async fn list_customers_by_merchant_id_with_count(
         &self,
@@ -689,18 +689,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        let customers = self.find_resources(
-            state,
-            key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
-        )
-        .await?;
+        let customers = self
+            .find_resources(
+                state,
+                key_store,
+                customers::Customer::list_by_merchant_id(
+                    &conn,
+                    merchant_id,
+                    customer_list_constraints,
+                ),
+            )
+            .await?;
         let total_count = customers::Customer::count_by_merchant_id(&conn, merchant_id)
-                .await
-                .map_err(|error| {
-                    let new_err = diesel_error_to_data_error(*error.current_context());
-                    error.change_context(new_err)
-                })?;
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?;
         Ok((customers, total_count))
     }
 
