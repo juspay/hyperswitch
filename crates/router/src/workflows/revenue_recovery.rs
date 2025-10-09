@@ -592,15 +592,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             let payment_processor_token = payment_intent
                 .feature_metadata
                 .as_ref()
-                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
-                .and_then(|recovery_metadata| {
-                    Some(
-                        recovery_metadata
-                            .billing_connector_payment_details
-                            .payment_processor_token
-                            .clone(),
-                    )
-                });
+                .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref()).map(|recovery_metadata| recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone());
 
             let payment_processor_tokens_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -627,18 +622,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     .and_then(|t| t.token_status.is_hard_decline);
 
             // Wait time, if retry limit exceeded
-            payment_processor_token_response.wait_time =
-                payment_processor_tokens_details_with_retry_info
-                    .as_ref()
-                    .and_then(|t| Some(t.retry_wait_time_hours));
+            payment_processor_tokens_details_with_retry_info
+                .as_ref().map(|t| t.retry_wait_time_hours);
 
             // If hard decline or wait time > 0, then no schedule time
-            payment_processor_token_response.schedule_time = (payment_processor_token_response
+            payment_processor_token_response.schedule_time = if payment_processor_token_response
                 .all_hard_decline
-                .unwrap_or(false)
-                || payment_processor_token_response.wait_time > Some(0))
-            .then(|| None)
-            .unwrap_or(payment_processor_token_response.schedule_time);
+                .unwrap_or(false) || payment_processor_token_response.wait_time > Some(0) { None } else { payment_processor_token_response.schedule_time };
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
