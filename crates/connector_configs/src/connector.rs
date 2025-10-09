@@ -502,6 +502,7 @@ impl ConnectorConfig {
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
+            Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),
