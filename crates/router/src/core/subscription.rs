@@ -88,9 +88,9 @@ pub async fn create_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
                 payment.payment_method_id.clone(),
                 None,
+                request.plan_id,
+                request.item_price_id,
                 None,
-            None,
-            None,
             ),
         )
         .await
@@ -265,14 +265,14 @@ pub async fn create_and_confirm_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
                 payment_response.payment_method_id.clone(),
                 Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                request.plan_id,
+                request.item_price_id,
                 Some(
                     subscription_create_response
                         .subscription_id
                         .get_string_repr()
                         .to_string(),
                 ),
-            None,
-            None,
             ),
         )
         .await?;
@@ -412,8 +412,8 @@ pub async fn confirm_subscription(
                         .get_string_repr()
                         .to_string(),
                 ),
-            subscription.price_id.clone(),
-            subscription.plan_id.clone(),
+                subscription.plan_id.clone(),
+                subscription.price_id.clone(),
             ),
         )
         .await?;
@@ -500,13 +500,15 @@ pub async fn update_subscription(
     let subscription = subscription_entry.subscription.clone();
 
     subscription_entry
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            subscription.payment_method_id.map(|pmid| Secret::new(pmid)),
-            Some(subscription.status),
-            subscription.connector_subscription_id,
-            Some(request.plan_id),
-            Some(request.item_price_id),
-        ))
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                subscription.payment_method_id.map(|pmid| Secret::new(pmid)),
+                Some(subscription.status),
+                Some(request.plan_id),
+                Some(request.item_price_id),
+                subscription.connector_subscription_id,
+            ),
+        )
         .await?;
 
     let invoice_entry = invoice_handler

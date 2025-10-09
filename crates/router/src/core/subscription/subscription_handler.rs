@@ -45,7 +45,7 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_reference_id: Option<String>,
         profile: &hyperswitch_domain_models::business_profile::Profile,
         plan_id: Option<String>,
-        item_price_id: Option<String>,
+        price_id: Option<String>,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -68,7 +68,7 @@ impl<'a> SubscriptionHandler<'a> {
             profile_id: profile.get_id().clone(),
             merchant_reference_id,
             plan_id,
-            item_price_id,
+            price_id,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
         };

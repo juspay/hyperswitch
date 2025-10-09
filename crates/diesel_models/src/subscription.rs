@@ -55,9 +55,9 @@ pub struct SubscriptionUpdate {
     pub connector_subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
-    pub modified_at: time::PrimitiveDateTime,
     pub plan_id: Option<String>,
     pub price_id: Option<String>,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 impl SubscriptionNew {
@@ -65,6 +65,8 @@ impl SubscriptionNew {
     pub fn new(
         id: common_utils::id_type::SubscriptionId,
         status: String,
+        plan_id: Option<String>,
+        price_id: Option<String>,
         billing_processor: Option<String>,
         payment_method_id: Option<String>,
         merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -75,13 +77,13 @@ impl SubscriptionNew {
         metadata: Option<SecretSerdeValue>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_reference_id: Option<String>,
-        plan_id: Option<String>,
-        price_id: Option<String>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
             id,
             status,
+            plan_id,
+            price_id,
             billing_processor,
             payment_method_id,
             merchant_connector_id,
@@ -94,8 +96,6 @@ impl SubscriptionNew {
             modified_at: now,
             profile_id,
             merchant_reference_id,
-            plan_id,
-            price_id,
         }
     }
 

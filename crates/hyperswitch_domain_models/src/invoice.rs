@@ -182,6 +182,8 @@ pub trait InvoiceInterface {
 }
 
 pub struct InvoiceUpdate {
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<String>,
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
     pub connector_invoice_id: Option<String>,
@@ -195,6 +197,8 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::invoice::InvoiceUpdate {
+            amount: self.amount,
+            currency: self.currency,
             status: self.status,
             payment_method_id: self.payment_method_id,
             connector_invoice_id: self.connector_invoice_id,
@@ -213,6 +217,8 @@ impl super::behaviour::Conversion for InvoiceUpdate {
         Self: Sized,
     {
         Ok(Self {
+            amount: item.amount,
+            currency: item.currency,
             status: item.status,
             payment_method_id: item.payment_method_id,
             connector_invoice_id: item.connector_invoice_id,
@@ -223,6 +229,8 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::invoice::InvoiceUpdate {
+            amount: self.amount,
+            currency: self.currency,
             status: self.status,
             payment_method_id: self.payment_method_id,
             connector_invoice_id: self.connector_invoice_id,
@@ -234,12 +242,16 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 
 impl InvoiceUpdate {
     pub fn new(
+        amount: Option<MinorUnit>,
+        currency: Option<String>,
         payment_method_id: Option<String>,
         status: Option<common_enums::connector_enums::InvoiceStatus>,
         connector_invoice_id: Option<String>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
+            amount,
+            currency,
             payment_method_id,
             status: status.map(|status| status.to_string()),
             connector_invoice_id,
