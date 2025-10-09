@@ -542,17 +542,16 @@ pub async fn perform_calculate_workflow(
             Ok(token_opt) => token_opt,
             Err(e) => {
                 logger::error!(
-                    error = ?e, 
+                    error = ?e,
                     connector_customer_id = %connector_customer_id,
                     "Failed to get best PSP token"
                 );
-                revenue_recovery_workflow::PaymentProcessorTokenResponse{
+                revenue_recovery_workflow::PaymentProcessorTokenResponse {
                     schedule_time: None,
                     wait_time: None,
                     all_hard_decline: None,
                     reschedule_time: None,
                 }
-
             }
         };
 
@@ -608,8 +607,7 @@ pub async fn perform_calculate_workflow(
             );
         }
 
-        None => {   
-
+        None => {
             match payment_processor_token_response.reschedule_time {
                 Some(scheduled_token_time) => {
                     // Update scheduled time to scheduled time + 15 minutes
@@ -637,8 +635,10 @@ pub async fn perform_calculate_workflow(
                     .await?;
                 }
                 None => {
-
-                    match payment_processor_token_response.all_hard_decline.unwrap_or(false) {
+                    match payment_processor_token_response
+                        .all_hard_decline
+                        .unwrap_or(false)
+                    {
                         false => {
                             logger::info!(
                                 process_id = %process.id,
@@ -655,7 +655,9 @@ pub async fn perform_calculate_workflow(
                                         .revenue_recovery
                                         .recovery_timestamp
                                         .job_schedule_buffer_time_in_seconds,
-                                ) + time::Duration::hours(payment_processor_token_response.wait_time.unwrap_or(0)),
+                                ) + time::Duration::hours(
+                                    payment_processor_token_response.wait_time.unwrap_or(0),
+                                ),
                                 Some(common_utils::date_time::now()),
                                 &connector_customer_id,
                                 retry_algorithm_type,
@@ -757,7 +759,7 @@ async fn update_calculate_job_schedule_time(
     let tracking_data = serde_json::to_value(old_tracking_data)
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("Failed to serialize the tracking data for process tracker")?;
-    
+
     let pt_update = storage::ProcessTrackerUpdate::Update {
         name: Some("CALCULATE_WORKFLOW".to_string()),
         retry_count: Some(process.clone().retry_count),
