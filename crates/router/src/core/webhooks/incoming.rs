@@ -516,7 +516,7 @@ fn extract_webhook_event_object(
                         }
                         _ => {
                             // Convert UCS webhook content to appropriate format
-                            serde_json::to_value(&webhook_content)
+                            serde_json::to_value(webhook_content)
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to serialize UCS webhook content")?
                         }
@@ -668,7 +668,7 @@ async fn process_webhook_business_logic(
                     _ => {
                         // Convert UCS webhook content to appropriate format
                         Box::new(
-                            serde_json::to_value(&webhook_content)
+                            serde_json::to_value(webhook_content)
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to serialize UCS webhook content")?,
                         )
