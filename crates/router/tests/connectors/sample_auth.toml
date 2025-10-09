@@ -364,9 +364,13 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
-[bluecode]
+[calida]
 api_key="EOrder Token"
 
 [peachpayments]
 api_key="API Key"
 key1="Tenant ID"
+
+[tesouro]
+api_key="Client ID"
+key1="Client Secret"

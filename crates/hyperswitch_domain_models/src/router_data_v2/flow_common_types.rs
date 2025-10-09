@@ -149,19 +149,34 @@ pub struct FilesFlowData {
 }
 
 #[derive(Debug, Clone)]
-pub struct InvoiceRecordBackData;
+pub struct InvoiceRecordBackData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
-pub struct SubscriptionCreateData;
+pub struct SubscriptionCustomerData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlansData;
+pub struct SubscriptionCreateData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlanPricesData;
+pub struct GetSubscriptionPlansData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionEstimateData;
+pub struct GetSubscriptionPlanPricesData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionEstimateData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
 
 #[derive(Debug, Clone)]
 pub struct UasFlowData {

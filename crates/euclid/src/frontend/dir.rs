@@ -837,6 +837,14 @@ pub enum PayoutDirKeyKind {
     PayoutAmount,
 
     #[strum(
+        serialize = "currency",
+        detailed_message = "Currency used for the payout",
+        props(Category = "Order details")
+    )]
+    #[serde(rename = "currency")]
+    PayoutCurrency,
+
+    #[strum(
         serialize = "payment_method",
         detailed_message = "Different modes of payout - eg. cards, wallets, banks",
         props(Category = "Payout Methods")
@@ -874,6 +882,8 @@ pub enum PayoutDirValue {
     BusinessLabel(types::StrValue),
     #[serde(rename = "amount")]
     PayoutAmount(types::NumValue),
+    #[serde(rename = "currency")]
+    PayoutCurrency(enums::PaymentCurrency),
     #[serde(rename = "payment_method")]
     PayoutType(common_enums::PayoutType),
     #[serde(rename = "wallet")]
