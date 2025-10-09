@@ -662,6 +662,8 @@ pub enum Flow {
     RecoveryDataBackfill,
     /// Gift card balance check flow
     GiftCardBalanceCheck,
+    /// Payments Submit Eligibility flow
+    PaymentsSubmitEligibility,
 }
 
 /// Trait for providing generic behaviour to flow metric
