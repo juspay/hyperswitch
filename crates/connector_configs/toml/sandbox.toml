@@ -2937,7 +2937,18 @@ placeholder = "Enter Allowed Auth Methods"
 required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
-
+[[multisafepay.bank_redirect]]
+payment_method_type = "trustly"
+[[multisafepay.bank_redirect]]
+payment_method_type = "eps"
+[[multisafepay.bank_redirect]]
+payment_method_type = "sofort"
+[[multisafepay.wallet]]
+payment_method_type = "ali_pay"
+[[multisafepay.wallet]]
+payment_method_type = "we_chat_pay"
+[[multisafepay.wallet]]
+payment_method_type = "mb_way"
 
 [nexinets]
 [[nexinets.credit]]
