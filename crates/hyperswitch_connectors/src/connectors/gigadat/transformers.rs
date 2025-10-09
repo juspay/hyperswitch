@@ -206,16 +206,12 @@ impl From<GigadatPaymentStatus> for enums::AttemptStatus {
 impl From<GigadatPaymentStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(item: GigadatPaymentStatus) -> Self {
         match item {
-            GigadatPaymentStatus::StatusSuccess => {
-                Self::PaymentIntentSuccess
-            }
+            GigadatPaymentStatus::StatusSuccess => Self::PaymentIntentSuccess,
             GigadatPaymentStatus::StatusFailed
             | GigadatPaymentStatus::StatusRejected
             | GigadatPaymentStatus::StatusRejected1
             | GigadatPaymentStatus::StatusExpired
-            | GigadatPaymentStatus::StatusAborted1 => {
-                Self::PaymentIntentFailure
-            }
+            | GigadatPaymentStatus::StatusAborted1 => Self::PaymentIntentFailure,
             GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
                 Self::PaymentIntentProcessing
             }
