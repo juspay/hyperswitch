@@ -5742,6 +5742,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         .transpose()?,
                 })
             }
+            PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
+                message: "Bank redirect payout creation is not supported".to_string(),
+                connector: "Adyen",
+            })?,
         }
     }
 }
@@ -5755,7 +5759,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
         let payout_type = item.router_data.request.get_payout_type()?;
         let merchant_account = auth_type.merchant_account;
         match payout_type {
-            storage_enums::PayoutType::Bank | storage_enums::PayoutType::Wallet => {
+            storage_enums::PayoutType::Bank
+            | storage_enums::PayoutType::Wallet
+            | storage_enums::PayoutType::BankRedirect => {
                 Ok(Self::GenericFulfillRequest(PayoutFulfillGenericRequest {
                     merchant_account,
                     original_reference: item
