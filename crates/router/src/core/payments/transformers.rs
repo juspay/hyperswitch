@@ -334,8 +334,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            payment_data.webhook_url
+        }
     };
 
     let router_return_url = payment_data
@@ -587,8 +588,9 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            payment_data.webhook_url.clone()
+        }
     };
 
     let router_return_url = payment_data
@@ -1432,9 +1434,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
             &attempt.merchant_id,
             merchant_connector_account.get_id().get_string_repr(),
         )),
-        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
-            todo!("Add webhook URL to request for this connector")
+            payment_data.webhook_url
         }
     };
 
