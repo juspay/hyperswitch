@@ -4511,6 +4511,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn check_internal_api_key_auth_no_client_secret<T>(
     headers: &HeaderMap,
     api_auth: ApiKeyAuth,

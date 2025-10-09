@@ -5,7 +5,6 @@ use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
-use masking::Secret;
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -502,11 +501,11 @@ pub async fn update_subscription(
     subscription_entry
         .update_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
-                subscription.payment_method_id.map(|pmid| Secret::new(pmid)),
-                Some(subscription.status),
+                None,
+                None,
                 Some(request.plan_id),
                 Some(request.item_price_id),
-                subscription.connector_subscription_id,
+                None,
             ),
         )
         .await?;
@@ -514,8 +513,8 @@ pub async fn update_subscription(
     let invoice_entry = invoice_handler
         .update_invoice(
             &state,
-            Some(request.amount.clone()),
-            Some(request.currency.clone()),
+            Some(request.amount),
+            Some(request.currency),
             invoice.id,
             None,
             None,

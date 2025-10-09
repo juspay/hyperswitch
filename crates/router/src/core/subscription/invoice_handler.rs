@@ -86,6 +86,7 @@ impl InvoiceHandler {
         Ok(invoice)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_invoice(
         &self,
         state: &SessionState,
