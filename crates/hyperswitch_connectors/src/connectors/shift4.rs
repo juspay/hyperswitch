@@ -912,7 +912,6 @@ lazy_static! {
 
         shift4_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Sofort,
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
