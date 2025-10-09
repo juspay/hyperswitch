@@ -98,7 +98,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
-revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events 
+revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events
 
 # File storage configuration
 [file_storage]
@@ -393,9 +393,9 @@ ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connec
 
 [revenue_recovery]
 # monitoring threshold -  120 days
-monitoring_threshold_in_seconds = 10368000 
+monitoring_threshold_in_seconds = 10368000
 retry_algorithm_type = "cascading"
-redis_ttl_in_seconds=3888000 
+redis_ttl_in_seconds=3888000
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]
@@ -416,7 +416,7 @@ max_retry_count_for_thirty_day = 20
 
 [revenue_recovery.recovery_timestamp] # Timestamp configuration for Revenue Recovery
 initial_timestamp_in_seconds = 3600        # number of seconds added to start time for Decider service of Revenue Recovery
-job_schedule_buffer_time_in_seconds = 3600 # time in seconds to be added in schedule time as a buffer 
+job_schedule_buffer_time_in_seconds = 3600 # time in seconds to be added in schedule time as a buffer
 reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
 max_random_schedule_delay_in_seconds = 300 # max random delay in seconds to schedule the payment for Revenue Recovery
 redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
@@ -431,3 +431,12 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 
 [internal_services] # Internal services base urls and configs
 payments_base_url = "http://localhost:8080"
+
+[superposition]
+enabled = false                                  # Enable or disable Superposition integration (default: false)
+endpoint = "http://superposition:8080"          # Superposition service endpoint URL
+token = "your_superposition_token"              # Superposition token
+org_id = "your_org_id"                          # Organization ID in Superposition
+workspace_id = "your_workspace_id"              # Workspace ID in Superposition
+polling_interval = 15                           # Polling interval in seconds for configuration updates
+# request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)

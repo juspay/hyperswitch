@@ -18,6 +18,7 @@ use external_services::grpc_client::revenue_recovery::GrpcRecoveryHeaders;
 use external_services::{
     file_storage::FileStorageInterface,
     grpc_client::{GrpcClients, GrpcHeaders, GrpcHeadersUcs, GrpcHeadersUcsBuilderInitial},
+    superposition::SuperpositionClient,
 };
 use hyperswitch_interfaces::{
     crm::CrmInterface,
@@ -137,6 +138,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -261,6 +263,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition_service: Option<Arc<SuperpositionClient>>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -427,6 +430,23 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
+            let superposition_service = if conf.superposition.get_inner().enabled {
+                match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
+                    Ok(client) => {
+                        router_env::logger::info!("Superposition client initialized successfully");
+                        Some(Arc::new(client))
+                    }
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            "Failed to initialize superposition client: {:?}. Continuing without superposition support.",
+                            err
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            };
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -449,6 +469,7 @@ impl AppState {
                 crm_client,
                 infra_components: infra_component_values,
                 enhancement,
+                superposition_service,
             }
         })
         .await
@@ -545,6 +566,7 @@ impl AppState {
             crm_client: self.crm_client.clone(),
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
+            superposition_service: self.superposition_service.clone(),
         })
     }
 
@@ -1187,6 +1209,7 @@ impl Subscription {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
                 web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
             )

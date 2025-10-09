@@ -276,6 +276,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method: None,
             merchant_connector_details,
             external_vault_pmd: None,
+            webhook_url: request
+                .webhook_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_string()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
