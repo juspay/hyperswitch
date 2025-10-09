@@ -36,7 +36,7 @@ impl<'a> SubscriptionHandler<'a> {
     }
 
     /// Helper function to create a subscription entry in the database.
-     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_subscription_entry(
         &self,
         subscription_id: common_utils::id_type::SubscriptionId,
