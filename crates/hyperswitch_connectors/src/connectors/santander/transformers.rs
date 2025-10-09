@@ -862,8 +862,8 @@ pub enum SantanderPaymentStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderVoidStatus {
+    #[serde(rename="REMOVIDA_PELO_USUARIO_RECEBEDOR")]
     RemovedByReceivingUser,
 }
 

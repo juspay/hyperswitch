@@ -852,7 +852,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
                 Some(enums::PaymentMethodType::Pix) => {
                     let connector_payment_id = req.request.connector_transaction_id.clone();
                     Ok(format!(
-                        "{}cob/{}", // cobv missing
+                        "{}api/v1/cob/{}", // cobv missing
                         self.base_url(connectors),
                         connector_payment_id
                     ))
@@ -898,12 +898,19 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = santander::SantanderAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Patch)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .url(&types::PaymentsVoidType::get_url(
+                    self, req, connectors,
+                )?)
+                .add_certificate(Some(auth_details.certificate))
+                .add_certificate_key(Some(auth_details.certificate_key))
                 .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(
+                    self, req, connectors,
+                )?)
                 .set_body(types::PaymentsVoidType::get_request_body(
                     self, req, connectors,
                 )?)
