@@ -9,6 +9,7 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
+    consts::X_FLOW_NAME,
     errors::CustomResult,
     ext_traits::ValueExt,
     request::{Method, RequestBuilder, RequestContent},
@@ -55,7 +56,7 @@ use crate::{
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers::X_REQUEST_ID,
+    headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
@@ -1098,8 +1099,8 @@ pub async fn send_comparison_data(
     let mut request = RequestBuilder::new()
         .method(Method::Post)
         .url(comparison_config.url.get_string_repr())
-        .header("Content-Type", "application/json")
-        .header("x-flow", "router-data")
+        .header(CONTENT_TYPE, "application/json")
+        .header(X_FLOW_NAME, "router-data")
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
     if let Some(req_id) = &state.request_id {
