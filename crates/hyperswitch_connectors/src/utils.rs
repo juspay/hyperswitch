@@ -51,7 +51,10 @@ use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     mandates,
     network_tokenization::NetworkTokenNumber,
-    payment_method_data::{self, Card, CardDetailsForNetworkTransactionId, PaymentMethodData},
+    payment_method_data::{
+        self, Card, CardDetailsForNetworkTransactionId, GooglePayPaymentMethodInfo,
+        PaymentMethodData,
+    },
     router_data::{
         ErrorResponse, L2L3Data, PaymentMethodToken, RecurringMandatePaymentData,
         RouterData as ConnectorRouterData,
@@ -238,13 +241,6 @@ pub struct GooglePayWalletData {
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayPaymentMethodInfo {
-    pub card_network: String,
-    pub card_details: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct CardMandateInfo {
     pub card_exp_month: Secret<String>,
@@ -277,6 +273,8 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
             info: GooglePayPaymentMethodInfo {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
+                assurance_details: data.info.assurance_details,
+                card_funding_source: data.info.card_funding_source,
             },
             tokenization_data,
         })
@@ -542,6 +540,7 @@ pub trait RouterData {
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
@@ -931,6 +930,10 @@ impl<Flow, Request, Response> RouterData
                 Some(state)
             }
         })
+    }
+
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
+        self.get_billing_state_code().ok()
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -1785,6 +1788,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
@@ -1903,6 +1907,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
     }
+
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    Some(connector_mandate_ids.clone())
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
         self.browser_info.clone().and_then(|browser_info| {
             browser_info
@@ -2334,6 +2352,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2402,6 +2421,18 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
@@ -2457,6 +2488,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
@@ -2542,6 +2574,10 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
+    }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -6397,8 +6433,9 @@ pub trait PayoutsData {
         &self,
     ) -> Result<hyperswitch_domain_models::router_request_types::CustomerDetails, Error>;
     fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
-    #[cfg(feature = "payouts")]
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
 #[cfg(feature = "payouts")]
@@ -6420,11 +6457,20 @@ impl PayoutsData for hyperswitch_domain_models::router_request_types::PayoutsDat
             .clone()
             .ok_or_else(missing_field_err("vendor_details"))
     }
-    #[cfg(feature = "payouts")]
     fn get_payout_type(&self) -> Result<enums::PayoutType, Error> {
         self.payout_type
             .to_owned()
             .ok_or_else(missing_field_err("payout_type"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .to_owned()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 pub trait RevokeMandateRequestData {
@@ -6759,6 +6805,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         payment_channel: data.request.payment_channel.clone(),
         enable_partial_authorization: data.request.enable_partial_authorization,
         enable_overcapture: None,
+        is_stored_credential: data.request.is_stored_credential,
+        mit_category: None,
     }
 }
 
@@ -6776,6 +6824,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         tenant_id: data.tenant_id.clone(),
         status: data.status,
         payment_method: data.payment_method,
+        payment_method_type: data.payment_method_type,
         connector_auth_type: data.connector_auth_type.clone(),
         description: data.description.clone(),
         address: data.address.clone(),
@@ -6820,6 +6869,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         l2_l3_data: data.l2_l3_data.clone(),
         minor_amount_capturable: data.minor_amount_capturable,
+        authorized_amount: data.authorized_amount,
     }
 }
 

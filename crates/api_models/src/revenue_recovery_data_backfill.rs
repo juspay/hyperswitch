@@ -3,11 +3,11 @@ use std::{collections::HashMap, fs::File, io::BufReader};
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{HttpResponse, ResponseError};
 use common_enums::{CardNetwork, PaymentMethodType};
-use common_utils::events::ApiEventMetric;
+use common_utils::{events::ApiEventMetric, pii::PhoneNumberStrategy};
 use csv::Reader;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::Date;
+use time::{Date, PrimitiveDateTime};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevenueRecoveryBackfillRequest {
@@ -82,6 +82,24 @@ impl ApiEventMetric for CsvParsingError {
     }
 }
 
+impl ApiEventMetric for RedisDataResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UpdateTokenStatusRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
+impl ApiEventMetric for UpdateTokenStatusResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::Miscellaneous)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub enum BackfillError {
     InvalidCardType(String),
@@ -94,6 +112,72 @@ pub enum BackfillError {
 #[derive(serde::Deserialize)]
 pub struct BackfillQuery {
     pub cutoff_time: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RedisKeyType {
+    Status, // for customer:{id}:status
+    Tokens, // for customer:{id}:tokens
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetRedisDataQuery {
+    pub key_type: RedisKeyType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RedisDataResponse {
+    pub exists: bool,
+    pub ttl_seconds: i64,
+    pub data: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum ScheduledAtUpdate {
+    SetToNull,
+    SetToDateTime(PrimitiveDateTime),
+}
+
+impl<'de> Deserialize<'de> for ScheduledAtUpdate {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+
+        match value {
+            serde_json::Value::String(s) => {
+                if s.to_lowercase() == "null" {
+                    Ok(Self::SetToNull)
+                } else {
+                    // Parse as datetime using iso8601 deserializer
+                    common_utils::custom_serde::iso8601::deserialize(
+                        &mut serde_json::Deserializer::from_str(&format!("\"{}\"", s)),
+                    )
+                    .map(Self::SetToDateTime)
+                    .map_err(serde::de::Error::custom)
+                }
+            }
+            _ => Err(serde::de::Error::custom(
+                "Expected null variable or datetime iso8601 ",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UpdateTokenStatusRequest {
+    pub connector_customer_id: String,
+    pub payment_processor_token: Secret<String, PhoneNumberStrategy>,
+    pub scheduled_at: Option<ScheduledAtUpdate>,
+    pub is_hard_decline: Option<bool>,
+    pub error_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpdateTokenStatusResponse {
+    pub updated: bool,
+    pub message: String,
 }
 
 impl std::fmt::Display for BackfillError {

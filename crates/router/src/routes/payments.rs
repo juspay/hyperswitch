@@ -78,6 +78,25 @@ pub async fn payments_create(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
+    let auth_type = match env::which() {
+        env::Env::Production => {
+            &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            }))
+        }
+        _ => auth::auth_type(
+            &auth::InternalMerchantIdProfileIdAuth(auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: true,
+            })),
+            &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+            }),
+            req.headers(),
+        ),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -98,22 +117,7 @@ pub async fn payments_create(
                 api::AuthFlow::Client,
             )
         },
-        match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: true,
-            }),
-            _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: true,
-                }),
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
-        },
+        auth_type,
         locking_action,
     ))
     .await
@@ -569,11 +573,15 @@ pub async fn payments_retrieve(
         is_platform_allowed: true,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
+        req.headers(),
+        &payload,
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -917,11 +925,15 @@ pub async fn payments_confirm(
         is_platform_allowed: true,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(e) => return api::log_and_return_error_response(e),
-        };
+    let (auth_type, auth_flow) = match auth::check_internal_api_key_auth(
+        req.headers(),
+        &payload,
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     let locking_action = payload.get_locking_input(flow.clone());
 

@@ -77,6 +77,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
+        configs,
         errors::{self, StorageErrorExt},
         payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
@@ -2834,11 +2835,11 @@ pub async fn list_payment_methods(
             if routing_enabled_pm_types.contains(&intermediate.payment_method_type)
                 || routing_enabled_pms.contains(&intermediate.payment_method)
             {
-                let connector_data = api::ConnectorData::get_connector_by_name(
-                    &state.clone().conf.connectors,
-                    &intermediate.connector,
-                    api::GetToken::from(intermediate.payment_method_type),
+                let connector_data = helpers::get_connector_data_with_token(
+                    &state,
+                    intermediate.connector.to_string(),
                     None,
+                    intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("invalid connector name received")?;
@@ -3043,6 +3044,7 @@ pub async fn list_payment_methods(
             surcharge_amount: None,
             tax_amount: None,
             routing_approach,
+            is_stored_credential: None,
         };
 
         state
@@ -4132,19 +4134,27 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(
-            &merchant_context
-                .get_merchant_account()
-                .get_id()
-                .get_requires_cvv_key(),
-            Some("true".to_string()),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch requires_cvv config")?;
-
-    let requires_cvv = is_requires_cvv.config != "false";
+    let requires_cvv = configs::get_config_bool(
+        state,
+        router_consts::superposition::REQUIRES_CVV, // superposition key
+        &merchant_context
+            .get_merchant_account()
+            .get_id()
+            .get_requires_cvv_key(), // database key
+        Some(
+            external_services::superposition::ConfigContext::new().with(
+                "merchant_id",
+                merchant_context
+                    .get_merchant_account()
+                    .get_id()
+                    .get_string_repr(),
+            ),
+        ), // context
+        true,                                       // default value
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch requires_cvv config")?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
@@ -4802,6 +4812,12 @@ pub async fn get_bank_from_hs_locker(
             message: "Expected bank details, found wallet details instead".to_string(),
         }
         .into()),
+        api::PayoutMethodData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Expected bank details, found bank redirect details instead".to_string(),
+            }
+            .into())
+        }
     }
 }
 

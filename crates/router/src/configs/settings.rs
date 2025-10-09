@@ -20,6 +20,7 @@ use external_services::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
     },
+    superposition::SuperpositionClientConfig,
 };
 pub use hyperswitch_interfaces::configs::Connectors;
 use hyperswitch_interfaces::{
@@ -163,11 +164,14 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
+    pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
     pub infra_values: Option<HashMap<String, String>>,
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
+    pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
     pub proxy_status_mapping: ProxyStatusMapping,
+    pub internal_services: InternalServicesConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -533,8 +537,6 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
@@ -860,6 +862,13 @@ pub struct MerchantIdAuthSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct InternalMerchantIdProfileIdAuthSettings {
+    pub enabled: bool,
+    pub internal_api_key: Secret<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct ProxyStatusMapping {
     pub proxy_connector_http_status_code: bool,
 }
@@ -964,6 +973,12 @@ pub struct UserAuthMethodSettings {
 pub struct NetworkTokenizationSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct InternalServicesConfig {
+    pub payments_base_url: String,
 }
 
 impl Settings<SecuredSecret> {
@@ -1132,6 +1147,11 @@ impl Settings<SecuredSecret> {
             .as_ref()
             .map(|config| config.validate())
             .transpose()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition
+            .get_inner()
+            .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         Ok(())
