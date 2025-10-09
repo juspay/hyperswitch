@@ -1,40 +1,23 @@
 use async_trait::async_trait;
-use common_enums as enums;
-use common_types::payments as common_payments_types;
-use error_stack::ResultExt;
+use external_services::grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse,
-    router_data::RouterData,
-    router_flow_types::{PostAuthenticate, PreAuthenticate},
-    router_request_types::PaymentsAuthorizeData,
+    payments as domain_payments, router_data::RouterData, router_flow_types::PostAuthenticate,
 };
-use masking::{ExposeInterface, Secret};
-use unified_connector_service_client::payments as payments_grpc;
 
-// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
-        },
-        unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
-            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
     routes::{metrics, SessionState},
     services::{self, api::ConnectorValidation},
-    types::{
-        self, api, domain,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
-    utils::OptionExt,
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -133,6 +116,8 @@ impl Feature<PostAuthenticate, types::PaymentsPostAuthenticateData>
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
+        header_payload: &domain_payments::HeaderPayload,
+        lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {

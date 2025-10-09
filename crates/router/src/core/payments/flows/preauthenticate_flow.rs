@@ -1,9 +1,11 @@
 use async_trait::async_trait;
+use external_services::grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use hyperswitch_domain_models::{router_data::RouterData, router_flow_types::PreAuthenticate};
+use hyperswitch_domain_models::{
+    payments as domain_payments, router_data::RouterData, router_flow_types::PreAuthenticate,
+};
 
-// use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
@@ -108,6 +110,8 @@ impl Feature<PreAuthenticate, types::PaymentsPreAuthenticateData>
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
+        header_payload: &domain_payments::HeaderPayload,
+        lineage_ids: grpc_client::LineageIds,
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {

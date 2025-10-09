@@ -397,6 +397,7 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -449,6 +450,7 @@ pub async fn construct_payment_router_data_for_pre_authenticate<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -575,6 +577,7 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -627,6 +630,7 @@ pub async fn construct_payment_router_data_for_authenticate<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
@@ -752,6 +756,7 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
             .to_owned(),
         status: payment_data.payment_attempt.status,
         payment_method,
+        payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -804,6 +809,7 @@ pub async fn construct_payment_router_data_for_post_authenticate<'a>(
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
     };
 
     Ok(router_data)
