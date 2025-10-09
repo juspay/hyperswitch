@@ -312,37 +312,39 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to construct Payment Get Request")?;
 
-        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-            merchant_connector_account,
-            merchant_context,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-            .transpose()
-            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
-            .ok()
-            .flatten()
-            .map(ucs_types::UcsReferenceId::Payment);
-        let header_payload = state
-            .get_grpc_headers_ucs()
-            .external_vault_proxy_metadata(None)
-            .merchant_reference_id(merchant_reference_id)
-            .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(ucs_logging_wrapper(
-            self.clone(),
-            state,
-            payment_get_request,
-            header_payload,
-            |mut router_data, payment_get_request, grpc_headers| async move {
-                let response = client
-                    .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get payment")?;
+                let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+                    merchant_connector_account,
+                    merchant_context,
+                )
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct request metadata")?;
+                let merchant_reference_id = header_payload
+                    .x_reference_id
+                    .clone()
+                    .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
+                    .transpose()
+                    .inspect_err(
+                        |err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"),
+                    )
+                    .ok()
+                    .flatten()
+                    .map(ucs_types::UcsReferenceId::Payment);
+                let header_payload = state
+                    .get_grpc_headers_ucs()
+                    .external_vault_proxy_metadata(None)
+                    .merchant_reference_id(merchant_reference_id)
+                    .lineage_ids(lineage_ids);
+                let updated_router_data = Box::pin(ucs_logging_wrapper(
+                    self.clone(),
+                    state,
+                    payment_get_request,
+                    header_payload,
+                    |mut router_data, payment_get_request, grpc_headers| async move {
+                        let response = client
+                            .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
+                            .await
+                            .change_context(ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to get payment")?;
 
                         let payment_get_response = response.into_inner();
 
