@@ -5,7 +5,7 @@ use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber,
-    payment_method_data::{PaymentMethodData},
+    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::ResponseId,
     router_response_types::PaymentsResponseData,
@@ -21,7 +21,7 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, CardData, RouterData as OtherRouterData, NetworkTokenData as _},
+    utils::{self, CardData, NetworkTokenData as _, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -174,7 +174,7 @@ pub struct NetworkTokenDetails {
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
     pub eci: Option<String>,
-    pub scheme: Option<common_enums::CardNetwork>
+    pub scheme: Option<common_enums::CardNetwork>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -398,12 +398,14 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     display_amount: None,
                 };
 
-                let ecommerce_data = EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
-                    merchant_information,
-                    routing,
-                    card,
-                    amount,
-                });
+                let ecommerce_data = EcommercePaymentOnlyTransactionData::Card(
+                    EcommerceCardPaymentOnlyTransactionData {
+                        merchant_information,
+                        routing,
+                        card,
+                        amount,
+                    },
+                );
 
                 // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
                 let send_date_time = OffsetDateTime::now_utc()
@@ -417,7 +419,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     pos_data: None,
                     send_date_time,
                 })
-            },
+            }
             PaymentMethodData::NetworkToken(token_data) => {
                 let amount_in_cents = item.amount;
 
@@ -469,12 +471,14 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     display_amount: None,
                 };
 
-                let ecommerce_data =  EcommercePaymentOnlyTransactionData::NetworkToken(EcommerceNetworkTokenPaymentOnlyTransactionData {
-                    merchant_information,
-                    routing,
-                    network_token_data,
-                    amount,
-                });
+                let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
+                    EcommerceNetworkTokenPaymentOnlyTransactionData {
+                        merchant_information,
+                        routing,
+                        network_token_data,
+                        amount,
+                    },
+                );
 
                 // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
                 let send_date_time = OffsetDateTime::now_utc()
@@ -488,7 +492,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     pos_data: None,
                     send_date_time,
                 })
-            },
+            }
 
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
