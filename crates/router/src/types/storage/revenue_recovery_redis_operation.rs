@@ -481,7 +481,6 @@ impl RedisTokenManager {
         token_map
             .get_mut(&token_id)
             .map(|existing_token| {
-
                 Self::normalize_retry_window(existing_token, today);
 
                 for (date, &value) in &token_data.daily_retry_history {
@@ -491,12 +490,12 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
-                
+
                 (existing_token.modified_at < modified_at).then(|| {
                     existing_token.modified_at = modified_at;
                     error_code.map(|err| existing_token.error_code = Some(err));
                     existing_token.is_hard_decline = token_data.is_hard_decline;
-                });                
+                });
             })
             .or_else(|| {
                 token_map.insert(token_id.clone(), token_data);
@@ -547,7 +546,10 @@ impl RedisTokenManager {
                         daily_retry_history: status.daily_retry_history.clone(),
                         scheduled_at: None,
                         is_hard_decline: *is_hard_decline,
-                        modified_at: Some(PrimitiveDateTime::new(OffsetDateTime::now_utc().date(), OffsetDateTime::now_utc().time())),
+                        modified_at: Some(PrimitiveDateTime::new(
+                            OffsetDateTime::now_utc().date(),
+                            OffsetDateTime::now_utc().time(),
+                        )),
                     })
             }
             None => None,
