@@ -265,12 +265,16 @@ pub enum Flow {
     RoutingDeleteConfig,
     /// Subscription create flow,
     CreateSubscription,
+    /// Subscription get plans flow,
+    GetPlansForSubscription,
     /// Subscription confirm flow,
     ConfirmSubscription,
     /// Subscription create and confirm flow,
     CreateAndConfirmSubscription,
     /// Get Subscription flow
     GetSubscription,
+    /// Get Subscription estimate flow
+    GetSubscriptionEstimate,
     /// Create dynamic routing
     CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
@@ -427,6 +431,8 @@ pub enum Flow {
     GetRoleFromToken,
     /// Get resources and groups for role from token
     GetRoleFromTokenV2,
+    /// Get parent groups info for role from token
+    GetParentGroupsInfoForRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
