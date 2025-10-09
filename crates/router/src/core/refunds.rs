@@ -194,7 +194,7 @@ pub async fn trigger_refund_to_gateway(
         )
         .await?;
 
-    if should_use_ucs {
+    let router_data_res = if should_use_ucs {
         router_env::logger::info!(
             connector = routed_through,
             refund_id = refund.refund_id,
@@ -213,14 +213,22 @@ pub async fn trigger_refund_to_gateway(
             Ok(ucs_router_data) => {
                 // UCS call succeeded, use the response
                 router_data = ucs_router_data;
+
+                // Perform integrity check on UCS response
+                let integrity_result =
+                    check_refund_integrity(&router_data.request, &router_data.response);
+                router_data.integrity_check = integrity_result;
+
                 router_env::logger::info!(
                     connector = routed_through,
                     refund_id = refund.refund_id,
                     "UCS refund execution completed successfully"
                 );
+                
+                router_data
             }
             Err(ucs_error) => {
-                // UCS call failed, log detailed error information and fall back to direct connector
+                // UCS call failed, log detailed error information
                 router_env::logger::warn!(
                     connector = routed_through,
                     refund_id = refund.refund_id,
@@ -228,7 +236,7 @@ pub async fn trigger_refund_to_gateway(
                     ucs_error_debug = ?ucs_error,
                     ucs_error_current_context = %ucs_error.current_context(),
                     ucs_error_frames_count = ucs_error.current_frames().len(),
-                    "UCS refund execution failed, falling back to direct connector"
+                    "UCS refund execution failed"
                 );
 
                 // Log each frame in the error stack for maximum visibility
@@ -239,112 +247,116 @@ pub async fn trigger_refund_to_gateway(
                         "UCS refund error stack frame"
                     );
                 }
+
+                return Err(ucs_error);
             }
         }
-    }
-
-    let add_access_token_result = Box::pin(access_token::add_access_token(
-        state,
-        &connector,
-        merchant_context,
-        &router_data,
-        creds_identifier.as_deref(),
-    ))
-    .await?;
-
-    logger::debug!(refund_router_data=?router_data);
-
-    access_token::update_router_data_with_access_token_result(
-        &add_access_token_result,
-        &mut router_data,
-        &payments::CallConnectorAction::Trigger,
-    );
-
-    let router_data_res = if !(add_access_token_result.connector_supports_access_token
-        && router_data.access_token.is_none())
-    {
-        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
-            api::Execute,
-            types::RefundsData,
-            types::RefundsResponseData,
-        > = connector.connector.get_connector_integration();
-        let router_data_res = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await;
-        let option_refund_error_update =
-            router_data_res
-                .as_ref()
-                .err()
-                .and_then(|error| match error.current_context() {
-                    errors::ConnectorError::NotImplemented(message) => {
-                        Some(diesel_refund::RefundUpdate::ErrorUpdate {
-                            refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(
-                                errors::ConnectorError::NotImplemented(message.to_owned())
-                                    .to_string(),
-                            ),
-                            refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
-                            updated_by: storage_scheme.to_string(),
-                            connector_refund_id: None,
-                            processor_refund_data: None,
-                            unified_code: None,
-                            unified_message: None,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
-                        })
-                    }
-                    errors::ConnectorError::NotSupported { message, connector } => {
-                        Some(diesel_refund::RefundUpdate::ErrorUpdate {
-                            refund_status: Some(enums::RefundStatus::Failure),
-                            refund_error_message: Some(format!(
-                                "{message} is not supported by {connector}"
-                            )),
-                            refund_error_code: Some("NOT_SUPPORTED".to_string()),
-                            updated_by: storage_scheme.to_string(),
-                            connector_refund_id: None,
-                            processor_refund_data: None,
-                            unified_code: None,
-                            unified_message: None,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
-                        })
-                    }
-                    _ => None,
-                });
-        // Update the refund status as failure if connector_error is NotImplemented
-        if let Some(refund_error_update) = option_refund_error_update {
-            state
-                .store
-                .update_refund(
-                    refund.to_owned(),
-                    refund_error_update,
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed while updating refund: refund_id: {}",
-                        refund.refund_id
-                    )
-                })?;
-        }
-        let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
-        // Initiating Integrity check
-        let integrity_result = check_refund_integrity(
-            &refund_router_data_res.request,
-            &refund_router_data_res.response,
-        );
-        refund_router_data_res.integrity_check = integrity_result;
-        refund_router_data_res
     } else {
-        router_data
+        // Direct connector path
+        let add_access_token_result = Box::pin(access_token::add_access_token(
+            state,
+            &connector,
+            merchant_context,
+            &router_data,
+            creds_identifier.as_deref(),
+        ))
+        .await?;
+
+        logger::debug!(refund_router_data=?router_data);
+
+        access_token::update_router_data_with_access_token_result(
+            &add_access_token_result,
+            &mut router_data,
+            &payments::CallConnectorAction::Trigger,
+        );
+
+        let direct_router_data_res =
+            if !(add_access_token_result.connector_supports_access_token
+                && router_data.access_token.is_none())
+            {
+                let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
+                    api::Execute,
+                    types::RefundsData,
+                    types::RefundsResponseData,
+                > = connector.connector.get_connector_integration();
+                let router_data_res = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    &router_data,
+                    payments::CallConnectorAction::Trigger,
+                    None,
+                    None,
+                )
+                .await;
+                let option_refund_error_update = router_data_res.as_ref().err().and_then(|error| {
+                    match error.current_context() {
+                        errors::ConnectorError::NotImplemented(message) => {
+                            Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                                refund_status: Some(enums::RefundStatus::Failure),
+                                refund_error_message: Some(
+                                    errors::ConnectorError::NotImplemented(message.to_owned())
+                                        .to_string(),
+                                ),
+                                refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
+                                updated_by: storage_scheme.to_string(),
+                                connector_refund_id: None,
+                                processor_refund_data: None,
+                                unified_code: None,
+                                unified_message: None,
+                                issuer_error_code: None,
+                                issuer_error_message: None,
+                            })
+                        }
+                        errors::ConnectorError::NotSupported { message, connector } => {
+                            Some(diesel_refund::RefundUpdate::ErrorUpdate {
+                                refund_status: Some(enums::RefundStatus::Failure),
+                                refund_error_message: Some(format!(
+                                    "{message} is not supported by {connector}"
+                                )),
+                                refund_error_code: Some("NOT_SUPPORTED".to_string()),
+                                updated_by: storage_scheme.to_string(),
+                                connector_refund_id: None,
+                                processor_refund_data: None,
+                                unified_code: None,
+                                unified_message: None,
+                                issuer_error_code: None,
+                                issuer_error_message: None,
+                            })
+                        }
+                        _ => None,
+                    }
+                });
+                // Update the refund status as failure if connector_error is NotImplemented
+                if let Some(refund_error_update) = option_refund_error_update {
+                    state
+                        .store
+                        .update_refund(
+                            refund.to_owned(),
+                            refund_error_update,
+                            merchant_context.get_merchant_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable_lazy(|| {
+                            format!(
+                                "Failed while updating refund: refund_id: {}",
+                                refund.refund_id
+                            )
+                        })?;
+                }
+                let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
+                // Initiating Integrity check
+                let integrity_result = check_refund_integrity(
+                    &refund_router_data_res.request,
+                    &refund_router_data_res.response,
+                );
+                refund_router_data_res.integrity_check = integrity_result;
+                refund_router_data_res
+            } else {
+                router_data
+            };
+        
+        direct_router_data_res
     };
 
     let refund_update = match router_data_res.response {
@@ -686,7 +698,7 @@ pub async fn sync_refund_with_gateway(
         )
         .await?;
 
-    if should_use_ucs {
+    let router_data_res = if should_use_ucs {
         router_env::logger::info!(
             connector = connector_id,
             refund_id = refund.refund_id,
@@ -705,14 +717,22 @@ pub async fn sync_refund_with_gateway(
             Ok(ucs_router_data) => {
                 // UCS call succeeded, use the response
                 router_data = ucs_router_data;
+
+                // Perform integrity check on UCS response
+                let integrity_result =
+                    check_refund_integrity(&router_data.request, &router_data.response);
+                router_data.integrity_check = integrity_result;
+
                 router_env::logger::info!(
                     connector = connector_id,
                     refund_id = refund.refund_id,
                     "UCS refund sync execution completed successfully"
                 );
+                
+                router_data
             }
             Err(ucs_error) => {
-                // UCS call failed, log detailed error information and fall back to direct connector
+                // UCS call failed, log detailed error information
                 router_env::logger::warn!(
                     connector = connector_id,
                     refund_id = refund.refund_id,
@@ -720,7 +740,7 @@ pub async fn sync_refund_with_gateway(
                     ucs_error_debug = ?ucs_error,
                     ucs_error_current_context = %ucs_error.current_context(),
                     ucs_error_frames_count = ucs_error.current_frames().len(),
-                    "UCS refund sync execution failed, falling back to direct connector"
+                    "UCS refund sync execution failed"
                 );
 
                 // Log each frame in the error stack for maximum visibility
@@ -731,57 +751,62 @@ pub async fn sync_refund_with_gateway(
                         "UCS refund sync error stack frame"
                     );
                 }
+
+                return Err(ucs_error);
             }
         }
-    }
-
-    let add_access_token_result = Box::pin(access_token::add_access_token(
-        state,
-        &connector,
-        merchant_context,
-        &router_data,
-        creds_identifier.as_deref(),
-    ))
-    .await?;
-
-    logger::debug!(refund_retrieve_router_data=?router_data);
-
-    access_token::update_router_data_with_access_token_result(
-        &add_access_token_result,
-        &mut router_data,
-        &payments::CallConnectorAction::Trigger,
-    );
-
-    let router_data_res = if !(add_access_token_result.connector_supports_access_token
-        && router_data.access_token.is_none())
-    {
-        let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
-            api::RSync,
-            types::RefundsData,
-            types::RefundsResponseData,
-        > = connector.connector.get_connector_integration();
-        let mut refund_sync_router_data = services::execute_connector_processing_step(
+    } else {
+        // Direct connector path
+        let add_access_token_result = Box::pin(access_token::add_access_token(
             state,
-            connector_integration,
+            &connector,
+            merchant_context,
             &router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-            None,
-        )
-        .await
-        .to_refund_failed_response()?;
+            creds_identifier.as_deref(),
+        ))
+        .await?;
 
-        // Initiating connector integrity checks
-        let integrity_result = check_refund_integrity(
-            &refund_sync_router_data.request,
-            &refund_sync_router_data.response,
+        logger::debug!(refund_retrieve_router_data=?router_data);
+
+        access_token::update_router_data_with_access_token_result(
+            &add_access_token_result,
+            &mut router_data,
+            &payments::CallConnectorAction::Trigger,
         );
 
-        refund_sync_router_data.integrity_check = integrity_result;
+        let direct_router_data_res = if !(add_access_token_result.connector_supports_access_token
+            && router_data.access_token.is_none())
+        {
+            let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
+                api::RSync,
+                types::RefundsData,
+                types::RefundsResponseData,
+            > = connector.connector.get_connector_integration();
+            let mut refund_sync_router_data = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+            )
+            .await
+            .to_refund_failed_response()?;
 
-        refund_sync_router_data
-    } else {
-        router_data
+            // Initiating connector integrity checks
+            let integrity_result = check_refund_integrity(
+                &refund_sync_router_data.request,
+                &refund_sync_router_data.response,
+            );
+
+            refund_sync_router_data.integrity_check = integrity_result;
+
+            refund_sync_router_data
+        } else {
+            router_data
+        };
+        
+        direct_router_data_res
     };
 
     let refund_update = match router_data_res.response {
