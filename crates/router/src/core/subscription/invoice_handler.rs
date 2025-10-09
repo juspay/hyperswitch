@@ -44,6 +44,7 @@ impl InvoiceHandler {
         status: connector_enums::InvoiceStatus,
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let invoice_new = diesel_models::invoice::InvoiceNew::new(
             self.subscription.id.to_owned(),
@@ -58,6 +59,7 @@ impl InvoiceHandler {
             status,
             provider_name,
             metadata,
+            connector_invoice_id,
         );
 
         let invoice = state
@@ -77,11 +79,15 @@ impl InvoiceHandler {
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
         payment_method_id: Option<Secret<String>>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: connector_enums::InvoiceStatus,
+        connector_invoice_id: Option<String>,
     ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
         let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
+            connector_invoice_id,
+            payment_intent_id,
         );
         state
             .store
@@ -187,8 +193,8 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
-            billing: request.billing.clone(),
-            shipping: request.shipping.clone(),
+            billing: request.payment_details.payment_method_data.billing.clone(),
+            shipping: request.payment_details.shipping.clone(),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
@@ -254,5 +260,32 @@ impl InvoiceHandler {
             .await
             .attach_printable("invoices: unable to create invoice sync job in database")?;
         Ok(())
+    }
+
+    pub async fn create_mit_payment(
+        &self,
+        state: &SessionState,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+        payment_method_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let mit_payment_request = subscription_types::CreateMitPaymentRequestData {
+            amount,
+            currency,
+            confirm: true,
+            customer_id: Some(self.subscription.customer_id.clone()),
+            recurring_details: Some(api_models::mandates::RecurringDetails::PaymentMethodId(
+                payment_method_id.to_owned(),
+            )),
+            off_session: Some(true),
+        };
+
+        payments_api_client::PaymentsApiClient::create_mit_payment(
+            state,
+            mit_payment_request,
+            self.merchant_account.get_id().get_string_repr(),
+            self.profile.get_id().get_string_repr(),
+        )
+        .await
     }
 }

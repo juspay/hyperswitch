@@ -171,7 +171,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             self.state,
             &self.merchant_account,
             &self.key_store,
-            self.customer.clone(),
+            Some(self.customer.clone()),
             self.profile.clone(),
         )
         .await
@@ -202,7 +202,9 @@ impl<'a> InvoiceSyncHandler<'a> {
                 self.state,
                 self.invoice.id.to_owned(),
                 None,
+                None,
                 common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
+                Some(connector_invoice_id),
             )
             .await
             .attach_printable("Failed to update invoice in DB")?;

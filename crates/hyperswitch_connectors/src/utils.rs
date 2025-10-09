@@ -540,6 +540,7 @@ pub trait RouterData {
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state(&self) -> Option<Secret<String>>;
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>>;
     fn get_optional_billing_state_2_digit(&self) -> Option<Secret<String>>;
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_last_name(&self) -> Option<Secret<String>>;
@@ -929,6 +930,10 @@ impl<Flow, Request, Response> RouterData
                 Some(state)
             }
         })
+    }
+
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
+        self.get_billing_state_code().ok()
     }
 
     fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
@@ -1783,6 +1788,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
@@ -1901,6 +1907,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
     }
+
+    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    Some(connector_mandate_ids.clone())
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
+
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
         self.browser_info.clone().and_then(|browser_info| {
             browser_info
@@ -2332,6 +2352,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -2400,6 +2421,18 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("threeds_method_comp_ind"))
     }
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+    }
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
@@ -2455,6 +2488,7 @@ pub trait PaymentsPreProcessingRequestData {
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
+    fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
@@ -2540,6 +2574,10 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
+    }
+    fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -6790,6 +6828,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         tenant_id: data.tenant_id.clone(),
         status: data.status,
         payment_method: data.payment_method,
+        payment_method_type: data.payment_method_type,
         connector_auth_type: data.connector_auth_type.clone(),
         description: data.description.clone(),
         address: data.address.clone(),
