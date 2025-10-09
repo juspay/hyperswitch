@@ -323,7 +323,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_business_country: item.merchant_business_country,
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
             is_external_vault_enabled: item.is_external_vault_enabled,
-            is_l2_l3_enabled: item.is_l2_l3_enabled,
+            is_l2_l3_enabled: None,
             external_vault_connector_details: item
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
