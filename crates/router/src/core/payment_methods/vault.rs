@@ -824,6 +824,7 @@ pub enum VaultPayoutMethod {
     Card(String),
     Bank(String),
     Wallet(String),
+    BankRedirect(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -836,6 +837,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value1(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
+            Self::BankRedirect(bank_redirect) => {
+                VaultPayoutMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
         };
 
         value1
@@ -852,6 +856,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value2(customer_id)?),
             Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
+            Self::BankRedirect(bank_redirect) => {
+                VaultPayoutMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
         };
 
         value2
@@ -887,10 +894,93 @@ impl Vaultable for api::PayoutMethodData {
                 let (wallet, supp_data) = api::WalletPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Wallet(wallet), supp_data))
             }
+            (
+                VaultPayoutMethod::BankRedirect(mvalue1),
+                VaultPayoutMethod::BankRedirect(mvalue2),
+            ) => {
+                let (bank_redirect, supp_data) =
+                    api::BankRedirectPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
         }
     }
+}
+
+#[cfg(feature = "payouts")]
+impl Vaultable for api::BankRedirectPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = match self {
+            Self::Interac(interac_data) => TokenizedBankRedirectSensitiveValues {
+                email: interac_data.email.clone(),
+                bank_redirect_type: PaymentMethodType::Interac,
+            },
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable(
+                "Failed to encode bank redirect data - TokenizedBankRedirectSensitiveValues",
+            )
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedBankRedirectInsensitiveValues { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode wallet data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedBankRedirectSensitiveValues = value1
+            .parse_struct("TokenizedBankRedirectSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data value1")?;
+
+        let value2: TokenizedBankRedirectInsensitiveValues = value2
+            .parse_struct("TokenizedBankRedirectInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into wallet data value2")?;
+
+        let bank_redirect = match value1.bank_redirect_type {
+            PaymentMethodType::Interac => Self::Interac(api_models::payouts::Interac {
+                email: value1.email,
+            }),
+            _ => Err(errors::VaultError::PayoutMethodNotSupported)
+                .attach_printable("Payout method not supported")?,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_redirect, supp_data))
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectSensitiveValues {
+    pub email: Email,
+    pub bank_redirect_type: PaymentMethodType,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
