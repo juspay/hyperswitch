@@ -27,7 +27,10 @@ pub use response::*;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{AddressDetailsData, CardData, RouterData as _},
+    utils::{
+        get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        RouterData as _,
+    },
 };
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
@@ -125,6 +128,15 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("finix"),
+            )
+            .into());
+        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
                 let source = item.router_data.get_payment_method_token()?;
@@ -269,12 +281,16 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
             AttemptStatus::AuthorizationFailed
         }
-
         (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
         (FinixFlow::Transfer, FinixState::SUCCEEDED) => AttemptStatus::Charged,
         (FinixFlow::Transfer, FinixState::FAILED)
         | (FinixFlow::Transfer, FinixState::CANCELED)
         | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
+        (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::CaptureInitiated, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::FAILED)
+        | (FinixFlow::Capture, FinixState::CANCELED)
+        | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
     }
 }
 

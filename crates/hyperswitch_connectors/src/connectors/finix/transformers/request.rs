@@ -193,6 +193,7 @@ pub enum FinixIdentityType {
 pub enum FinixFlow {
     Auth,
     Transfer,
+    Capture,
 }
 
 impl FinixFlow {

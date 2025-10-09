@@ -618,7 +618,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Finix PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        println!("{:?} auuuuutttttt", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         finix::get_finix_response(
@@ -627,7 +626,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            finix::FinixFlow::Transfer,
+            finix::FinixFlow::Capture,
         )
     }
 
