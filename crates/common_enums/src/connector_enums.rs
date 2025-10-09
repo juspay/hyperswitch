@@ -907,6 +907,7 @@ impl TryFrom<Connector> for RoutableConnectors {
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,

@@ -151,6 +151,7 @@ impl InvoiceHandler {
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             setup_future_usage: payment_details.setup_future_usage,
             return_url: Some(payment_details.return_url.clone()),
             capture_method: payment_details.capture_method,
@@ -194,6 +195,7 @@ impl InvoiceHandler {
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             setup_future_usage: payment_details.setup_future_usage,
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
@@ -223,6 +225,7 @@ impl InvoiceHandler {
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
             billing: request.payment_details.payment_method_data.billing.clone(),
             shipping: request.payment_details.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),

@@ -6,7 +6,7 @@ use utoipa::ToSchema;
 use crate::{
     enums as api_enums,
     mandates::RecurringDetails,
-    payments::{Address, PaymentMethodDataRequest},
+    payments::{Address, NextActionData, PaymentMethodDataRequest},
 };
 
 /// Request payload for creating a subscription.
@@ -250,6 +250,7 @@ pub struct CreatePaymentsRequestData {
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
@@ -260,6 +261,7 @@ pub struct CreatePaymentsRequestData {
 pub struct ConfirmPaymentsRequestData {
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -275,6 +277,7 @@ pub struct CreateAndConfirmPaymentsRequestData {
     pub confirm: bool,
     pub billing: Option<Address>,
     pub shipping: Option<Address>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub return_url: Option<common_utils::types::Url>,
     pub capture_method: Option<api_enums::CaptureMethod>,
@@ -292,8 +295,11 @@ pub struct PaymentResponseData {
     pub status: api_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: api_enums::Currency,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub connector: Option<String>,
     pub payment_method_id: Option<Secret<String>>,
+    pub return_url: Option<common_utils::types::Url>,
+    pub next_action: Option<NextActionData>,
     pub payment_experience: Option<api_enums::PaymentExperience>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
