@@ -527,8 +527,7 @@ impl MerchantAccountInterface for MockDb {
             .find(|account| account.get_id() == merchant_id)
             .cloned()
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "Merchant ID: {:?} not found",
-                merchant_id
+                "Merchant ID: {merchant_id:?} not found",
             )))?
             .convert(
                 state,
@@ -572,8 +571,7 @@ impl MerchantAccountInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Merchant ID: {:?} not found",
-                    merchant_id
+                    "Merchant ID: {merchant_id:?} not found",
                 ))
                 .into(),
             )
@@ -607,8 +605,7 @@ impl MerchantAccountInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Merchant ID: {:?} not found",
-                    merchant_id
+                    "Merchant ID: {merchant_id:?} not found",
                 ))
                 .into(),
             )
@@ -630,8 +627,7 @@ impl MerchantAccountInterface for MockDb {
                     .is_some_and(|key| key == publishable_key)
             })
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "Publishable Key: {} not found",
-                publishable_key
+                "Publishable Key: {publishable_key} not found",
             )))?;
         let key_store = self
             .get_merchant_key_store_by_merchant_id(

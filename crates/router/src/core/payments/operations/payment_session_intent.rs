@@ -33,15 +33,17 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
         match intent_status {
             common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
             common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed => {
+            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
@@ -146,6 +148,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             payment_intent,
             client_secret: None,
             sessions_token: vec![],
+            vault_session_details: None,
+            connector_customer_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -164,9 +168,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<customer::CustomerUpdate>,
+        updated_customer: Option<customer::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
@@ -242,7 +246,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -303,13 +306,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                 .into_iter()
                 .filter_map(
                     |(merchant_connector_account, payment_method_type, payment_method)| {
-                        let connector_type = api::GetToken::from(payment_method_type);
-
-                        match api::ConnectorData::get_connector_by_name(
-                            &state.conf.connectors,
-                            &merchant_connector_account.connector_name.to_string(),
-                            connector_type,
+                        match helpers::get_connector_data_with_token(
+                            state,
+                            merchant_connector_account.connector_name.to_string(),
                             Some(merchant_connector_account.get_id()),
+                            payment_method_type,
                         ) {
                             Ok(connector_data) => Some(api::SessionConnectorData::new(
                                 payment_method_type,
@@ -381,18 +382,5 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
-    }
-}
-
-impl From<api_models::enums::PaymentMethodType> for api::GetToken {
-    fn from(value: api_models::enums::PaymentMethodType) -> Self {
-        match value {
-            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
-            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
-            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
-            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
-            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
-            _ => Self::Connector,
-        }
     }
 }

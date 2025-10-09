@@ -1,8 +1,10 @@
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models::enums as storage_enums;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -32,11 +34,11 @@ impl PaymentIntentInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
-        merchant_id: &common_utils::id_type::MerchantId,
-        constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        _state: &KeyManagerState,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(
             PaymentIntent,
@@ -166,10 +168,10 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
-        state: &KeyManagerState,
-        this: PaymentIntent,
-        update: PaymentIntentUpdate,
-        key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
+        _this: PaymentIntent,
+        _update: PaymentIntentUpdate,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         todo!()

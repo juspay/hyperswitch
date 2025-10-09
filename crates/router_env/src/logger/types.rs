@@ -118,6 +118,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Payment methods batch update flow.
+    PaymentMethodsBatchUpdate,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
@@ -156,6 +158,8 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments cancel post capture flow.
+    PaymentsCancelPostCapture,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -180,6 +184,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments create and confirm intent flow
     PaymentsCreateAndConfirmIntent,
+    /// Payment attempt list flow
+    PaymentAttemptsList,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -249,12 +255,28 @@ pub enum Flow {
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
+    /// Rule migration for decision-engine
+    DecisionEngineRuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Subscription create flow,
+    CreateSubscription,
+    /// Subscription get plans flow,
+    GetPlansForSubscription,
+    /// Subscription confirm flow,
+    ConfirmSubscription,
+    /// Subscription create and confirm flow,
+    CreateAndConfirmSubscription,
+    /// Get Subscription flow
+    GetSubscription,
+    /// Get Subscription estimate flow
+    GetSubscriptionEstimate,
+    /// Create dynamic routing
+    CreateDynamicRoutingConfig,
     /// Toggle dynamic routing
     ToggleDynamicRouting,
     /// Update dynamic routing config
@@ -345,6 +367,10 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
+    /// Get data from embedded flow
+    GetDataFromHyperswitchAiFlow,
+    // List all chat interactions
+    ListAllChatInteractions,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -405,6 +431,8 @@ pub enum Flow {
     GetRoleFromToken,
     /// Get resources and groups for role from token
     GetRoleFromTokenV2,
+    /// Get parent groups info for role from token
+    GetParentGroupsInfoForRoleFromToken,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
@@ -463,6 +491,8 @@ pub enum Flow {
     PaymentsAuthorize,
     /// Create Role
     CreateRole,
+    /// Create Role V2
+    CreateRoleV2,
     /// Update Role
     UpdateRole,
     /// User email flow start
@@ -517,6 +547,20 @@ pub enum Flow {
     UpdateTheme,
     /// Delete theme
     DeleteTheme,
+    /// Create user theme
+    CreateUserTheme,
+    /// Update user theme
+    UpdateUserTheme,
+    /// Delete user theme
+    DeleteUserTheme,
+    /// Upload file to user theme storage
+    UploadFileToUserThemeStorage,
+    /// Get user theme using theme id
+    GetUserThemeUsingThemeId,
+    ///List All Themes In Lineage
+    ListAllThemesInLineage,
+    /// Get user theme using lineage
+    GetUserThemeUsingLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -546,6 +590,8 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
+    /// Routing evaluate rule flow
+    RoutingEvaluateRule,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
@@ -586,14 +632,48 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Process Tracker Revenue Recovery Workflow Resume
+    RevenueRecoveryResume,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
     TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
+    /// Authentication Create flow
+    AuthenticationCreate,
+    /// Authentication Eligibility flow
+    AuthenticationEligibility,
+    /// Authentication Sync flow
+    AuthenticationSync,
+    /// Authentication Sync Post Update flow
+    AuthenticationSyncPostUpdate,
+    /// Authentication Authenticate flow
+    AuthenticationAuthenticate,
     ///Proxy Flow
     Proxy,
+    /// Profile Acquirer Create flow
+    ProfileAcquirerCreate,
+    /// Profile Acquirer Update flow
+    ProfileAcquirerUpdate,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
+    /// Incoming Network Token Webhook Receive
+    IncomingNetworkTokenWebhookReceive,
+    /// Decision Engine Decide Gateway Call
+    DecisionEngineDecideGatewayCall,
+    /// Decision Engine Gateway Feedback Call
+    DecisionEngineGatewayFeedbackCall,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
+    /// Tokenization delete flow
+    TokenizationDelete,
+    /// Payment method data backfill flow
+    RecoveryDataBackfill,
+    /// Revenue recovery Redis operations flow
+    RevenueRecoveryRedis,
+    /// Gift card balance check flow
+    GiftCardBalanceCheck,
 }
 
 /// Trait for providing generic behaviour to flow metric

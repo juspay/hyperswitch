@@ -109,6 +109,40 @@ where
                 .add_filter_in_range_clause("first_attempt", &self.first_attempt)
                 .attach_printable("Error adding first attempt filter")?;
         }
+
+        if !self.routing_approach.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::RoutingApproach,
+                    &self.routing_approach,
+                )
+                .attach_printable("Error adding routing approach filter")?;
+        }
+
+        if !self.signature_network.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::SignatureNetwork,
+                    &self.signature_network,
+                )
+                .attach_printable("Error adding signature network filter")?;
+        }
+
+        if !self.is_issuer_regulated.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::IsIssuerRegulated,
+                    &self.is_issuer_regulated,
+                )
+                .attach_printable("Error adding is issuer regulated filter")?;
+        }
+
+        if !self.is_debit_routed.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::IsDebitRouted, &self.is_debit_routed)
+                .attach_printable("Error adding is debit routed filter")?;
+        }
+
         Ok(())
     }
 }

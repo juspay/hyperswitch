@@ -17,7 +17,8 @@ use crate::{
     core::payments::PaymentsRedirectResponseData,
     services::{authentication::AuthenticationType, kafka::KafkaMessage},
     types::api::{
-        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeId, FileId, PollId,
+        AttachEvidenceRequest, Config, ConfigUpdate, CreateFileRequest, DisputeFetchQueryData,
+        DisputeId, FileId, FileRetrieveRequest, PollId,
     },
 };
 
@@ -43,6 +44,8 @@ pub struct ApiEvent {
     event_type: ApiEventsType,
     hs_latency: Option<u128>,
     http_method: String,
+    #[serde(flatten)]
+    infra_components: Option<serde_json::Value>,
 }
 
 impl ApiEvent {
@@ -62,6 +65,7 @@ impl ApiEvent {
         event_type: ApiEventsType,
         http_req: &HttpRequest,
         http_method: &http::Method,
+        infra_components: Option<serde_json::Value>,
     ) -> Self {
         Self {
             tenant_id,
@@ -87,6 +91,7 @@ impl ApiEvent {
             event_type,
             hs_latency,
             http_method: http_method.to_string(),
+            infra_components,
         }
     }
 }
@@ -107,7 +112,9 @@ impl_api_event_type!(
         Config,
         CreateFileRequest,
         FileId,
+        FileRetrieveRequest,
         AttachEvidenceRequest,
+        DisputeFetchQueryData,
         ConfigUpdate
     )
 );

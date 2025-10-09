@@ -13,6 +13,7 @@
     "city": "NY",
     "unit": "245",
     "endpoint_prefix": "AD",
-    "merchant_name": "Cypress Test"
+    "merchant_name": "Cypress Test",
+    "account_name": "transaction_processing"
   }
 }

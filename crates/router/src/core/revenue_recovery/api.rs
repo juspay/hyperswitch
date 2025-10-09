@@ -1,6 +1,7 @@
-use api_models::payments as payments_api;
+use actix_web::{web, Responder};
+use api_models::{payments as payments_api, payments as api_payments};
 use common_utils::id_type;
-use error_stack::ResultExt;
+use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments as payments_domain,
@@ -12,12 +13,18 @@ use crate::{
         payments::{self, operations::Operation},
         webhooks::recovery_incoming,
     },
+    db::{
+        errors::{RouterResponse, StorageErrorExt},
+        storage::revenue_recovery_redis_operation::RedisTokenManager,
+    },
     logger,
-    routes::SessionState,
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::payments as api_types,
+        domain,
         storage::{self, revenue_recovery as revenue_recovery_types},
+        transformers::ForeignFrom,
     },
 };
 
@@ -25,13 +32,16 @@ pub async fn call_psync_api(
     state: &SessionState,
     global_payment_id: &id_type::GlobalPaymentId,
     revenue_recovery_data: &revenue_recovery_types::RevenueRecoveryPaymentData,
+    force_sync_bool: bool,
+    expand_attempts_bool: bool,
 ) -> RouterResult<payments_domain::PaymentStatusData<api_types::PSync>> {
     let operation = payments::operations::PaymentGet;
     let req = payments_api::PaymentsRetrieveRequest {
-        force_sync: false,
+        force_sync: force_sync_bool,
         param: None,
-        expand_attempts: true,
-        all_keys_required: None,
+        expand_attempts: expand_attempts_bool,
+        return_raw_connector_response: None,
+        merchant_connector_details: None,
     };
     let merchant_context_from_revenue_recovery_data =
         MerchantContext::NormalMerchant(Box::new(Context(
@@ -52,7 +62,7 @@ pub async fn call_psync_api(
         )
         .await?;
 
-    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
+    let (payment_data, _req, _, _, _, _) = Box::pin(payments::payments_operation_core::<
         api_types::PSync,
         _,
         _,
@@ -78,12 +88,17 @@ pub async fn call_proxy_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
+    payment_processor_token: &str,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+    let recurring_details = api_models::mandates::ProcessorPaymentToken {
+        processor_payment_token: payment_processor_token.to_string(),
+        merchant_connector_id: Some(revenue_recovery.get_merchant_connector_id_for_api_request()),
+    };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        recurring_details,
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
@@ -172,27 +187,37 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    card_info: payments_api::AdditionalCardInfo,
+    payment_processor_token: &str,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
             payment_intent,
             revenue_recovery_metadata,
             &revenue_recovery_payment_data.billing_mca,
+            card_info,
+            payment_processor_token,
         )
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
-    let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
-        &revenue_recovery_payment_data.billing_mca.id,
-        Some(
-            revenue_recovery_metadata
-                .active_attempt_payment_connector_id
-                .clone(),
-        ),
-        Some(revenue_recovery_metadata.connector),
-        common_enums::TriggeredBy::Internal,
-    );
+    let request_payload = revenue_recovery_attempt_data
+        .create_payment_record_request(
+            state,
+            &revenue_recovery_payment_data.billing_mca.id,
+            Some(
+                revenue_recovery_metadata
+                    .active_attempt_payment_connector_id
+                    .clone(),
+            ),
+            Some(revenue_recovery_metadata.connector),
+            common_enums::TriggeredBy::Internal,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Cannot Create the payment record Request".to_string(),
+        })?;
 
     let merchant_context_from_revenue_recovery_payment_data =
         MerchantContext::NormalMerchant(Box::new(Context(
@@ -223,4 +248,127 @@ pub async fn record_internal_attempt_api(
                 .attach_printable("failed to record attempt for revenue recovery workflow")
         }
     }
+}
+
+pub async fn custom_revenue_recovery_core(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_context: MerchantContext,
+    profile: domain::Profile,
+    request: api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    let store = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
+    // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
+    let payment_merchant_connector_account = store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &payment_merchant_connector_account_id,
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: payment_merchant_connector_account_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })?;
+    let billing_connector_account = store
+        .find_merchant_connector_account_by_id(
+            key_manager_state,
+            &request.billing_merchant_connector_id.clone(),
+            merchant_context.get_merchant_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })?;
+
+    let recovery_intent =
+        recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
+            request.clone(),
+            &state,
+            &req_state,
+            &merchant_context,
+            &profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Failed to load recovery intent for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
+        })?;
+
+    let (revenue_recovery_attempt_data, updated_recovery_intent) =
+        recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
+            request.clone(),
+            &state,
+            &req_state,
+            &merchant_context,
+            &profile,
+            recovery_intent.clone(),
+            payment_merchant_connector_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Failed to load recovery attempt for merchant reference id : {:?}",
+                request.merchant_reference_id.to_owned()
+            )
+            .to_string(),
+        })?;
+
+    let intent_retry_count = updated_recovery_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get_retry_count())
+        .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to fetch retry count from intent feature metadata".to_string(),
+        }))?;
+
+    router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
+    let recovery_action = recovery_incoming::RecoveryAction {
+        action: request.action.to_owned(),
+    };
+    let mca_retry_threshold = billing_connector_account
+        .get_retry_threshold()
+        .ok_or(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to fetch retry threshold from billing merchant connector account"
+                .to_string(),
+        }))?;
+
+    recovery_action
+        .handle_action(
+            &state,
+            &profile,
+            &merchant_context,
+            &billing_connector_account,
+            mca_retry_threshold,
+            intent_retry_count,
+            &(
+                Some(revenue_recovery_attempt_data),
+                updated_recovery_intent.clone(),
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Unexpected response from recovery core".to_string(),
+        })?;
+
+    let response = api_models::payments::RecoveryPaymentsResponse {
+        id: updated_recovery_intent.payment_id.to_owned(),
+        intent_status: updated_recovery_intent.status.to_owned(),
+        merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }

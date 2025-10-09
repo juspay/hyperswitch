@@ -80,13 +80,17 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -198,6 +202,8 @@ impl<F: Send + Clone + Sync>
             retry_count: request.retry_count,
             invoice_next_billing_time: request.invoice_next_billing_time,
             triggered_by: request.triggered_by,
+            card_network: request.card_network.clone(),
+            card_issuer: request.card_issuer.clone(),
         };
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent

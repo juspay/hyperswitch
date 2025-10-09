@@ -109,10 +109,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_name: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
-        let debug_suffix = format!(
-            "For merchant_id: {:?}, and connector_name: {}",
-            merchant_id, connector_name
-        );
+        let debug_suffix =
+            format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
         let default_secret = "default_secret".to_string();
         let merchant_secret = match connector_webhook_details {
             Some(merchant_connector_webhook_details) => {
@@ -123,8 +121,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                     .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
                     .attach_printable_lazy(|| {
                         format!(
-                            "Deserializing MerchantConnectorWebhookDetails failed {}",
-                            debug_suffix
+                            "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}",
                         )
                     })?;
                 api_models::webhooks::ConnectorWebhookSecrets {
@@ -301,6 +298,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     > {
         Err(errors::ConnectorError::NotImplemented(
             "get_revenue_recovery_invoice_details method".to_string(),
+        )
+        .into())
+    }
+
+    /// get subscription MIT payment data from webhook
+    fn get_subscription_mit_payment_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionMitPaymentData,
+        errors::ConnectorError,
+    > {
+        Err(errors::ConnectorError::NotImplemented(
+            "get_subscription_mit_payment_data method".to_string(),
         )
         .into())
     }

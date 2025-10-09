@@ -25,6 +25,7 @@ pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
 pub mod refunds;
+pub mod routing_events;
 pub mod sdk_events;
 pub mod search;
 

@@ -23,8 +23,8 @@ impl DashboardRequestPayload {
             card_networks: Some(card_provider),
             minimum_amount: Some(MinorUnit::zero()),
             maximum_amount: Some(MinorUnit::new(68607706)),
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             accepted_currencies: None,
             accepted_countries: None,
             payment_experience: None,
@@ -60,7 +60,8 @@ impl DashboardRequestPayload {
                 (_, GooglePay)
                 | (_, ApplePay)
                 | (_, PaymentMethodType::SamsungPay)
-                | (_, PaymentMethodType::Paze) => {
+                | (_, PaymentMethodType::Paze)
+                | (_, PaymentMethodType::AmazonPay) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (_, PaymentMethodType::DirectCarrierBilling) => {
@@ -86,8 +87,8 @@ impl DashboardRequestPayload {
                 card_networks: None,
                 minimum_amount: Some(MinorUnit::zero()),
                 maximum_amount: Some(MinorUnit::new(68607706)),
-                recurring_enabled: true,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(true),
+                installment_payment_enabled: Some(false),
                 accepted_currencies: method_type.accepted_currencies,
                 accepted_countries: method_type.accepted_countries,
                 payment_experience: Self::get_payment_experience(
@@ -125,8 +126,8 @@ impl DashboardRequestPayload {
                                         card_networks: Some(vec![method.payment_method_type]),
                                         minimum_amount: Some(MinorUnit::zero()),
                                         maximum_amount: Some(MinorUnit::new(68607706)),
-                                        recurring_enabled: true,
-                                        installment_payment_enabled: false,
+                                        recurring_enabled: Some(true),
+                                        installment_payment_enabled: Some(false),
                                         accepted_currencies: method.accepted_currencies,
                                         accepted_countries: method.accepted_countries,
                                         payment_experience: None,

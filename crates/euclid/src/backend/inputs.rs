@@ -1,7 +1,10 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::enums;
+use crate::{
+    enums,
+    frontend::dir::enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MandateData {
@@ -31,9 +34,31 @@ pub struct PaymentInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AcquirerDataInput {
+    pub country: Option<enums::Country>,
+    pub fraud_rate: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerDeviceDataInput {
+    pub platform: Option<CustomerDevicePlatform>,
+    pub device_type: Option<CustomerDeviceType>,
+    pub display_size: Option<CustomerDeviceDisplaySize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IssuerDataInput {
+    pub name: Option<String>,
+    pub country: Option<enums::Country>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackendInput {
     pub metadata: Option<FxHashMap<String, String>>,
     pub payment: PaymentInput,
     pub payment_method: PaymentMethodInput,
+    pub acquirer_data: Option<AcquirerDataInput>,
+    pub customer_device_data: Option<CustomerDeviceDataInput>,
+    pub issuer_data: Option<IssuerDataInput>,
     pub mandate: MandateData,
 }

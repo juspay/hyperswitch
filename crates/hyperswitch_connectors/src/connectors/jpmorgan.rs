@@ -171,6 +171,7 @@ impl ConnectorCommon for Jpmorgan {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -216,7 +217,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         );
         let encoded_creds = common_utils::consts::BASE64_ENGINE.encode(creds);
 
-        let auth_string = format!("Basic {}", encoded_creds);
+        let auth_string = format!("Basic {encoded_creds}");
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -306,6 +307,16 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Jpmorgan
 {
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for JPMorgan".to_string())
+                .into(),
+        )
+    }
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Jpmorgan {
@@ -655,9 +666,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
+        Ok(format!("{}/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -837,7 +848,7 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
@@ -856,7 +867,7 @@ static JPMORGAN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
@@ -877,7 +888,8 @@ static JPMORGAN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Jpmorgan",
         description:
             "J.P. Morgan is a global financial services firm and investment bank, offering banking, asset management, and payment processing solutions",
-        connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+        connector_type: enums::HyperswitchConnectorCategory::BankAcquirer,
+        integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
 
 static JPMORGAN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

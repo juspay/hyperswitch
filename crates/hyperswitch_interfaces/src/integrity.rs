@@ -351,5 +351,5 @@ impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
 
 #[inline]
 fn format_mismatch(field: &str, expected: &str, found: &str) -> String {
-    format!("{} expected {} but found {}", field, expected, found)
+    format!("{field} expected {expected} but found {found}")
 }

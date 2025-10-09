@@ -152,16 +152,18 @@ describe("Corner cases", () => {
       );
     });
 
-    // it("[Payment] return_url - too long", () => {
-    //   const data = getConnectorDetails(globalState.get("connectorId"))["return_url_variations"]["return_url_too_long"];
-    //   cy.createConfirmPaymentTest(
-    //     paymentCreateConfirmBody,
-    //     data,
-    //     "no_three_ds",
-    //     "automatic",
-    //     globalState
-    //   );
-    // });
+    it("[Payment] return_url - too long", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "return_url_variations"
+      ]["return_url_too_long"];
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
 
     it("[Payment] return_url - invalid format", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[

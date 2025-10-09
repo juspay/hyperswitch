@@ -51,14 +51,15 @@ pub async fn files_create_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert file_metadata")?;
-    let (provider_file_id, file_upload_provider, profile_id, merchant_connector_id) =
+    let (provider_file_id, file_upload_provider, profile_id, merchant_connector_id) = Box::pin(
         helpers::upload_and_get_provider_provider_file_id_profile_id(
             &state,
             &merchant_context,
             &create_file_request,
             file_key.clone(),
-        )
-        .await?;
+        ),
+    )
+    .await?;
 
     // Update file metadata
     let update_file_metadata = diesel_models::file::FileMetadataUpdate::Update {
@@ -75,7 +76,7 @@ pub async fn files_create_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update file_metadata with file_id: {}", file_id)
+            format!("Unable to update file_metadata with file_id: {file_id}")
         })?;
     Ok(ApplicationResponse::Json(files::CreateFileResponse {
         file_id,
@@ -104,7 +105,7 @@ pub async fn files_delete_core(
 pub async fn files_retrieve_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
-    req: api::FileId,
+    req: api::FileRetrieveRequest,
 ) -> RouterResponse<serde_json::Value> {
     let file_metadata_object = state
         .store
@@ -119,6 +120,7 @@ pub async fn files_retrieve_core(
     let file_info = helpers::retrieve_file_and_provider_file_id_from_file_id(
         &state,
         Some(req.file_id),
+        req.dispute_id,
         &merchant_context,
         api::FileDataRequired::Required,
     )

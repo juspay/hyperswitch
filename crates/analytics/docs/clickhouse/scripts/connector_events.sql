@@ -1,4 +1,5 @@
-CREATE TABLE connector_events_queue (
+CREATE TABLE connector_events_queue
+(
     `merchant_id` String,
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
@@ -13,11 +14,9 @@ CREATE TABLE connector_events_queue (
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String)
-) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
-kafka_topic_list = 'hyperswitch-outgoing-connector-events',
-kafka_group_name = 'hyper',
-kafka_format = 'JSONEachRow',
-kafka_handle_error_mode = 'stream';
+)
+ENGINE = Kafka
+SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-outgoing-connector-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
 
 CREATE MATERIALIZED VIEW connector_events_parse_errors (
     `topic` String,

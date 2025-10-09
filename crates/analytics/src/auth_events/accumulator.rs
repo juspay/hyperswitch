@@ -14,6 +14,8 @@ pub struct AuthEventMetricsAccumulator {
     pub frictionless_flow_count: CountAccumulator,
     pub frictionless_success_count: CountAccumulator,
     pub authentication_funnel: CountAccumulator,
+    pub authentication_exemption_approved_count: CountAccumulator,
+    pub authentication_exemption_requested_count: CountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -80,6 +82,12 @@ impl AuthEventMetricsAccumulator {
             frictionless_success_count: self.frictionless_success_count.collect(),
             error_message_count: self.authentication_error_message.collect(),
             authentication_funnel: self.authentication_funnel.collect(),
+            authentication_exemption_approved_count: self
+                .authentication_exemption_approved_count
+                .collect(),
+            authentication_exemption_requested_count: self
+                .authentication_exemption_requested_count
+                .collect(),
         }
     }
 }

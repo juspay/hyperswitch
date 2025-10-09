@@ -172,6 +172,7 @@ impl ConnectorCommon for Worldpayxml {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -259,7 +260,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -344,7 +345,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -432,7 +433,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -516,7 +517,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -602,7 +603,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -685,7 +686,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -821,7 +822,8 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
 static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay XML",
     description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
-    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];

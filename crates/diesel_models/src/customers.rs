@@ -3,14 +3,14 @@ use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use crate::enums::DeleteStatus;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::customers;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use crate::schema_v2::customers;
+#[cfg(feature = "v2")]
+use crate::{
+    diesel_impl::RequiredFromNullableWithDefault, enums::DeleteStatus, schema_v2::customers,
+};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize, Insertable,
 )]
@@ -30,16 +30,17 @@ pub struct CustomerNew {
     pub address_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -58,11 +59,12 @@ impl From<CustomerNew> for Customer {
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
             version: customer_new.version,
+            tax_registration_id: customer_new.tax_registration_id,
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -81,6 +83,7 @@ pub struct CustomerNew {
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -88,14 +91,14 @@ pub struct CustomerNew {
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -111,6 +114,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
+            tax_registration_id: customer_new.tax_registration_id,
             merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
@@ -121,7 +125,7 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
@@ -142,9 +146,10 @@ pub struct Customer {
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
 )]
@@ -163,14 +168,16 @@ pub struct Customer {
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
+    pub tax_registration_id: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
+    #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -187,9 +194,10 @@ pub struct CustomerUpdateInternal {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
+    pub tax_registration_id: Option<Encryption>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -202,6 +210,7 @@ impl CustomerUpdateInternal {
             connector_customer,
             address_id,
             default_payment_method_id,
+            tax_registration_id,
             ..
         } = self;
 
@@ -218,12 +227,13 @@ impl CustomerUpdateInternal {
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
+            tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
             ..source
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -242,9 +252,10 @@ pub struct CustomerUpdateInternal {
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: Option<DeleteStatus>,
+    pub tax_registration_id: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -259,6 +270,7 @@ impl CustomerUpdateInternal {
             default_billing_address,
             default_shipping_address,
             status,
+            tax_registration_id,
             ..
         } = self;
 
@@ -279,6 +291,7 @@ impl CustomerUpdateInternal {
             default_shipping_address: default_shipping_address
                 .map_or(source.default_shipping_address, Some),
             status: status.unwrap_or(source.status),
+            tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
             ..source
         }
     }

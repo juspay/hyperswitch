@@ -33,10 +33,7 @@ pub(crate) trait MandateResponseExt: Sized {
     ) -> RouterResult<Self>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
@@ -98,6 +95,7 @@ impl MandateResponseExt for MandateResponse {
         let payment_method_type = payment_method
             .get_payment_method_subtype()
             .map(|pmt| pmt.to_string());
+        let user_agent = mandate.get_user_agent_extended().unwrap_or_default();
         Ok(Self {
             mandate_id: mandate.mandate_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
@@ -109,7 +107,7 @@ impl MandateResponseExt for MandateResponse {
                 accepted_at: mandate.customer_accepted_at,
                 online: Some(api::payments::OnlineMandate {
                     ip_address: mandate.customer_ip_address,
-                    user_agent: mandate.customer_user_agent.unwrap_or_default(),
+                    user_agent,
                 }),
             }),
             card,
@@ -121,7 +119,7 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
@@ -134,10 +132,7 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
@@ -159,7 +154,7 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {

@@ -51,7 +51,7 @@ impl DummyConnectors {
             Self::PaypalTest => "PAYPAL_TEST.svg",
             _ => "PHONYPAY.svg",
         };
-        format!("{}{}", base_url, image_name)
+        format!("{base_url}{image_name}")
     }
 }
 
@@ -229,7 +229,7 @@ impl GetPaymentMethodDetails for DummyConnectorUpiType {
         let image_name = match self {
             Self::UpiCollect => "UPI_COLLECT.svg",
         };
-        format!("{}{}", base_url, image_name)
+        format!("{base_url}{image_name}")
     }
 }
 
@@ -253,7 +253,7 @@ impl GetPaymentMethodDetails for DummyConnectorWallet {
             Self::AliPay => "ALIPAY.svg",
             Self::AliPayHK => "ALIPAY.svg",
         };
-        format!("{}{}", base_url, image_name)
+        format!("{base_url}{image_name}")
     }
 }
 
@@ -278,7 +278,7 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
             Self::Affirm => "AFFIRM.svg",
             Self::AfterPayClearPay => "AFTERPAY.svg",
         };
-        format!("{}{}", base_url, image_name)
+        format!("{base_url}{image_name}")
     }
 }
 

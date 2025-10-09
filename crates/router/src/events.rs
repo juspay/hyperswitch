@@ -21,6 +21,7 @@ pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod outgoing_webhook_logs;
+pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -37,6 +38,8 @@ pub enum EventType {
     Payout,
     Consolidated,
     Authentication,
+    RoutingApiLogs,
+    RevenueRecovery,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

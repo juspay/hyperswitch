@@ -77,7 +77,7 @@ where
             .switch()?;
 
         outer_query_builder
-            .add_select_column(format!("({}) AS total", inner_query_string))
+            .add_select_column(format!("({inner_query_string}) AS total"))
             .switch()?;
 
         outer_query_builder

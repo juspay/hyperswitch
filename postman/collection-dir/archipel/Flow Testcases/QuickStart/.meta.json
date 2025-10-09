@@ -5,6 +5,9 @@
     "API Key - Create",
     "Business Profile - Create",
     "Payment Connector - Create",
+    "3DS Authenticator - Create",
+    "3DS Authenticator - Configure",
+    "Connector Agnostic MIT - Enable",
     "Customer - Create",
     "Payments - Create",
     "Payments - Retrieve"

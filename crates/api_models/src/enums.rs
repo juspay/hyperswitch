@@ -48,7 +48,10 @@ pub enum PayoutConnectors {
     Adyenplatform,
     Cybersource,
     Ebanx,
+    Gigadat,
+    Loonio,
     Nomupay,
+    Nuvei,
     Payone,
     Paypal,
     Stripe,
@@ -74,7 +77,10 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
+            PayoutConnectors::Loonio => Self::Loonio,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -91,7 +97,10 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
+            PayoutConnectors::Loonio => Self::Loonio,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -109,12 +118,14 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Loonio => Ok(Self::Loonio),
+            Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
-            _ => Err(format!("Invalid payout connector {}", value)),
+            _ => Err(format!("Invalid payout connector {value}")),
         }
     }
 }
@@ -166,6 +177,7 @@ pub enum BillingConnectors {
     Chargebee,
     Recurly,
     Stripebilling,
+    Custombilling,
     #[cfg(feature = "dummy_connector")]
     DummyBillingConnector,
 }
@@ -175,12 +187,16 @@ pub enum BillingConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
     Vgs,
+    HyperswitchVault,
+    Tokenex,
 }
 
 impl From<VaultConnectors> for Connector {
     fn from(value: VaultConnectors) -> Self {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
+            VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
+            VaultConnectors::Tokenex => Self::Tokenex,
         }
     }
 }
@@ -255,6 +271,7 @@ pub enum FieldType {
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
+    UserBankOptions { options: Vec<String> },
     UserBankAccountNumber,
     UserSourceBankAccountId,
     UserDestinationBankAccountId,
@@ -270,6 +287,8 @@ pub enum FieldType {
     UserBsbNumber,
     UserBankSortCode,
     UserBankRoutingNumber,
+    UserBankType { options: Vec<String> },
+    UserBankAccountHolderName,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
@@ -404,7 +423,7 @@ mod test {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RetryAction {
-    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,

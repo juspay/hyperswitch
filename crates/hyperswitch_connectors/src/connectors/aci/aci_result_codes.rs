@@ -1,4 +1,4 @@
-pub(super) const FAILURE_CODES: [&str; 501] = [
+pub(super) const FAILURE_CODES: [&str; 502] = [
     "100.370.100",
     "100.370.110",
     "100.370.111",
@@ -500,6 +500,7 @@ pub(super) const FAILURE_CODES: [&str; 501] = [
     "800.800.102",
     "800.800.202",
     "800.800.302",
+    "100.390.100",
 ];
 
 pub(super) const SUCCESSFUL_CODES: [&str; 16] = [

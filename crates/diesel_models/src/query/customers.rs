@@ -1,20 +1,14 @@
 use common_utils::id_type;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use diesel::BoolExpressionMethods;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use diesel::BoolExpressionMethods;
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
-// #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::errors;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    PgPooledConn, StorageResult,
+    errors, PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
@@ -26,11 +20,11 @@ impl CustomerNew {
 pub struct CustomerListConstraints {
     pub limit: i64,
     pub offset: Option<i64>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn update_by_id(
         conn: &PgPooledConn,
         id: id_type::GlobalCustomerId,
@@ -53,7 +47,7 @@ impl Customer {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
         conn: &PgPooledConn,
         id: &id_type::GlobalCustomerId,
@@ -61,22 +55,69 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            Some(constraints.limit),
-            constraints.offset,
-            Some(dsl::created_at),
-        )
-        .await
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::customer_id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        } else {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        constraints: CustomerListConstraints,
+    ) -> StorageResult<Vec<Self>> {
+        if let Some(customer_id) = constraints.customer_id {
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::merchant_reference_id.eq(customer_id));
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        } else {
+            let predicate = dsl::merchant_id.eq(merchant_id.clone());
+            generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+                conn,
+                predicate,
+                Some(constraints.limit),
+                constraints.offset,
+                Some(dsl::created_at),
+            )
+            .await
+        }
+    }
+
+    #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -91,7 +132,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -104,7 +145,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: id_type::CustomerId,
@@ -132,7 +173,7 @@ impl Customer {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -147,7 +188,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &id_type::CustomerId,
@@ -162,7 +203,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,

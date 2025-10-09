@@ -1,8 +1,6 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -26,7 +24,7 @@ use serde_json::Value;
 
 use super::behaviour;
 #[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
+use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
     router_data,
@@ -90,6 +88,109 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        self.metadata.clone()
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub enum MerchantConnectorAccountTypeDetails {
+    MerchantConnectorAccount(Box<MerchantConnectorAccount>),
+    MerchantConnectorDetails(common_types::domain::MerchantConnectorAuthDetails),
+}
+
+#[cfg(feature = "v2")]
+impl MerchantConnectorAccountTypeDetails {
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account
+                    .connector_account_details
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details
+                    .merchant_connector_creds
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.disabled.unwrap_or(false)
+            }
+            Self::MerchantConnectorDetails(_) => false,
+        }
+    }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.metadata.to_owned()
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.id.clone())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.get_id())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.connector_name)
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                Some(merchant_connector_details.connector_name)
+            }
+        }
+    }
+
+    pub fn get_connector_name_as_string(&self) -> String {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.connector_name.to_string()
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details.connector_name.to_string()
+            }
+        }
+    }
+
+    pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account)
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
     }
 }
 
@@ -167,6 +268,11 @@ impl MerchantConnectorAccount {
         self.connector_name.clone().to_string()
     }
 
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
+        self.connector_name
+    }
+
     pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
         &self,
         account_reference_id: String,
@@ -205,6 +311,7 @@ pub struct PaymentMethodsEnabledForConnector {
     pub payment_methods_enabled: common_types::payment_methods::RequestPaymentMethodTypes,
     pub payment_method: common_enums::PaymentMethod,
     pub connector: common_enums::connector_enums::Connector,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 #[cfg(feature = "v2")]
@@ -221,6 +328,12 @@ pub struct RevenueRecoveryMetadata {
     pub mca_reference: AccountReferenceMap,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ExternalVaultConnectorMetadata {
+    pub proxy_url: common_utils::types::Url,
+    pub certificate: Secret<String>,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone)]
 pub struct AccountReferenceMap {
@@ -279,29 +392,42 @@ impl FlattenedPaymentMethodsEnabled {
             .into_iter()
             .map(|connector| {
                 (
-                    connector.payment_methods_enabled.unwrap_or_default(),
+                    connector
+                        .payment_methods_enabled
+                        .clone()
+                        .unwrap_or_default(),
                     connector.connector_name,
+                    connector.get_id(),
                 )
             })
-            .flat_map(|(payment_method_enabled, connector_name)| {
-                payment_method_enabled
-                    .into_iter()
-                    .flat_map(move |payment_method| {
-                        let request_payment_methods_enabled =
-                            payment_method.payment_method_subtypes.unwrap_or_default();
-                        let length = request_payment_methods_enabled.len();
-                        request_payment_methods_enabled.into_iter().zip(
-                            std::iter::repeat((connector_name, payment_method.payment_method_type))
-                                .take(length),
-                        )
-                    })
-            })
+            .flat_map(
+                |(payment_method_enabled, connector, merchant_connector_id)| {
+                    payment_method_enabled
+                        .into_iter()
+                        .flat_map(move |payment_method| {
+                            let request_payment_methods_enabled =
+                                payment_method.payment_method_subtypes.unwrap_or_default();
+                            let length = request_payment_methods_enabled.len();
+                            request_payment_methods_enabled
+                                .into_iter()
+                                .zip(std::iter::repeat_n(
+                                    (
+                                        connector,
+                                        merchant_connector_id.clone(),
+                                        payment_method.payment_method_type,
+                                    ),
+                                    length,
+                                ))
+                        })
+                },
+            )
             .map(
-                |(request_payment_methods, (connector_name, payment_method))| {
+                |(request_payment_methods, (connector, merchant_connector_id, payment_method))| {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
-                        connector: connector_name,
+                        connector,
                         payment_method,
+                        merchant_connector_id,
                     }
                 },
             )

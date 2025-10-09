@@ -425,18 +425,18 @@ pub async fn update_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     key_id: &common_utils::id_type::ApiKeyId,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let store = state.store.as_ref();
 
     let api_key = store
-        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
+        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
     let revoked = store
-        .revoke_api_key(merchant_id, key_id)
+        .revoke_api_key(&merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 

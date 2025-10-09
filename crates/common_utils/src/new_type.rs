@@ -163,7 +163,7 @@ impl From<String> for MaskedUpiVpaId {
                 .take(unmasked_char_count)
                 .collect::<String>()
                 + &"*".repeat(user_identifier.len() - unmasked_char_count);
-            format!("{}@{}", masked_user_identifier, bank_or_psp)
+            format!("{masked_user_identifier}@{bank_or_psp}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
             masked_value
@@ -191,7 +191,7 @@ impl From<String> for MaskedEmail {
                 .take(unmasked_char_count)
                 .collect::<String>()
                 + &"*".repeat(user_identifier.len() - unmasked_char_count);
-            format!("{}@{}", masked_user_identifier, domain)
+            format!("{masked_user_identifier}@{domain}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
             masked_value

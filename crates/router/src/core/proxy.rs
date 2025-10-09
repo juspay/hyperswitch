@@ -3,7 +3,7 @@ use crate::{logger, routes::SessionState, services, types::domain};
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use common_utils::{
-    ext_traits::{BytesExt, Encode},
+    ext_traits::BytesExt,
     request::{self, RequestBuilder},
 };
 use error_stack::ResultExt;
@@ -16,29 +16,17 @@ pub async fn proxy_core(
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
-    let vault_id = req_wrapper
-        .get_vault_id(
+    let proxy_record = req_wrapper
+        .get_proxy_record(
             &state,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
 
-    let vault_response =
-        super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
-            &state,
-            &merchant_context,
-            &vault_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching data from vault")?;
-
-    let vault_data = vault_response
-        .data
-        .encode_to_value()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize vault data")?;
+    let vault_data = proxy_record
+        .get_vault_data(&state, merchant_context)
+        .await?;
 
     let processed_body =
         interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
@@ -91,7 +79,7 @@ fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> Router
     match vault_data {
         Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
             .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!("Field '{}' not found", field_name)),
+            .attach_printable(format!("Field '{field_name}' not found")),
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Vault data is not a valid JSON object"),
     }

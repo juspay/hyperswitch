@@ -140,6 +140,10 @@ where
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
                         i.error_reason.clone(),
+                        i.routing_approach.as_ref().map(|i| i.0.clone()),
+                        i.signature_network.clone(),
+                        i.is_issuer_regulated,
+                        i.is_debit_routed,
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

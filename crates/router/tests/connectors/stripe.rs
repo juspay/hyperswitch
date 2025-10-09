@@ -213,7 +213,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.reason.unwrap(), "Your card's expiration year is invalid.",);
+    assert_eq!(x.reason.unwrap(), "Your card's expiration year is invalid.");
 }
 
 #[actix_web::test]
@@ -232,7 +232,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.reason.unwrap(), "Your card's security code is invalid.",);
+    assert_eq!(x.reason.unwrap(), "Your card's security code is invalid.");
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).

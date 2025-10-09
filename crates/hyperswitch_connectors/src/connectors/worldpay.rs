@@ -164,6 +164,7 @@ impl ConnectorCommon for Worldpay {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -478,6 +479,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -798,7 +800,16 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
         let stage = match req.status {
             enums::AttemptStatus::DeviceDataCollectionPending => "3dsDeviceData".to_string(),
-            _ => "3dsChallenges".to_string(),
+            enums::AttemptStatus::AuthenticationPending => "3dsChallenges".to_string(),
+            _ => {
+                return Err(
+                    errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                        "Invalid payment status for complete authorize: {:?}",
+                        req.status
+                    ))
+                    .into(),
+                );
+            }
         };
         Ok(format!(
             "{}api/payments/{connector_payment_id}/{stage}",
@@ -1337,7 +1348,8 @@ static WORLDPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static WORLDPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay",
     description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static WORLDPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

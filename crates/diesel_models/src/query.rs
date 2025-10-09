@@ -21,6 +21,8 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod generics;
 pub mod gsm;
+pub mod hyperswitch_ai_interaction;
+pub mod invoice;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -39,6 +41,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod unified_translations;

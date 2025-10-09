@@ -30,6 +30,7 @@ pub struct RoutingAlgorithmMetadata {
     pub algorithm_for: enums::TransactionType,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoutingProfileMetadata {
     pub profile_id: id_type::ProfileId,
     pub algorithm_id: id_type::RoutingId,
@@ -39,4 +40,11 @@ pub struct RoutingProfileMetadata {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub algorithm_for: enums::TransactionType,
+}
+
+impl RoutingProfileMetadata {
+    pub fn metadata_is_advanced_rule_for_payments(&self) -> bool {
+        matches!(self.kind, enums::RoutingAlgorithmKind::Advanced)
+            && matches!(self.algorithm_for, enums::TransactionType::Payment)
+    }
 }

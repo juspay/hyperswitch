@@ -64,7 +64,8 @@ ALTER TABLE payment_intent DROP COLUMN payment_id,
     DROP COLUMN payment_confirm_source,
     DROP COLUMN merchant_order_reference_id,
     DROP COLUMN is_payment_processor_token_flow,
-    DROP COLUMN charges;
+    DROP COLUMN charges,
+    DROP COLUMN extended_return_url;
 
 -- Run below queries only when V1 is deprecated
 ALTER TABLE payment_attempt DROP COLUMN attempt_id,
@@ -92,7 +93,8 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN charge_id,
     DROP COLUMN issuer_error_code,
     DROP COLUMN issuer_error_message,
-    DROP COLUMN setup_future_usage_applied;
+    DROP COLUMN setup_future_usage_applied,
+    DROP COLUMN routing_approach;
 
 
 ALTER TABLE payment_methods
@@ -128,7 +130,3 @@ ALTER TABLE refund
     DROP COLUMN IF EXISTS internal_reference_id,
     DROP COLUMN IF EXISTS refund_id,
     DROP COLUMN IF EXISTS merchant_connector_id;
-
--- Run below queries only when V1 is deprecated
-ALTER TABLE routing_algorithm
-    DROP COLUMN IF EXISTS decision_engine_routing_id;

@@ -21,6 +21,7 @@ impl From<&app::SessionState> for KeyManagerState {
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: conf.ca.clone(),
+            infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
         }
     }
 }

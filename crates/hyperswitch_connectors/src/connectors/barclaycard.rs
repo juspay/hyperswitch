@@ -8,19 +8,23 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, PreProcessing,
+            Session, SetupMandate, Void,
+        },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -28,6 +32,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
@@ -51,14 +56,26 @@ use url::Url;
 use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::RefundsRequestData,
+    utils::{
+        convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
 
 #[derive(Clone)]
-pub struct Barclaycard;
+pub struct Barclaycard {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
 
+impl Barclaycard {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 impl Barclaycard {
     pub fn generate_digest(&self, payload: &[u8]) -> String {
         let payload_digest = digest::digest(&digest::SHA256, payload);
@@ -110,11 +127,13 @@ impl Barclaycard {
 
 impl api::Payment for Barclaycard {}
 impl api::PaymentSession for Barclaycard {}
+impl api::PaymentsPreProcessing for Barclaycard {}
 impl api::ConnectorAccessToken for Barclaycard {}
 impl api::MandateSetup for Barclaycard {}
 impl api::PaymentAuthorize for Barclaycard {}
 impl api::PaymentSync for Barclaycard {}
 impl api::PaymentCapture for Barclaycard {}
+impl api::PaymentsCompleteAuthorize for Barclaycard {}
 impl api::PaymentVoid for Barclaycard {}
 impl api::Refund for Barclaycard {}
 impl api::RefundExecute for Barclaycard {}
@@ -289,6 +308,7 @@ impl ConnectorCommon for Barclaycard {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             transformers::BarclaycardErrorResponse::AuthenticationError(response) => {
@@ -302,6 +322,7 @@ impl ConnectorCommon for Barclaycard {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
         }
@@ -323,6 +344,118 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
 }
 
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Barclaycard
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let redirect_response = req.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+        match redirect_response.params {
+            Some(param) if !param.clone().peek().is_empty() => Ok(format!(
+                "{}risk/v1/authentications",
+                self.base_url(connectors)
+            )),
+            Some(_) | None => Ok(format!(
+                "{}risk/v1/authentication-results",
+                self.base_url(connectors)
+            )),
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
+        let connector_req =
+            barclaycard::BarclaycardPreProcessingRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreProcessingRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: barclaycard::BarclaycardPreProcessingResponse = res
+            .response
+            .parse_struct("Barclaycard AuthEnrollmentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Barclaycard {
     fn get_headers(
         &self,
@@ -338,13 +471,20 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}pts/v2/payments",
-            ConnectorCommon::base_url(self, connectors)
-        ))
+        if req.is_three_ds() && req.request.is_card() {
+            Ok(format!(
+                "{}risk/v1/authentication-setups",
+                ConnectorCommon::base_url(self, connectors)
+            ))
+        } else {
+            Ok(format!(
+                "{}pts/v2/payments/",
+                ConnectorCommon::base_url(self, connectors)
+            ))
+        }
     }
 
     fn get_request_body(
@@ -352,15 +492,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
-        let connector_req =
-            barclaycard::BarclaycardPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
+
+        if req.is_three_ds() && req.request.is_card() {
+            let connector_req =
+                barclaycard::BarclaycardAuthSetupRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        } else {
+            let connector_req =
+                barclaycard::BarclaycardPaymentsRequest::try_from(&connector_router_data)?;
+            Ok(RequestContent::Json(Box::new(connector_req)))
+        }
     }
 
     fn build_request(
@@ -391,17 +539,31 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: barclaycard::BarclaycardPaymentsResponse = res
-            .response
-            .parse_struct("Barclaycard PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        if data.is_three_ds() && data.request.is_card() {
+            let response: barclaycard::BarclaycardAuthSetupResponse = res
+                .response
+                .parse_struct("Barclaycard AuthSetupResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        } else {
+            let response: barclaycard::BarclaycardPaymentsResponse = res
+                .response
+                .parse_struct("Barclaycard PaymentsAuthorizeResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
     }
 
     fn get_error_response(
@@ -446,6 +608,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -556,12 +719,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount_to_capture);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
         let connector_req =
             barclaycard::BarclaycardCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -641,6 +805,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -675,20 +840,21 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "currency",
                 })?,
-            req.request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
-                })?,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
         let connector_req = barclaycard::BarclaycardVoidRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -764,6 +930,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -798,12 +965,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Barclay
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.refund_amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
         let connector_req =
             barclaycard::BarclaycardRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -931,6 +1099,134 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Barclayca
     }
 }
 
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Barclaycard
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}pts/v2/payments/",
+            ConnectorCommon::base_url(self, connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
+            req.request.currency,
+        )?;
+        let connector_router_data = barclaycard::BarclaycardRouterData::try_from((amount, req))?;
+
+        let connector_req =
+            barclaycard::BarclaycardPaymentsRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCompleteAuthorizeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: barclaycard::BarclaycardPaymentsResponse = res
+            .response
+            .parse_struct("Barclaycard PaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: barclaycard::BarclaycardServerErrorResponse = res
+            .response
+            .parse_struct("BarclaycardServerErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(error_response=?response);
+
+        let attempt_status = match response.reason {
+            Some(reason) => match reason {
+                transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+                transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+            },
+            None => None,
+        };
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response
+                .status
+                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or(hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Barclaycard {
     fn get_webhook_object_reference_id(
@@ -988,7 +1284,7 @@ static BARCLAYCARD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -1003,16 +1299,38 @@ static BARCLAYCARD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            three_ds: common_enums::FeatureStatus::Supported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network,
+                            supported_card_networks: supported_card_network.clone(),
                         }
                     }),
                 ),
+            },
+        );
+
+        barclaycard_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        barclaycard_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
             },
         );
 
@@ -1022,7 +1340,8 @@ static BARCLAYCARD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
 static BARCLAYCARD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "BarclayCard SmartPay Fuse",
     description: "Barclaycard, part of Barclays Bank UK PLC, is a leading global payment business that helps consumers, retailers and businesses to make and take payments flexibly, and to access short-term credit and point of sale finance.",
-    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    connector_type: enums::HyperswitchConnectorCategory::BankAcquirer,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static BARCLAYCARD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

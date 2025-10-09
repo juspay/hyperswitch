@@ -17,12 +17,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(feature = "v1")]
-use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
 };
+#[cfg(feature = "v1")]
+use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -112,6 +112,10 @@ pub struct MerchantAccountCreate {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountRequestType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountRequestType>,
 }
 
 #[cfg(feature = "v1")]
@@ -287,6 +291,10 @@ pub struct ExternalVaultConnectorDetails {
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// External vault to be used for storing payment method information
+    #[schema(value_type = Option<VaultSdk>)]
+    pub vault_sdk: Option<common_enums::VaultSdk>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -654,6 +662,9 @@ pub struct MerchantDetails {
 
     /// The merchant's address details
     pub address: Option<AddressDetails>,
+
+    #[schema(value_type = Option<String>, example = "123456789")]
+    pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -694,6 +705,57 @@ pub struct WebhookDetails {
     /// If this property is true, a webhook message is posted whenever a payment fails
     #[schema(example = true)]
     pub payment_failed_enabled: Option<bool>,
+
+    /// List of payment statuses that triggers a webhook for payment intents
+    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
+    pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
+
+    /// List of refund statuses that triggers a webhook for refunds
+    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
+
+    /// List of payout statuses that triggers a webhook for payouts
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
+    pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+}
+
+impl WebhookDetails {
+    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    where
+        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: Into<Option<api_enums::EventType>>,
+    {
+        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+
+        for status in statuses {
+            if !valid_statuses.contains(status) {
+                return Err(format!(
+                    "Invalid {status_type_name} webhook status provided: {status:?}"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(payment_statuses) = &self.payment_statuses_enabled {
+            Self::validate_statuses(payment_statuses, "payment")?;
+        }
+
+        if let Some(refund_statuses) = &self.refund_statuses_enabled {
+            Self::validate_statuses(refund_statuses, "refund")?;
+        }
+
+        #[cfg(feature = "payouts")]
+        {
+            if let Some(payout_statuses) = &self.payout_statuses_enabled {
+                Self::validate_statuses(payout_statuses, "payout")?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -993,21 +1055,122 @@ pub struct RevenueRecoveryMetadata {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
+    /// IBAN-based account for international transfers
     Iban {
-        #[schema(value_type= String)]
+        /// International Bank Account Number (up to 34 characters)
+        #[schema(value_type = String)]
         iban: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    /// UK BACS payment system
     Bacs {
-        #[schema(value_type= String)]
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+
+        /// 6-digit UK sort code
+        #[schema(value_type = String, example = "123456")]
         sort_code: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    /// UK Faster Payments (instant transfers)
+    FasterPayments {
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
+        account_number: Secret<String>,
+        /// 6-digit UK sort code
+        #[schema(value_type = String)]
+        sort_code: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA payments (Euro zone)
+    Sepa {
+        /// IBAN for SEPA transfers
+        #[schema(value_type = String, example = "FR1420041010050500013M02606")]
+        iban: Secret<String>,
+        /// Account holder name
+        name: String,
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA Instant payments (10-second transfers)
+    SepaInstant {
+        /// IBAN for instant SEPA transfers
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Polish Elixir payment system
+    Elixir {
+        /// Polish account number (26 digits)
+        #[schema(value_type = String, example = "12345678901234567890123456")]
+        account_number: Secret<String>,
+
+        /// Polish IBAN (28 chars)
+        #[schema(value_type = String, example = "PL27114020040000300201355387")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Bankgiro system
+    Bankgiro {
+        /// Bankgiro number (7-8 digits)
+        #[schema(value_type = String, example = "5402-9656")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Erik Andersson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Plusgiro system
+    Plusgiro {
+        /// Plusgiro number (2-8 digits)
+        #[schema(value_type = String, example = "4789-2")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Anna Larsson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
@@ -1050,7 +1213,9 @@ pub enum ConnectorAuthType {
         auth_key_map: HashMap<common_enums::Currency, pii::SecretSerdeValue>,
     },
     CertificateAuth {
+        // certificate should be base64 encoded
         certificate: Secret<String>,
+        // private_key should be base64 encoded
         private_key: Secret<String>,
     },
     #[default]
@@ -1554,6 +1719,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub apple_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Amazon Pay certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub amazon_pay: Option<pii::SecretSerdeValue>,
     /// This field contains the Samsung Pay certificates and credentials
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
@@ -2007,10 +2176,44 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check  for new disputes
+    #[schema(value_type = Option<i32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[nutype::nutype(
@@ -2145,6 +2348,7 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2152,6 +2356,25 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -2315,6 +2538,47 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Acquirer configs
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check dispute statuses
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2457,6 +2721,7 @@ pub struct ProfileResponse {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2464,6 +2729,30 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = SplitTxnsEnabled, default = "skip")]
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -2552,6 +2841,11 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
@@ -2614,11 +2908,45 @@ pub struct ProfileUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Time interval (in hours) for polling the connector to check for new disputes
+    #[schema(value_type = Option<u32>, example = 2)]
+    pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
+
+    /// Indicates if manual retry for payment is enabled or not
+    pub is_manual_retry_enabled: Option<bool>,
+
+    /// Bool indicating if overcapture  must be requested for all payments
+    #[schema(value_type = Option<bool>)]
+    pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
+
+    /// Indicates if external vault is enabled or not.
+    #[schema(value_type = Option<ExternalVaultEnabled>, example = "Enable")]
+    pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2751,6 +3079,30 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code.
+    /// This is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.
+    /// Merchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.
+    /// It is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.
+    #[schema(value_type = Option<MerchantCountryCode>, example = "840")]
+    pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+
+    /// Indicates the state of revenue recovery algorithm type
+    #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
+    pub revenue_recovery_retry_algorithm_type:
+        Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
+
+    /// Enable split payments, i.e., split the amount between multiple payment methods
+    #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
+    pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Merchant Connector id to be stored for billing_processor connector
+    #[schema(value_type = Option<String>)]
+    pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2958,6 +3310,8 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3055,6 +3409,8 @@ pub struct PaymentLinkConfig {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

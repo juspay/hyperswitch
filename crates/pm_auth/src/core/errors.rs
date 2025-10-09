@@ -10,8 +10,9 @@ pub enum ConnectorError {
     ResponseDeserializationFailed,
     #[error("Failed to encode connector request")]
     RequestEncodingFailed,
+    #[error("Invalid connector configuration: {config}")]
+    InvalidConnectorConfig { config: &'static str },
 }
-
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]

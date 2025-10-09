@@ -287,6 +287,7 @@ impl
                         acs_trans_id: Some(response_auth.acs_trans_id.clone()),
                         three_dsserver_trans_id: Some(response_auth.three_ds_server_trans_id),
                         acs_signed_content: None,
+                        challenge_request_key: None,
                     }))
                 } else {
                     AuthNFlowType::Frictionless
@@ -294,6 +295,11 @@ impl
                 authentication_value: response_auth.authentication_value,
                 ds_trans_id: Some(response_auth.ds_trans_id),
                 connector_metadata: None,
+                eci: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
             });
         Ok(Self {
             response,

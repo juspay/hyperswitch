@@ -45,7 +45,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(*self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -61,7 +61,7 @@ where
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, D>> {
         Ok(self)
     }
     fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
@@ -159,7 +159,7 @@ where
     F: Clone + Send,
     D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
@@ -173,7 +173,7 @@ where
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,

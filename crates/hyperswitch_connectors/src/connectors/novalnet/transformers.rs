@@ -111,6 +111,7 @@ pub struct NovalnetRawCardDetails {
     card_number: CardNumber,
     card_expiry_month: Secret<String>,
     card_expiry_year: Secret<String>,
+    scheme_tid: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -163,7 +164,6 @@ pub struct NovalnetPaymentsRequestTransaction {
     error_return_url: Option<String>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
     create_token: Option<i8>,
-    scheme_tid: Option<Secret<String>>, // Card network's transaction ID
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -276,7 +276,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(novalnet_card),
                         enforce_3d,
                         create_token,
-                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -292,7 +291,15 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         let novalnet_google_pay: NovalNetPaymentData =
                             NovalNetPaymentData::GooglePay(NovalnetGooglePay {
                                 wallet_data: Secret::new(
-                                    req_wallet.tokenization_data.token.clone(),
+                                    req_wallet
+                                        .tokenization_data
+                                        .get_encrypted_google_pay_token()
+                                        .change_context(
+                                            errors::ConnectorError::MissingRequiredField {
+                                                field_name: "gpay wallet_token",
+                                            },
+                                        )?
+                                        .clone(),
                                 ),
                             });
 
@@ -308,7 +315,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             payment_data: Some(novalnet_google_pay),
                             enforce_3d,
                             create_token,
-                            scheme_tid: None,
                         };
 
                         Ok(Self {
@@ -334,7 +340,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             })),
                             enforce_3d: None,
                             create_token,
-                            scheme_tid: None,
                         };
 
                         Ok(Self {
@@ -347,7 +352,11 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     WalletDataPaymentMethod::AliPayQr(_)
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                    | WalletDataPaymentMethod::AmazonPay(_)
                     | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                    | WalletDataPaymentMethod::Paysera(_)
+                    | WalletDataPaymentMethod::Skrill(_)
+                    | WalletDataPaymentMethod::BluecodeRedirect {}
                     | WalletDataPaymentMethod::MomoRedirect(_)
                     | WalletDataPaymentMethod::KakaoPayRedirect(_)
                     | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -378,7 +387,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             payment_data: None,
                             enforce_3d: None,
                             create_token,
-                            scheme_tid: None,
                         };
                         Ok(Self {
                             merchant,
@@ -437,7 +445,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     payment_data: Some(novalnet_mandate_data),
                     enforce_3d,
                     create_token: None,
-                    scheme_tid: None,
                 };
 
                 Ok(Self {
@@ -456,6 +463,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             card_number: raw_card_details.card_number.clone(),
                             card_expiry_month: raw_card_details.card_exp_month.clone(),
                             card_expiry_year: raw_card_details.card_exp_year.clone(),
+                            scheme_tid: network_transaction_id.into(),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -470,7 +478,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(novalnet_card),
                         enforce_3d,
                         create_token,
-                        scheme_tid: Some(network_transaction_id.into()),
                     };
 
                     Ok(Self {
@@ -599,6 +606,7 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 
@@ -679,7 +687,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             }
                         })),
                         connector_metadata: None,
-                        network_txn_id: None,
+                        network_txn_id: item.response.transaction.and_then(|data| {
+                            data.payment_data
+                                .and_then(|payment_data| match payment_data {
+                                    NovalnetResponsePaymentData::Card(card) => {
+                                        card.scheme_tid.map(|tid| tid.expose())
+                                    }
+                                    NovalnetResponsePaymentData::Paypal(_) => None,
+                                })
+                        }),
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
@@ -770,6 +786,7 @@ pub struct NovalnetResponseCard {
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
     pub token: Option<Secret<String>>,
+    pub scheme_tid: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -1081,7 +1098,15 @@ impl<F>
                             }
                         })),
                         connector_metadata: None,
-                        network_txn_id: None,
+                        network_txn_id: item.response.transaction.and_then(|data| {
+                            data.payment_data
+                                .and_then(|payment_data| match payment_data {
+                                    NovalnetResponsePaymentData::Card(card) => {
+                                        card.scheme_tid.map(|tid| tid.expose())
+                                    }
+                                    NovalnetResponsePaymentData::Paypal(_) => None,
+                                })
+                        }),
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charges: None,
@@ -1531,7 +1556,6 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                     payment_data: Some(novalnet_card),
                     enforce_3d,
                     create_token,
-                    scheme_tid: None,
                 };
 
                 Ok(Self {
@@ -1546,7 +1570,15 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 WalletDataPaymentMethod::GooglePay(ref req_wallet) => {
                     let novalnet_google_pay: NovalNetPaymentData =
                         NovalNetPaymentData::GooglePay(NovalnetGooglePay {
-                            wallet_data: Secret::new(req_wallet.tokenization_data.token.clone()),
+                            wallet_data: Secret::new(
+                                req_wallet
+                                    .tokenization_data
+                                    .get_encrypted_google_pay_token()
+                                    .change_context(errors::ConnectorError::MissingRequiredField {
+                                        field_name: "gpay wallet_token",
+                                    })?
+                                    .clone(),
+                            ),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -1561,7 +1593,6 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         payment_data: Some(novalnet_google_pay),
                         enforce_3d,
                         create_token,
-                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -1586,7 +1617,6 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         })),
                         enforce_3d: None,
                         create_token,
-                        scheme_tid: None,
                     };
 
                     Ok(Self {
@@ -1599,7 +1629,11 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 WalletDataPaymentMethod::AliPayQr(_)
                 | WalletDataPaymentMethod::AliPayRedirect(_)
                 | WalletDataPaymentMethod::AliPayHkRedirect(_)
+                | WalletDataPaymentMethod::AmazonPay(_)
                 | WalletDataPaymentMethod::AmazonPayRedirect(_)
+                | WalletDataPaymentMethod::Paysera(_)
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::MomoRedirect(_)
                 | WalletDataPaymentMethod::KakaoPayRedirect(_)
                 | WalletDataPaymentMethod::GoPayRedirect(_)
@@ -1629,7 +1663,6 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         payment_data: None,
                         enforce_3d: None,
                         create_token,
-                        scheme_tid: None,
                     };
 
                     Ok(Self {

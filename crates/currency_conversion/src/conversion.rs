@@ -49,10 +49,7 @@ mod tests {
         let sample_rate = ExchangeRates::new(base_currency, conversion);
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
-        );
+        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
     }
 
     #[test]
@@ -71,10 +68,7 @@ mod tests {
         let sample_rate = ExchangeRates::new(base_currency, conversion);
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
-        );
+        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
     }
 
     #[test]
@@ -93,9 +87,6 @@ mod tests {
         let sample_rate = ExchangeRates::new(base_currency, conversion);
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
-        println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
-        );
+        println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
     }
 }

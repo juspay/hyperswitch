@@ -1,3 +1,4 @@
+pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
@@ -156,6 +157,8 @@ pub enum WebhooksFlowError {
     OutgoingWebhookRetrySchedulingFailed,
     #[error("Outgoing webhook response encoding failed")]
     OutgoingWebhookResponseEncodingFailed,
+    #[error("ID generation failed")]
+    IdGenerationFailed,
 }
 
 impl WebhooksFlowError {
@@ -173,7 +176,8 @@ impl WebhooksFlowError {
             | Self::DisputeWebhookValidationFailed
             | Self::OutgoingWebhookEncodingFailed
             | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
-            | Self::OutgoingWebhookRetrySchedulingFailed => true,
+            | Self::OutgoingWebhookRetrySchedulingFailed
+            | Self::IdGenerationFailed => true,
         }
     }
 }
@@ -384,8 +388,12 @@ pub enum RoutingError {
     OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
+    #[error("Decision engine responded with validation error: {0}")]
+    DecisionEngineValidationError(String),
     #[error("Invalid transaction type")]
     InvalidTransactionType,
+    #[error("Routing events error: {message}, status code: {status_code}")]
+    RoutingEventsError { message: String, status_code: u16 },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -481,6 +489,8 @@ pub enum RevenueRecoveryError {
     BillingConnectorPaymentsSyncFailed,
     #[error("Billing connector invoice sync call failed")]
     BillingConnectorInvoiceSyncFailed,
+    #[error("Failed to fetch connector customer ID")]
+    CustomerIdNotFound,
     #[error("Failed to get the retry count for payment intent")]
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
@@ -491,4 +501,6 @@ pub enum RevenueRecoveryError {
     RetryAlgorithmUpdationFailed,
     #[error("Failed to create the revenue recovery attempt data")]
     RevenueRecoveryAttemptDataCreateFailed,
+    #[error("Failed to insert the revenue recovery payment method data in redis")]
+    RevenueRecoveryRedisInsertFailed,
 }

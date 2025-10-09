@@ -1,32 +1,47 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, str::FromStr};
 
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
+    mandates::MandateData,
     payment_address::PaymentAddress,
-    payments::HeaderPayload,
+    payments::{HeaderPayload, PaymentIntentData},
     router_data::{PaymentMethodToken, RouterData},
+    router_data_v2::{flow_common_types::VaultConnectorFlowData, RouterDataV2},
+    router_flow_types::ExternalVaultCreateFlow,
     router_request_types::CustomerDetails,
+    types::{VaultRouterData, VaultRouterDataV2},
 };
-use router_env::{instrument, tracing};
+use hyperswitch_interfaces::{
+    api::Connector as ConnectorTrait,
+    connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+};
+use masking::ExposeInterface;
+use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
-            call_multiple_connectors_service,
+            self as payments_core, call_multiple_connectors_service,
             flows::{ConstructFlowSpecificData, Feature},
-            operations,
+            helpers, helpers as payment_helpers, operations,
             operations::{BoxedOperation, Operation},
-            transformers, OperationSessionGetters, OperationSessionSetters,
+            transformers, vault_session, OperationSessionGetters, OperationSessionSetters,
         },
+        utils as core_utils,
     },
+    db::errors::ConnectorErrorExt,
     errors::RouterResponse,
     routes::{app::ReqState, SessionState},
-    services,
-    types::{self as router_types, api, domain},
+    services::{self, connector_integration_interface::RouterDataConversion},
+    types::{
+        self as router_types,
+        api::{self, enums as api_enums, ConnectorCommon},
+        domain, storage,
+    },
+    utils::{OptionExt, ValueExt},
 };
 
 #[cfg(feature = "v2")]
@@ -142,6 +157,18 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    vault_session::populate_vault_session_details(
+        state,
+        req_state.clone(),
+        &customer,
+        &merchant_context,
+        &operation,
+        &profile,
+        &mut payment_data,
+        header_payload.clone(),
+    )
+    .await?;
 
     let connector = operation
         .to_domain()?

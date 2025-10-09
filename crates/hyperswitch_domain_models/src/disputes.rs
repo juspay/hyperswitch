@@ -62,8 +62,8 @@ impl
                     return Err(error_stack::Report::new(
                         errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                             message: format!(
-                                "Access not available for the given profile_id {:?}",
-                                profile_id_from_request_body
+                                "Access not available for the given profile_id {profile_id_from_request_body:?}",
+
                             ),
                         },
                     ));

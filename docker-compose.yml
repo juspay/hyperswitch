@@ -11,6 +11,8 @@ services:
   prestart-hook:
     image: curlimages/curl-base:latest
     container_name: prestart-hook
+    environment:
+      - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
     entrypoint:
       [
         "/bin/sh",
@@ -29,7 +31,7 @@ services:
     networks:
       - router_net
     volumes:
-      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+      - pg_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
@@ -55,11 +57,14 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: rust:latest
+    image: debian:trixie-slim
+    pull_policy: always
     command: >
       bash -c "
-      curl -fsSL https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash &&
-      cargo binstall diesel_cli just --no-confirm &&
+      apt-get update && apt-get install -y curl xz-utils &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
+      curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin &&
+      export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
       just migrate"
     working_dir: /app
     networks:
@@ -69,7 +74,7 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
-  
+
   mailhog:
     image: mailhog/mailhog
     networks:
@@ -107,23 +112,6 @@ services:
       retries: 3
       start_period: 5s
       timeout: 5s
-
-  poststart-hook:
-    image: curlimages/curl-base:latest
-    container_name: poststart-hook
-    depends_on:
-      hyperswitch-server:
-        condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh",
-      ]
-    volumes:
-      - ./scripts/poststart_hook.sh:/poststart_hook.sh
-    networks:
-      - router_net
 
   hyperswitch-producer:
     image: docker.juspay.io/juspaydotin/hyperswitch-producer:standalone
@@ -213,8 +201,10 @@ services:
       - "9000:9000"
     environment:
       - configPath=/tmp/dashboard-config.toml
+      - themeConfigPath=/tmp/dashboard-theme.json
     volumes:
       - ./config/dashboard.toml:/tmp/dashboard-config.toml
+      - ./config/dashboard_theme.json:/tmp/dashboard-theme.json
     depends_on:
       hyperswitch-server:
         condition: service_healthy
@@ -222,6 +212,49 @@ services:
         condition: service_started
     labels:
       logs: "promtail"
+
+  create-default-user:
+    image: curlimages/curl-base:latest
+    container_name: create-default-user
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+      hyperswitch-control-center:
+        condition: service_started
+    environment:
+      - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
+      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "apk add --no-cache bash jq && /bin/bash /create_default_user.sh",
+      ]
+    volumes:
+      - ./scripts/create_default_user.sh:/create_default_user.sh
+    networks:
+      - router_net
+
+  poststart-hook:
+    image: curlimages/curl-base:latest
+    container_name: poststart-hook
+    depends_on:
+      create-default-user:
+        condition: service_completed_successfully
+      hyperswitch-server:
+        condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
+    environment:
+      - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "apk add --no-cache bash jq && /bin/bash /poststart_hook.sh",
+      ]
+    volumes:
+      - ./scripts/poststart_hook.sh:/poststart_hook.sh
+    networks:
+      - router_net
 
   ### Clustered Redis setup
   redis-cluster:

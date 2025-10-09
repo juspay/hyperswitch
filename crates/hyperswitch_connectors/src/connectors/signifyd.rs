@@ -26,7 +26,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
@@ -157,6 +159,7 @@ impl ConnectorCommon for Signifyd {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -721,4 +724,23 @@ impl IncomingWebhook for Signifyd {
     }
 }
 
-impl ConnectorSpecifications for Signifyd {}
+static SYGNIFYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Signifyd",
+    description: "Signifyd fraud and risk management provider with AI-driven commerce protection platform for maximizing conversions and eliminating fraud risk with guaranteed fraud liability coverage",
+    connector_type: common_enums::HyperswitchConnectorCategory::FraudAndRiskManagementProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Signifyd {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&SYGNIFYD_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

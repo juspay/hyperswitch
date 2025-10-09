@@ -42,8 +42,8 @@ fn build_test_data(
                 accepted_countries: None,
                 minimum_amount: Some(MinorUnit::new(10)),
                 maximum_amount: Some(MinorUnit::new(1000)),
-                recurring_enabled: true,
-                installment_payment_enabled: true,
+                recurring_enabled: Some(true),
+                installment_payment_enabled: Some(true),
             });
         }
 

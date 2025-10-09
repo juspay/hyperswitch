@@ -3,12 +3,7 @@
 //! This module provides types and functions for handling tokenized payment data,
 //! including response structures and token generation utilities.
 
-use common_enums::ApiVersion;
-use diesel;
-use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
-
-use crate::{consts::TOKEN_LENGTH, id_type::GlobalTokenId};
+use crate::consts::TOKEN_LENGTH;
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 /// Generates a new token string

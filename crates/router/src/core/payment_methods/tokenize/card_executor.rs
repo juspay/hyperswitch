@@ -268,8 +268,8 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             card: card_detail_from_locker,
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
             created: Some(payment_method.created_at),
             last_used_at: Some(payment_method.last_used_at),
@@ -358,6 +358,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
                     phone_country_code: customer.phone_country_code.clone(),
+                    tax_registration_id: customer
+                        .tax_registration_id
+                        .clone()
+                        .map(|tax_registration_id| tax_registration_id.into_inner()),
                 }))
             },
         )
@@ -387,6 +391,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .clone()
                         .map(|email| email.expose().switch_strategy()),
                     phone: self.customer.phone.clone(),
+                    tax_registration_id: self.customer.tax_registration_id.clone(),
                 },
             )),
             Identifier::Merchant(self.merchant_account.get_id().clone()),
@@ -425,6 +430,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             default_payment_method_id: None,
             updated_by: None,
             version: common_types::consts::API_VERSION,
+            tax_registration_id: encryptable_customer.tax_registration_id,
         };
 
         db.insert_customer(
@@ -450,6 +456,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             email: self.customer.email.clone(),
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
+            tax_registration_id: self.customer.tax_registration_id.clone(),
         })
     }
 
@@ -589,6 +596,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             network_token_details.1.clone(),
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
+            Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
         )
         .await
     }

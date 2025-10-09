@@ -58,14 +58,13 @@ pub fn get_payment_body(
                     <dts:SubmitSinglePayment>
                         <dts:trnXML>
                             <![CDATA[
-                                {}
+                                {transaction_data}
                             ]]>
                         </dts:trnXML>
                     </dts:SubmitSinglePayment>
                 </soapenv:Body>
             </soapenv:Envelope>
         "#,
-        transaction_data
     );
 
     Ok(body.as_bytes().to_vec())
@@ -349,6 +348,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -507,6 +507,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -672,6 +673,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -956,6 +958,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })

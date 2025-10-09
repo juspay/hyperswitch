@@ -4,16 +4,16 @@ pub mod payment_intents;
 pub mod refunds;
 pub mod setup_intents;
 pub mod webhooks;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use actix_web::{web, Scope};
 pub mod errors;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::routes;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub struct StripeApis;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl StripeApis {
     pub fn server(state: routes::AppState) -> Scope {
         let max_depth = 10;

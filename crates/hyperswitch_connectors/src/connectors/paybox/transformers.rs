@@ -1,4 +1,3 @@
-use api_models::payments::AdditionalPaymentData;
 use bytes::Bytes;
 use common_enums::enums;
 use common_utils::{
@@ -25,7 +24,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, CardData as _, PaymentsAuthorizeRequestData,
+        self, AddressDetailsData, CardData as _, CardMandateInfo, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, RouterData as _,
     },
 };
@@ -65,12 +64,6 @@ pub enum PayboxPaymentsRequest {
     Card(PaymentsRequest),
     CardThreeDs(ThreeDSPaymentsRequest),
     Mandate(MandatePaymentRequest),
-}
-
-#[derive(Debug, Serialize)]
-pub struct CardMandateInfo {
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -468,12 +461,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                 }
             }
             PaymentMethodData::MandatePayment => {
-                let mandate_data = extract_card_mandate_info(
-                    item.router_data
-                        .request
-                        .additional_payment_method_data
-                        .clone(),
-                )?;
+                let mandate_data = item.router_data.request.get_card_mandate_info()?;
                 Ok(Self::Mandate(MandatePaymentRequest::try_from((
                     item,
                     mandate_data,
@@ -481,29 +469,6 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
-    }
-}
-
-fn extract_card_mandate_info(
-    additional_payment_method_data: Option<AdditionalPaymentData>,
-) -> Result<CardMandateInfo, Error> {
-    match additional_payment_method_data {
-        Some(AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
-            card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_month",
-                }
-            })?,
-            card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
-                }
-            })?,
-        }),
-        _ => Err(errors::ConnectorError::MissingRequiredFields {
-            field_names: vec!["card_exp_month", "card_exp_year"],
-        }
-        .into()),
     }
 }
 
@@ -718,6 +683,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -779,6 +745,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         }),
                         ..item.data
                     }),
@@ -811,6 +778,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -857,6 +825,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -948,6 +917,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -982,6 +952,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),
@@ -1054,6 +1025,7 @@ impl<F>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             }),

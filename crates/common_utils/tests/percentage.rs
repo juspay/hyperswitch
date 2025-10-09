@@ -107,17 +107,16 @@ fn deserialization_test_ok() -> Result<(), Box<dyn std::error::Error + Send + Sy
         let json_string = format!(
             r#"
             {{
-                "percentage" : {}.{}
+                "percentage" : {integer}.{decimal}
             }}
         "#,
-            integer, decimal
         );
         let percentage = serde_json::from_str::<Percentage<PRECISION_2>>(&json_string);
         assert!(percentage.is_ok());
         if let Ok(percentage) = percentage {
             assert_eq!(
                 percentage.get_percentage(),
-                format!("{}.{}", integer, decimal)
+                format!("{integer}.{decimal}")
                     .parse::<f32>()
                     .unwrap_or_default()
             )

@@ -10,6 +10,8 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
+    pub(crate) const MERCHANTID: &str = "MerchantID";
+    pub(crate) const MERCHANT_TOKEN: &str = "MerchantToken";
     pub(crate) const REQUEST_ID: &str = "request-id";
     pub(crate) const NONCE: &str = "nonce";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
@@ -33,6 +35,7 @@ pub(crate) mod headers {
     pub(crate) const KEY: &str = "key";
     pub(crate) const X_SIGNATURE: &str = "X-Signature";
     pub(crate) const SOAP_ACTION: &str = "SOAPAction";
+    pub(crate) const X_PROFILE_ID: &str = "X-Profile-Id";
 }
 
 /// Unsupported response type error message
@@ -55,3 +58,5 @@ pub(crate) const CANNOT_CONTINUE_AUTH: &str =
 
 #[cfg(feature = "payouts")]
 pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
+
+pub(crate) const PLAN_ITEM_TYPE: &str = "plan";

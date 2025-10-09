@@ -1,4 +1,5 @@
 use strum::VariantNames;
+use utoipa::ToSchema;
 
 use crate::enums::collect_variants;
 pub use crate::enums::{
@@ -54,7 +55,9 @@ pub enum PayLaterType {
     Klarna,
     PayBright,
     Walley,
+    Flexiti,
     Atome,
+    Breadpay,
 }
 
 #[derive(
@@ -73,8 +76,11 @@ pub enum PayLaterType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum WalletType {
+    Bluecode,
     GooglePay,
     AmazonPay,
+    Skrill,
+    Paysera,
     ApplePay,
     Paypal,
     AliPay,
@@ -218,6 +224,9 @@ pub enum BankTransferType {
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
+    IndonesianBankTransfer,
 }
 
 #[derive(
@@ -238,6 +247,7 @@ pub enum BankTransferType {
 pub enum GiftCardType {
     PaySafeCard,
     Givex,
+    BhnCardNetwork,
 }
 
 #[derive(
@@ -396,6 +406,7 @@ pub enum RewardType {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -417,6 +428,7 @@ pub enum CustomerDevicePlatform {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -440,6 +452,7 @@ pub enum CustomerDeviceType {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

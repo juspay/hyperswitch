@@ -11,7 +11,7 @@ impl utils::Connector for BankofamericaTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bankofamerica;
         utils::construct_connector_data_old(
-            Box::new(&Bankofamerica),
+            Box::new(Bankofamerica::new()),
             // Remove `dummy_connector` feature gate from module in `main.rs` when updating this to use actual connector variant
             types::Connector::DummyConnector1,
             types::api::GetToken::Connector,

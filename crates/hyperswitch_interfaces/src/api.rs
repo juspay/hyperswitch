@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod subscriptions;
+pub mod subscriptions_v2;
 pub mod vault;
 pub mod vault_v2;
 
@@ -37,17 +39,20 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    configs::Connectors,
+    connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
+        RouterData,
+    },
     router_data_v2::{
-        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
-        UasFlowData,
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
-        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
@@ -55,7 +60,8 @@ use hyperswitch_domain_models::{
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
         },
-        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+        AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
@@ -75,8 +81,8 @@ pub use self::payouts::*;
 pub use self::payouts_v2::*;
 pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
+    api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -87,6 +93,7 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + webhooks::IncomingWebhook
     + ConnectorAccessToken
+    + ConnectorAuthenticationToken
     + disputes::Dispute
     + files::FileUpload
     + ConnectorTransactionId
@@ -99,6 +106,7 @@ pub trait Connector:
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
     + ExternalVault
+    + Subscriptions
 {
 }
 
@@ -109,6 +117,7 @@ impl<
             + Send
             + webhooks::IncomingWebhook
             + ConnectorAccessToken
+            + ConnectorAuthenticationToken
             + disputes::Dispute
             + files::FileUpload
             + ConnectorTransactionId
@@ -120,7 +129,8 @@ impl<
             + TaxCalculation
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
-            + ExternalVault,
+            + ExternalVault
+            + Subscriptions,
     > Connector for T
 {
 }
@@ -271,6 +281,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -362,6 +373,7 @@ pub trait ConnectorCommon {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -381,6 +393,74 @@ pub trait ConnectorSpecifications {
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
+    }
+
+    /// Check if connector should make another request to create an access token
+    /// Connectors should override this method if they require an authentication token to create a new access token
+    fn authentication_token_for_token_creation(&self) -> bool {
+        false
+    }
+
+    /// Check if connector should make another request to create an customer
+    /// Connectors should override this method if they require to create a connector customer
+    fn should_call_connector_customer(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> bool {
+        false
+    }
+
+    /// Whether SDK session token generation is enabled for this connector
+    fn is_sdk_client_token_generation_enabled(&self) -> bool {
+        false
+    }
+
+    /// Payment method types that support SDK session token generation
+    fn supported_payment_method_types_for_sdk_client_token_generation(
+        &self,
+    ) -> Vec<PaymentMethodType> {
+        vec![]
+    }
+
+    /// Validate if SDK session token generation is allowed for given payment method type
+    fn validate_sdk_session_token_for_payment_method(
+        &self,
+        current_core_payment_method_type: &PaymentMethodType,
+    ) -> bool {
+        self.is_sdk_client_token_generation_enabled()
+            && self
+                .supported_payment_method_types_for_sdk_client_token_generation()
+                .contains(current_core_payment_method_type)
+    }
+
+    #[cfg(not(feature = "v2"))]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        // Send payment_id if config is enabled for a merchant, else send attempt_id
+        if is_config_enabled_to_send_payment_id_as_connector_request_id {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            payment_attempt.attempt_id.to_owned()
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
     }
 }
 
@@ -411,6 +491,27 @@ pub trait ConnectorMandateRevokeV2:
     MandateRevokeFlowData,
     MandateRevokeRequestData,
     MandateRevokeResponseData,
+>
+{
+}
+
+/// trait ConnectorAuthenticationToken
+pub trait ConnectorAuthenticationToken:
+    ConnectorIntegration<
+    AccessTokenAuthentication,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
+>
+{
+}
+
+/// trait ConnectorAuthenticationTokenV2
+pub trait ConnectorAuthenticationTokenV2:
+    ConnectorIntegrationV2<
+    AccessTokenAuthentication,
+    AuthenticationTokenFlowData,
+    AccessTokenAuthenticationRequestData,
+    AccessTokenAuthenticationResponse,
 >
 {
 }
@@ -601,7 +702,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         let connector = self.id();
         match pm_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -678,7 +779,7 @@ fn get_connector_payment_method_type_info(
         .map(|pmt| {
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
-                    message: format!("{} {}", payment_method, pmt),
+                    message: format!("{payment_method} {pmt}"),
                     connector,
                 }
                 .into()
@@ -692,7 +793,7 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     /// fn connector_transaction_id
     fn connector_transaction_id(
         &self,
-        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         Ok(payment_attempt
             .get_connector_payment_id()

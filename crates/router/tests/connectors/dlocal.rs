@@ -18,7 +18,7 @@ impl utils::Connector for DlocalTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Dlocal;
         utils::construct_connector_data_old(
-            Box::new(&Dlocal),
+            Box::new(Dlocal::new()),
             types::Connector::Dlocal,
             api::GetToken::Connector,
             None,
@@ -302,7 +302,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
+    assert_eq!(x.message, "Invalid parameter");
     assert_eq!(x.reason, Some("card.number".to_string()));
 }
 
@@ -323,7 +323,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
+    assert_eq!(x.message, "Invalid parameter");
     assert_eq!(x.reason, Some("card.cvv".to_string()));
 }
 
@@ -344,7 +344,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
+    assert_eq!(x.message, "Invalid parameter");
     assert_eq!(x.reason, Some("card.expiration_month".to_string()));
 }
 
@@ -365,7 +365,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
+    assert_eq!(x.message, "Invalid parameter");
     assert_eq!(x.reason, Some("card.expiration_year".to_string()));
 }
 
@@ -384,7 +384,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .unwrap();
     let x = void_response.response.unwrap_err();
-    assert_eq!(x.code, "5021",);
+    assert_eq!(x.code, "5021");
     assert_eq!(x.message, "Acquirer could not process the request");
 }
 
@@ -396,7 +396,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     let x = capture_response.response.unwrap_err();
-    assert_eq!(x.code, "3003",);
+    assert_eq!(x.code, "3003");
 }
 
 // Refunds a payment with refund amount higher than payment amount.
@@ -416,8 +416,8 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let x = response.response.unwrap_err();
     println!("response from refund amount higher payment");
     println!("{}", x.code);
-    assert_eq!(x.code, "5007",);
-    assert_eq!(x.message, "Amount exceeded",);
+    assert_eq!(x.code, "5007");
+    assert_eq!(x.message, "Amount exceeded");
 }
 
 pub fn get_payment_info() -> PaymentInfo {
@@ -436,6 +436,7 @@ pub fn get_payment_info() -> PaymentInfo {
                     state: None,
                     first_name: None,
                     last_name: None,
+                    origin_zip: None,
                 }),
                 email: None,
             }),

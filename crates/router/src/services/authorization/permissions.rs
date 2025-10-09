@@ -43,6 +43,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
         },
+        Subscription: {
+            scopes: [Read, Write],
+            entities: [Profile, Merchant]
+        },
         ThreeDsDecisionManager: {
             scopes: [Read, Write],
             entities: [Merchant, Profile]
@@ -102,6 +106,10 @@ generate_permissions! {
         InternalConnector: {
             scopes: [Write],
             entities: [Merchant]
+        },
+        Theme: {
+            scopes: [Read,Write],
+            entities: [Organization]
         }
     ]
 }
@@ -119,6 +127,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
             Some("Payment Processors, Payout Processors, Fraud & Risk Managers")
         }
         (Resource::Routing, _) => Some("Routing"),
+        (Resource::Subscription, _) => Some("Subscription"),
         (Resource::RevenueRecovery, _) => Some("Revenue Recovery"),
         (Resource::ThreeDsDecisionManager, _) => Some("3DS Decision Manager"),
         (Resource::SurchargeDecisionManager, _) => Some("Surcharge Decision Manager"),
@@ -137,6 +146,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
+        (Resource::Theme, _) => Some("Themes"),
         (Resource::InternalConnector, _) => None,
     }
 }
@@ -146,4 +156,16 @@ pub fn get_scope_name(scope: PermissionScope) -> &'static str {
         PermissionScope::Read => "View",
         PermissionScope::Write => "View and Manage",
     }
+}
+
+pub fn filter_resources_by_entity_type(
+    resources: Vec<Resource>,
+    entity_type: EntityType,
+) -> Option<Vec<Resource>> {
+    let filtered: Vec<Resource> = resources
+        .into_iter()
+        .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+        .collect();
+
+    (!filtered.is_empty()).then_some(filtered)
 }

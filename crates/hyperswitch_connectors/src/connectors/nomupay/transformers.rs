@@ -385,7 +385,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
         match payout_type {
             Some(common_enums::PayoutType::Bank) => Ok(Self {
                 account_id: nomupay_auth_type.eid,
-                client_sub_account_id: Secret::new(request.payout_id),
+                client_sub_account_id: Secret::new(item.connector_request_reference_id.clone()),
                 profile,
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -449,7 +449,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                     })
                 }
                 other_bank => Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?} is not supported", other_bank),
+                    message: format!("{other_bank:?} is not supported"),
                     connector: "nomupay",
                 }
                 .into()),
@@ -498,7 +498,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, FloatMajorUnit)> for NomupayPaymentReque
         Ok(Self {
             source_id: nomupay_auth_type.eid,
             destination_id: Secret::new(destination),
-            payment_reference: item.request.clone().payout_id,
+            payment_reference: item.connector_request_reference_id.clone(),
             amount,
             currency_code: item.request.destination_currency,
             purpose: PURPOSE_OF_PAYMENT_IS_OTHER.to_string(),

@@ -46,12 +46,18 @@ pub enum ParsingError {
     /// Failed to parse i64 value for f64 value conversion
     #[error("Failed to parse i64 value for f64 value conversion")]
     I64ToDecimalConversionFailure,
+    /// Failed to parse i64 value for String value conversion
+    #[error("Failed to parse i64 value for String value conversion")]
+    I64ToStringConversionFailure,
     /// Failed to parse String value to Decimal value conversion because `error`
     #[error("Failed to parse String value to Decimal value conversion because {error}")]
     StringToDecimalConversionFailure { error: String },
     /// Failed to convert the given integer because of integer overflow error
     #[error("Integer Overflow error")]
     IntegerOverflow,
+    /// Failed to parse url
+    #[error("Failed to parse url")]
+    UrlParsingError,
 }
 
 /// Validation errors.
@@ -101,6 +107,9 @@ pub enum CryptoError {
     /// The provided IV length is invalid for the cryptographic algorithm
     #[error("Invalid IV length")]
     InvalidIvLength,
+    /// The provided authentication tag length is invalid for the cryptographic algorithm
+    #[error("Invalid authentication tag length")]
+    InvalidTagLength,
 }
 
 /// Errors for Qr code handling

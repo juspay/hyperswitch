@@ -338,7 +338,7 @@ where
         }
 
         if let Some(segments) = segments.first() {
-            write!(f, "{}.**.**.**", segments)
+            write!(f, "{segments}.**.**.**")
         } else {
             #[cfg(feature = "logs")]
             logger::error!("Invalid IP address: {val_str}");

@@ -216,7 +216,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
             amount: request.amount,
             currency: request.destination_currency,
             destination: connector_customer_id,
-            transfer_group: request.payout_id,
+            transfer_group: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -441,6 +441,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via wallets are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into())
+            }
+            api_models::payouts::PayoutMethodData::BankRedirect(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payouts via BankRedirect are not supported".to_string(),
                     connector: "stripe",
                 }
                 .into())

@@ -188,6 +188,7 @@ impl ConnectorCommon for Helcim {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -901,7 +902,8 @@ static HELCIM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Helcim",
         description:
             "Helcim is a payment processing company that offers transparent, affordable merchant services for businesses of all sizes",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static HELCIM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
@@ -924,7 +926,7 @@ impl ConnectorTransactionId for Helcim {
     #[cfg(feature = "v1")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         if payment_attempt.get_connector_payment_id().is_none() {
             let metadata =
@@ -940,7 +942,7 @@ impl ConnectorTransactionId for Helcim {
     #[cfg(feature = "v2")]
     fn connector_transaction_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> Result<Option<String>, ApiErrorResponse> {
         use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 

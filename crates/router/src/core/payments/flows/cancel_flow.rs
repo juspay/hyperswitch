@@ -10,26 +10,11 @@ use crate::{
     services,
     types::{self, api, domain},
 };
-
+#[cfg(feature = "v1")]
 #[async_trait]
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
-    #[cfg(feature = "v2")]
-    async fn construct_router_data<'a>(
-        &self,
-        _state: &SessionState,
-        _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
-        _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccount,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsCancelRouterData> {
-        todo!()
-    }
-
-    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -39,6 +24,8 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Void,
@@ -52,18 +39,38 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
+}
+#[cfg(feature = "v2")]
+#[async_trait]
+impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::payments::PaymentCancelData<api::Void>
+{
+    async fn construct_router_data<'a>(
         &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
+        state: &SessionState,
+        connector_id: &str,
+        merchant_context: &domain::MerchantContext,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        Box::pin(transformers::construct_router_data_for_cancel(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_context,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
     }
 }
 
@@ -79,7 +86,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
@@ -113,8 +120,14 @@ impl Feature<api::Void, types::PaymentsCancelData>
         merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            merchant_context,
+            self,
+            creds_identifier,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(

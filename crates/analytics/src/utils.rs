@@ -24,6 +24,7 @@ pub fn get_payment_dimensions() -> Vec<NameDescription> {
         PaymentDimensions::ProfileId,
         PaymentDimensions::CardNetwork,
         PaymentDimensions::MerchantId,
+        PaymentDimensions::RoutingApproach,
     ]
     .into_iter()
     .map(Into::into)
@@ -52,6 +53,27 @@ pub fn get_auth_event_dimensions() -> Vec<NameDescription> {
         AuthEventDimensions::AuthenticationConnector,
         AuthEventDimensions::MessageVersion,
         AuthEventDimensions::AcsReferenceNumber,
+        AuthEventDimensions::Platform,
+        AuthEventDimensions::Mcc,
+        AuthEventDimensions::Currency,
+        AuthEventDimensions::MerchantCountry,
+        AuthEventDimensions::BillingCountry,
+        AuthEventDimensions::ShippingCountry,
+        AuthEventDimensions::IssuerCountry,
+        AuthEventDimensions::IssuerId,
+        AuthEventDimensions::EarliestSupportedVersion,
+        AuthEventDimensions::LatestSupportedVersion,
+        AuthEventDimensions::WhitelistDecision,
+        AuthEventDimensions::DeviceManufacturer,
+        AuthEventDimensions::DeviceType,
+        AuthEventDimensions::DeviceBrand,
+        AuthEventDimensions::DeviceOs,
+        AuthEventDimensions::DeviceDisplay,
+        AuthEventDimensions::BrowserName,
+        AuthEventDimensions::BrowserVersion,
+        AuthEventDimensions::SchemeName,
+        AuthEventDimensions::ExemptionRequested,
+        AuthEventDimensions::ExemptionAccepted,
     ]
     .into_iter()
     .map(Into::into)

@@ -13,7 +13,11 @@ use super::errors::StorageErrorExt;
 use crate::{
     core::{errors::ApiErrorResponse, payments as payments_core},
     routes::SessionState,
-    types::{self as core_types, api, domain, storage},
+    types::{
+        self as core_types, api,
+        domain::{self},
+        storage,
+    },
     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
 };
 
@@ -99,14 +103,14 @@ pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    authentication_id: String,
+    authentication_id: common_utils::id_type::AuthenticationId,
     payment_id: &common_utils::id_type::PaymentId,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
 > {
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
+        utils::get_authentication_connector_data(state, key_store, &business_profile, None).await?;
     let is_pull_mechanism_enabled =
         check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             three_ds_connector_account
@@ -117,11 +121,16 @@ pub async fn perform_post_authentication(
         .store
         .find_authentication_by_merchant_id_authentication_id(
             &business_profile.merchant_id,
-            authentication_id.clone(),
+            &authentication_id,
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+        .attach_printable_lazy(|| {
+            format!(
+                "Error while fetching authentication record with authentication_id {}",
+                authentication_id.get_string_repr()
+            )
+        })?;
 
     let authentication_update = if !authentication.authentication_status.is_terminal_status()
         && is_pull_mechanism_enabled
@@ -147,7 +156,7 @@ pub async fn perform_post_authentication(
     // getting authentication value from temp locker before moving ahead with authrisation
     let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
         state,
-        &authentication_id,
+        authentication_id.get_string_repr(),
         false,
         key_store.key.get_inner(),
     )
@@ -175,12 +184,14 @@ pub async fn perform_pre_authentication(
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: common_utils::id_type::PaymentId,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
 > {
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+        utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
     let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,
@@ -194,6 +205,8 @@ pub async fn perform_pre_authentication(
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while finding mca_id from merchant_connector_account")?,
         organization_id,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
     )
     .await?;
 
