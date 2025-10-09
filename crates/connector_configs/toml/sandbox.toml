@@ -1405,6 +1405,8 @@ payment_method_type = "UnionPay"
   payment_method_type = "apple_pay"
 [[braintree.wallet]]
   payment_method_type = "google_pay"
+[[braintree.wallet]]
+  payment_method_type = "paypal"
 [braintree.connector_webhook_details]
 merchant_secret = "Source verification key"
 
@@ -1453,6 +1455,9 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+
+[braintree.metadata.paypal_sdk]
+client_id="Client ID"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -7264,7 +7269,6 @@ label = "Site where transaction is initiated"
 placeholder = "Enter site where transaction is initiated"
 required = true
 type = "Text"
-
 [gigadat_payout]
 [gigadat_payout.connector_auth.SignatureKey]
 api_key = "Access Token"
@@ -7280,8 +7284,28 @@ required = true
 type = "Text"
 
 [finix]
-[finix.connector_auth.HeaderKey]
-api_key = "API Key"
+[finix.connector_auth.SignatureKey]
+api_key = "Username"
+api_secret = "Password"
+key1 = "Merchant Id"
+[[finix.credit]]
+payment_method_type = "Mastercard"
+[[finix.credit]]
+payment_method_type = "Visa"
+[[finix.credit]]
+payment_method_type = "AmericanExpress"
+[[finix.credit]]
+payment_method_type = "Discover"
+[[finix.credit]]
+payment_method_type = "JCB"
+[[finix.credit]]
+payment_method_type = "DinersClub"
+[[finix.credit]]
+payment_method_type = "UnionPay"
+[[finix.credit]]
+payment_method_type = "Interac"
+[[finix.credit]]
+payment_method_type = "Maestro"
 
 
 [loonio]
