@@ -1150,7 +1150,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         profile_id: old_tracking_data.profile_id.clone(),
         global_payment_id: old_tracking_data.global_payment_id.clone(),
         billing_mca_id: old_tracking_data.billing_mca_id.clone(),
-        invoice_scheduled_time: old_tracking_data.invoice_scheduled_time.clone(),
+        invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)
