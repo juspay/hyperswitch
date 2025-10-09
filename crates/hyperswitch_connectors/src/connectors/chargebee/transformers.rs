@@ -1036,6 +1036,7 @@ impl<F, T>
                 currency: estimate.subscription_estimate.currency_code,
                 next_billing_at: estimate.subscription_estimate.next_billing_at,
                 credits_applied: Some(estimate.invoice_estimate.credits_applied),
+                customer_id: Some(estimate.invoice_estimate.customer_id),
                 line_items: estimate
                     .invoice_estimate
                     .line_items
@@ -1215,6 +1216,7 @@ impl
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeSubscriptionEstimateRequest {
+    #[serde(rename = "subscription_items[item_price_id][0]")]
     pub price_id: String,
 }
 
@@ -1248,12 +1250,13 @@ pub struct ChargebeePlanPriceItem {
     pub period: i64,
     pub period_unit: ChargebeePeriodUnit,
     pub trial_period: Option<i64>,
-    pub trial_period_unit: ChargebeeTrialPeriodUnit,
+    pub trial_period_unit: Option<ChargebeeTrialPeriodUnit>,
     pub price: MinorUnit,
     pub pricing_model: ChargebeePricingModel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePricingModel {
     FlatFee,
     PerUnit,
@@ -1263,6 +1266,7 @@ pub enum ChargebeePricingModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeePeriodUnit {
     Day,
     Week,
@@ -1271,6 +1275,7 @@ pub enum ChargebeePeriodUnit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChargebeeTrialPeriodUnit {
     Day,
     Month,
@@ -1308,8 +1313,9 @@ impl<F, T>
                 interval_count: prices.item_price.period,
                 trial_period: prices.item_price.trial_period,
                 trial_period_unit: match prices.item_price.trial_period_unit {
-                    ChargebeeTrialPeriodUnit::Day => Some(subscriptions::PeriodUnit::Day),
-                    ChargebeeTrialPeriodUnit::Month => Some(subscriptions::PeriodUnit::Month),
+                    Some(ChargebeeTrialPeriodUnit::Day) => Some(subscriptions::PeriodUnit::Day),
+                    Some(ChargebeeTrialPeriodUnit::Month) => Some(subscriptions::PeriodUnit::Month),
+                    None => None,
                 },
             })
             .collect();
@@ -1347,8 +1353,8 @@ pub struct SubscriptionEstimate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvoiceEstimate {
     pub recurring: bool,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date: Option<PrimitiveDateTime>,
     pub price_type: String,
     pub sub_total: MinorUnit,
     pub total: MinorUnit,
@@ -1357,7 +1363,7 @@ pub struct InvoiceEstimate {
     pub amount_due: MinorUnit,
     /// type of the object will be `invoice_estimate`
     pub object: String,
-    pub customer_id: String,
+    pub customer_id: CustomerId,
     pub line_items: Vec<LineItem>,
     pub currency_code: enums::Currency,
     pub round_off_amount: MinorUnit,
@@ -1366,10 +1372,10 @@ pub struct InvoiceEstimate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineItem {
     pub id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date_from: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub date_to: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_from: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub date_to: Option<PrimitiveDateTime>,
     pub unit_amount: MinorUnit,
     pub quantity: i64,
     pub amount: MinorUnit,

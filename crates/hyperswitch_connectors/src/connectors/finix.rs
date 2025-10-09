@@ -583,7 +583,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-
         let connector_router_data = finix::FinixRouterData::try_from((amount, req))?;
         let connector_req = finix::FinixCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -627,7 +626,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            finix::FinixFlow::Transfer,
+            finix::FinixFlow::Capture,
         )
     }
 

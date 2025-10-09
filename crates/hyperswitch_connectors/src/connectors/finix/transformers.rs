@@ -28,7 +28,10 @@ pub use response::*;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{self, AddressDetailsData, CardData, RouterData as _},
+    utils::{
+        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        RouterData as _,
+    },
 };
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
@@ -140,6 +143,15 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("finix"),
+            )
+            .into());
+        }
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
                 let source = item.router_data.get_payment_method_token()?;
@@ -200,7 +212,7 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
         item: &FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            capture_amount: item.router_data.request.minor_amount_to_capture,
         })
     }
 }
@@ -332,12 +344,16 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         (FinixFlow::Auth, FinixState::CANCELED) | (FinixFlow::Auth, FinixState::UNKNOWN) => {
             AttemptStatus::AuthorizationFailed
         }
-
-        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::CaptureInitiated,
+        (FinixFlow::Transfer, FinixState::PENDING) => AttemptStatus::Pending,
         (FinixFlow::Transfer, FinixState::SUCCEEDED) => AttemptStatus::Charged,
         (FinixFlow::Transfer, FinixState::FAILED)
         | (FinixFlow::Transfer, FinixState::CANCELED)
-        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::CaptureFailed,
+        | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
+        (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::FAILED)
+        | (FinixFlow::Capture, FinixState::CANCELED)
+        | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,
     }
 }
 
@@ -373,7 +389,12 @@ pub(crate) fn get_finix_response<F, T>(
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    router_data
+                        .response
+                        .transfer
+                        .unwrap_or(router_data.response.id),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,

@@ -5,6 +5,7 @@ use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
         InvoiceRecordBackData, SubscriptionCreateData, SubscriptionCustomerData,
     },
     router_request_types::{
@@ -19,7 +20,10 @@ use hyperswitch_domain_models::{
 
 use super::errors;
 use crate::{
-    core::payments as payments_core, routes::SessionState, services, types::api as api_types,
+    core::{payments as payments_core, subscription::subscription_types},
+    routes::SessionState,
+    services,
+    types::api as api_types,
 };
 
 pub struct BillingHandler {
@@ -27,7 +31,7 @@ pub struct BillingHandler {
     pub connector_data: api_types::ConnectorData,
     pub connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub customer: hyperswitch_domain_models::customer::Customer,
+    pub customer: Option<hyperswitch_domain_models::customer::Customer>,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
@@ -37,7 +41,7 @@ impl BillingHandler {
         state: &SessionState,
         merchant_account: &hyperswitch_domain_models::merchant_account::MerchantAccount,
         key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-        customer: hyperswitch_domain_models::customer::Customer,
+        customer: Option<hyperswitch_domain_models::customer::Customer>,
         profile: hyperswitch_domain_models::business_profile::Profile,
     ) -> errors::RouterResult<Self> {
         let merchant_connector_id = profile.get_billing_processor_id()?;
@@ -109,8 +113,15 @@ impl BillingHandler {
         billing_address: Option<api_models::payments::Address>,
         payment_method_data: Option<api_models::payments::PaymentMethodData>,
     ) -> errors::RouterResult<ConnectorCustomerResponseData> {
+        let customer =
+            self.customer
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer",
+                })?;
+
         let customer_req = ConnectorCustomerData {
-            email: self.customer.email.clone().map(pii::Email::from),
+            email: customer.email.clone().map(pii::Email::from),
             payment_method_data: payment_method_data.clone().map(|pmd| pmd.into()),
             description: None,
             phone: None,
@@ -165,7 +176,7 @@ impl BillingHandler {
     pub async fn create_subscription_on_connector(
         &self,
         state: &SessionState,
-        subscription: diesel_models::subscription::Subscription,
+        subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
         billing_address: Option<api_models::payments::Address>,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
@@ -268,6 +279,126 @@ impl BillingHandler {
                 code: err.code,
                 message: err.message,
                 connector: self.connector_data.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+    pub async fn get_subscription_estimate(
+        &self,
+        state: &SessionState,
+        estimate_request: subscription_types::EstimateSubscriptionQuery,
+    ) -> errors::RouterResult<subscription_response_types::GetSubscriptionEstimateResponse> {
+        let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
+            price_id: estimate_request.item_price_id.clone(),
+        };
+
+        let router_data = self.build_router_data(
+            state,
+            estimate_req,
+            GetSubscriptionEstimateData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = Box::pin(self.call_connector(
+            state,
+            router_data,
+            "get subscription estimate from connector",
+            connector_integration,
+        ))
+        .await?;
+
+        match response {
+            Ok(response_data) => Ok(response_data),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+    pub async fn get_subscription_plans(
+        &self,
+        state: &SessionState,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> errors::RouterResult<subscription_response_types::GetSubscriptionPlansResponse> {
+        let get_plans_request =
+            subscription_request_types::GetSubscriptionPlansRequest::new(limit, offset);
+
+        let router_data = self.build_router_data(
+            state,
+            get_plans_request,
+            GetSubscriptionPlansData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "get subscription plans",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(resp) => Ok(resp),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string().clone(),
+                status_code: err.status_code,
+                reason: err.reason,
+            }
+            .into()),
+        }
+    }
+
+    pub async fn get_subscription_plan_prices(
+        &self,
+        state: &SessionState,
+        plan_price_id: String,
+    ) -> errors::RouterResult<subscription_response_types::GetSubscriptionPlanPricesResponse> {
+        let get_plan_prices_request =
+            subscription_request_types::GetSubscriptionPlanPricesRequest { plan_price_id };
+
+        let router_data = self.build_router_data(
+            state,
+            get_plan_prices_request,
+            GetSubscriptionPlanPricesData {
+                connector_meta_data: self.connector_metadata.clone(),
+            },
+        )?;
+
+        let connector_integration = self.connector_data.connector.get_connector_integration();
+
+        let response = self
+            .call_connector(
+                state,
+                router_data,
+                "get subscription plan prices",
+                connector_integration,
+            )
+            .await?;
+
+        match response {
+            Ok(resp) => Ok(resp),
+            Err(err) => Err(errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: self.connector_data.connector_name.to_string().clone(),
                 status_code: err.status_code,
                 reason: err.reason,
             }
