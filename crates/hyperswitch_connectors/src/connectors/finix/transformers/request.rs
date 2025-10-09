@@ -18,7 +18,7 @@ pub struct FinixPaymentsRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixCaptureRequest {
-    pub amount: MinorUnit,
+    pub capture_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

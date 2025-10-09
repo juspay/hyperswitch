@@ -583,7 +583,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-
         let connector_router_data = finix::FinixRouterData::try_from((amount, req))?;
         let connector_req = finix::FinixCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -619,6 +618,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Finix PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("{:?} auuuuutttttt", res.response);
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         finix::get_finix_response(

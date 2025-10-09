@@ -163,7 +163,7 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
         item: &FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            capture_amount: item.router_data.request.minor_amount_to_capture,
         })
     }
 }
@@ -310,7 +310,12 @@ pub(crate) fn get_finix_response<F, T>(
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(router_data.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    router_data
+                        .response
+                        .transfer
+                        .unwrap_or(router_data.response.id),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
