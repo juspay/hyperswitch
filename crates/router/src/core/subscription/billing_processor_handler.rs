@@ -241,7 +241,10 @@ impl BillingHandler {
             currency,
             payment_method_type,
             attempt_status: payment_status,
-            merchant_reference_id: invoice_id,
+            merchant_reference_id: common_utils::id_type::PaymentReferenceId::from_str(invoice_id.get_string_repr())
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "invoice_id",
+                })?,
             connector_params: self.connector_params.clone(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
                 payment_id.get_string_repr().to_string(),
