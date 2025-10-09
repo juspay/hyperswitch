@@ -2648,7 +2648,7 @@ async fn subscription_incoming_webhook_flow(
         .attach_printable("No payment method found for subscription")?;
 
     logger::info!("Payment method ID found: {}", payment_method_id);
-    
+
     let payment_id = generate_id(consts::ID_LENGTH, "pay");
     let payment_id = common_utils::id_type::PaymentId::wrap(payment_id).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
