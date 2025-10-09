@@ -5,6 +5,7 @@ use api_models::{
     subscription::{self as subscription_types, SubscriptionResponse, SubscriptionStatus},
 };
 use common_enums::connector_enums;
+use common_utils::{consts, ext_traits::OptionExt};
 use diesel_models::subscription::SubscriptionNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -18,7 +19,7 @@ use crate::{
     core::{errors::StorageErrorExt, subscription::invoice_handler::InvoiceHandler},
     db::CustomResult,
     routes::SessionState,
-    types::domain,
+    types::{domain, transformers::ForeignTryFrom},
 };
 
 pub struct SubscriptionHandler<'a> {
@@ -122,6 +123,60 @@ impl<'a> SubscriptionHandler<'a> {
             })
     }
 
+    pub async fn find_and_validate_subscription(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+    ) -> errors::RouterResult<()> {
+        let subscription_id = client_secret.get_subscription_id()?;
+
+        let subscription = self
+            .state
+            .store
+            .find_by_merchant_id_subscription_id(
+                self.merchant_context.get_merchant_account().get_id(),
+                subscription_id.to_string(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!("Subscription not found for id: {subscription_id}"),
+            })
+            .attach_printable("Unable to find subscription")?;
+
+        self.validate_client_secret(client_secret, &subscription)?;
+
+        Ok(())
+    }
+
+    pub fn validate_client_secret(
+        &self,
+        client_secret: &hyperswitch_domain_models::subscription::ClientSecret,
+        subscription: &diesel_models::subscription::Subscription,
+    ) -> errors::RouterResult<()> {
+        let stored_client_secret = subscription
+            .client_secret
+            .clone()
+            .get_required_value("client_secret")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "client_secret",
+            })
+            .attach_printable("client secret not found in db")?;
+
+        if client_secret.to_string() != stored_client_secret {
+            Err(errors::ApiErrorResponse::ClientSecretInvalid.into())
+        } else {
+            let current_timestamp = common_utils::date_time::now();
+            let session_expiry = subscription
+                .created_at
+                .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
+
+            if current_timestamp > session_expiry {
+                Err(errors::ApiErrorResponse::ClientSecretExpired.into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
     pub async fn find_subscription(
         &self,
         subscription_id: common_utils::id_type::SubscriptionId,
@@ -172,31 +227,16 @@ impl SubscriptionWithHandler<'_> {
             price_id: None,
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
-            invoice: Some(subscription_types::Invoice {
-                id: invoice.id.clone(),
-                subscription_id: invoice.subscription_id.clone(),
-                merchant_id: invoice.merchant_id.clone(),
-                profile_id: invoice.profile_id.clone(),
-                merchant_connector_id: invoice.merchant_connector_id.clone(),
-                payment_intent_id: invoice.payment_intent_id.clone(),
-                payment_method_id: invoice.payment_method_id.clone(),
-                customer_id: invoice.customer_id.clone(),
-                amount: invoice.amount,
-                currency: api_enums::Currency::from_str(invoice.currency.as_str())
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "currency",
-                    })
-                    .attach_printable(format!(
-                        "unable to parse currency name {currency:?}",
-                        currency = invoice.currency
-                    ))?,
-                status: invoice.status.clone(),
-            }),
+            invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
         })
     }
 
-    pub fn to_subscription_response(&self) -> SubscriptionResponse {
-        SubscriptionResponse::new(
+    pub fn to_subscription_response(
+        &self,
+        payment: Option<subscription_types::PaymentResponseData>,
+        invoice: Option<&diesel_models::invoice::Invoice>,
+    ) -> errors::RouterResult<SubscriptionResponse> {
+        Ok(SubscriptionResponse::new(
             self.subscription.id.clone(),
             self.subscription.merchant_reference_id.clone(),
             SubscriptionStatus::from_str(&self.subscription.status)
@@ -206,7 +246,15 @@ impl SubscriptionWithHandler<'_> {
             self.subscription.merchant_id.to_owned(),
             self.subscription.client_secret.clone().map(Secret::new),
             self.subscription.customer_id.clone(),
-        )
+            payment,
+            invoice
+                .map(
+                    |invoice| -> errors::RouterResult<subscription_types::Invoice> {
+                        subscription_types::Invoice::foreign_try_from(invoice)
+                    },
+                )
+                .transpose()?,
+        ))
     }
 
     pub async fn update_subscription(
@@ -312,5 +360,32 @@ impl SubscriptionWithHandler<'_> {
                 }
             }
         }
+    }
+}
+
+impl ForeignTryFrom<&diesel_models::invoice::Invoice> for subscription_types::Invoice {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(invoice: &diesel_models::invoice::Invoice) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: invoice.id.clone(),
+            subscription_id: invoice.subscription_id.clone(),
+            merchant_id: invoice.merchant_id.clone(),
+            profile_id: invoice.profile_id.clone(),
+            merchant_connector_id: invoice.merchant_connector_id.clone(),
+            payment_intent_id: invoice.payment_intent_id.clone(),
+            payment_method_id: invoice.payment_method_id.clone(),
+            customer_id: invoice.customer_id.clone(),
+            amount: invoice.amount,
+            currency: api_enums::Currency::from_str(invoice.currency.as_str())
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "currency",
+                })
+                .attach_printable(format!(
+                    "unable to parse currency name {currency:?}",
+                    currency = invoice.currency
+                ))?,
+            status: invoice.status.clone(),
+        })
     }
 }
