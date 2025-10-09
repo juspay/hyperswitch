@@ -86,10 +86,6 @@ pub struct SepaBankDebitAdditionalData {
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
-
-    /// Date of Birth of the customer in the format of YYYY-MM-DD
-    #[schema(value_type = Option<String>, example = "1992-06-10")]
-    pub dob: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

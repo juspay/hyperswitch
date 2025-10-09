@@ -457,14 +457,13 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         BankDebitData::SepaGuarenteedBankDebit {
                             iban,
                             bank_account_holder_name,
-                            dob,
                         } => {
                             let account_holder = match bank_account_holder_name {
                                 Some(name) => name.clone(),
                                 None => item.router_data.get_billing_full_name()?,
                             };
 
-                            (iban, account_holder, Some(dob))
+                            (iban, account_holder, Some(String::from("1992-06-10")))
                         }
                         _ => {
                             return Err(
@@ -485,7 +484,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                         payment_data: Some(NovalNetPaymentData::Sepa(NovalnetSepaDebit {
                             account_holder: account_holder.clone(),
                             iban: iban.clone(),
-                            birth_date: dob.cloned(),
+                            birth_date: dob,
                         })),
                         enforce_3d,
                         create_token,
