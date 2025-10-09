@@ -415,7 +415,7 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let retry_limit_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+        let monthly_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
             let mut accumulated_retries = 0;
         
             // Iterate from most recent to oldest
