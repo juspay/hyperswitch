@@ -504,7 +504,7 @@ fn extract_webhook_event_object(
                         }
                         _ => {
                             // Convert UCS webhook content to appropriate format
-                            serde_json::to_value(webhook_content)
+                            serde_json::to_value(&webhook_content)
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to serialize UCS webhook content")?
                         }
@@ -655,7 +655,7 @@ async fn process_webhook_business_logic(
                     _ => {
                         // Convert UCS webhook content to appropriate format
                         Box::new(
-                            serde_json::to_value(webhook_content)
+                            serde_json::to_value(&webhook_content)
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to serialize UCS webhook content")?,
                         )
@@ -996,11 +996,8 @@ async fn payments_incoming_webhook_flow(
         match webhook_transform_data.as_ref() {
             Some(transform_data) => {
                 if transform_data.is_transformation_complete {
-                    // Serialize the transform data to pass to UCS handler
-                    let transform_data_bytes = serde_json::to_vec(transform_data.as_ref())
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to serialize UCS webhook transform data")?;
-                    payments::CallConnectorAction::UCSConsumeResponse(transform_data_bytes)
+                    // Consume response from UCS
+                    payments::CallConnectorAction::UCSConsumeResponse(resource_object)
                 } else {
                     // Make a second call to UCS
                     payments::CallConnectorAction::UCSHandleResponse(resource_object)

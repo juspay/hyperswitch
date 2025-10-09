@@ -4251,10 +4251,10 @@ where
         if matches!(
             call_connector_action,
             CallConnectorAction::UCSHandleResponse(_)
-        ) || !matches!(
+        ) || matches!(
             call_connector_action,
             CallConnectorAction::UCSConsumeResponse(_)
-        ) && !matches!(
+        ) || !matches!(
             call_connector_action,
             CallConnectorAction::HandleResponse(_),
         ) && should_call_unified_connector_service(
