@@ -88,7 +88,7 @@ impl Customer {
             let start_time = time_range.start_time;
             let end_time = time_range
                 .end_time
-                .unwrap_or_else(|| common_utils::date_time::now());
+                .unwrap_or_else(common_utils::date_time::now);
             let predicate = dsl::merchant_id
                 .eq(merchant_id.clone())
                 .and(dsl::created_at.between(start_time, end_time));
