@@ -415,25 +415,25 @@ impl RedisTokenManager {
 
         let total_30_day_retries = Self::calculate_total_30_day_retries(token, today);
 
-        let monthly_wait_hours = if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
-            let mut accumulated_retries = 0;
-        
-            // Iterate from most recent to oldest
-            (0..RETRY_WINDOW_DAYS)
-                .map(|days_ago| today - Duration::days(days_ago.into()))
-                .find(|date| {
-                    let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
-                    accumulated_retries += retries;
-                    accumulated_retries >= card_network_config.max_retry_count_for_thirty_day
-                })
-                .map(|breach_date| {
-                    Self::calculate_wait_hours(breach_date + Duration::days(31), now)
-                })
-                .unwrap_or(0)
-        } else {
-            0
-        };
-        
+        let monthly_wait_hours =
+            if total_30_day_retries >= card_network_config.max_retry_count_for_thirty_day {
+                let mut accumulated_retries = 0;
+
+                // Iterate from most recent to oldest
+                (0..RETRY_WINDOW_DAYS)
+                    .map(|days_ago| today - Duration::days(days_ago.into()))
+                    .find(|date| {
+                        let retries = token.daily_retry_history.get(date).copied().unwrap_or(0);
+                        accumulated_retries += retries;
+                        accumulated_retries >= card_network_config.max_retry_count_for_thirty_day
+                    })
+                    .map(|breach_date| {
+                        Self::calculate_wait_hours(breach_date + Duration::days(31), now)
+                    })
+                    .unwrap_or(0)
+            } else {
+                0
+            };
 
         let today_retries = token
             .daily_retry_history
