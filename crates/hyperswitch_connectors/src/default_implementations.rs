@@ -8,7 +8,7 @@ use common_enums::{CallConnectorAction, PaymentAction};
 use common_utils::errors::CustomResult;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync,
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
@@ -17,12 +17,10 @@ use hyperswitch_domain_models::router_request_types::authentication::{
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_request_types::revenue_recovery::{
     BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-    InvoiceRecordBackRequest,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-    InvoiceRecordBackResponse,
 };
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
@@ -43,11 +41,12 @@ use hyperswitch_domain_models::{
         webhooks::VerifyWebhookSource,
         AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
-        ExternalVaultProxy, ExternalVaultRetrieveFlow, PostAuthenticate, PreAuthenticate,
-        SubscriptionCreate as SubscriptionCreateFlow,
+        ExternalVaultProxy, ExternalVaultRetrieveFlow, InvoiceRecordBack, PostAuthenticate,
+        PreAuthenticate, SubscriptionCreate as SubscriptionCreateFlow,
     },
     router_request_types::{
         authentication,
+        revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
             GetSubscriptionPlansRequest, SubscriptionCreateRequest,
@@ -70,6 +69,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
             GetSubscriptionPlansResponse, SubscriptionCreateResponse,
@@ -139,7 +139,7 @@ use hyperswitch_interfaces::{
         revenue_recovery::RevenueRecovery,
         subscriptions::{
             GetSubscriptionEstimateFlow, GetSubscriptionPlanPricesFlow, GetSubscriptionPlansFlow,
-            SubscriptionCreate, Subscriptions,
+            SubscriptionCreate, SubscriptionRecordBackFlow, Subscriptions,
         },
         vault::{
             ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
@@ -185,7 +185,7 @@ default_imp_for_authorize_session_token!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -332,7 +332,7 @@ default_imp_for_calculate_tax!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -481,7 +481,7 @@ default_imp_for_session_update!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -628,7 +628,7 @@ default_imp_for_post_session_tokens!(
     connectors::Barclaycard,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -774,7 +774,7 @@ default_imp_for_create_order!(
     connectors::Barclaycard,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -922,7 +922,7 @@ default_imp_for_update_metadata!(
     connectors::Barclaycard,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -1070,7 +1070,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Barclaycard,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -1217,7 +1217,7 @@ default_imp_for_complete_authorize!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Boku,
     connectors::Cashtocode,
     connectors::Celero,
@@ -1346,7 +1346,7 @@ default_imp_for_incremental_authorization!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -1474,7 +1474,6 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Finix,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1491,7 +1490,7 @@ default_imp_for_create_customer!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -1554,7 +1553,6 @@ default_imp_for_create_customer!(
     connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
-    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -1631,7 +1629,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
     connectors::Barclaycard,
@@ -1761,7 +1759,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Braintree,
@@ -1908,7 +1906,7 @@ default_imp_for_authenticate_steps!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Braintree,
@@ -2055,7 +2053,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Braintree,
@@ -2201,7 +2199,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Bankofamerica,
     connectors::Billwerk,
     connectors::Bitpay,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -2336,7 +2334,7 @@ default_imp_for_post_processing_steps!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -2485,7 +2483,7 @@ default_imp_for_approve!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -2635,7 +2633,7 @@ default_imp_for_reject!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -2786,7 +2784,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -2934,7 +2932,7 @@ default_imp_for_accept_dispute!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -3081,7 +3079,7 @@ default_imp_for_submit_evidence!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -3227,7 +3225,7 @@ default_imp_for_defend_dispute!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -3374,7 +3372,7 @@ default_imp_for_fetch_disputes!(
     connectors::Bankofamerica,
     connectors::Barclaycard,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bluesnap,
@@ -3526,7 +3524,7 @@ default_imp_for_dispute_sync!(
     connectors::Bitpay,
     connectors::Bluesnap,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Breadpay,
     connectors::Boku,
@@ -3682,7 +3680,7 @@ default_imp_for_file_upload!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -3821,7 +3819,7 @@ default_imp_for_payouts!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -3865,7 +3863,6 @@ default_imp_for_payouts!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -3963,7 +3960,7 @@ default_imp_for_payouts_create!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4109,7 +4106,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4155,7 +4152,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4256,7 +4252,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4404,7 +4400,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4447,7 +4443,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Netcetera,
     connectors::Noon,
     connectors::Nordea,
@@ -4545,7 +4540,7 @@ default_imp_for_payouts_cancel!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4693,7 +4688,7 @@ default_imp_for_payouts_quote!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4841,7 +4836,7 @@ default_imp_for_payouts_recipient!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -4989,7 +4984,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5139,7 +5134,7 @@ default_imp_for_frm_sale!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5289,7 +5284,7 @@ default_imp_for_frm_checkout!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5439,7 +5434,7 @@ default_imp_for_frm_transaction!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5589,7 +5584,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5739,7 +5734,7 @@ default_imp_for_frm_record_return!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -5886,7 +5881,7 @@ default_imp_for_revoking_mandates!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Breadpay,
@@ -6032,7 +6027,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -6178,7 +6173,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -6327,7 +6322,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -6467,7 +6462,7 @@ default_imp_for_connector_request_id!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -6609,7 +6604,7 @@ default_imp_for_fraud_check!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -6781,7 +6776,7 @@ default_imp_for_connector_authentication!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -6925,7 +6920,7 @@ default_imp_for_uas_authentication!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Boku,
@@ -7066,7 +7061,7 @@ default_imp_for_revenue_recovery!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7186,6 +7181,7 @@ macro_rules! default_imp_for_subscriptions {
     ($($path:ident::$connector:ident),*) => {
         $(  impl Subscriptions for $path::$connector {}
             impl GetSubscriptionPlansFlow for $path::$connector {}
+            impl SubscriptionRecordBackFlow for $path::$connector {}
             impl SubscriptionCreate for $path::$connector {}
             impl
             ConnectorIntegration<
@@ -7193,6 +7189,9 @@ macro_rules! default_imp_for_subscriptions {
             GetSubscriptionPlansRequest,
             GetSubscriptionPlansResponse
             > for $path::$connector
+            {}
+            impl
+           ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse> for $path::$connector
             {}
             impl GetSubscriptionPlanPricesFlow for $path::$connector {}
             impl
@@ -7239,7 +7238,7 @@ default_imp_for_subscriptions!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7330,7 +7329,6 @@ default_imp_for_subscriptions!(
     connectors::Stax,
     connectors::Stripe,
     connectors::Square,
-    connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
     connectors::Threedsecureio,
@@ -7389,7 +7387,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7508,13 +7506,6 @@ default_imp_for_billing_connector_payment_sync!(
 macro_rules! default_imp_for_revenue_recovery_record_back {
     ($($path:ident::$connector:ident),*) => {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            InvoiceRecordBack,
-            InvoiceRecordBackRequest,
-            InvoiceRecordBackResponse
-            > for $path::$connector
-            {}
         )*
     };
 }
@@ -7539,7 +7530,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7687,7 +7678,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7830,7 +7821,7 @@ default_imp_for_external_vault!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -7978,7 +7969,7 @@ default_imp_for_external_vault_insert!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -8123,7 +8114,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
     connectors::Braintree,
@@ -8274,7 +8265,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -8422,7 +8413,7 @@ default_imp_for_external_vault_delete!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -8573,7 +8564,7 @@ default_imp_for_external_vault_create!(
     connectors::Bluesnap,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Braintree,
     connectors::Boku,
     connectors::Breadpay,
@@ -8719,7 +8710,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Bankofamerica,
     connectors::Billwerk,
     connectors::Bitpay,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Blackhawknetwork,
     connectors::Boku,
@@ -8868,7 +8859,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Blackhawknetwork,
-    connectors::Bluecode,
+    connectors::Calida,
     connectors::Bluesnap,
     connectors::Braintree,
     connectors::Breadpay,
@@ -9561,6 +9552,9 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> GetSubscriptionPlansFlow for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubscriptionRecordBackFlow for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     ConnectorIntegration<
@@ -9568,6 +9562,13 @@ impl<const T: u8>
         GetSubscriptionPlansRequest,
         GetSubscriptionPlansResponse,
     > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+impl<const T: u8>
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+    for connectors::DummyConnector<T>
 {
 }
 

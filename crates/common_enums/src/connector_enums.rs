@@ -74,7 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
-    Bluecode,
+    Calida,
     Boku,
     Braintree,
     Breadpay,
@@ -96,6 +96,7 @@ pub enum RoutableConnectors {
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -249,7 +250,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
-    Bluecode,
+    Calida,
     Boku,
     Braintree,
     Breadpay,
@@ -274,6 +275,7 @@ pub enum Connector {
     Ebanx,
     Elavon,
     Facilitapay,
+    Finix,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -374,6 +376,7 @@ impl Connector {
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
+                | (Self::Loonio, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -457,7 +460,7 @@ impl Connector {
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Blackhawknetwork
-            | Self::Bluecode
+            | Self::Calida
             | Self::Boku
             | Self::Braintree
             | Self::Breadpay
@@ -476,6 +479,7 @@ impl Connector {
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
+            | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -643,7 +647,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
             RoutableConnectors::Blackhawknetwork => Self::Blackhawknetwork,
-            RoutableConnectors::Bluecode => Self::Bluecode,
+            RoutableConnectors::Calida => Self::Calida,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Breadpay => Self::Breadpay,
@@ -664,6 +668,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
+            RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
             RoutableConnectors::Fiuu => Self::Fiuu,
@@ -782,7 +787,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
-            Connector::Bluecode => Ok(Self::Bluecode),
+            Connector::Calida => Ok(Self::Calida),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -804,6 +809,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
+            Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
             Connector::Fiuu => Ok(Self::Fiuu),
@@ -894,7 +900,8 @@ impl TryFrom<Connector> for RoutableConnectors {
 }
 
 // Enum representing different status an invoice can have.
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,
     PaymentPending,
@@ -904,4 +911,5 @@ pub enum InvoiceStatus {
     PaymentCanceled,
     InvoicePaid,
     ManualReview,
+    Voided,
 }
