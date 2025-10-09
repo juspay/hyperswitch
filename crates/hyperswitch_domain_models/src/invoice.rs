@@ -7,7 +7,6 @@ use common_utils::{
         MinorUnit,
     },
 };
-
 use masking::Secret;
 use utoipa::ToSchema;
 
