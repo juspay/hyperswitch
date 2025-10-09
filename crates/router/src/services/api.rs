@@ -278,7 +278,9 @@ where
                             | RequestContent::Xml(i) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
-                            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                            RequestContent::FormData((_, i)) => i
+                                .masked_serialize()
+                                .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
                         },
                         None => serde_json::Value::Null,

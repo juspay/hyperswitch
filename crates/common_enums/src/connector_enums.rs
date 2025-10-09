@@ -74,7 +74,7 @@ pub enum RoutableConnectors {
     Blackhawknetwork,
     Bamboraapac,
     Bluesnap,
-    Bluecode,
+    Calida,
     Boku,
     Braintree,
     Breadpay,
@@ -102,6 +102,7 @@ pub enum RoutableConnectors {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -112,6 +113,7 @@ pub enum RoutableConnectors {
     Itaubank,
     Jpmorgan,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -154,6 +156,7 @@ pub enum RoutableConnectors {
     Stax,
     Stripe,
     Stripebilling,
+    Tesouro,
     // Taxjar,
     Trustpay,
     Trustpayments,
@@ -246,7 +249,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Blackhawknetwork,
-    Bluecode,
+    Calida,
     Boku,
     Braintree,
     Breadpay,
@@ -277,6 +280,7 @@ pub enum Connector {
     Flexiti,
     Forte,
     Getnet,
+    Gigadat,
     Globalpay,
     Globepay,
     Gocardless,
@@ -291,6 +295,7 @@ pub enum Connector {
     Jpmorgan,
     Juspaythreedsserver,
     Klarna,
+    Loonio,
     Mifinity,
     Mollie,
     Moneris,
@@ -336,6 +341,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tesouro,
     Tokenex,
     Tokenio,
     Trustpay,
@@ -368,6 +374,7 @@ impl Connector {
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
+                | (Self::Loonio, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -405,6 +412,7 @@ impl Connector {
                     Self::Trustpay,
                     PaymentMethod::BankRedirect | PaymentMethod::BankTransfer
                 )
+                | (Self::Tesouro, _)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
@@ -450,7 +458,7 @@ impl Connector {
             | Self::Bitpay
             | Self::Bluesnap
             | Self::Blackhawknetwork
-            | Self::Bluecode
+            | Self::Calida
             | Self::Boku
             | Self::Braintree
             | Self::Breadpay
@@ -475,6 +483,7 @@ impl Connector {
             | Self::Flexiti
             | Self::Forte
             | Self::Getnet
+            | Self::Gigadat
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
@@ -488,6 +497,7 @@ impl Connector {
             | Self::Jpmorgan
             | Self::Juspaythreedsserver
             | Self::Klarna
+            | Self::Loonio
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -520,6 +530,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Tesouro
             // | Self::Thunes
             | Self::Trustpay
             | Self::Trustpayments
@@ -633,7 +644,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Bamboraapac => Self::Bamboraapac,
             RoutableConnectors::Bluesnap => Self::Bluesnap,
             RoutableConnectors::Blackhawknetwork => Self::Blackhawknetwork,
-            RoutableConnectors::Bluecode => Self::Bluecode,
+            RoutableConnectors::Calida => Self::Calida,
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Breadpay => Self::Breadpay,
@@ -660,6 +671,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
+            RoutableConnectors::Gigadat => Self::Gigadat,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -668,6 +680,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
+            RoutableConnectors::Loonio => Self::Loonio,
             RoutableConnectors::Mifinity => Self::Mifinity,
             RoutableConnectors::Mollie => Self::Mollie,
             RoutableConnectors::Moneris => Self::Moneris,
@@ -706,6 +719,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Trustpayments => Self::Trustpayments,
@@ -769,7 +783,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bamboraapac => Ok(Self::Bamboraapac),
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
-            Connector::Bluecode => Ok(Self::Bluecode),
+            Connector::Calida => Ok(Self::Calida),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -804,6 +818,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
+            Connector::Loonio => Ok(Self::Loonio),
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
@@ -841,6 +856,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tesouro => Ok(Self::Tesouro),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
@@ -857,6 +873,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zsl => Ok(Self::Zsl),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
+            Connector::Gigadat => Ok(Self::Gigadat),
             Connector::Hipay => Ok(Self::Hipay),
             Connector::Inespay => Ok(Self::Inespay),
             Connector::Redsys => Ok(Self::Redsys),
@@ -878,7 +895,8 @@ impl TryFrom<Connector> for RoutableConnectors {
 }
 
 // Enum representing different status an invoice can have.
-#[derive(Debug, Clone, PartialEq, Eq, strum::Display, strum::EnumString)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,
     PaymentPending,
@@ -888,4 +906,5 @@ pub enum InvoiceStatus {
     PaymentCanceled,
     InvoicePaid,
     ManualReview,
+    Voided,
 }

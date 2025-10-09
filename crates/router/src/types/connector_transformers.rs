@@ -24,7 +24,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Bitpay => Self::Bitpay,
             api_enums::Connector::Bluesnap => Self::Bluesnap,
             api_enums::Connector::Blackhawknetwork => Self::Blackhawknetwork,
-            api_enums::Connector::Bluecode => Self::Bluecode,
+            api_enums::Connector::Calida => Self::Calida,
             api_enums::Connector::Boku => Self::Boku,
             api_enums::Connector::Braintree => Self::Braintree,
             api_enums::Connector::Breadpay => Self::Breadpay,
@@ -67,6 +67,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
+            api_enums::Connector::Gigadat => Self::Gigadat,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
@@ -92,6 +93,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Klarna => Self::Klarna,
+            api_enums::Connector::Loonio => Self::Loonio,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
@@ -145,6 +147,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripe => Self::Stripe,
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Thunes => Self::Thunes,
+            api_enums::Connector::Tesouro => Self::Tesouro,
             api_enums::Connector::Tokenex => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Tokenex is not a routable connector".to_string(),

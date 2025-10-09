@@ -152,8 +152,8 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Bluecode => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                enums::Connector::Calida => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Calida::new())))
                 }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
@@ -270,6 +270,9 @@ impl ConnectorData {
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
                 }
+                enums::Connector::Gigadat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -305,6 +308,9 @@ impl ConnectorData {
                 ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
+                }
+                enums::Connector::Loonio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Loonio::new())))
                 }
                 enums::Connector::Mollie => {
                     // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
@@ -432,6 +438,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tesouro => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tesouro::new())))
+                }
                 enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))

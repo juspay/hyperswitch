@@ -1242,6 +1242,8 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_channel: None,
             enable_partial_authorization: data.request.enable_partial_authorization,
             enable_overcapture: None,
+            is_stored_credential: data.request.is_stored_credential,
+            mit_category: None,
         }
     }
 }
@@ -1261,6 +1263,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
+            payment_method_type: data.payment_method_type,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             address: data.address.clone(),
@@ -1307,6 +1310,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
+            authorized_amount: data.authorized_amount,
         }
     }
 }
@@ -1335,6 +1339,7 @@ impl<F1, F2>
             tenant_id: data.tenant_id.clone(),
             status: data.status,
             payment_method: data.payment_method,
+            payment_method_type: data.payment_method_type,
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             address: data.address.clone(),
@@ -1378,6 +1383,7 @@ impl<F1, F2>
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         }
     }
 }

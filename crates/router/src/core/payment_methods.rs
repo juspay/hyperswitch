@@ -948,7 +948,7 @@ pub async fn create_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) => {
-            create_payment_method_card_core(
+            Box::pin(create_payment_method_card_core(
                 state,
                 req,
                 merchant_context,
@@ -957,7 +957,7 @@ pub async fn create_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-            )
+            ))
             .await
         }
         api::PaymentMethodCreateData::ProxyCard(_) => {
@@ -2201,18 +2201,7 @@ pub async fn create_pm_additional_data_update(
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
-        .map(
-            |payment_method_vaulting_data| match payment_method_vaulting_data {
-                domain::PaymentMethodVaultingData::Card(card) => domain::PaymentMethodsData::Card(
-                    domain::CardDetailsPaymentMethod::from(card.clone()),
-                ),
-                domain::PaymentMethodVaultingData::NetworkToken(network_token) => {
-                    domain::PaymentMethodsData::NetworkToken(
-                        domain::NetworkTokenDetailsPaymentMethod::from(network_token.clone()),
-                    )
-                }
-            },
-        )
+        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
@@ -3448,6 +3437,8 @@ fn construct_zero_auth_payments_request(
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
         return_raw_connector_response: None,
+        enable_partial_authorization: None,
+        webhook_url: None,
     })
 }
 
@@ -3799,6 +3790,7 @@ async fn create_single_use_tokenization_flow(
             tenant_id: state.tenant.tenant_id.clone(),
             status: common_enums::enums::AttemptStatus::default(),
             payment_method: common_enums::enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: auth_type,
             description: None,
             address: payment_method_session_address,
@@ -3841,6 +3833,7 @@ async fn create_single_use_tokenization_flow(
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

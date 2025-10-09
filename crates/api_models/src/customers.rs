@@ -52,6 +52,8 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
+    /// Unique identifier for a customer
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[cfg(feature = "v1")]
