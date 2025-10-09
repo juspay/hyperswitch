@@ -44,6 +44,8 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         merchant_reference_id: Option<String>,
         profile: &hyperswitch_domain_models::business_profile::Profile,
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -64,8 +66,8 @@ impl<'a> SubscriptionHandler<'a> {
             None,
             profile.get_id().clone(),
             merchant_reference_id,
-            None,
-            None,
+            plan_id,
+            item_price_id,
         );
 
         subscription.generate_and_set_client_secret();

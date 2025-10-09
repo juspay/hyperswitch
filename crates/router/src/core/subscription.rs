@@ -58,6 +58,8 @@ pub async fn create_subscription(
             billing_handler.merchant_connector_id.clone(),
             request.merchant_reference_id.clone(),
             &profile.clone(),
+            request.plan_id.clone(),
+            request.item_price_id.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -184,6 +186,8 @@ pub async fn create_and_confirm_subscription(
             billing_handler.merchant_connector_id.clone(),
             request.merchant_reference_id.clone(),
             &profile.clone(),
+            request.plan_id.clone(),
+            request.item_price_id.clone(),
         )
         .await
         .attach_printable("subscriptions: failed to create subscription entry")?;
@@ -352,7 +356,7 @@ pub async fn confirm_subscription(
         .create_subscription_on_connector(
             &state,
             subscription.clone(),
-            request.item_price_id,
+            subscription.price_id.clone(),
             request.payment_details.payment_method_data.billing,
         )
         .await?;
@@ -506,6 +510,7 @@ pub async fn update_subscription(
             Some(request.amount.clone()),
             Some(request.currency.clone()),
             invoice.id,
+            None,
             None,
             None,
             None,

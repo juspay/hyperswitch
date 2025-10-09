@@ -24,6 +24,9 @@ pub struct CreateSubscriptionRequest {
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
 
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: Option<String>,
+
     /// Identifier for the subscription plan.
     pub plan_id: Option<String>,
 
@@ -316,12 +319,6 @@ pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.
     pub client_secret: Option<ClientSecret>,
 
-    /// Identifier for the associated plan_id.
-    pub plan_id: Option<String>,
-
-    /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
-
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
 
@@ -330,14 +327,6 @@ pub struct ConfirmSubscriptionRequest {
 }
 
 impl ConfirmSubscriptionRequest {
-    pub fn get_item_price_id(&self) -> Result<String, error_stack::Report<ValidationError>> {
-        self.item_price_id.clone().ok_or(error_stack::report!(
-            ValidationError::MissingRequiredField {
-                field_name: "item_price_id".to_string()
-            }
-        ))
-    }
-
     pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
         self.payment_details
             .payment_method_data
@@ -361,11 +350,11 @@ pub struct CreateAndConfirmSubscriptionRequest {
     /// Currency for the amount.
     pub currency: Option<api_enums::Currency>,
 
-    /// Identifier for the associated plan_id.
-    pub plan_id: Option<String>,
-
     /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: Option<String>,
+
+    /// Identifier for the associated plan_id.
+    pub plan_id: Option<String>,
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,

@@ -22,8 +22,8 @@ pub struct SubscriptionNew {
     modified_at: time::PrimitiveDateTime,
     profile_id: common_utils::id_type::ProfileId,
     merchant_reference_id: Option<String>,
-    price_id: Option<String>,
     plan_id: Option<String>,
+    price_id: Option<String>,
 }
 
 #[derive(
@@ -45,8 +45,8 @@ pub struct Subscription {
     pub modified_at: time::PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
-    pub price_id: Option<String>,
     pub plan_id: Option<String>,
+    pub price_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
@@ -56,8 +56,8 @@ pub struct SubscriptionUpdate {
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
-    pub price_id: Option<String>,
     pub plan_id: Option<String>,
+    pub price_id: Option<String>,
 }
 
 impl SubscriptionNew {
