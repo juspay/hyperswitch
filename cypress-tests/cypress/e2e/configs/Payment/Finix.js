@@ -249,6 +249,34 @@ export const connectorDetails = {
         },
       },
     }),
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
 
     // ===== SAVE CARD SCENARIOS =====
     // Note: Authipay may not support save card, marked as TRIGGER_SKIP
