@@ -1187,6 +1187,7 @@ impl Subscription {
                     subscription::create_subscription(state, req, payload)
                 }),
             ))
+            .service(web::resource("/estimate").route(web::get().to(subscription::get_estimate)))
             .service(
                 web::resource("/plans").route(web::get().to(subscription::get_subscription_plans)),
             )

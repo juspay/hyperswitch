@@ -4,10 +4,7 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    api::ApplicationResponse, merchant_context::MerchantContext,
-    router_response_types::subscriptions as subscription_response_types,
-};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
 use masking::Secret;
 
 use super::errors::{self, RouterResponse};
@@ -32,7 +29,7 @@ pub async fn create_subscription(
     merchant_context: MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     request: subscription_types::CreateSubscriptionRequest,
-) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
+) -> RouterResponse<SubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
 
     let profile =
@@ -69,7 +66,7 @@ pub async fn create_subscription(
         .create_payment_with_confirm_false(subscription.handler.state, &request)
         .await
         .attach_printable("subscriptions: failed to create payment")?;
-    let invoice_entry = invoice_handler
+    let invoice = invoice_handler
         .create_invoice_entry(
             &state,
             billing_handler.merchant_connector_id,
@@ -78,6 +75,7 @@ pub async fn create_subscription(
             request.currency,
             connector_enums::InvoiceStatus::InvoiceCreated,
             billing_handler.connector_data.connector_name,
+            None,
             None,
         )
         .await
@@ -94,11 +92,7 @@ pub async fn create_subscription(
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
-    let response = subscription.generate_response(
-        &invoice_entry,
-        &payment,
-        subscription_response_types::SubscriptionStatus::Created,
-    )?;
+    let response = subscription.to_subscription_response(Some(payment), Some(&invoice))?;
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -151,14 +145,12 @@ pub async fn get_subscription_plans(
                 .into_iter()
                 .map(subscription_types::SubscriptionPlanPrices::from)
                 .collect::<Vec<_>>(),
-        })
+        });
     }
-
     Ok(ApplicationResponse::Json(response))
 }
 
 /// Creates and confirms a subscription in one operation.
-/// This method combines the creation and confirmation flow to reduce API calls
 pub async fn create_and_confirm_subscription(
     state: SessionState,
     merchant_context: MerchantContext,
@@ -166,7 +158,6 @@ pub async fn create_and_confirm_subscription(
     request: subscription_types::CreateAndConfirmSubscriptionRequest,
 ) -> RouterResponse<subscription_types::ConfirmSubscriptionResponse> {
     let subscription_id = common_utils::id_type::SubscriptionId::generate();
-
     let profile =
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
@@ -243,6 +234,9 @@ pub async fn create_and_confirm_subscription(
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
             None,
+            invoice_details
+                .clone()
+                .map(|invoice| invoice.id.get_string_repr().to_string()),
         )
         .await?;
 
@@ -297,13 +291,23 @@ pub async fn confirm_subscription(
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
             .attach_printable("subscriptions: failed to find business profile")?;
-    let customer =
-        SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
-            .await
-            .attach_printable("subscriptions: failed to find customer")?;
 
     let handler = SubscriptionHandler::new(&state, &merchant_context);
+    if let Some(client_secret) = request.client_secret.clone() {
+        handler
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    };
+
     let mut subscription_entry = handler.find_subscription(subscription_id).await?;
+    let customer = SubscriptionHandler::find_customer(
+        &state,
+        &merchant_context,
+        &subscription_entry.subscription.customer_id,
+    )
+    .await
+    .attach_printable("subscriptions: failed to find customer")?;
+
     let invoice_handler = subscription_entry.get_invoice_handler(profile.clone());
     let invoice = invoice_handler
         .get_latest_invoice(&state)
@@ -336,7 +340,7 @@ pub async fn confirm_subscription(
         .create_customer_on_connector(
             &state,
             subscription.customer_id.clone(),
-            request.billing.clone(),
+            request.payment_details.payment_method_data.billing.clone(),
             request
                 .payment_details
                 .payment_method_data
@@ -349,7 +353,7 @@ pub async fn confirm_subscription(
             &state,
             subscription.clone(),
             request.item_price_id,
-            request.billing,
+            request.payment_details.payment_method_data.billing,
         )
         .await?;
 
@@ -368,6 +372,9 @@ pub async fn confirm_subscription(
                     .and_then(|invoice| invoice.status)
                     .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             ),
+            invoice_details
+                .clone()
+                .map(|invoice| invoice.id.get_string_repr().to_string()),
         )
         .await?;
 
@@ -429,9 +436,33 @@ pub async fn get_subscription(
         .await
         .attach_printable("subscriptions: failed to get subscription entry in get_subscription")?;
 
-    Ok(ApplicationResponse::Json(
-        subscription.to_subscription_response(),
-    ))
+    let response = subscription.to_subscription_response(None, None)?;
+
+    Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn get_estimate(
+    state: SessionState,
+    merchant_context: MerchantContext,
+    profile_id: common_utils::id_type::ProfileId,
+    query: subscription_types::EstimateSubscriptionQuery,
+) -> RouterResponse<subscription_types::EstimateSubscriptionResponse> {
+    let profile =
+        SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
+            .await
+            .attach_printable("subscriptions: failed to find business profile in get_estimate")?;
+    let billing_handler = BillingHandler::create(
+        &state,
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
+        None,
+        profile,
+    )
+    .await?;
+    let estimate = billing_handler
+        .get_subscription_estimate(&state, query)
+        .await?;
+    Ok(ApplicationResponse::Json(estimate.into()))
 }
 
 pub async fn update_subscription(

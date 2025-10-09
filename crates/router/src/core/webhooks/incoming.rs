@@ -2645,6 +2645,7 @@ async fn subscription_incoming_webhook_flow(
             InvoiceStatus::PaymentPending,
             connector,
             None,
+            None,
         )
         .await?;
 
@@ -2666,6 +2667,7 @@ async fn subscription_incoming_webhook_flow(
             payment_response.payment_method_id.clone(),
             Some(payment_response.payment_id.clone()),
             Some(InvoiceStatus::from(payment_response.status)),
+            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
         )
         .await?;
 
