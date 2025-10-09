@@ -207,17 +207,17 @@ impl From<GigadatPaymentStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(item: GigadatPaymentStatus) -> Self {
         match item {
             GigadatPaymentStatus::StatusSuccess => {
-                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+                self::PaymentIntentSuccess
             }
             GigadatPaymentStatus::StatusFailed
             | GigadatPaymentStatus::StatusRejected
             | GigadatPaymentStatus::StatusRejected1
             | GigadatPaymentStatus::StatusExpired
             | GigadatPaymentStatus::StatusAborted1 => {
-                api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+                self::PaymentIntentFailure
             }
             GigadatPaymentStatus::StatusInited | GigadatPaymentStatus::StatusPending => {
-                api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+                self::PaymentIntentProcessing
             }
         }
     }
