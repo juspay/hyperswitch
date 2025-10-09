@@ -7985,7 +7985,7 @@ pub struct PaypalTransactionInfo {
     pub total_price: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
     /// Name of the connector
