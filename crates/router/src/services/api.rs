@@ -356,7 +356,7 @@ where
                         let request_id = id.to_string();
                         request.headers.insert((
                             X_REQUEST_ID.to_string(),
-                            Maskable::Masked(Secret::new(request_id.clone())),
+                            Maskable::Normal(request_id.clone()),
                         ));
                         request_id
                     });

@@ -11,7 +11,7 @@ use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
     errors::CustomResult,
     ext_traits::ValueExt,
-    request::{Method, Request, RequestContent},
+    request::{Method, RequestBuilder, RequestContent},
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -74,137 +74,6 @@ type UnifiedConnectorServiceResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-// pub async fn should_call_unified_connector_service<F: Clone, T, D>(
-//     state: &SessionState,
-//     merchant_context: &MerchantContext,
-//     router_data: &RouterData<F, T, PaymentsResponseData>,
-//     payment_data: Option<&D>,
-// ) -> RouterResult<GatewaySystem>
-// where
-//     D: OperationSessionGetters<F>,
-// {
-//     // Check basic UCS availability first
-//     if state.grpc_client.unified_connector_service_client.is_none() {
-//         router_env::logger::debug!(
-//             "Unified Connector Service client is not available, skipping UCS decision"
-//         );
-//         return Ok(GatewaySystem::Direct);
-//     }
-
-//     let ucs_config_key = consts::UCS_ENABLED;
-//     if !is_ucs_enabled(state, ucs_config_key).await {
-//         router_env::logger::debug!(
-//             "Unified Connector Service is not enabled, skipping UCS decision"
-//         );
-//         return Ok(GatewaySystem::Direct);
-//     }
-
-//     // Continue with normal UCS gateway system logic
-//     let merchant_id = merchant_context
-//         .get_merchant_account()
-//         .get_id()
-//         .get_string_repr();
-
-//     let connector_name = router_data.connector.clone();
-//     let connector_enum = Connector::from_str(&connector_name)
-//         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
-
-//     let payment_method = router_data.payment_method.to_string();
-//     let flow_name = get_flow_name::<F>()?;
-
-//     let is_ucs_only_connector = state
-//         .conf
-//         .grpc_client
-//         .unified_connector_service
-//         .as_ref()
-//         .is_some_and(|config| config.ucs_only_connectors.contains(&connector_enum));
-
-//     if is_ucs_only_connector {
-//         router_env::logger::info!(
-//             "Payment gateway system decision: UCS (forced) - merchant_id={}, connector={}, payment_method={}, flow={}",
-//             merchant_id, connector_name, payment_method, flow_name
-//         );
-//         return Ok(GatewaySystem::UnifiedConnectorService);
-//     }
-
-//     let config_key = format!(
-//         "{}_{}_{}_{}_{}",
-//         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-//         merchant_id,
-//         connector_name,
-//         payment_method,
-//         flow_name
-//     );
-
-//     let shadow_ucs_config_key = format!("{}_Shadow", config_key);
-
-//     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
-
-//     let should_execute_shadow_ucs =
-//         should_execute_based_on_rollout(state, &shadow_ucs_config_key).await?;
-
-//     // Apply stickiness logic if payment_data is available
-//     if let Some(payment_data) = payment_data {
-//         let previous_gateway_system = extract_gateway_system_from_payment_intent(payment_data);
-
-//         match previous_gateway_system {
-//             Some(GatewaySystem::UnifiedConnectorService) => {
-//                 // Payment intent previously used UCS, maintain stickiness to UCS
-//                 router_env::logger::info!(
-//                     "Payment gateway system decision: UCS (sticky) - payment intent previously used UCS"
-//                 );
-//                 return Ok(GatewaySystem::UnifiedConnectorService);
-//             }
-//             Some(GatewaySystem::Direct) => {
-//                 // Payment intent previously used Direct, maintain stickiness to Direct (return false for UCS)
-//                 if should_execute_shadow_ucs {
-//                     router_env::logger::info!(
-//                         "Payment gateway system decision: Direct (sticky) but also ShadowUCS - payment intent previously used Direct"
-//                     );
-//                     return Ok(GatewaySystem::ShadowUnifiedConnectorService);
-//                 } else {
-//                     router_env::logger::info!(
-//                         "Payment gateway system decision: Direct (sticky) - payment intent previously used Direct"
-//                     );
-//                     return Ok(GatewaySystem::Direct);
-//                 }
-//             }
-//             _ => {
-//                 // No previous gateway system set, continue with normal gateway system logic
-//                 router_env::logger::debug!(
-//                     "UCS stickiness: No previous gateway system set, applying normal gateway system logic"
-//                 );
-//             }
-//         }
-//     }
-
-//     match (should_execute, should_execute_shadow_ucs) {
-//         (_, true) => {
-//             router_env::logger::info!(
-//                 "Payment gateway system decision: ShadowUCS - merchant_id={}, connector={}, payment_method={}, flow={}",
-//                 merchant_id, connector_name, payment_method, flow_name
-//             );
-//             Ok(GatewaySystem::ShadowUnifiedConnectorService)
-//         }
-//         (true, false) => {
-//             router_env::logger::info!(
-//             "Payment gateway system decision: UCS - merchant_id={}, connector={}, payment_method={}, flow={}",
-//             merchant_id, connector_name, payment_method, flow_name
-//         );
-//             Ok(GatewaySystem::UnifiedConnectorService)
-//         }
-//         (false, false) => {
-//             router_env::logger::info!(
-//                 "Payment gateway system decision: Direct - merchant_id={}, connector={}, payment_method={}, flow={}",
-//                 merchant_id, connector_name, payment_method, flow_name
-//             );
-//             Ok(GatewaySystem::Direct)
-//         }
-//     }
-// }
-
-/// Generic version of should_call_unified_connector_service that works with any type
-/// implementing OperationSessionGetters trait
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
@@ -1226,22 +1095,22 @@ pub async fn send_comparison_data(
         }
     };
 
-    let mut request = Request::new(Method::Post, &comparison_config.url);
+    let mut request = RequestBuilder::new()
+        .method(Method::Post)
+        .url(comparison_config.url.get_string_repr())
+        .header("Content-Type", "application/json")
+        .header("x-flow", "router-data")
+        .set_body(RequestContent::Json(Box::new(comparison_data)))
+        .build();
     if let Some(req_id) = &state.request_id {
-        request.add_header(
-            X_REQUEST_ID,
-            masking::Maskable::Masked(Secret::new(req_id.to_string())),
-        );
+        request.add_header(X_REQUEST_ID, masking::Maskable::Normal(req_id.to_string()));
     }
 
-    request.set_body(RequestContent::Json(Box::new(comparison_data)));
-
-    if let Err(e) =
-        http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs).await
-    {
-        tracing::error!("Failed to send comparison data: {:?}", e);
-        return Ok(());
-    }
+    let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)
+        .await
+        .map_err(|e| {
+            tracing::debug!("Error sending comparison data: {:?}", e);
+        });
 
     Ok(())
 }

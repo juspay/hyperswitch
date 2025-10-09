@@ -7,7 +7,11 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_utils::{
+    ext_traits::ConfigExt,
+    id_type,
+    types::{user::EmailThemeConfig, Url},
+};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -199,10 +203,9 @@ pub struct CloneConnectorAllowlistConfig {
     pub connector_names: HashSet<enums::Connector>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ComparisonServiceConfig {
-    pub url: String,
+    pub url: Url,
     pub enabled: bool,
     pub timeout_secs: Option<u64>,
 }

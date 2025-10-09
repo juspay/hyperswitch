@@ -4651,7 +4651,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     // Call UCS in shadow mode
-    let unified_connector_service_result = unified_connector_service_router_data
+    let _unified_connector_service_result = unified_connector_service_router_data
         .call_unified_connector_service(
             &state,
             &header_payload,
@@ -4660,12 +4660,8 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
             &merchant_context,
             ExecutionMode::Shadow, // Shadow mode for UCS
         )
-        .await;
-
-    if let Err(e) = unified_connector_service_result {
-        logger::error!("Shadow UCS call failed: {:?}", e);
-        return;
-    }
+        .await
+        .map_err(|e| logger::debug!("Shadow UCS call failed: {:?}", e));
 
     // Compare results
     match serialize_router_data_and_send_to_comparison_service(
@@ -4697,7 +4693,7 @@ where
     let hyperswitch_data = match serde_json::to_value(hyperswitch_router_data) {
         Ok(data) => Secret::new(data),
         Err(_) => {
-            logger::error!("Failed to serialize HS router data");
+            logger::debug!("Failed to serialize HS router data");
             return Ok(());
         }
     };
@@ -4706,7 +4702,7 @@ where
         match serde_json::to_value(unified_connector_service_router_data) {
             Ok(data) => Secret::new(data),
             Err(_) => {
-                logger::error!("Failed to serialize UCS router data");
+                logger::debug!("Failed to serialize UCS router data");
                 return Ok(());
             }
         };
@@ -4715,7 +4711,11 @@ where
         hyperswitch_data,
         unified_connector_service_data,
     };
-    let _ = send_comparison_data(state, comparison_data).await;
+    let _ = send_comparison_data(state, comparison_data)
+        .await
+        .map_err(|e| {
+            logger::error!("Failed to send comparison data: {:?}", e);
+        });
     Ok(())
 }
 
