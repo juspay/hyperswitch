@@ -191,7 +191,15 @@ pub async fn create_and_confirm_subscription(
         .create_customer_on_connector(
             &state,
             request.customer_id.clone(),
-            request.billing.clone(),
+            request
+                .get_billing_address()
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing",
+                })
+                .attach_printable(
+                    "subscriptions: billing address missing in confirm_subscription_request",
+                )
+                .ok(),
             request
                 .payment_details
                 .payment_method_data
@@ -205,7 +213,14 @@ pub async fn create_and_confirm_subscription(
             &state,
             subs_handler.subscription.clone(),
             request.item_price_id.clone(),
-            request.billing.clone(),
+            request
+                .get_billing_address()
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing",
+                })
+                .attach_printable(
+                    "subscriptions: billing address missing in confirm_subscription_request",
+                )?,
         )
         .await?;
 
@@ -272,6 +287,8 @@ pub async fn create_and_confirm_subscription(
         &invoice_entry,
         &payment_response,
         subscription_create_response.status,
+        request.plan_id.clone(),
+        request.item_price_id.clone(),
     )?;
 
     Ok(ApplicationResponse::Json(response))
@@ -338,11 +355,20 @@ pub async fn confirm_subscription(
         .create_customer_on_connector(
             &state,
             subscription.customer_id.clone(),
-            request.payment_details.payment_method_data.billing.clone(),
+            request
+                .get_billing_address()
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing",
+                })
+                .attach_printable(
+                    "subscriptions: billing address missing in confirm_subscription_request",
+                )
+                .ok(),
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data,
+                .payment_method_data
+                .clone(),
         )
         .await?;
 
@@ -350,8 +376,15 @@ pub async fn confirm_subscription(
         .create_subscription_on_connector(
             &state,
             subscription,
-            request.item_price_id,
-            request.payment_details.payment_method_data.billing,
+            request.item_price_id.clone(),
+            request
+                .get_billing_address()
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing",
+                })
+                .attach_printable(
+                    "subscriptions: billing address missing in confirm_subscription_request",
+                )?,
         )
         .await?;
 
@@ -407,6 +440,8 @@ pub async fn confirm_subscription(
         &invoice_entry,
         &payment_response,
         subscription_create_response.status,
+        request.plan_id.clone(),
+        request.item_price_id.clone(),
     )?;
 
     Ok(ApplicationResponse::Json(response))

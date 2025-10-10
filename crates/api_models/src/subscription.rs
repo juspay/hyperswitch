@@ -212,6 +212,7 @@ impl ApiEventMetric for GetPlansResponse {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
     pub shipping: Option<Address>,
+    pub billing: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -294,6 +295,8 @@ pub struct PaymentResponseData {
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub client_secret: Option<Secret<String>>,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -334,15 +337,20 @@ impl ConfirmSubscriptionRequest {
     }
 
     pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
-        self.payment_details
-            .payment_method_data
-            .billing
-            .clone()
-            .ok_or(error_stack::report!(
-                ValidationError::MissingRequiredField {
-                    field_name: "billing".to_string()
-                }
-            ))
+        let billing = self.payment_details.payment_method_data.billing.clone();
+
+        if let Some(billing) = billing {
+            Ok(billing)
+        } else {
+            self.payment_details
+                .billing
+                .clone()
+                .ok_or(error_stack::report!(
+                    ValidationError::MissingRequiredField {
+                        field_name: "billing".to_string()
+                    }
+                ))
+        }
     }
 }
 
@@ -379,6 +387,16 @@ pub struct CreateAndConfirmSubscriptionRequest {
 
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
+}
+
+impl CreateAndConfirmSubscriptionRequest {
+    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
+        self.billing.clone().ok_or(error_stack::report!(
+            ValidationError::MissingRequiredField {
+                field_name: "billing".to_string()
+            }
+        ))
+    }
 }
 
 impl ApiEventMetric for CreateAndConfirmSubscriptionRequest {}
