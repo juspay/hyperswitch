@@ -170,12 +170,12 @@ impl<'a> InvoiceSyncHandler<'a> {
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         if let Some(connector_invoice_id) = connector_invoice_id {
-            self.perform_billing_processor_record_back(
+            Box::pin(self.perform_billing_processor_record_back(
                 payment_response,
                 payment_status,
                 connector_invoice_id,
                 invoice_sync_status,
-            )
+            ))
             .await
             .attach_printable("Failed to record back to billing processor")?;
         }
@@ -246,12 +246,12 @@ impl<'a> InvoiceSyncHandler<'a> {
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         match invoice_sync_status {
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                self.perform_billing_processor_record_back_if_possible(
+                Box::pin(self.perform_billing_processor_record_back_if_possible(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
                     invoice_sync_status.clone(),
-                )
+                ))
                 .await
                 .attach_printable("Failed to record back success status to billing processor")?;
 
@@ -276,12 +276,12 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                self.perform_billing_processor_record_back_if_possible(
+                Box::pin(self.perform_billing_processor_record_back_if_possible(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
                     invoice_sync_status.clone(),
-                )
+                ))
                 .await
                 .attach_printable("Failed to record back failure status to billing processor")?;
 
