@@ -69,6 +69,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing: Routing,
     pub card: CardDetails,
     pub amount: AmountDetails,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -375,6 +376,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     routing,
                     card,
                     amount,
+                    rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 };
 
                 // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -680,6 +682,28 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             ecommerce_card_payment_only_confirmation_data: confirmation_data,
         })
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsIncomingWebhook {
+    pub webhook_id: String,
+    pub webhook_type: String,
+    pub reversal_failure_reason: Option<String>,
+    pub transaction: Option<WebhookTransaction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookTransaction {
+    pub transaction_id: String,
+    pub original_transaction_id: Option<String>,
+    pub reference_id: String,
+    pub transaction_result: PeachpaymentsPaymentStatus,
+    pub error_message: Option<String>,
+    pub response_code: Option<ResponseCode>,
+    pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub payment_method: String,
 }
 
 // Error Response
