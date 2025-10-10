@@ -31,13 +31,19 @@ use crate::{
     core::{errors, unified_connector_service},
     types::transformers::ForeignTryFrom,
 };
-impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceGetRequest
+impl
+    ForeignTryFrom<(
+        &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        common_enums::CallConnectorAction,
+    )> for payments_grpc::PaymentServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        (router_data, call_connector_action): (
+            &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+            common_enums::CallConnectorAction,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = router_data
             .request
@@ -73,12 +79,23 @@ impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 id_type: Some(payments_grpc::identifier::IdType::Id(id)),
             });
 
+        let handle_response = match call_connector_action {
+            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
+            _ => None,
+        };
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             transaction_id: connector_transaction_id.or(encoded_data),
             request_ref_id: connector_ref_id,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            handle_response,
             access_token: None,
-            capture_method: None,
-            handle_response: None,
         })
     }
 }
@@ -196,7 +213,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                         .collect::<HashMap<String, String>>()
                 })
                 .unwrap_or_default(),
-            test_mode: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -1264,6 +1281,7 @@ pub struct WebhookTransformData {
     pub source_verified: bool,
     pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
     pub response_ref_id: Option<String>,
+    pub is_transformation_complete: bool,
 }
 
 /// Transform UCS webhook response into webhook event data
@@ -1272,6 +1290,11 @@ pub fn transform_ucs_webhook_response(
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
+
+    let is_transformation_complete = !matches!(
+        response.transformation_status(),
+        payments_grpc::WebhookTransformationStatus::Incomplete
+    );
 
     Ok(WebhookTransformData {
         event_type,
@@ -1284,6 +1307,7 @@ pub fn transform_ucs_webhook_response(
                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
             })
         }),
+        is_transformation_complete,
     })
 }
 

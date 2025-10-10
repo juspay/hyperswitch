@@ -6,7 +6,7 @@ use base64::Engine;
 use common_enums::{connector_enums::Connector, AttemptStatus, GatewaySystem, PaymentMethodType};
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::MinorUnit};
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
 use external_services::grpc_client::{
@@ -60,6 +60,16 @@ type UnifiedConnectorServiceResult = CustomResult<
     (
         Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
         u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
+type UnifiedConnectorServiceResultForPaymentGet = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+        Option<i64>,
+        Option<MinorUnit>,
     ),
     UnifiedConnectorServiceError,
 >;
@@ -590,13 +600,20 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
-) -> UnifiedConnectorServiceResult {
+) -> UnifiedConnectorServiceResultForPaymentGet {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+    let amount_captured = response.captured_amount;
+    let minor_amount_captured = response.minor_captured_amount.map(MinorUnit::new);
 
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
-    Ok((router_data_response, status_code))
+    Ok((
+        router_data_response,
+        status_code,
+        amount_captured,
+        minor_amount_captured,
+    ))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
