@@ -199,17 +199,16 @@ pub struct AmountAndCurrencyUpdate {
 
 #[derive(Debug, Clone)]
 pub struct ConnectorAndStatusUpdate {
-    pub connector_invoice_id: String,
+    pub connector_invoice_id: common_utils::id_type::InvoiceId,
     pub status: common_enums::connector_enums::InvoiceStatus,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct PaymentAndStatusUpdate {
     pub payment_method_id: Option<String>,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub status: common_enums::connector_enums::InvoiceStatus,
-    pub connector_invoice_id: Option<String>,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }
 
 /// Enum-based invoice update request for different scenarios
@@ -230,7 +229,10 @@ impl InvoiceUpdateRequest {
     }
 
     /// Create a connector invoice ID and status update request
-    pub fn update_connector_and_status(connector_invoice_id: String, status: common_enums::connector_enums::InvoiceStatus) -> Self {
+    pub fn update_connector_and_status(
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+        status: common_enums::connector_enums::InvoiceStatus,
+    ) -> Self {
         Self::Connector(ConnectorAndStatusUpdate {
             connector_invoice_id,
             status,
@@ -242,7 +244,7 @@ impl InvoiceUpdateRequest {
         payment_method_id: Option<String>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: common_enums::connector_enums::InvoiceStatus,
-        connector_invoice_id: Option<String>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> Self {
         Self::PaymentStatus(PaymentAndStatusUpdate {
             payment_method_id,
@@ -251,13 +253,12 @@ impl InvoiceUpdateRequest {
             connector_invoice_id,
         })
     }
-
 }
 
 impl From<InvoiceUpdateRequest> for InvoiceUpdate {
     fn from(request: InvoiceUpdateRequest) -> Self {
         let now = common_utils::date_time::now();
-        
+
         match request {
             InvoiceUpdateRequest::Amount(update) => Self {
                 amount: Some(update.amount),
@@ -270,7 +271,7 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
             },
             InvoiceUpdateRequest::Connector(update) => Self {
                 connector_invoice_id: Some(update.connector_invoice_id),
-                status: Some(update.status.to_string()),
+                status: Some(update.status),
                 payment_method_id: None,
                 payment_intent_id: None,
                 amount: None,
@@ -280,12 +281,12 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
             InvoiceUpdateRequest::PaymentStatus(update) => Self {
                 payment_method_id: update.payment_method_id,
                 payment_intent_id: update.payment_intent_id,
-                status: Some(update.status.to_string()),
+                status: Some(update.status),
                 connector_invoice_id: update.connector_invoice_id,
                 amount: None,
                 currency: None,
                 modified_at: now,
-            }
+            },
         }
     }
 }

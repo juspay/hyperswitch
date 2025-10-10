@@ -61,8 +61,6 @@ impl From<ClientSecret> for api_models::subscription::ClientSecret {
 pub struct Subscription {
     pub id: common_utils::id_type::SubscriptionId,
     pub status: String,
-    pub plan_id: Option<String>,
-    pub price_id: Option<String>,
     pub billing_processor: Option<String>,
     pub payment_method_id: Option<String>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -75,6 +73,8 @@ pub struct Subscription {
     pub modified_at: PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -127,8 +127,6 @@ impl super::behaviour::Conversion for Subscription {
         Ok(diesel_models::subscription::Subscription {
             id: self.id,
             status: self.status,
-            plan_id: self.plan_id,
-            price_id: self.price_id,
             billing_processor: self.billing_processor,
             payment_method_id: self.payment_method_id,
             merchant_connector_id: self.merchant_connector_id,
@@ -141,6 +139,8 @@ impl super::behaviour::Conversion for Subscription {
             modified_at: now,
             profile_id: self.profile_id,
             merchant_reference_id: self.merchant_reference_id,
+            plan_id: self.plan_id,
+            item_price_id: self.item_price_id,
         })
     }
 
@@ -156,8 +156,6 @@ impl super::behaviour::Conversion for Subscription {
         Ok(Self {
             id: item.id,
             status: item.status,
-            plan_id: item.plan_id,
-            price_id: item.price_id,
             billing_processor: item.billing_processor,
             payment_method_id: item.payment_method_id,
             merchant_connector_id: item.merchant_connector_id,
@@ -170,6 +168,8 @@ impl super::behaviour::Conversion for Subscription {
             modified_at: item.modified_at,
             profile_id: item.profile_id,
             merchant_reference_id: item.merchant_reference_id,
+            plan_id: item.plan_id,
+            item_price_id: item.item_price_id,
         })
     }
 
@@ -177,8 +177,6 @@ impl super::behaviour::Conversion for Subscription {
         Ok(diesel_models::subscription::SubscriptionNew::new(
             self.id,
             self.status,
-            self.plan_id,
-            self.price_id,
             self.billing_processor,
             self.payment_method_id,
             self.merchant_connector_id,
@@ -189,6 +187,8 @@ impl super::behaviour::Conversion for Subscription {
             self.metadata,
             self.profile_id,
             self.merchant_reference_id,
+            self.plan_id,
+            self.item_price_id,
         ))
     }
 }
@@ -225,26 +225,26 @@ pub struct SubscriptionUpdate {
     pub connector_subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
-    pub plan_id: Option<String>,
-    pub price_id: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 impl SubscriptionUpdate {
     pub fn new(
+        connector_subscription_id: Option<String>,
         payment_method_id: Option<Secret<String>>,
         status: Option<String>,
         plan_id: Option<String>,
-        price_id: Option<String>,
-        connector_subscription_id: Option<String>,
+        item_price_id: Option<String>,
     ) -> Self {
         Self {
             connector_subscription_id,
             payment_method_id: payment_method_id.map(|pmid| pmid.peek().clone()),
             status,
-            plan_id,
-            price_id,
             modified_at: common_utils::date_time::now(),
+            plan_id,
+            item_price_id,
         }
     }
 }
@@ -261,7 +261,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             status: self.status,
             modified_at: self.modified_at,
             plan_id: self.plan_id,
-            price_id: self.price_id,
+            item_price_id: self.item_price_id,
         })
     }
 
@@ -278,9 +278,9 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             connector_subscription_id: item.connector_subscription_id,
             payment_method_id: item.payment_method_id,
             status: item.status,
-            plan_id: item.plan_id,
-            price_id: item.price_id,
             modified_at: item.modified_at,
+            plan_id: item.plan_id,
+            item_price_id: item.item_price_id,
         })
     }
 
@@ -289,9 +289,9 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             connector_subscription_id: self.connector_subscription_id,
             payment_method_id: self.payment_method_id,
             status: self.status,
-            plan_id: self.plan_id,
-            price_id: self.price_id,
             modified_at: self.modified_at,
+            plan_id: self.plan_id,
+            item_price_id: self.item_price_id,
         })
     }
 }

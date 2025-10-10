@@ -2713,18 +2713,18 @@ async fn subscription_incoming_webhook_flow(
         .await?;
 
     let update_request = InvoiceUpdateRequest::update_payment_and_status(
-        payment_response.payment_method_id.as_ref().map(|id| id.peek()).cloned(),
+        payment_response
+            .payment_method_id
+            .as_ref()
+            .map(|id| id.peek())
+            .cloned(),
         Some(payment_response.payment_id.clone()),
         InvoiceStatus::from(payment_response.status),
-        Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
+        Some(mit_payment_data.invoice_id.clone()),
     );
-    
+
     let _updated_invoice = invoice_handler
-        .update_invoice(
-            &state,
-            invoice_entry.id.clone(),
-            update_request,
-        )
+        .update_invoice(&state, invoice_entry.id.clone(), update_request)
         .await?;
 
     Ok(WebhookResponseTracker::NoEffect)

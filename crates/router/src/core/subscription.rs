@@ -4,7 +4,9 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext, invoice::InvoiceUpdateRequest};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, invoice::InvoiceUpdateRequest, merchant_context::MerchantContext,
+};
 use masking::PeekInterface;
 
 use super::errors::{self, RouterResponse};
@@ -85,11 +87,11 @@ pub async fn create_subscription(
     subscription
         .update_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                None,
                 payment.payment_method_id.clone(),
                 None,
                 request.plan_id,
                 request.item_price_id,
-                None,
             ),
         )
         .await
@@ -262,16 +264,16 @@ pub async fn create_and_confirm_subscription(
     subs_handler
         .update_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
-                payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
-                request.plan_id,
-                request.item_price_id,
                 Some(
                     subscription_create_response
                         .subscription_id
                         .get_string_repr()
                         .to_string(),
                 ),
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                request.plan_id,
+                request.item_price_id,
             ),
         )
         .await?;
@@ -367,7 +369,7 @@ pub async fn confirm_subscription(
         .create_subscription_on_connector(
             &state,
             subscription.clone(),
-            subscription.price_id.clone(),
+            subscription.item_price_id.clone(),
             request.payment_details.payment_method_data.billing,
         )
         .await?;
@@ -375,20 +377,20 @@ pub async fn confirm_subscription(
     let invoice_details = subscription_create_response.invoice_details;
 
     let update_request = InvoiceUpdateRequest::update_payment_and_status(
-        payment_response.payment_method_id.as_ref().map(|id| id.peek()).cloned(),
-            Some(payment_response.payment_id.clone()),
-                invoice_details
-                    .clone()
-                    .and_then(|invoice| invoice.status)
-                    .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
-            invoice_details.clone().map(|invoice| invoice.id),
+        payment_response
+            .payment_method_id
+            .as_ref()
+            .map(|id| id.peek())
+            .cloned(),
+        Some(payment_response.payment_id.clone()),
+        invoice_details
+            .clone()
+            .and_then(|invoice| invoice.status)
+            .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
+        invoice_details.clone().map(|invoice| invoice.id),
     );
     let invoice_entry = invoice_handler
-        .update_invoice(
-            &state,
-            invoice.id,
-            update_request,
-        )
+        .update_invoice(&state, invoice.id, update_request)
         .await?;
 
     invoice_handler
@@ -403,16 +405,16 @@ pub async fn confirm_subscription(
     subscription_entry
         .update_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
-                payment_response.payment_method_id.clone(),
-                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
                 Some(
                     subscription_create_response
                         .subscription_id
                         .get_string_repr()
                         .to_string(),
                 ),
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
                 subscription.plan_id.clone(),
-                subscription.price_id.clone(),
+                subscription.item_price_id.clone(),
             ),
         )
         .await?;
@@ -502,9 +504,9 @@ pub async fn update_subscription(
             hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
                 None,
                 None,
+                None,
                 Some(request.plan_id),
                 Some(request.item_price_id),
-                None,
             ),
         )
         .await?;
@@ -515,11 +517,7 @@ pub async fn update_subscription(
     );
 
     let invoice_entry = invoice_handler
-        .update_invoice(
-            &state,
-            invoice.id,
-            update_request,
-        )
+        .update_invoice(&state, invoice.id, update_request)
         .await?;
 
     let _payment_response = invoice_handler

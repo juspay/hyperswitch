@@ -1609,7 +1609,7 @@ diesel::table! {
         #[max_length = 128]
         plan_id -> Nullable<Varchar>,
         #[max_length = 128]
-        price_id -> Nullable<Varchar>,
+        item_price_id -> Nullable<Varchar>,
     }
 }
 

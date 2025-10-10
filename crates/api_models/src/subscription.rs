@@ -64,7 +64,7 @@ pub struct SubscriptionResponse {
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub price_id: Option<String>,
+    pub item_price_id: Option<String>,
 
     /// Associated profile ID.
     pub profile_id: common_utils::id_type::ProfileId,
@@ -135,7 +135,7 @@ impl SubscriptionResponse {
         merchant_reference_id: Option<String>,
         status: SubscriptionStatus,
         plan_id: Option<String>,
-        price_id: Option<String>,
+        item_price_id: Option<String>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_id: common_utils::id_type::MerchantId,
         client_secret: Option<Secret<String>>,
@@ -148,7 +148,7 @@ impl SubscriptionResponse {
             merchant_reference_id,
             status,
             plan_id,
-            price_id,
+            item_price_id,
             profile_id,
             client_secret,
             merchant_id,
@@ -402,7 +402,7 @@ pub struct ConfirmSubscriptionResponse {
     pub plan_id: Option<String>,
 
     /// Identifier for the associated item_price_id for the subscription.
-    pub price_id: Option<String>,
+    pub item_price_id: Option<String>,
 
     /// Optional coupon code applied to this subscription.
     pub coupon: Option<String>,
