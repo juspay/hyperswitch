@@ -153,59 +153,55 @@ pub async fn update_payment_method_record(
         None
     };
 
-    let (customer, updated_customer) =
-        match (&req.connector_customer_id, &req.merchant_connector_ids) {
-            (Some(connector_customer_id), Some(_)) => {
-                let customer = db
-                    .find_customer_by_customer_id_merchant_id(
-                        &state.into(),
-                        &payment_method.customer_id,
-                        merchant_id,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    let (customer, updated_customer) = match (&req.connector_customer_id, &mca_data_cache) {
+        (Some(connector_customer_id), Some(cache)) => {
+            let customer = db
+                .find_customer_by_customer_id_merchant_id(
+                    &state.into(),
+                    &payment_method.customer_id,
+                    merchant_id,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-                let mut updated_connector_customer_data: HashMap<String, serde_json::Value> =
-                    customer
-                        .connector_customer
-                        .as_ref()
-                        .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
-                        .unwrap_or_default();
+            let mut updated_connector_customer_data: HashMap<String, serde_json::Value> = customer
+                .connector_customer
+                .as_ref()
+                .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
+                .unwrap_or_default();
 
-                if let Some(ref cache) = mca_data_cache {
-                    for (_, mca) in cache.iter() {
-                        let key = match mca.connector_type {
-                            enums::ConnectorType::PayoutProcessor => {
-                                format!(
-                                    "{}_{}",
-                                    mca.profile_id.get_string_repr(),
-                                    mca.connector_name
-                                )
-                            }
-                            _ => mca.merchant_connector_id.get_string_repr().to_string(),
-                        };
-
-                        updated_connector_customer_data.insert(
-                            key,
-                            serde_json::Value::String(connector_customer_id.clone()),
-                        );
+            for (_, mca) in cache.iter() {
+                let key = match mca.connector_type {
+                    enums::ConnectorType::PayoutProcessor => {
+                        format!(
+                            "{}_{}",
+                            mca.profile_id.get_string_repr(),
+                            mca.connector_name
+                        )
                     }
-                }
-
-                let customer_update = CustomerUpdate::ConnectorCustomer {
-                    connector_customer: Some(pii::SecretSerdeValue::new(
-                        serde_json::to_value(updated_connector_customer_data)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to serialize connector customer data")?,
-                    )),
+                    _ => mca.merchant_connector_id.get_string_repr().to_string(),
                 };
 
-                (Some(customer), Some(customer_update))
+                updated_connector_customer_data.insert(
+                    key,
+                    serde_json::Value::String(connector_customer_id.clone()),
+                );
             }
-            _ => (None, None),
-        };
+
+            let customer_update = CustomerUpdate::ConnectorCustomer {
+                connector_customer: Some(pii::SecretSerdeValue::new(
+                    serde_json::to_value(updated_connector_customer_data)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize connector customer data")?,
+                )),
+            };
+
+            (Some(customer), Some(customer_update))
+        }
+        _ => (None, None),
+    };
 
     let pm_update = match (&req.payment_instrument_id, &mca_data_cache) {
         (Some(payment_instrument_id), Some(cache)) => {
