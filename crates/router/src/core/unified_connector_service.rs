@@ -85,16 +85,6 @@ type UnifiedConnectorServiceResultForPaymentGet = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-type UnifiedConnectorServiceResultForPaymentGet = CustomResult<
-    (
-        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
-        u16,
-        Option<i64>,
-        Option<MinorUnit>,
-    ),
-    UnifiedConnectorServiceError,
->;
-
 pub async fn should_call_unified_connector_service<F: Clone, T, D>(
     state: &SessionState,
     merchant_context: &MerchantContext,
