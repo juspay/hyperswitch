@@ -1921,13 +1921,6 @@ where
         } else {
             request_data.device_details.clone()
         };
-        println!(
-            "{:?} {:?} {:?} {:?} cussstooomeridddd ",
-            request_data.user_token_id,
-            item.customer_id,
-            item.get_optional_customer_id(),
-            item
-        );
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
