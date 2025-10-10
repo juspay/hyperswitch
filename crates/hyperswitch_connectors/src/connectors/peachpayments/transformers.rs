@@ -422,10 +422,10 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                PeachpaymentsPaymentsRequest::try_from((item, req_card))
+                Self::try_from((item, req_card))
             }
             PaymentMethodData::NetworkToken(token_data) => {
-                PeachpaymentsPaymentsRequest::try_from((item, token_data))
+                Self::try_from((item, token_data))
             }
 
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
