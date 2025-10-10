@@ -182,14 +182,114 @@ pub trait InvoiceInterface {
 }
 
 pub struct InvoiceUpdate {
-    pub amount: Option<MinorUnit>,
-    pub currency: Option<String>,
     pub status: Option<String>,
     pub payment_method_id: Option<String>,
     pub connector_invoice_id: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct AmountAndCurrencyUpdate {
+    pub amount: MinorUnit,
+    pub currency: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorAndStatusUpdate {
+    pub connector_invoice_id: String,
+    pub status: common_enums::connector_enums::InvoiceStatus,
+}
+
+
+#[derive(Debug, Clone)]
+pub struct PaymentAndStatusUpdate {
+    pub payment_method_id: Option<String>,
+    pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub status: common_enums::connector_enums::InvoiceStatus,
+    pub connector_invoice_id: Option<String>,
+}
+
+/// Enum-based invoice update request for different scenarios
+#[derive(Debug, Clone)]
+pub enum InvoiceUpdateRequest {
+    /// Update amount and currency
+    Amount(AmountAndCurrencyUpdate),
+    /// Update connector invoice ID and status
+    Connector(ConnectorAndStatusUpdate),
+    /// Update payment details along with status
+    PaymentStatus(PaymentAndStatusUpdate),
+}
+
+impl InvoiceUpdateRequest {
+    /// Create an amount and currency update request
+    pub fn update_amount_and_currency(amount: MinorUnit, currency: String) -> Self {
+        Self::Amount(AmountAndCurrencyUpdate { amount, currency })
+    }
+
+    /// Create a connector invoice ID and status update request
+    pub fn update_connector_and_status(connector_invoice_id: String, status: common_enums::connector_enums::InvoiceStatus) -> Self {
+        Self::Connector(ConnectorAndStatusUpdate {
+            connector_invoice_id,
+            status,
+        })
+    }
+
+    /// Create a combined payment and status update request
+    pub fn update_payment_and_status(
+        payment_method_id: Option<String>,
+        payment_intent_id: Option<common_utils::id_type::PaymentId>,
+        status: common_enums::connector_enums::InvoiceStatus,
+        connector_invoice_id: Option<String>,
+    ) -> Self {
+        Self::PaymentStatus(PaymentAndStatusUpdate {
+            payment_method_id,
+            payment_intent_id,
+            status,
+            connector_invoice_id,
+        })
+    }
+
+}
+
+impl From<InvoiceUpdateRequest> for InvoiceUpdate {
+    fn from(request: InvoiceUpdateRequest) -> Self {
+        let now = common_utils::date_time::now();
+        
+        match request {
+            InvoiceUpdateRequest::Amount(update) => Self {
+                amount: Some(update.amount),
+                currency: Some(update.currency),
+                status: None,
+                payment_method_id: None,
+                payment_intent_id: None,
+                connector_invoice_id: None,
+                modified_at: now,
+            },
+            InvoiceUpdateRequest::Connector(update) => Self {
+                connector_invoice_id: Some(update.connector_invoice_id),
+                status: Some(update.status.to_string()),
+                payment_method_id: None,
+                payment_intent_id: None,
+                amount: None,
+                currency: None,
+                modified_at: now,
+            },
+            InvoiceUpdateRequest::PaymentStatus(update) => Self {
+                payment_method_id: update.payment_method_id,
+                payment_intent_id: update.payment_intent_id,
+                status: Some(update.status.to_string()),
+                connector_invoice_id: update.connector_invoice_id,
+                amount: None,
+                currency: None,
+                modified_at: now,
+            }
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for InvoiceUpdate {
     type DstType = diesel_models::invoice::InvoiceUpdate;
@@ -197,13 +297,13 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::invoice::InvoiceUpdate {
-            amount: self.amount,
-            currency: self.currency,
             status: self.status,
             payment_method_id: self.payment_method_id,
             connector_invoice_id: self.connector_invoice_id,
             modified_at: self.modified_at,
             payment_intent_id: self.payment_intent_id,
+            amount: self.amount,
+            currency: self.currency,
         })
     }
 
@@ -242,21 +342,21 @@ impl super::behaviour::Conversion for InvoiceUpdate {
 
 impl InvoiceUpdate {
     pub fn new(
-        amount: Option<MinorUnit>,
-        currency: Option<String>,
         payment_method_id: Option<String>,
         status: Option<common_enums::connector_enums::InvoiceStatus>,
         connector_invoice_id: Option<String>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
+        amount: Option<MinorUnit>,
+        currency: Option<String>,
     ) -> Self {
         Self {
-            amount,
-            currency,
             payment_method_id,
             status: status.map(|status| status.to_string()),
             connector_invoice_id,
             modified_at: common_utils::date_time::now(),
             payment_intent_id,
+            amount,
+            currency,
         }
     }
 }

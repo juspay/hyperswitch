@@ -17,6 +17,7 @@ use common_utils::{
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    invoice::InvoiceUpdateRequest,
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
@@ -2658,16 +2659,18 @@ async fn subscription_incoming_webhook_flow(
         )
         .await?;
 
+    let update_request = InvoiceUpdateRequest::update_payment_and_status(
+        payment_response.payment_method_id.as_ref().map(|id| id.peek()).cloned(),
+        Some(payment_response.payment_id.clone()),
+        InvoiceStatus::from(payment_response.status),
+        Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
+    );
+    
     let updated_invoice = invoice_handler
         .update_invoice(
             &state,
-            None,
-            None,
             invoice_entry.id.clone(),
-            payment_response.payment_method_id.clone(),
-            Some(payment_response.payment_id.clone()),
-            Some(InvoiceStatus::from(payment_response.status)),
-            Some(mit_payment_data.invoice_id.get_string_repr().to_string()),
+            update_request,
         )
         .await?;
 

@@ -319,9 +319,6 @@ pub struct ConfirmSubscriptionRequest {
     /// Client secret for SDK based interaction.
     pub client_secret: Option<ClientSecret>,
 
-    /// Idenctifier for the coupon code for the subscription.
-    pub coupon_code: Option<String>,
-
     /// Payment details for the invoice.
     pub payment_details: ConfirmSubscriptionPaymentDetails,
 }
@@ -350,11 +347,11 @@ pub struct CreateAndConfirmSubscriptionRequest {
     /// Currency for the amount.
     pub currency: Option<api_enums::Currency>,
 
-    /// Identifier for the associated item_price_id for the subscription.
-    pub item_price_id: Option<String>,
-
     /// Identifier for the associated plan_id.
     pub plan_id: Option<String>,
+
+    /// Identifier for the associated item_price_id for the subscription.
+    pub item_price_id: Option<String>,
 
     /// Idenctifier for the coupon code for the subscription.
     pub coupon_code: Option<String>,
@@ -453,9 +450,13 @@ impl ApiEventMetric for ConfirmSubscriptionResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UpdateSubscriptionRequest {
+    /// Identifier for the associated plan_id.
     pub plan_id: String,
+    /// Identifier for the associated item_price_id for the subscription.
     pub item_price_id: String,
+    /// Amount to be charged for the invoice.
     pub amount: MinorUnit,
+    /// Currency for the amount.
     pub currency: api_enums::Currency,
 }
 

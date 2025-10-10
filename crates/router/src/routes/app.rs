@@ -1221,7 +1221,7 @@ impl Subscription {
                 )),
             )
             .service(
-                web::resource("/update/{subscription_id}").route(web::post().to(
+                web::resource("/{subscription_id}/update").route(web::put().to(
                     |state, req, id, payload| {
                         subscription::update_subscription(state, req, id, payload)
                     },

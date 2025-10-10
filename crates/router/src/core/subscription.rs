@@ -4,7 +4,8 @@ use api_models::subscription::{
 use common_enums::connector_enums;
 use common_utils::id_type::GenerateId;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext};
+use hyperswitch_domain_models::{api::ApplicationResponse, merchant_context::MerchantContext, invoice::InvoiceUpdateRequest};
+use masking::PeekInterface;
 
 use super::errors::{self, RouterResponse};
 use crate::{
@@ -364,23 +365,23 @@ pub async fn confirm_subscription(
         .await?;
 
     let invoice_details = subscription_create_response.invoice_details;
-    let invoice_entry = invoice_handler
-        .update_invoice(
-            &state,
-            None,
-            None,
-            invoice.id,
-            payment_response.payment_method_id.clone(),
+
+    let update_request = InvoiceUpdateRequest::update_payment_and_status(
+        payment_response.payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(payment_response.payment_id.clone()),
-            Some(
                 invoice_details
                     .clone()
                     .and_then(|invoice| invoice.status)
                     .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
-            ),
             invoice_details
                 .clone()
                 .map(|invoice| invoice.id.get_string_repr().to_string()),
+    );
+    let invoice_entry = invoice_handler
+        .update_invoice(
+            &state,
+            invoice.id,
+            update_request,
         )
         .await?;
 
@@ -510,16 +511,16 @@ pub async fn update_subscription(
         )
         .await?;
 
+    let update_request = InvoiceUpdateRequest::update_amount_and_currency(
+        request.amount,
+        request.currency.to_string(),
+    );
+
     let invoice_entry = invoice_handler
         .update_invoice(
             &state,
-            Some(request.amount),
-            Some(request.currency),
             invoice.id,
-            None,
-            None,
-            None,
-            None,
+            update_request,
         )
         .await?;
 
