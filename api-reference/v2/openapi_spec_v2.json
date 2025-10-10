@@ -2891,6 +2891,47 @@
         ]
       }
     },
+    "/v2/payment-methods/{payment_method_id}/check-network-token-status": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Check Network Token Status",
+        "description": "Check the status of a network token for a saved payment method",
+        "operationId": "Check Network Token Status",
+        "parameters": [
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Network Token Status Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkTokenStatusCheckResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Method Not Found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/customers/{id}/saved-payment-methods": {
       "get": {
         "tags": [
@@ -15305,6 +15346,115 @@
           }
         }
       },
+      "NetworkTokenStatusCheckFailureResponse": {
+        "type": "object",
+        "required": [
+          "error_message"
+        ],
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "description": "Error message describing what went wrong"
+          }
+        }
+      },
+      "NetworkTokenStatusCheckResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckSuccessResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "success_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenStatusCheckFailureResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "failure_response"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "NetworkTokenStatusCheckSuccessResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "token_expiry_month",
+          "token_expiry_year",
+          "card_last_four",
+          "token_last_four",
+          "card_expiry",
+          "payment_method_id",
+          "customer_id"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/TokenStatus"
+          },
+          "token_expiry_month": {
+            "type": "string",
+            "description": "The expiry month of the network token if active"
+          },
+          "token_expiry_year": {
+            "type": "string",
+            "description": "The expiry year of the network token if active"
+          },
+          "card_last_four": {
+            "type": "string",
+            "description": "The last four digits of the card"
+          },
+          "token_last_four": {
+            "type": "string",
+            "description": "The last four digits of the network token"
+          },
+          "card_expiry": {
+            "type": "string",
+            "description": "The expiry date of the card in MM/YY format"
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "The payment method ID that was checked",
+            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer ID associated with the payment method",
+            "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
+          }
+        }
+      },
       "NetworkTokenization": {
         "type": "object",
         "description": "The network tokenization configuration for creating the payment method session",
@@ -26040,6 +26190,14 @@
           {
             "$ref": "#/components/schemas/NetworkTokenDetailsResponse"
           }
+        ]
+      },
+      "TokenStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "SUSPENDED",
+          "DEACTIVATED"
         ]
       },
       "TokenType": {

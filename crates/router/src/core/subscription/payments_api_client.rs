@@ -37,6 +37,10 @@ impl PaymentsApiClient {
                 ),
             ),
             (
+                headers::X_TENANT_ID.to_string(),
+                masking::Maskable::Normal(state.tenant.tenant_id.get_string_repr().to_string()),
+            ),
+            (
                 headers::X_MERCHANT_ID.to_string(),
                 masking::Maskable::Normal(merchant_id.to_string()),
             ),

@@ -163,11 +163,31 @@ impl<'a> InvoiceSyncHandler<'a> {
         Ok(payments_response)
     }
 
+    pub async fn perform_billing_processor_record_back_if_possible(
+        &self,
+        payment_response: subscription_types::PaymentResponseData,
+        payment_status: common_enums::AttemptStatus,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        if let Some(connector_invoice_id) = connector_invoice_id {
+            Box::pin(self.perform_billing_processor_record_back(
+                payment_response,
+                payment_status,
+                connector_invoice_id,
+                invoice_sync_status,
+            ))
+            .await
+            .attach_printable("Failed to record back to billing processor")?;
+        }
+        Ok(())
+    }
+
     pub async fn perform_billing_processor_record_back(
         &self,
         payment_response: subscription_types::PaymentResponseData,
         payment_status: common_enums::AttemptStatus,
-        connector_invoice_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
         invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         logger::info!("perform_billing_processor_record_back");
@@ -176,7 +196,6 @@ impl<'a> InvoiceSyncHandler<'a> {
             self.state,
             &self.merchant_account,
             &self.key_store,
-            Some(self.customer.clone()),
             self.profile.clone(),
         )
         .await
@@ -186,6 +205,7 @@ impl<'a> InvoiceSyncHandler<'a> {
             self.subscription.clone(),
             self.merchant_account.clone(),
             self.profile.clone(),
+            self.key_store.clone(),
         );
 
         // TODO: Handle retries here on failure
@@ -225,20 +245,20 @@ impl<'a> InvoiceSyncHandler<'a> {
         &self,
         process: storage::ProcessTracker,
         payment_response: subscription_types::PaymentResponseData,
-        connector_invoice_id: String,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
         match invoice_sync_status {
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                Box::pin(self.perform_billing_processor_record_back(
-                    payment_response,
+                Box::pin(self.perform_billing_processor_record_back_if_possible(
+                    payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
-                    invoice_sync_status,
+                    invoice_sync_status.clone(),
                 ))
                 .await
-                .attach_printable("Failed to record back to billing processor")?;
+                .attach_printable("Failed to record back success status to billing processor")?;
 
                 self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
@@ -261,14 +281,14 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                Box::pin(self.perform_billing_processor_record_back(
-                    payment_response,
-                    common_enums::AttemptStatus::Failure,
+                Box::pin(self.perform_billing_processor_record_back_if_possible(
+                    payment_response.clone(),
+                    common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
-                    invoice_sync_status,
+                    invoice_sync_status.clone(),
                 ))
                 .await
-                .attach_printable("Failed to record back to billing processor")?;
+                .attach_printable("Failed to record back failure status to billing processor")?;
 
                 self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
