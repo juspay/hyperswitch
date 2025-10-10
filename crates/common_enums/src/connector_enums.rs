@@ -900,7 +900,19 @@ impl TryFrom<Connector> for RoutableConnectors {
 }
 
 // Enum representing different status an invoice can have.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, strum::Display, strum::EnumString)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {
     InvoiceCreated,

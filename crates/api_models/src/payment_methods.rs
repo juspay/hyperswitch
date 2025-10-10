@@ -3262,3 +3262,56 @@ pub struct AuthenticationDetails {
     #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckSuccessResponse {
+    /// The status of the network token
+    #[schema(value_type = TokenStatus)]
+    pub status: api_enums::TokenStatus,
+
+    /// The expiry month of the network token if active
+    #[schema(value_type = String)]
+    pub token_expiry_month: masking::Secret<String>,
+
+    /// The expiry year of the network token if active
+    #[schema(value_type = String)]
+    pub token_expiry_year: masking::Secret<String>,
+
+    /// The last four digits of the card
+    pub card_last_four: String,
+
+    /// The last four digits of the network token
+    pub token_last_four: String,
+
+    /// The expiry date of the card in MM/YY format
+    pub card_expiry: String,
+
+    /// The payment method ID that was checked
+    #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// The customer ID associated with the payment method
+    #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
+    pub customer_id: id_type::GlobalCustomerId,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckFailureResponse {
+    /// Error message describing what went wrong
+    pub error_message: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NetworkTokenStatusCheckResponse {
+    /// Successful network token status check response
+    SuccessResponse(NetworkTokenStatusCheckSuccessResponse),
+    /// Error response for network token status check
+    FailureResponse(NetworkTokenStatusCheckFailureResponse),
+}
