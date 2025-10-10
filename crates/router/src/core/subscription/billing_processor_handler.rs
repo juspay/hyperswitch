@@ -178,7 +178,7 @@ impl BillingHandler {
         state: &SessionState,
         subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
-        billing_address: api_models::payments::Address,
+        billing_address: Option<api_models::payments::Address>,
     ) -> errors::RouterResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
             item_price_id: item_price_id.ok_or(errors::ApiErrorResponse::MissingRequiredField {
@@ -190,7 +190,11 @@ impl BillingHandler {
             subscription_id: subscription.id.to_owned(),
             customer_id: subscription.customer_id.to_owned(),
             subscription_items: vec![subscription_item],
-            billing_address,
+            billing_address: billing_address.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing",
+                },
+            )?,
             auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
             connector_params: self.connector_params.clone(),
         };

@@ -336,21 +336,13 @@ impl ConfirmSubscriptionRequest {
         ))
     }
 
-    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
-        let billing = self.payment_details.payment_method_data.billing.clone();
-
-        if let Some(billing) = billing {
-            Ok(billing)
-        } else {
-            self.payment_details
-                .billing
-                .clone()
-                .ok_or(error_stack::report!(
-                    ValidationError::MissingRequiredField {
-                        field_name: "billing".to_string()
-                    }
-                ))
-        }
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.payment_details
+            .payment_method_data
+            .billing
+            .as_ref()
+            .or(self.payment_details.billing.as_ref())
+            .cloned()
     }
 }
 
@@ -390,12 +382,12 @@ pub struct CreateAndConfirmSubscriptionRequest {
 }
 
 impl CreateAndConfirmSubscriptionRequest {
-    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
-        self.billing.clone().ok_or(error_stack::report!(
-            ValidationError::MissingRequiredField {
-                field_name: "billing".to_string()
-            }
-        ))
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.payment_details
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.billing.clone())
+            .or(self.billing.clone())
     }
 }
 
