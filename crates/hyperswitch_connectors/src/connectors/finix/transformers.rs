@@ -1,5 +1,6 @@
 pub mod request;
 pub mod response;
+use api_models::payments::MandateReferenceId;
 use common_enums::{enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3};
 use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::{
@@ -15,12 +16,12 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, RefundsData, ResponseId,
     },
     router_response_types::{
-        ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
 
@@ -137,13 +138,11 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             )
             .into());
         }
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
-                let source = item.router_data.get_payment_method_token()?;
-                Ok(Self {
-                    amount: item.amount,
-                    currency: item.router_data.request.currency,
-                    source: match source {
+        let source =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(_) => {
+                    let source = item.router_data.get_payment_method_token()?;
+                    match source {
                         PaymentMethodToken::Token(token) => token,
                         PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
@@ -154,16 +153,39 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                         PaymentMethodToken::GooglePayDecrypt(_) => {
                             Err(unimplemented_payment_method!("Google Pay", "Stax"))?
                         }
-                    },
-                    merchant: item.merchant_id.clone(),
-                    tags: None,
-                    three_d_secure: None,
-                })
-            }
-            _ => Err(
-                ConnectorError::NotImplemented("Payment method not supported".to_string()).into(),
-            ),
-        }
+                    }
+                }
+                PaymentMethodData::MandatePayment => Secret::new(
+                    item.router_data
+                        .request
+                        .mandate_id
+                        .as_ref()
+                        .and_then(|mandate_ids| {
+                            mandate_ids
+                                .mandate_reference_id
+                                .as_ref()
+                                .and_then(|mandate_ref_id| match mandate_ref_id {
+                                    MandateReferenceId::ConnectorMandateId(id) => {
+                                        id.get_connector_mandate_id()
+                                    }
+                                    _ => None,
+                                })
+                        })
+                        .ok_or(ConnectorError::MissingConnectorMandateID)?,
+                ),
+                _ => Err(ConnectorError::NotImplemented(
+                    "Payment method not supported".to_string(),
+                ))?,
+            };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: item.router_data.request.currency,
+            source: source,
+            merchant: item.merchant_id.clone(),
+            tags: None,
+            three_d_secure: None,
+        })
     }
 }
 
@@ -218,6 +240,7 @@ impl
                     additional_data: None,
                 })
             }
+
             _ => Err(ConnectorError::NotImplemented(
                 "Payment method not supported for tokenization".to_string(),
             )
@@ -333,7 +356,12 @@ pub(crate) fn get_finix_response<F, T>(
                         .unwrap_or(router_data.response.id),
                 ),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: router_data.response.source.map(|id| id.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

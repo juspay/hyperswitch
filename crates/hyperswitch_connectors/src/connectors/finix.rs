@@ -48,7 +48,11 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as finix;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentMethodDataType},
+};
 
 #[derive(Clone)]
 pub struct Finix {
@@ -335,16 +339,16 @@ impl ConnectorCommon for Finix {
 impl ConnectorValidation for Finix {
     fn validate_mandate_payment(
         &self,
-        _pm_type: Option<PaymentMethodType>,
+        pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
+        ]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -950,7 +954,7 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         common_enums::PaymentMethod::Card,
         PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
+            mandates: common_enums::FeatureStatus::Supported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: Some(
