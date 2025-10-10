@@ -51,7 +51,7 @@ pub enum ExternalVaultPaymentMethodData {
     VaultToken(VaultToken),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApplePayFlow {
     Simplified(api_models::payments::PaymentProcessingDetails),
     Manual,
