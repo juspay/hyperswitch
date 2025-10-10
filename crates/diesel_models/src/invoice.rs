@@ -56,13 +56,13 @@ pub struct Invoice {
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
 #[diesel(table_name = invoice)]
 pub struct InvoiceUpdate {
-    pub amount: Option<MinorUnit>,
-    pub currency: Option<String>,
     pub status: Option<InvoiceStatus>,
     pub payment_method_id: Option<String>,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<String>,
 }
 
 impl InvoiceNew {
@@ -115,13 +115,13 @@ impl InvoiceUpdate {
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
+            status,
+            payment_method_id,
+            connector_invoice_id,
+            modified_at: common_utils::date_time::now(),
+            payment_intent_id,
             amount,
             currency,
-            payment_method_id,
-            status,
-            connector_invoice_id,
-            payment_intent_id,
-            modified_at: common_utils::date_time::now(),
         }
     }
 }

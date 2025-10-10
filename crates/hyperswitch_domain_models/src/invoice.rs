@@ -261,31 +261,31 @@ impl From<InvoiceUpdateRequest> for InvoiceUpdate {
 
         match request {
             InvoiceUpdateRequest::Amount(update) => Self {
-                amount: Some(update.amount),
-                currency: Some(update.currency),
                 status: None,
                 payment_method_id: None,
-                payment_intent_id: None,
                 connector_invoice_id: None,
                 modified_at: now,
+                payment_intent_id: None,
+                amount: Some(update.amount),
+                currency: Some(update.currency),
             },
             InvoiceUpdateRequest::Connector(update) => Self {
-                connector_invoice_id: Some(update.connector_invoice_id),
                 status: Some(update.status),
                 payment_method_id: None,
+                connector_invoice_id: Some(update.connector_invoice_id),
+                modified_at: now,
                 payment_intent_id: None,
                 amount: None,
                 currency: None,
-                modified_at: now,
             },
             InvoiceUpdateRequest::PaymentStatus(update) => Self {
-                payment_method_id: update.payment_method_id,
-                payment_intent_id: update.payment_intent_id,
                 status: Some(update.status),
+                payment_method_id: update.payment_method_id,
                 connector_invoice_id: update.connector_invoice_id,
+                modified_at: now,
+                payment_intent_id: update.payment_intent_id,
                 amount: None,
                 currency: None,
-                modified_at: now,
             },
         }
     }
@@ -318,25 +318,25 @@ impl super::behaviour::Conversion for InvoiceUpdate {
         Self: Sized,
     {
         Ok(Self {
-            amount: item.amount,
-            currency: item.currency,
             status: item.status,
             payment_method_id: item.payment_method_id,
             connector_invoice_id: item.connector_invoice_id,
             modified_at: item.modified_at,
             payment_intent_id: item.payment_intent_id,
+            amount: item.amount,
+            currency: item.currency,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::invoice::InvoiceUpdate {
-            amount: self.amount,
-            currency: self.currency,
             status: self.status,
             payment_method_id: self.payment_method_id,
             connector_invoice_id: self.connector_invoice_id,
             modified_at: self.modified_at,
             payment_intent_id: self.payment_intent_id,
+            amount: self.amount,
+            currency: self.currency,
         })
     }
 }
@@ -351,13 +351,13 @@ impl InvoiceUpdate {
         currency: Option<String>,
     ) -> Self {
         Self {
-            payment_method_id,
             status,
+            payment_method_id,
+            connector_invoice_id,
             modified_at: common_utils::date_time::now(),
             payment_intent_id,
             amount,
             currency,
-            connector_invoice_id,
         }
     }
 }
