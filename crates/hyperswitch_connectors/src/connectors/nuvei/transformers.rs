@@ -1990,7 +1990,7 @@ where
                                 .format(&time::macros::format_description!("[year][month][day]"))
                                 .map_err(|_| errors::ConnectorError::DateFormattingFailed)?,
                         ),
-                        rebill_frequency: Some(IsRebilling::False),
+                        rebill_frequency: Some("0".to_string()),
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
                         challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
