@@ -853,6 +853,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -878,6 +879,7 @@ pub struct PaymentsCancelData {
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone)]

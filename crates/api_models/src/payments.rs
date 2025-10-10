@@ -5181,6 +5181,18 @@ pub enum QrCodeInformation {
         display_text: Option<String>,
         border_color: Option<String>,
     },
+    QrDataUrlSantander {
+        qr_code_url: Url,
+        display_to_timestamp: Option<i64>,
+        variant: Option<SantanderVariant>,
+    },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderVariant {
+    Immediate,
+    Scheduled,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, ToSchema)]

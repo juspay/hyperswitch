@@ -934,6 +934,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payment_experience: None,
         connector_reference_id: attempt.connector_response_reference_id.clone(),
         setup_future_usage: Some(payment_intent.setup_future_usage),
+        feature_metadata: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1139,6 +1140,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         minor_amount: Some(attempt.amount_details.get_net_amount()),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
+        feature_metadata: None,
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -3762,7 +3764,23 @@ pub fn qr_code_next_steps_check(
         .connector_metadata
         .map(|metadata| metadata.parse_value("QrCodeInformation"));
 
-    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+    let mut qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+
+    if let Some(api_models::payments::QrCodeInformation::QrDataUrlSantander {
+        qr_code_url,
+        display_to_timestamp,
+        ..
+    }) = qr_code_instructions.clone()
+    {
+        qr_code_instructions = Some(
+            api_models::payments::QrCodeInformation::QrDataUrlSantander {
+                qr_code_url,
+                display_to_timestamp,
+                variant: None,
+            },
+        );
+    }
+
     Ok(qr_code_instructions)
 }
 pub fn paypal_sdk_next_steps_check(
@@ -4168,6 +4186,17 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 display_to_timestamp,
                 border_color,
                 display_text,
+            },
+            api_models::payments::QrCodeInformation::QrDataUrlSantander {
+                qr_code_url,
+                display_to_timestamp,
+                variant: _,
+            } => Self::QrCodeInformation {
+                image_data_url: Some(qr_code_url),
+                display_to_timestamp,
+                qr_code_url: None,
+                border_color: None,
+                display_text: None,
             },
         }
     }
@@ -4589,6 +4618,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             .payment_attempt
             .get_payment_method_type()
             .to_owned();
+        let feature_metadata: Option<api_models::payments::FeatureMetadata> = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|b| b.parse_value("FeatureMetadata"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "feature_metadata",
+            })?;
+
+        println!("Feature Metadata: {:?}", feature_metadata);
+
         Ok(Self {
             amount,
             integrity_object: None,
@@ -4618,6 +4659,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .connector_response_reference_id
                 .clone(),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            feature_metadata,
         })
     }
 }
@@ -4869,6 +4911,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             metadata: payment_data.payment_intent.metadata.expose_option(),
             webhook_url,
             capture_method: Some(capture_method),
+            feature_metadata: None,
         })
     }
 }
@@ -4893,6 +4936,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
+            })?;
+        let feature_metadata: Option<api_models::payments::FeatureMetadata> = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(|b| b.parse_value("FeatureMetadata"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "feature_metadata",
             })?;
         let amount = payment_data.payment_attempt.get_total_amount();
 
@@ -4926,6 +4978,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             webhook_url,
             capture_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            feature_metadata,
         })
     }
 }

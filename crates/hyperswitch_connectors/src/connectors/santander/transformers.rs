@@ -581,17 +581,7 @@ impl
         let santander_mca_metadata =
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
-        let debtor = Some(SantanderDebtor {
-            cnpj: santander_mca_metadata.cpf.clone(),
-            name: value.0.router_data.get_billing_full_name()?,
-            // email: value.0.router_data.get_optional_billing_email(),
-            // street: value.0.router_data.get_optional_billing_line1(),
-            // city: value.0.router_data.get_optional_billing_city(),
-            // uf: value.0.router_data.get_billing_state()?,
-            // zip_code: value.0.router_data.get_optional_billing_zip(),
-        });
-
-        let calendar = match &value
+        let (calendar, debtor) = match &value
             .0
             .router_data
             .request
@@ -600,20 +590,58 @@ impl
             .and_then(|f| f.pix_qr_expiry_time.as_ref())
         {
             Some(api_models::payments::PixQRExpirationDuration::Immediate(val)) => {
-                SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
-                    expiration: val.time,
-                })
+                let cal =
+                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                        expiration: val.time,
+                    });
+                let debt = Some(SantanderDebtor {
+                    cnpj: Some(santander_mca_metadata.cpf.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cpf: None,
+                });
+
+                (cal, debt)
             }
             Some(api_models::payments::PixQRExpirationDuration::Scheduled(val)) => {
-                SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
-                    expiration_date: val.date.clone(),
-                    validity_after_expiration: val.validity_after_expiration,
-                })
+                let cal =
+                    SantanderPixRequestCalendar::Scheduled(SantanderPixDueDateCalendarRequest {
+                        expiration_date: val.date.clone(),
+                        validity_after_expiration: val.validity_after_expiration,
+                    });
+
+                let debt = Some(SantanderDebtor {
+                    cpf: Some(santander_mca_metadata.cpf.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cnpj: None,
+                });
+
+                (cal, debt)
             }
             None => {
-                SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
-                    expiration: 3600, // default 1 hour
-                })
+                let cal =
+                    SantanderPixRequestCalendar::Immediate(SantanderPixImmediateCalendarRequest {
+                        expiration: 3600, // default 1 hour
+                    });
+
+                let debt = Some(SantanderDebtor {
+                    cnpj: Some(santander_mca_metadata.cpf.clone()),
+                    name: value.0.router_data.get_billing_full_name()?,
+                    street: None,
+                    city: None,
+                    state: None,
+                    zip_code: None,
+                    cpf: None,
+                });
+
+                (cal, debt)
             }
         };
 
@@ -774,13 +802,10 @@ pub struct DiscountObject {
 pub enum ProtestType {
     #[serde(rename = "SEM_PROTESTO")]
     WithoutProtest,
-
     #[serde(rename = "DIAS_CORRIDOS")]
     DaysConducted,
-
     #[serde(rename = "DIAS_UTEIS")]
     WorkingDays,
-
     #[serde(rename = "CADASTRO_CONVENIO")]
     RegistrationAgreement,
 }
@@ -790,10 +815,8 @@ pub enum ProtestType {
 pub enum PaymentType {
     #[serde(rename = "REGISTRO")]
     Registration,
-
     #[serde(rename = "DIVERGENTE")]
     Divergent,
-
     #[serde(rename = "PARCIAL")]
     Partial,
 }
@@ -811,29 +834,27 @@ pub struct Key {
     pub dict_key: Option<String>,
 }
 
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct SantanderPixQRCodeRequest {
-//     #[serde(rename = "calendario")]
-//     pub calender: SantanderPixCalendar,
-//     #[serde(rename = "devedor")]
-//     pub debtor: SantanderDebtor,
-//     #[serde(rename = "valor")]
-//     pub value: SantanderValue,
-//     #[serde(rename = "chave")]
-//     pub key: Secret<String>,
-//     #[serde(rename = "solicitacaoPagador")]
-//     pub request_payer: Option<String>,
-//     #[serde(rename = "infoAdicionais")]
-//     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderDebtor {
-    pub cnpj: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnpj: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpf: Option<Secret<String>>,
     #[serde(rename = "nome")]
     pub name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "logradouro")]
+    pub street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "cidade")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "uf")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "cep")]
+    pub zip_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -863,7 +884,7 @@ pub enum SantanderPaymentStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SantanderVoidStatus {
-    #[serde(rename="REMOVIDA_PELO_USUARIO_RECEBEDOR")]
+    #[serde(rename = "REMOVIDA_PELO_USUARIO_RECEBEDOR")]
     RemovedByReceivingUser,
 }
 
@@ -935,6 +956,7 @@ pub struct SantanderBoletoPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SantanderPixRequestCalendar {
     Immediate(SantanderPixImmediateCalendarRequest),
     Scheduled(SantanderPixDueDateCalendarRequest),
@@ -947,19 +969,21 @@ pub struct SantanderPixDueDateCalendarRequest {
     #[serde(rename = "validadeAposVencimento")]
     pub validity_after_expiration: Option<i32>,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SantanderPixQRCodePaymentsResponse {
+    pub status: SantanderPaymentStatus,
     #[serde(rename = "calendario")]
     pub calendar: SantanderCalendarResponse,
     #[serde(rename = "txid")]
     pub transaction_id: String,
     #[serde(rename = "revisao")]
-    pub revision: i32,
+    pub revision: Option<Value>,
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     pub location: Option<String>,
-    pub status: SantanderPaymentStatus,
+    #[serde(rename = "recebedor")]
+    pub recipient: Recipient,
     #[serde(rename = "valor")]
     pub value: SantanderValue,
     #[serde(rename = "chave")]
@@ -969,6 +993,33 @@ pub struct SantanderPixQRCodePaymentsResponse {
     #[serde(rename = "infoAdicionais")]
     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
+    #[serde(rename = "pixCopiaECola")]
+    pub pix_qr_code_data: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixQRCodeSyncResponse {
+    pub status: SantanderPaymentStatus,
+    #[serde(rename = "calendario")]
+    pub calendar: SantanderCalendarResponse,
+    #[serde(rename = "txid")]
+    pub transaction_id: String,
+    #[serde(rename = "revisao")]
+    pub revision: String,
+    #[serde(rename = "devedor")]
+    pub debtor: Option<SantanderDebtor>,
+    pub location: Option<String>,
+    #[serde(rename = "valor")]
+    pub value: SantanderValue,
+    #[serde(rename = "chave")]
+    pub key: Secret<String>,
+    #[serde(rename = "solicitacaoPagador")]
+    pub request_payer: Option<String>,
+    #[serde(rename = "infoAdicionais")]
+    pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+    pub pix: Option<Vec<SantanderPix>>,
+    #[serde(rename = "pixCopiaECola")]
+    pub pix_qr_code_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -984,6 +1035,7 @@ pub struct SantanderPixQRPaymentRequest {
     #[serde(rename = "solicitacaoPagador")]
     pub request_payer: Option<String>,
     #[serde(rename = "infoAdicionais")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
 }
 
@@ -998,16 +1050,81 @@ pub struct SantanderPixVoidResponse {
     pub revision: i32,
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
-    pub location: Option<String>,
+    #[serde(rename = "recebedor")]
+    pub recipient: Recipient,
     pub status: SantanderPaymentStatus,
     #[serde(rename = "valor")]
-    pub value: SantanderValue,
+    pub value: ValueResponse,
+    #[serde(rename = "pixCopiaECola")]
+    pub pix_qr_code_data: Option<Secret<String>>,
     #[serde(rename = "chave")]
     pub key: Secret<String>,
     #[serde(rename = "solicitacaoPagador")]
     pub request_payer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "infoAdicionais")]
     pub additional_info: Option<Vec<SantanderAdditionalInfo>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValueResponse {
+    #[serde(rename = "original")]
+    pub original: String,
+    #[serde(rename = "multa")]
+    pub fine: Fine,
+    #[serde(rename = "juros")]
+    pub interest: Interest,
+    #[serde(rename = "desconto")]
+    pub discount: DiscountResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Fine {
+    #[serde(rename = "modalidade")]
+    pub r#type: String,
+    #[serde(rename = "valorPerc")]
+    pub perc_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Interest {
+    #[serde(rename = "modalidade")]
+    pub r#type: String,
+    #[serde(rename = "valorPerc")]
+    pub perc_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscountResponse {
+    #[serde(rename = "modalidade")]
+    pub r#type: String,
+    #[serde(rename = "descontoDataFixa")]
+    pub fixed_date_discount: Vec<FixedDateDiscount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FixedDateDiscount {
+    #[serde(rename = "data")]
+    pub date: String,
+    #[serde(rename = "valorPerc")]
+    pub perc_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Recipient {
+    pub cnpj: Option<Secret<String>>,
+    #[serde(rename = "nome")]
+    pub name: Option<Secret<String>>,
+    #[serde(rename = "nomeFantasia")]
+    pub business_name: Option<Secret<String>>,
+    #[serde(rename = "logradouro")]
+    pub street: Option<Secret<String>>,
+    #[serde(rename = "cidade")]
+    pub city: Option<Secret<String>>,
+    #[serde(rename = "uf")]
+    pub state: Option<Secret<String>>,
+    #[serde(rename = "cep")]
+    pub zip_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1021,13 +1138,17 @@ pub struct SantanderCalendarResponse {
     #[serde(rename = "criacao")]
     pub creation: String,
     #[serde(rename = "expiracao")]
-    pub expiration: String,
+    pub expiration: Option<String>,
+    #[serde(rename = "dataDeVencimento")]
+    pub due_date: Option<String>,
+    #[serde(rename = "validadeAposVencimento")]
+    pub validity_after_due: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
-    PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
+    PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
 }
 
@@ -1103,7 +1224,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 let attempt_status = AttemptStatus::from(pix_data.status.clone());
                 match attempt_status {
                     AttemptStatus::Failure => {
-                        let response = Err(get_error_response(
+                        let response = Err(get_sync_error_response(
                             Box::new(*pix_data),
                             item.http_code,
                             attempt_status,
@@ -1170,6 +1291,25 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
 
 pub fn get_error_response(
     pix_data: Box<SantanderPixQRCodePaymentsResponse>,
+    status_code: u16,
+    attempt_status: AttemptStatus,
+) -> ErrorResponse {
+    ErrorResponse {
+        code: NO_ERROR_CODE.to_string(),
+        message: NO_ERROR_MESSAGE.to_string(),
+        reason: None,
+        status_code,
+        attempt_status: Some(attempt_status),
+        connector_transaction_id: Some(pix_data.transaction_id.clone()),
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+        connector_metadata: None,
+    }
+}
+
+pub fn get_sync_error_response(
+    pix_data: Box<SantanderPixQRCodeSyncResponse>,
     status_code: u16,
     attempt_status: AttemptStatus,
 ) -> ErrorResponse {
@@ -1375,6 +1515,15 @@ fn get_qr_code_data<F, T>(
     item: &ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsResponseData>,
     pix_data: &SantanderPixQRCodePaymentsResponse,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
+    // Scheduled type Pix QR Code Response already has a formed emv string data for QR Code
+    // HS doesnt need to create it
+    if let Some(data) = pix_data.pix_qr_code_data.clone() {
+        return convert_pix_data_to_value(
+            data,
+            Some(api_models::payments::SantanderVariant::Scheduled),
+        );
+    }
+
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
     let response = pix_data.clone();
@@ -1405,15 +1554,29 @@ fn get_qr_code_data<F, T>(
         location,
     )?;
 
-    let image_data = QrImage::new_from_data(dynamic_pix_code.clone())
+    let variant = if pix_data.pix_qr_code_data.is_some() {
+        Some(api_models::payments::SantanderVariant::Scheduled)
+    } else {
+        Some(api_models::payments::SantanderVariant::Immediate)
+    };
+
+    return convert_pix_data_to_value(dynamic_pix_code, variant);
+}
+
+fn convert_pix_data_to_value(
+    data: String,
+    variant: Option<api_models::payments::SantanderVariant>,
+) -> CustomResult<Option<Value>, errors::ConnectorError> {
+    let image_data = QrImage::new_from_data(data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     let image_data_url = Url::parse(image_data.data.clone().as_str())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_info = QrCodeInformation::QrDataUrl {
-        image_data_url,
+    let qr_code_info = QrCodeInformation::QrDataUrlSantander {
+        qr_code_url: image_data_url,
         display_to_timestamp: None,
+        variant,
     };
 
     Some(qr_code_info.encode_to_value())
@@ -1425,6 +1588,13 @@ fn get_qr_code_data<F, T>(
 pub struct SantanderRefundRequest {
     #[serde(rename = "valor")]
     pub value: StringMajorUnit,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QrDataUrlSantander {
+    pub qr_code_url: Url,
+    pub display_to_timestamp: Option<i64>,
+    pub variant: Option<api_models::payments::SantanderVariant>,
 }
 
 impl<F> TryFrom<&SantanderRouterData<&RefundsRouterData<F>>> for SantanderRefundRequest {
@@ -1493,6 +1663,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SantanderErrorResponse {
     PixQrCode(SantanderPixQRCodeErrorResponse),
     Boleto(SantanderBoletoErrorResponse),
@@ -1537,7 +1708,7 @@ pub struct SantanderPixQRCodeErrorResponse {
     #[serde(rename = "type")]
     pub field_type: Secret<String>,
     pub title: String,
-    pub status: i64,
+    pub status: String,
     pub detail: Option<String>,
     pub correlation_id: Option<String>,
     #[serde(rename = "violacoes")]
