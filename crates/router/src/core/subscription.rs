@@ -81,11 +81,13 @@ pub async fn create_subscription(
         .attach_printable("subscriptions: failed to create invoice")?;
 
     subscription
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment.payment_method_id.clone(),
-            None,
-            None,
-        ))
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment.payment_method_id.clone(),
+                None,
+                None,
+            ),
+        )
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
@@ -146,7 +148,6 @@ pub async fn get_subscription_plans(
     }
     Ok(ApplicationResponse::Json(response))
 }
-
 /// Creates and confirms a subscription in one operation.
 pub async fn create_and_confirm_subscription(
     state: SessionState,
@@ -253,16 +254,18 @@ pub async fn create_and_confirm_subscription(
         .await?;
 
     subs_handler
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment_response.payment_method_id.clone(),
-            Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
-            Some(
-                subscription_create_response
-                    .subscription_id
-                    .get_string_repr()
-                    .to_string(),
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    subscription_create_response
+                        .subscription_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
             ),
-        ))
+        )
         .await?;
 
     let response = subs_handler.generate_response(
@@ -386,16 +389,18 @@ pub async fn confirm_subscription(
         .await?;
 
     subscription_entry
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment_response.payment_method_id.clone(),
-            Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
-            Some(
-                subscription_create_response
-                    .subscription_id
-                    .get_string_repr()
-                    .to_string(),
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    subscription_create_response
+                        .subscription_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
             ),
-        ))
+        )
         .await?;
 
     let response = subscription_entry.generate_response(
