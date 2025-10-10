@@ -130,7 +130,7 @@ pub async fn update_payment_method_record(
         let parsed_mca_ids =
             MerchantConnectorValidator::parse_comma_separated_ids(merchant_connector_ids)?;
         let mut cache = HashMap::new();
-        
+
         for merchant_connector_id in parsed_mca_ids {
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -145,7 +145,7 @@ pub async fn update_payment_method_record(
                         id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )?;
-            
+
             cache.insert(merchant_connector_id, mca);
         }
         Some(cache)
@@ -153,56 +153,59 @@ pub async fn update_payment_method_record(
         None
     };
 
-    let (customer, updated_customer) = match (
-        &req.connector_customer_id,
-        &req.merchant_connector_ids,
-    ) {
-        (Some(connector_customer_id), Some(_)) => {
-            let customer = db
-                .find_customer_by_customer_id_merchant_id(
-                    &state.into(),
-                    &payment_method.customer_id,
-                    merchant_id,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    let (customer, updated_customer) =
+        match (&req.connector_customer_id, &req.merchant_connector_ids) {
+            (Some(connector_customer_id), Some(_)) => {
+                let customer = db
+                    .find_customer_by_customer_id_merchant_id(
+                        &state.into(),
+                        &payment_method.customer_id,
+                        merchant_id,
+                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_merchant_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-            let mut updated_connector_customer_data: HashMap<String, serde_json::Value> = customer
-                .connector_customer
-                .as_ref()
-                .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
-                .unwrap_or_default();
+                let mut updated_connector_customer_data: HashMap<String, serde_json::Value> =
+                    customer
+                        .connector_customer
+                        .as_ref()
+                        .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
+                        .unwrap_or_default();
 
-            if let Some(ref cache) = mca_data_cache {
-                for (_, mca) in cache.iter() {
-                    let key = match mca.connector_type {
-                        enums::ConnectorType::PayoutProcessor => {
-                            format!("{}_{}", mca.profile_id.get_string_repr(), mca.connector_name)
-                        }
-                        _ => mca.merchant_connector_id.get_string_repr().to_string()
-                    };
+                if let Some(ref cache) = mca_data_cache {
+                    for (_, mca) in cache.iter() {
+                        let key = match mca.connector_type {
+                            enums::ConnectorType::PayoutProcessor => {
+                                format!(
+                                    "{}_{}",
+                                    mca.profile_id.get_string_repr(),
+                                    mca.connector_name
+                                )
+                            }
+                            _ => mca.merchant_connector_id.get_string_repr().to_string(),
+                        };
 
-                    updated_connector_customer_data.insert(
-                        key,
-                        serde_json::Value::String(connector_customer_id.clone()),
-                    );
+                        updated_connector_customer_data.insert(
+                            key,
+                            serde_json::Value::String(connector_customer_id.clone()),
+                        );
+                    }
                 }
+
+                let customer_update = CustomerUpdate::ConnectorCustomer {
+                    connector_customer: Some(pii::SecretSerdeValue::new(
+                        serde_json::to_value(updated_connector_customer_data)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to serialize connector customer data")?,
+                    )),
+                };
+
+                (Some(customer), Some(customer_update))
             }
-
-            let customer_update = CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(pii::SecretSerdeValue::new(
-                    serde_json::to_value(updated_connector_customer_data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to serialize connector customer data")?,
-                )),
-            };
-
-            (Some(customer), Some(customer_update))
-        }
-        _ => (None, None)
-    };
+            _ => (None, None),
+        };
 
     let pm_update = match (&req.payment_instrument_id, &mca_data_cache) {
         (Some(payment_instrument_id), Some(cache)) => {
@@ -322,24 +325,26 @@ pub async fn update_payment_method_record(
             "Failed to update payment method for existing pm_id: {payment_method_id:?} in db",
         ))?;
 
-    let connector_customer_response = if let (Some(customer_data), Some(customer_update)) = (customer, updated_customer) {
-        let updated_customer = db.update_customer_by_customer_id_merchant_id(
-            &state.into(),
-            response.customer_id.clone(),
-            merchant_id.clone(),
-            customer_data,
-            customer_update,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update customer connector data")?;
+    let connector_customer_response =
+        if let (Some(customer_data), Some(customer_update)) = (customer, updated_customer) {
+            let updated_customer = db
+                .update_customer_by_customer_id_merchant_id(
+                    &state.into(),
+                    response.customer_id.clone(),
+                    merchant_id.clone(),
+                    customer_data,
+                    customer_update,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update customer connector data")?;
 
-        updated_customer.connector_customer
-    } else {
-        None
-    };
+            updated_customer.connector_customer
+        } else {
+            None
+        };
 
     Ok(ApplicationResponse::Json(
         pm_api::PaymentMethodRecordUpdateResponse {
