@@ -51,6 +51,10 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for PeachPaymentsConnectorMetadataO
     }
 }
 
+const COF_DATA_TYPE: &str = "adhoc";
+const COF_DATA_SOURCE: &str = "cit";
+const COF_DATA_MODE: &str = "initial";
+
 // Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -63,7 +67,6 @@ pub struct PeachpaymentsPaymentsCardRequest {
     pub send_date_time: String,
 }
 
-// Card Gateway API Transaction Request
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsPaymentsNTRequest {
@@ -82,7 +85,7 @@ pub enum PeachpaymentsPaymentsRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct CofData {
+pub struct CardOnFileData {
     #[serde(rename = "type")]
     pub _type: String,
     pub source: String,
@@ -105,7 +108,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub routing: Routing,
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
-    pub cof_data: CofData,
+    pub cof_data: CardOnFileData,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -502,10 +505,10 @@ impl
                 routing,
                 network_token_data,
                 amount,
-                cof_data: CofData {
-                    _type: "adhoc".to_string(),
-                    source: "cit".to_string(),
-                    mode: "initial".to_string(),
+                cof_data: CardOnFileData {
+                    _type: COF_DATA_TYPE.to_string(),
+                    source: COF_DATA_SOURCE.to_string(),
+                    mode: COF_DATA_MODE.to_string(),
                 },
             },
         );
