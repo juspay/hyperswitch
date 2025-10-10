@@ -7,6 +7,7 @@ pub struct InvoiceSyncTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub customer_id: id_type::CustomerId,
+    // connector_invoice_id is optional because in some cases (Trial/Future), the invoice might not have been created in the connector yet.
     pub connector_invoice_id: Option<id_type::InvoiceId>,
     pub connector_name: api_enums::Connector, // The connector to which the invoice belongs
 }

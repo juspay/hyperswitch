@@ -119,26 +119,28 @@ impl<'a> SubscriptionHandler<'a> {
         customer: &hyperswitch_domain_models::customer::Customer,
         customer_create_response: Option<router_response_types::ConnectorCustomerResponseData>,
     ) -> errors::RouterResult<hyperswitch_domain_models::customer::Customer> {
-        if let Some(customer_response) = customer_create_response {
-            if let Some(customer_update) =
-                payments_core::customers::update_connector_customer_in_customers(
+        match customer_create_response {
+            Some(customer_response) => {
+                match payments_core::customers::update_connector_customer_in_customers(
                     merchant_connector_id.get_string_repr(),
                     Some(customer),
                     Some(customer_response.connector_customer_id),
                 )
                 .await
-            {
-                return Self::update_customer(
-                    state,
-                    merchant_context,
-                    customer.clone(),
-                    customer_update,
-                )
-                .await
-                .attach_printable("Failed to update customer with connector customer ID");
+                {
+                    Some(customer_update) => Self::update_customer(
+                        state,
+                        merchant_context,
+                        customer.clone(),
+                        customer_update,
+                    )
+                    .await
+                    .attach_printable("Failed to update customer with connector customer ID"),
+                    None => Ok(customer.clone()),
+                }
             }
+            None => Ok(customer.clone()),
         }
-        Ok(customer.clone())
     }
 
     pub async fn update_customer(

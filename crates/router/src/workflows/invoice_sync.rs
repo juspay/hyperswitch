@@ -162,6 +162,26 @@ impl<'a> InvoiceSyncHandler<'a> {
         Ok(payments_response)
     }
 
+    pub async fn perform_billing_processor_record_back_if_possible(
+        &self,
+        payment_response: subscription_types::PaymentResponseData,
+        payment_status: common_enums::AttemptStatus,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        invoice_sync_status: storage::invoice_sync::InvoiceSyncPaymentStatus,
+    ) -> CustomResult<(), router_errors::ApiErrorResponse> {
+        if let Some(connector_invoice_id) = connector_invoice_id {
+            self.perform_billing_processor_record_back(
+                payment_response,
+                payment_status,
+                connector_invoice_id,
+                invoice_sync_status,
+            )
+            .await
+            .attach_printable("Failed to record back to billing processor")?;
+        }
+        Ok(())
+    }
+
     pub async fn perform_billing_processor_record_back(
         &self,
         payment_response: subscription_types::PaymentResponseData,
@@ -224,24 +244,16 @@ impl<'a> InvoiceSyncHandler<'a> {
     ) -> CustomResult<(), router_errors::ApiErrorResponse> {
         let invoice_sync_status =
             storage::invoice_sync::InvoiceSyncPaymentStatus::from(payment_response.status);
-        let invoice_record_back_fn = || async {
-            if let Some(connector_invoice_id) = connector_invoice_id.clone() {
-                Box::pin(self.perform_billing_processor_record_back(
+        match invoice_sync_status {
+            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
+                self.perform_billing_processor_record_back_if_possible(
                     payment_response.clone(),
                     common_enums::AttemptStatus::Charged,
                     connector_invoice_id,
                     invoice_sync_status.clone(),
-                ))
+                )
                 .await
-                .attach_printable("Failed to record back to billing processor")?;
-            }
-            Ok::<(), error_stack::Report<router_errors::ApiErrorResponse>>(())
-        };
-        match invoice_sync_status {
-            storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentSucceeded => {
-                invoice_record_back_fn().await.attach_printable(
-                    "Failed to record back success status to billing processor",
-                )?;
+                .attach_printable("Failed to record back success status to billing processor")?;
 
                 self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
@@ -264,9 +276,14 @@ impl<'a> InvoiceSyncHandler<'a> {
                 .attach_printable("Failed to update process tracker status")
             }
             storage::invoice_sync::InvoiceSyncPaymentStatus::PaymentFailed => {
-                invoice_record_back_fn().await.attach_printable(
-                    "Failed to record back failure status to billing processor",
-                )?;
+                self.perform_billing_processor_record_back_if_possible(
+                    payment_response.clone(),
+                    common_enums::AttemptStatus::Charged,
+                    connector_invoice_id,
+                    invoice_sync_status.clone(),
+                )
+                .await
+                .attach_printable("Failed to record back failure status to billing processor")?;
 
                 self.finish_process_with_business_status(&process, business_status::COMPLETED_BY_PT)
                     .await
