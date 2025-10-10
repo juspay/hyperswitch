@@ -4672,7 +4672,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     .await
     {
         Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
-        Err(e) => logger::error!("Shadow UCS comparison failed: {:?}", e),
+        Err(e) => logger::debug!("Shadow UCS comparison failed: {:?}", e),
     }
 }
 
@@ -4714,7 +4714,7 @@ where
     let _ = send_comparison_data(state, comparison_data)
         .await
         .map_err(|e| {
-            logger::error!("Failed to send comparison data: {:?}", e);
+            logger::debug!("Failed to send comparison data: {:?}", e);
         });
     Ok(())
 }
@@ -4765,9 +4765,8 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>
-        + Send
-        + Sync,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let add_access_token_result = router_data
         .add_access_token(
