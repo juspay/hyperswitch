@@ -164,9 +164,9 @@ pub struct GrpcHeadersUcs {
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
 }
 
-/// Type aliase for GrpcHeaders builder in initial stage
+/// Type aliases for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<((String,), (), (), ())>;
-/// Type aliase for GrpcHeaders builder in intermediate stage
+/// Type aliases for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
     (LineageIds,),

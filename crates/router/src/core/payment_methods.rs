@@ -2086,7 +2086,7 @@ pub async fn get_external_vault_token(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing vault token data")?;
 
-    let decrypted_addtional_payment_method_data = payment_method
+    let decrypted_additional_payment_method_data = payment_method
         .payment_method_data
         .clone()
         .map(Encryptable::into_inner)
@@ -2094,7 +2094,7 @@ pub async fn get_external_vault_token(
         .attach_printable("Failed to convert payment method data")?;
 
     convert_from_saved_payment_method_data(
-        decrypted_addtional_payment_method_data,
+        decrypted_additional_payment_method_data,
         external_vault_token_data,
         vault_token,
     )
