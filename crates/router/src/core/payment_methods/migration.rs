@@ -56,12 +56,9 @@ pub async fn update_payment_method_record(
 
     use common_enums::enums;
     use common_utils::pii;
-    use hyperswitch_domain_models::{
-        customer::CustomerUpdate,
-        mandates::{
-            CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
-            PayoutsMandateReference, PayoutsMandateReferenceRecord,
-        },
+    use hyperswitch_domain_models::mandates::{
+        CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
+        PayoutsMandateReference, PayoutsMandateReferenceRecord,
     };
 
     let db = &*state.store;
@@ -166,37 +163,8 @@ pub async fn update_payment_method_record(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-            let mut updated_connector_customer_data: HashMap<String, serde_json::Value> = customer
-                .connector_customer
-                .as_ref()
-                .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
-                .unwrap_or_default();
-
-            for (_, mca) in cache.iter() {
-                let key = match mca.connector_type {
-                    enums::ConnectorType::PayoutProcessor => {
-                        format!(
-                            "{}_{}",
-                            mca.profile_id.get_string_repr(),
-                            mca.connector_name
-                        )
-                    }
-                    _ => mca.merchant_connector_id.get_string_repr().to_string(),
-                };
-
-                updated_connector_customer_data.insert(
-                    key,
-                    serde_json::Value::String(connector_customer_id.clone()),
-                );
-            }
-
-            let customer_update = CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(pii::SecretSerdeValue::new(
-                    serde_json::to_value(updated_connector_customer_data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to serialize connector customer data")?,
-                )),
-            };
+            let customer_update =
+                build_connector_customer_update(&customer, connector_customer_id, cache)?;
 
             (Some(customer), Some(customer_update))
         }
@@ -389,4 +357,52 @@ impl PaymentMethodsUpdateForm {
         })?;
         Ok((self.merchant_id.clone(), records))
     }
+}
+
+#[cfg(feature = "v1")]
+fn build_connector_customer_update(
+    customer: &hyperswitch_domain_models::customer::Customer,
+    connector_customer_id: &str,
+    mca_cache: &std::collections::HashMap<
+        id_type::MerchantConnectorAccountId,
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+) -> CustomResult<hyperswitch_domain_models::customer::CustomerUpdate, errors::ApiErrorResponse> {
+    use common_enums::enums;
+    use common_utils::pii;
+
+    let mut updated_connector_customer_data: std::collections::HashMap<String, serde_json::Value> =
+        customer
+            .connector_customer
+            .as_ref()
+            .and_then(|cc| serde_json::from_value(cc.peek().clone()).ok())
+            .unwrap_or_default();
+
+    for (_, mca) in mca_cache.iter() {
+        let key = match mca.connector_type {
+            enums::ConnectorType::PayoutProcessor => {
+                format!(
+                    "{}_{}",
+                    mca.profile_id.get_string_repr(),
+                    mca.connector_name
+                )
+            }
+            _ => mca.merchant_connector_id.get_string_repr().to_string(),
+        };
+
+        updated_connector_customer_data.insert(
+            key,
+            serde_json::Value::String(connector_customer_id.to_string()),
+        );
+    }
+
+    Ok(
+        hyperswitch_domain_models::customer::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(pii::SecretSerdeValue::new(
+                serde_json::to_value(updated_connector_customer_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize connector customer data")?,
+            )),
+        },
+    )
 }
