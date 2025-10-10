@@ -87,7 +87,6 @@ pub struct CofData {
     pub _type: String,
     pub source: String,
     pub mode: String,
-    
 }
 
 #[derive(Debug, Serialize, PartialEq)]
