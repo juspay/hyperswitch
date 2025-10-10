@@ -1638,10 +1638,12 @@ where
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
-        user_token_id: router_data
-            .request
-            .get_customer_id_optional()
-            .ok_or_else(missing_field_err("customer_id"))?,
+        user_token_id: Some(
+            router_data
+                .request
+                .get_customer_id_optional()
+                .ok_or_else(missing_field_err("customer_id"))?,
+        ),
         is_rebilling,
         ..Default::default()
     })
