@@ -778,11 +778,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        println!(
-            "{:?} {:?}  CustomerID check",
-            req.get_customer_id(),
-            req.get_optional_customer_id()
-        );
         let connector_req = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

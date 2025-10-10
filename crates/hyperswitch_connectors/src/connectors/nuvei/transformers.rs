@@ -97,7 +97,7 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_minor_amount_required(
         &self,
     ) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>>;
-    fn get_customer_id_required(&self) -> Option<CustomerId>;
+    fn get_customer_id_optional(&self) -> Option<CustomerId>;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
     fn get_currency_required(
         &self,
@@ -130,7 +130,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         }
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -221,7 +221,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     ) -> Result<Option<AuthenticationData>, error_stack::Report<errors::ConnectorError>> {
         Ok(self.authentication_data.clone())
     }
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         self.customer_id.clone()
     }
 
@@ -290,7 +290,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsPreProcessingData {
         None
     }
 
-    fn get_customer_id_required(&self) -> Option<CustomerId> {
+    fn get_customer_id_optional(&self) -> Option<CustomerId> {
         None
     }
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>> {
@@ -1638,7 +1638,10 @@ where
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
-        user_token_id: router_data.request.get_customer_id_required(),
+        user_token_id: router_data
+            .request
+            .get_customer_id_optional()
+            .ok_or_else(missing_field_err("customer_id"))?,
         is_rebilling,
         ..Default::default()
     })
@@ -1886,7 +1889,6 @@ where
             ..Default::default()
         })?;
         let return_url = item.request.get_return_url_required()?;
-        let return_url = "https://google.com".to_string();
 
         let amount_details = get_amount_details(&item.l2_l3_data, currency)?;
         let l2_l3_items: Option<Vec<NuveiItem>> = get_l2_l3_items(&item.l2_l3_data, currency)?;
@@ -1989,7 +1991,7 @@ where
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
                         challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
-                    item.request.get_customer_id_required(),
+                    item.request.get_customer_id_optional(),
                 )
             }
             // non mandate transactions
@@ -3519,7 +3521,7 @@ where
             let connector_mandate_id = &item.request.get_connector_mandate_id();
             let customer_id = item
                 .request
-                .get_customer_id_required()
+                .get_customer_id_optional()
                 .ok_or(missing_field_err("customer_id")())?;
             let related_transaction_id = item.request.get_related_transaction_id().clone();
 
