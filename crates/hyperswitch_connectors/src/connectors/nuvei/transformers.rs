@@ -447,6 +447,14 @@ pub struct NuveiItem {
     pub image_url: Option<String>,
     pub product_url: Option<String>,
 }
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum IsRebilling {
+    #[serde(rename = "1")]
+    True,
+    #[serde(rename = "0")]
+    False,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -463,7 +471,7 @@ pub struct NuveiPaymentsRequest {
     //unique transaction id
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
-    pub is_rebilling: Option<String>,
+    pub is_rebilling: Option<IsRebilling>,
     pub payment_option: PaymentOption,
     pub is_moto: Option<bool>,
     pub device_details: DeviceDetails,
@@ -1124,7 +1132,7 @@ struct ApplePayPaymentMethodCamelCase {
 
 fn get_google_pay_decrypt_data(
     predecrypt_data: &GPayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     brand: Option<String>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1163,7 +1171,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1237,7 +1245,7 @@ where
 
 fn get_apple_pay_decrypt_data(
     apple_pay_predecrypt_data: &ApplePayPredecryptData,
-    is_rebilling: Option<String>,
+    is_rebilling: Option<IsRebilling>,
     network: String,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     Ok(NuveiPaymentsRequest {
@@ -1291,7 +1299,7 @@ where
     Req: NuveiAuthorizePreprocessingCommon,
 {
     let is_rebilling = if item.request.is_customer_initiated_mandate_payment() {
-        Some("0".to_string())
+        Some(IsRebilling::False)
     } else {
         None
     };
@@ -1633,7 +1641,7 @@ where
         billing_address: None,
         shipping_address: None,
     };
-    let is_rebilling = Some("1".to_string());
+    let is_rebilling = Some(IsRebilling::True);
 
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
@@ -1972,7 +1980,7 @@ where
         match item.request.is_customer_initiated_mandate_payment() {
             true => {
                 (
-                    Some("0".to_string()), // In case of first installment, rebilling should be 0
+                    Some(IsRebilling::False), // In case of first installment, rebilling should be 0
                     Some(V2AdditionalParams {
                         rebill_expiry: Some(
                             time::OffsetDateTime::now_utc()
@@ -1982,7 +1990,7 @@ where
                                 .format(&time::macros::format_description!("[year][month][day]"))
                                 .map_err(|_| errors::ConnectorError::DateFormattingFailed)?,
                         ),
-                        rebill_frequency: Some("0".to_string()),
+                        rebill_frequency: Some(IsRebilling::False),
                         challenge_window_size: Some(CHALLENGE_WINDOW_SIZE.to_string()),
                         challenge_preference: Some(CHALLENGE_PREFERENCE.to_string()),
                     }),
@@ -3540,7 +3548,7 @@ where
                 device_details: DeviceDetails {
                     ip_address: Secret::new(ip_address),
                 },
-                is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+                is_rebilling: Some(IsRebilling::True), // In case of second installment, rebilling should be 1
                 user_token_id: Some(customer_id),
                 payment_option: PaymentOption {
                     user_payment_option_id: connector_mandate_id.clone(),
