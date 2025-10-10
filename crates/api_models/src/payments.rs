@@ -9317,6 +9317,7 @@ pub struct PaymentsEligibilityRequest {
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {
     /// The identifier for the payment
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// Next action to be performed by the SDK
     pub sdk_next_action: SdkNextAction,

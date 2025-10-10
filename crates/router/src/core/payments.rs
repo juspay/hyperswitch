@@ -100,6 +100,8 @@ use super::{
     unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -115,7 +117,6 @@ use crate::{
     },
     consts,
     core::{
-        blocklist::utils as blocklist_utils,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
         payouts,
@@ -10607,6 +10608,8 @@ pub async fn payments_manual_update(
     ))
 }
 
+// Trait for Eligibility Checks
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 trait EligibilityCheck {
     async fn check(
@@ -10618,8 +10621,10 @@ trait EligibilityCheck {
 }
 
 // Perform Blocklist Check for the Card Number provided in Payment Method Data
+#[cfg(feature = "v1")]
 struct BlockListCheck;
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl EligibilityCheck for BlockListCheck {
     async fn check(
@@ -10647,8 +10652,10 @@ impl EligibilityCheck for BlockListCheck {
 }
 
 // Eligibility Pipeline to run all the eligibility checks in sequence
+#[cfg(feature = "v1")]
 pub struct EligibilityPipeline;
 
+#[cfg(feature = "v1")]
 impl EligibilityPipeline {
     pub async fn run(
         state: &SessionState,
