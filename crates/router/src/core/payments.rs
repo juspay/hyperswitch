@@ -1332,7 +1332,6 @@ where
 
     let (operation, customer) = operation
         .to_domain()?
-        // get_customer_details
         .get_or_create_customer_details(
             state,
             &mut payment_data,
