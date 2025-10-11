@@ -1197,7 +1197,7 @@ check_token_status_url= ""    # base url to check token status from token servic
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv" # Supported connectors for network transaction id
