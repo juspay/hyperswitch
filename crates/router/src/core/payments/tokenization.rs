@@ -251,35 +251,73 @@ where
                 let merchant_id = merchant_context.get_merchant_account().get_id();
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
+
+                let locker_enabled = state.conf.locker.locker_enabled;
+                let externa_vault_enabled = state.conf.locker.external_vault_enabled;
+
                 let (
                     (mut resp, duplication_check, network_token_requestor_ref_id),
                     network_token_resp,
-                ) = if !state.conf.locker.locker_enabled {
-                    let (res, dc) = skip_saving_card_in_locker(
-                        merchant_context,
-                        payment_method_create_request.to_owned(),
-                    )
-                    .await?;
-                    ((res, dc, None), None)
-                } else {
-                    let payment_method_status = common_enums::PaymentMethodStatus::from(
-                        save_payment_method_data.attempt_status,
-                    );
-                    pm_status = Some(payment_method_status);
-                    save_card_and_network_token_in_locker(
-                        state,
-                        customer_id.clone(),
-                        payment_method_status,
-                        payment_method_data.clone(),
-                        vault_operation,
-                        payment_method_info,
-                        merchant_context,
-                        payment_method_create_request.clone(),
-                        is_network_tokenization_enabled,
-                        business_profile,
-                    )
-                    .await?
+                ) = match (locker_enabled, externa_vault_enabled) {
+                    (true, true) | (true, false) => {
+                        let payment_method_status = common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        );
+                        pm_status = Some(payment_method_status);
+                        save_card_and_network_token_in_locker(
+                            state,
+                            customer_id.clone(),
+                            payment_method_status,
+                            payment_method_data.clone(),
+                            vault_operation,
+                            payment_method_info,
+                            merchant_context,
+                            payment_method_create_request.clone(),
+                            is_network_tokenization_enabled,
+                            business_profile,
+                        )
+                        .await?
+                    }
+                    (false, true) => {
+                        let payment_method_status = common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        );
+                        pm_status = Some(payment_method_status);
+                        let card_data = payment_method_create_request.card.clone();
+                        let external_vault_details = match &business_profile.external_vault_details
+                        {
+                            domain::ExternalVaultDetails::ExternalVaultEnabled(
+                                external_vault_details,
+                            ) => external_vault_details,
+                            domain::ExternalVaultDetails::Skip => {
+                                logger::error!(
+                                    "External vault details not found for the business profile"
+                                );
+                                Err(errors::ApiErrorResponse::InternalServerError)?
+                            }
+                        };
+
+                        let (res, dc) = Box::pin(save_in_locker_external(
+                            state,
+                            merchant_context,
+                            payment_method_create_request.clone(),
+                            card_data,
+                            external_vault_details,
+                        ))
+                        .await?;
+                        ((res, dc, None), None)
+                    }
+                    (false, false) => {
+                        //skip saving in locker
+                        let (res, dc) = skip_saving_card_in_locker(
+                            merchant_context,
+                            payment_method_create_request.to_owned(),
+                        )
+                        .await?;
+                        ((res, dc, None), None)
+                    }
                 };
+
                 let network_token_locker_id = match network_token_resp {
                     Some(ref token_resp) => {
                         if network_token_requestor_ref_id.is_some() {
