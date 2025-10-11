@@ -1,6 +1,6 @@
 // crates/smithy-core/types.rs
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -133,6 +133,37 @@ pub enum SmithyConstraint {
 
 pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
+}
+
+impl Display for SmithyTrait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Pattern { pattern } => {
+                write!(f, "pattern(\"{}\")", pattern)
+            }
+            Self::Range { min, max } => match (min, max) {
+                (Some(min), Some(max)) => write!(f, "range(min: {}, max: {})", min, max),
+                (Some(min), None) => write!(f, "range(min: {})", min),
+                (None, Some(max)) => write!(f, "range(max: {})", max),
+                (None, None) => write!(f, "range"),
+            },
+            Self::Required => write!(f, "required"),
+            Self::Documentation { documentation } => {
+                write!(f, "documentation(\"{}\")", documentation)
+            }
+            Self::Length { min, max } => match (min, max) {
+                (Some(min), Some(max)) => write!(f, "length(min: {}, max: {})", min, max),
+                (Some(min), None) => write!(f, "length(min: {})", min),
+                (None, Some(max)) => write!(f, "length(max: {})", max),
+                (None, None) => write!(f, "length"),
+            },
+            Self::HttpLabel => write!(f, "httpLabel"),
+            Self::HttpQuery { name } => {
+                write!(f, "httpQuery(\"{}\")", name)
+            }
+            Self::Mixin => write!(f, "mixin"),
+        }
+    }
 }
 
 // Helper functions moved from the proc-macro crate to be accessible by it.
