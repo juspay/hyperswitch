@@ -35,7 +35,7 @@ pub async fn create_subscription(
         SubscriptionHandler::find_business_profile(&state, &merchant_context, &profile_id)
             .await
             .attach_printable("subscriptions: failed to find business profile")?;
-    let customer =
+    let _customer =
         SubscriptionHandler::find_customer(&state, &merchant_context, &request.customer_id)
             .await
             .attach_printable("subscriptions: failed to find customer")?;
@@ -43,7 +43,6 @@ pub async fn create_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -81,11 +80,13 @@ pub async fn create_subscription(
         .attach_printable("subscriptions: failed to create invoice")?;
 
     subscription
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment.payment_method_id.clone(),
-            None,
-            None,
-        ))
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment.payment_method_id.clone(),
+                None,
+                None,
+            ),
+        )
         .await
         .attach_printable("subscriptions: failed to update subscription")?;
 
@@ -117,7 +118,6 @@ pub async fn get_subscription_plans(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        None,
         profile.clone(),
     )
     .await?;
@@ -146,7 +146,6 @@ pub async fn get_subscription_plans(
     }
     Ok(ApplicationResponse::Json(response))
 }
-
 /// Creates and confirms a subscription in one operation.
 pub async fn create_and_confirm_subscription(
     state: SessionState,
@@ -168,7 +167,6 @@ pub async fn create_and_confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        Some(customer),
         profile.clone(),
     )
     .await?;
@@ -186,9 +184,10 @@ pub async fn create_and_confirm_subscription(
         .attach_printable("subscriptions: failed to create subscription entry")?;
     let invoice_handler = subs_handler.get_invoice_handler(profile.clone());
 
-    let _customer_create_response = billing_handler
+    let customer_create_response = billing_handler
         .create_customer_on_connector(
             &state,
+            customer.clone(),
             request.customer_id.clone(),
             request.billing.clone(),
             request
@@ -198,6 +197,15 @@ pub async fn create_and_confirm_subscription(
                 .and_then(|data| data.payment_method_data),
         )
         .await?;
+    let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
+        &state,
+        &merchant_context,
+        &billing_handler.merchant_connector_id,
+        &customer,
+        customer_create_response,
+    )
+    .await
+    .attach_printable("Failed to update customer with connector customer ID")?;
 
     let subscription_create_response = billing_handler
         .create_subscription_on_connector(
@@ -231,9 +239,7 @@ pub async fn create_and_confirm_subscription(
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
             billing_handler.connector_data.connector_name,
             None,
-            invoice_details
-                .clone()
-                .map(|invoice| invoice.id.get_string_repr().to_string()),
+            invoice_details.clone().map(|invoice| invoice.id),
         )
         .await?;
 
@@ -241,28 +247,24 @@ pub async fn create_and_confirm_subscription(
         .create_invoice_sync_job(
             &state,
             &invoice_entry,
-            invoice_details
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "invoice_details",
-                })?
-                .id
-                .get_string_repr()
-                .to_string(),
+            invoice_details.clone().map(|details| details.id),
             billing_handler.connector_data.connector_name,
         )
         .await?;
 
     subs_handler
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment_response.payment_method_id.clone(),
-            Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
-            Some(
-                subscription_create_response
-                    .subscription_id
-                    .get_string_repr()
-                    .to_string(),
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    subscription_create_response
+                        .subscription_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
             ),
-        ))
+        )
         .await?;
 
     let response = subs_handler.generate_response(
@@ -324,16 +326,16 @@ pub async fn confirm_subscription(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        Some(customer),
         profile.clone(),
     )
     .await?;
     let invoice_handler = subscription_entry.get_invoice_handler(profile);
     let subscription = subscription_entry.subscription.clone();
 
-    let _customer_create_response = billing_handler
+    let customer_create_response = billing_handler
         .create_customer_on_connector(
             &state,
+            customer.clone(),
             subscription.customer_id.clone(),
             request.payment_details.payment_method_data.billing.clone(),
             request
@@ -342,6 +344,15 @@ pub async fn confirm_subscription(
                 .payment_method_data,
         )
         .await?;
+    let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
+        &state,
+        &merchant_context,
+        &billing_handler.merchant_connector_id,
+        &customer,
+        customer_create_response,
+    )
+    .await
+    .attach_printable("Failed to update customer with connector customer ID")?;
 
     let subscription_create_response = billing_handler
         .create_subscription_on_connector(
@@ -363,9 +374,7 @@ pub async fn confirm_subscription(
                 .clone()
                 .and_then(|invoice| invoice.status)
                 .unwrap_or(connector_enums::InvoiceStatus::InvoiceCreated),
-            invoice_details
-                .clone()
-                .map(|invoice| invoice.id.get_string_repr().to_string()),
+            invoice_details.clone().map(|invoice| invoice.id),
         )
         .await?;
 
@@ -373,29 +382,24 @@ pub async fn confirm_subscription(
         .create_invoice_sync_job(
             &state,
             &invoice_entry,
-            invoice_details
-                .clone()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "invoice_details",
-                })?
-                .id
-                .get_string_repr()
-                .to_string(),
+            invoice_details.map(|invoice| invoice.id),
             billing_handler.connector_data.connector_name,
         )
         .await?;
 
     subscription_entry
-        .update_subscription(diesel_models::subscription::SubscriptionUpdate::new(
-            payment_response.payment_method_id.clone(),
-            Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
-            Some(
-                subscription_create_response
-                    .subscription_id
-                    .get_string_repr()
-                    .to_string(),
+        .update_subscription(
+            hyperswitch_domain_models::subscription::SubscriptionUpdate::new(
+                payment_response.payment_method_id.clone(),
+                Some(SubscriptionStatus::from(subscription_create_response.status).to_string()),
+                Some(
+                    subscription_create_response
+                        .subscription_id
+                        .get_string_repr()
+                        .to_string(),
+                ),
             ),
-        ))
+        )
         .await?;
 
     let response = subscription_entry.generate_response(
@@ -444,7 +448,6 @@ pub async fn get_estimate(
         &state,
         merchant_context.get_merchant_account(),
         merchant_context.get_merchant_key_store(),
-        None,
         profile,
     )
     .await?;

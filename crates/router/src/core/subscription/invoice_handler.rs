@@ -15,22 +15,25 @@ use crate::{
 };
 
 pub struct InvoiceHandler {
-    pub subscription: diesel_models::subscription::Subscription,
+    pub subscription: hyperswitch_domain_models::subscription::Subscription,
     pub merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
     pub profile: hyperswitch_domain_models::business_profile::Profile,
+    pub merchant_key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 }
 
 #[allow(clippy::todo)]
 impl InvoiceHandler {
     pub fn new(
-        subscription: diesel_models::subscription::Subscription,
+        subscription: hyperswitch_domain_models::subscription::Subscription,
         merchant_account: hyperswitch_domain_models::merchant_account::MerchantAccount,
         profile: hyperswitch_domain_models::business_profile::Profile,
+        merchant_key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> Self {
         Self {
             subscription,
             merchant_account,
             profile,
+            merchant_key_store,
         }
     }
     #[allow(clippy::too_many_arguments)]
@@ -44,9 +47,9 @@ impl InvoiceHandler {
         status: connector_enums::InvoiceStatus,
         provider_name: connector_enums::Connector,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_invoice_id: Option<String>,
-    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
-        let invoice_new = diesel_models::invoice::InvoiceNew::new(
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+        let invoice_new = hyperswitch_domain_models::invoice::Invoice::to_invoice(
             self.subscription.id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.profile_id.to_owned(),
@@ -62,9 +65,10 @@ impl InvoiceHandler {
             connector_invoice_id,
         );
 
+        let key_manager_state = &(state).into();
         let invoice = state
             .store
-            .insert_invoice_entry(invoice_new)
+            .insert_invoice_entry(key_manager_state, &self.merchant_key_store, invoice_new)
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Create Invoice".to_string(),
@@ -81,17 +85,23 @@ impl InvoiceHandler {
         payment_method_id: Option<Secret<String>>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
         status: connector_enums::InvoiceStatus,
-        connector_invoice_id: Option<String>,
-    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
-        let update_invoice = diesel_models::invoice::InvoiceUpdate::new(
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+        let update_invoice = hyperswitch_domain_models::invoice::InvoiceUpdate::new(
             payment_method_id.as_ref().map(|id| id.peek()).cloned(),
             Some(status),
             connector_invoice_id,
             payment_intent_id,
         );
+        let key_manager_state = &(state).into();
         state
             .store
-            .update_invoice_entry(invoice_id.get_string_repr().to_string(), update_invoice)
+            .update_invoice_entry(
+                key_manager_state,
+                &self.merchant_key_store,
+                invoice_id.get_string_repr().to_string(),
+                update_invoice,
+            )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Invoice Update".to_string(),
@@ -124,6 +134,7 @@ impl InvoiceHandler {
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             setup_future_usage: payment_details.setup_future_usage,
             return_url: Some(payment_details.return_url.clone()),
             capture_method: payment_details.capture_method,
@@ -167,6 +178,7 @@ impl InvoiceHandler {
             customer_id: Some(self.subscription.customer_id.clone()),
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             setup_future_usage: payment_details.setup_future_usage,
             return_url: payment_details.return_url.clone(),
             capture_method: payment_details.capture_method,
@@ -175,6 +187,7 @@ impl InvoiceHandler {
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
+            payment_type: payment_details.payment_type,
         };
         payments_api_client::PaymentsApiClient::create_and_confirm_payment(
             state,
@@ -195,10 +208,12 @@ impl InvoiceHandler {
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
             billing: request.payment_details.payment_method_data.billing.clone(),
             shipping: request.payment_details.shipping.clone(),
+            profile_id: Some(self.profile.get_id().clone()),
             payment_method: payment_details.payment_method,
             payment_method_type: payment_details.payment_method_type,
             payment_method_data: payment_details.payment_method_data.clone(),
             customer_acceptance: payment_details.customer_acceptance.clone(),
+            payment_type: payment_details.payment_type,
         };
         payments_api_client::PaymentsApiClient::confirm_payment(
             state,
@@ -213,10 +228,15 @@ impl InvoiceHandler {
     pub async fn get_latest_invoice(
         &self,
         state: &SessionState,
-    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
+    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+        let key_manager_state = &(state).into();
         state
             .store
-            .get_latest_invoice_for_subscription(self.subscription.id.get_string_repr().to_string())
+            .get_latest_invoice_for_subscription(
+                key_manager_state,
+                &self.merchant_key_store,
+                self.subscription.id.get_string_repr().to_string(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Get Latest Invoice".to_string(),
@@ -228,10 +248,15 @@ impl InvoiceHandler {
         &self,
         state: &SessionState,
         invoice_id: common_utils::id_type::InvoiceId,
-    ) -> errors::RouterResult<diesel_models::invoice::Invoice> {
+    ) -> errors::RouterResult<hyperswitch_domain_models::invoice::Invoice> {
+        let key_manager_state = &(state).into();
         state
             .store
-            .find_invoice_by_invoice_id(invoice_id.get_string_repr().to_string())
+            .find_invoice_by_invoice_id(
+                key_manager_state,
+                &self.merchant_key_store,
+                invoice_id.get_string_repr().to_string(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::SubscriptionError {
                 operation: "Get Invoice by ID".to_string(),
@@ -239,11 +264,33 @@ impl InvoiceHandler {
             .attach_printable("invoices: unable to get invoice by id from database")
     }
 
+    pub async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &SessionState,
+        subscription_id: common_utils::id_type::SubscriptionId,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> errors::RouterResult<Option<hyperswitch_domain_models::invoice::Invoice>> {
+        let key_manager_state = &(state).into();
+        state
+            .store
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                key_manager_state,
+                &self.merchant_key_store,
+                subscription_id.get_string_repr().to_string(),
+                connector_invoice_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::SubscriptionError {
+                operation: "Get Invoice by Subscription ID and Connector Invoice ID".to_string(),
+            })
+            .attach_printable("invoices: unable to get invoice by subscription id and connector invoice id from database")
+    }
+
     pub async fn create_invoice_sync_job(
         &self,
         state: &SessionState,
-        invoice: &diesel_models::invoice::Invoice,
-        connector_invoice_id: String,
+        invoice: &hyperswitch_domain_models::invoice::Invoice,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         connector_name: connector_enums::Connector,
     ) -> errors::RouterResult<()> {
         let request = storage_types::invoice_sync::InvoiceSyncRequest::new(
@@ -278,6 +325,7 @@ impl InvoiceHandler {
                 payment_method_id.to_owned(),
             )),
             off_session: Some(true),
+            profile_id: Some(self.profile.get_id().clone()),
         };
 
         payments_api_client::PaymentsApiClient::create_mit_payment(
