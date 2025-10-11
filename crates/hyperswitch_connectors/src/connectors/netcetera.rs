@@ -1,13 +1,12 @@
 pub mod netcetera_types;
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::{AuthenticationIdType, IncomingWebhookEvent, ObjectReferenceId};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -59,8 +58,18 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
-pub struct Netcetera;
+#[derive(Clone)]
+pub struct Netcetera {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Netcetera {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl Payment for Netcetera {}
 impl PaymentSession for Netcetera {}
@@ -377,18 +386,26 @@ impl
         req: &ConnectorAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
+        let currency = req
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField { field_name: "currency" })?;
+        let amount_i64 = req
+            .request
+            .amount
+            .ok_or(ConnectorError::MissingRequiredField { field_name: "amount" })?;
+
+        // Convert from core MinorUnit to connector-required amount (MinorUnit) and pass i64 to transformers
+        let converted_minor_unit = crate::utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::new(amount_i64),
+            currency,
+        )?;
+
         let connector_router_data = netcetera::NetceteraRouterData::try_from((
             &self.get_currency_unit(),
-            req.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?,
-            req.request
-                .amount
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?,
+            currency,
+            converted_minor_unit.get_amount_as_i64(),
             req,
         ))?;
         let req_obj = netcetera::NetceteraAuthenticationRequest::try_from(&connector_router_data);
