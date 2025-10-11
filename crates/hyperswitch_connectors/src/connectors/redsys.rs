@@ -314,6 +314,20 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_amount,
+            data.request.currency,
+        )?;
+        // Note: Redsys doesn't return amount in response,
+        // so we validate request consistency only
+        let _integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            amount,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -469,6 +483,21 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_amount_to_capture,
+            data.request.currency,
+        )?;
+
+        // Note: Redsys doesn't return amount in response,
+        // so we validate request consistency only
+        let _integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(amount),
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
