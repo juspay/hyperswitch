@@ -131,10 +131,112 @@ pub enum SmithyConstraint {
     HttpQuery(String),
 }
 
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CustomersUpdateRequest {
+    #[smithy(value_type = "String", required)]
+    pub customer_id: String,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub email: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub phone: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub description: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub phone_country_code: Option<String>,
+    
+    #[smithy(value_type = "Option<AddressDetails>")]
+    pub address: Option<AddressDetails>,
+    
+    #[smithy(value_type = "Option<HashMap<String, String>>")]
+    pub metadata: Option<HashMap<String, String>>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub tax_registration_id: Option<String>,
+}
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CustomersUpdateResponse {
+    #[smithy(value_type = "String", required)]
+    pub customer_id: String,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub email: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub phone: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub phone_country_code: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub description: Option<String>,
+    
+    #[smithy(value_type = "Option<AddressDetails>")]
+    pub address: Option<AddressDetails>,
+    
+    #[smithy(value_type = "String", required)]
+    pub created_at: String,
+    
+    #[smithy(value_type = "Option<HashMap<String, String>>")]
+    pub metadata: Option<HashMap<String, String>>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=64")]
+    pub default_payment_method_id: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub tax_registration_id: Option<String>,
+}
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct AddressDetails {
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub city: Option<String>,
+    
+    #[smithy(value_type = "Option<String>")]
+    pub country: Option<String>,  // This could be enum `CountryAlpha2`
+    
+    #[smithy(value_type = "Option<String>", length = "1..=200")]
+    pub line1: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub line2: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub line3: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub zip: Option<String>,
+    
+    #[smithy(value_type = "Option<String>")]
+    pub state: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub first_name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub last_name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub origin_zip: Option<String>,
+}
+
 pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
 }
-
 // Helper functions moved from the proc-macro crate to be accessible by it.
 
 pub fn resolve_type_and_generate_shapes(
