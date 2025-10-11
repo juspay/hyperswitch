@@ -261,6 +261,7 @@ diesel::table! {
         billing_processor_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
+        is_l2_l3_enabled -> Nullable<Bool>,
     }
 }
 

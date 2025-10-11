@@ -1747,7 +1747,9 @@ where
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
-    let l2_l3_data = state.conf.l2_l3_data_config.enabled.then(|| {
+    let l2_l3_data = (state.conf.l2_l3_data_config.enabled
+        && payment_data.is_l2_l3_enabled == Some(true))
+    .then(|| {
         let shipping_address = unified_address.get_shipping();
         let billing_address = unified_address.get_payment_billing();
         let merchant_tax_registration_id = merchant_context

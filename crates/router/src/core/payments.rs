@@ -7990,6 +7990,7 @@ where
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
