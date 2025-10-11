@@ -87,6 +87,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
             enums::UpiType::UpiIntent => Self::UpiIntent,
+            enums::UpiType::UpiQr => Self::UpiQr,
         }
     }
 }

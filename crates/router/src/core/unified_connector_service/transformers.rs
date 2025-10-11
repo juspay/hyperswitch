@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
-use api_models::payments::QrCodeInformation;
 use common_enums::{AttemptStatus, AuthenticationType};
 use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
-use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_flow_types::{
@@ -547,16 +545,13 @@ impl ForeignTryFrom<payments_grpc::PaymentServiceAuthorizeResponse>
             Some(redirection_data) => match redirection_data.form_type {
                 Some(ref form_type) => match form_type {
                     payments_grpc::redirect_form::FormType::Uri(uri) => {
-                        let image_data = QrImage::new_from_data(uri.uri.clone())
-                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-                        let image_data_url = Url::parse(image_data.data.clone().as_str())
-                            .change_context(UnifiedConnectorServiceError::ParsingFailed)?;
-                        let qr_code_info = QrCodeInformation::QrDataUrl {
-                            image_data_url,
-                            display_to_timestamp: None,
+                        // For UPI intent, store the URI in connector_metadata for SDK UPI intent pattern
+                        let sdk_uri_info = api_models::payments::SdkUpiIntentInformation {
+                            sdk_uri: Url::parse(&uri.uri)
+                                .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                         };
                         (
-                            Some(qr_code_info.encode_to_value())
+                            Some(sdk_uri_info.encode_to_value())
                                 .transpose()
                                 .change_context(UnifiedConnectorServiceError::ParsingFailed)?,
                             None,

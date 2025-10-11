@@ -350,6 +350,7 @@ pub enum RealTimePaymentType {
 pub enum UpiType {
     UpiCollect,
     UpiIntent,
+    UpiQr,
 }
 
 #[derive(
