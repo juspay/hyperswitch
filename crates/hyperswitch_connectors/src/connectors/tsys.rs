@@ -211,7 +211,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             self.amount_converter,
             amount_for_integrity,
             data.request.currency.to_string(),
-        )?;
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         router_env::logger::info!("tsys: attached authorise integrity_object");
 
@@ -311,7 +312,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tsy
             self.amount_converter,
             amount_for_integrity,
             data.request.currency.to_string(),
-        )?;
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         router_env::logger::info!("tsys: attached sync integrity_object");
 
@@ -419,7 +421,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             self.amount_converter,
             Some(capture_amount_for_integrity),
             data.request.currency.to_string(),
-        )?;
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         router_env::logger::info!("tsys: attached capture integrity_object");
 
@@ -601,7 +604,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tsys {
             self.amount_converter,
             refund_amount_for_integrity,
             data.request.currency.to_string(),
-        )?;
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         router_env::logger::info!("tsys: attached refund integrity_object");
 
@@ -701,7 +705,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Tsys {
             self.amount_converter,
             refund_amount_for_integrity,
             data.request.currency.to_string(),
-        )?;
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         router_env::logger::info!("tsys: attached refund_sync integrity_object");
 
