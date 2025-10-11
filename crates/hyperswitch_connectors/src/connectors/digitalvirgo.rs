@@ -291,9 +291,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let mut data = data.clone();
+        if let Some(amount) = response.amount {
+            let currency = data.request.currency.to_string();
+            let amount_convertor = &self.amount_converter;
+            if let Ok(integrity) =
+                utils::get_authorise_integrity_object(amount_convertor, amount, currency)
+            {
+                data.request.integrity_object = Some(integrity);
+            }
+        }
         RouterData::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            data,
             http_code: res.status_code,
         })
     }
@@ -364,9 +374,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dig
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let mut data = data.clone();
+        if let Some(amount) = response.amount {
+            let currency = data.request.currency.to_string();
+            let amount_convertor = &self.amount_converter;
+            if let Ok(integrity) =
+                utils::get_sync_integrity_object(amount_convertor, amount, currency)
+            {
+                data.request.integrity_object = Some(integrity);
+            }
+        }
         RouterData::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            data,
             http_code: res.status_code,
         })
     }
@@ -446,9 +466,19 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let mut data = data.clone();
+        if let Some(amount) = response.amount {
+            let currency = data.request.currency.to_string();
+            let amount_convertor = &self.amount_converter;
+            if let Ok(integrity) =
+                utils::get_authorise_integrity_object(amount_convertor, amount, currency)
+            {
+                data.request.integrity_object = Some(integrity);
+            }
+        }
         RouterData::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            data,
             http_code: res.status_code,
         })
     }
