@@ -620,7 +620,6 @@ pub struct PaymentsPreAuthenticateData {
     pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 
@@ -642,7 +641,6 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
         })
@@ -659,7 +657,6 @@ pub struct PaymentsAuthenticateData {
     pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 
@@ -681,7 +678,6 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
         })
@@ -698,7 +694,6 @@ pub struct PaymentsPostAuthenticateData {
     pub router_return_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    pub connector_transaction_id: Option<String>,
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
 
@@ -720,7 +715,6 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPostAuthenticateData {
             router_return_url: data.router_return_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
-            connector_transaction_id: None,
             redirect_response: None,
             enrolled_for_3ds: data.enrolled_for_3ds,
         })
