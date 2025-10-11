@@ -39,6 +39,7 @@ impl<'a> SubscriptionHandler<'a> {
     }
 
     /// Helper function to create a subscription entry in the database.
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_subscription_entry(
         &self,
         subscription_id: common_utils::id_type::SubscriptionId,
@@ -47,6 +48,8 @@ impl<'a> SubscriptionHandler<'a> {
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
         merchant_reference_id: Option<String>,
         profile: &hyperswitch_domain_models::business_profile::Profile,
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
     ) -> errors::RouterResult<SubscriptionWithHandler<'_>> {
         let store = self.state.store.clone();
         let db = store.as_ref();
@@ -66,10 +69,12 @@ impl<'a> SubscriptionHandler<'a> {
                 .clone(),
             customer_id: customer_id.clone(),
             metadata: None,
-            profile_id: profile.get_id().clone(),
-            merchant_reference_id,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            profile_id: profile.get_id().clone(),
+            merchant_reference_id,
+            plan_id,
+            item_price_id,
         };
 
         subscription.generate_and_set_client_secret();
@@ -293,11 +298,11 @@ impl SubscriptionWithHandler<'_> {
             id: self.subscription.id.clone(),
             merchant_reference_id: self.subscription.merchant_reference_id.clone(),
             status: subscription_types::SubscriptionStatus::from(status),
-            plan_id: None,
+            plan_id: self.subscription.plan_id.clone(),
             profile_id: self.subscription.profile_id.to_owned(),
             payment: Some(payment_response.clone()),
             customer_id: Some(self.subscription.customer_id.clone()),
-            price_id: None,
+            item_price_id: self.subscription.item_price_id.clone(),
             coupon: None,
             billing_processor_subscription_id: self.subscription.connector_subscription_id.clone(),
             invoice: Some(subscription_types::Invoice::foreign_try_from(invoice)?),
@@ -314,7 +319,8 @@ impl SubscriptionWithHandler<'_> {
             self.subscription.merchant_reference_id.clone(),
             subscription_types::SubscriptionStatus::from_str(&self.subscription.status)
                 .unwrap_or(subscription_types::SubscriptionStatus::Created),
-            None,
+            self.subscription.plan_id.clone(),
+            self.subscription.item_price_id.clone(),
             self.subscription.profile_id.to_owned(),
             self.subscription.merchant_id.to_owned(),
             self.subscription.client_secret.clone().map(Secret::new),

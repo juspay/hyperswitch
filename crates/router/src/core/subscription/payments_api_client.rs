@@ -219,4 +219,28 @@ impl PaymentsApiClient {
         )
         .await
     }
+
+    pub async fn update_payment(
+        state: &SessionState,
+        request: subscription_types::CreatePaymentsRequestData,
+        payment_id: String,
+        merchant_id: &str,
+        profile_id: &str,
+    ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
+        let base_url = &state.conf.internal_services.payments_base_url;
+        let url = format!("{}/payments/{}", base_url, payment_id);
+
+        Self::make_payment_api_call(
+            state,
+            services::Method::Post,
+            url,
+            Some(common_utils::request::RequestContent::Json(Box::new(
+                request,
+            ))),
+            "Update Payment",
+            merchant_id,
+            profile_id,
+        )
+        .await
+    }
 }

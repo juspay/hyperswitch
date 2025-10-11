@@ -61,6 +61,8 @@ pub struct InvoiceUpdate {
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<String>,
 }
 
 impl InvoiceNew {
@@ -105,17 +107,21 @@ impl InvoiceNew {
 
 impl InvoiceUpdate {
     pub fn new(
+        amount: Option<MinorUnit>,
+        currency: Option<String>,
         payment_method_id: Option<String>,
         status: Option<InvoiceStatus>,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
-            payment_method_id,
             status,
+            payment_method_id,
             connector_invoice_id,
-            payment_intent_id,
             modified_at: common_utils::date_time::now(),
+            payment_intent_id,
+            amount,
+            currency,
         }
     }
 }

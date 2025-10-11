@@ -7,6 +7,7 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::invoice::InvoiceUpdateRequest;
 use router_env::logger;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
@@ -221,15 +222,13 @@ impl<'a> InvoiceSyncHandler<'a> {
             .await
             .attach_printable("Failed to record back to billing processor")?;
 
+        let update_request = InvoiceUpdateRequest::update_connector_and_status(
+            connector_invoice_id,
+            common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
+        );
+
         invoice_handler
-            .update_invoice(
-                self.state,
-                self.invoice.id.to_owned(),
-                None,
-                None,
-                common_enums::connector_enums::InvoiceStatus::from(invoice_sync_status),
-                Some(connector_invoice_id),
-            )
+            .update_invoice(self.state, self.invoice.id.to_owned(), update_request)
             .await
             .attach_printable("Failed to update invoice in DB")?;
 
