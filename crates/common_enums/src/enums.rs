@@ -8205,6 +8205,10 @@ impl AuthenticationStatus {
     pub fn is_failed(self) -> bool {
         self == Self::Failed
     }
+
+    pub fn is_success(self) -> bool {
+        self == Self::Success
+    }
 }
 
 #[derive(
