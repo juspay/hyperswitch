@@ -1474,7 +1474,6 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Finix,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1554,7 +1553,6 @@ default_imp_for_create_customer!(
     connectors::Payload,
     connectors::Payone,
     connectors::Paypal,
-    connectors::Paysafe,
     connectors::Paystack,
     connectors::Paytm,
     connectors::Payu,
@@ -3865,7 +3863,6 @@ default_imp_for_payouts!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Mifinity,
     connectors::Mollie,
     connectors::Moneris,
@@ -4155,7 +4152,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Netcetera,
     connectors::Nmi,
     connectors::Noon,
@@ -4447,7 +4443,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Juspaythreedsserver,
     connectors::Katapult,
     connectors::Klarna,
-    connectors::Loonio,
     connectors::Netcetera,
     connectors::Noon,
     connectors::Nordea,
