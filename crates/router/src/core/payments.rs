@@ -104,6 +104,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
@@ -10981,6 +10983,95 @@ pub async fn payments_manual_update(
             error_message: updated_payment_attempt.error_message,
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+        },
+    ))
+}
+
+// Trait for Eligibility Checks
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+trait EligibilityCheck {
+    async fn check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_method_data: &Option<domain::PaymentMethodData>,
+    ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse>;
+}
+
+// Perform Blocklist Check for the Card Number provided in Payment Method Data
+#[cfg(feature = "v1")]
+struct BlockListCheck;
+
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+impl EligibilityCheck for BlockListCheck {
+    async fn check(
+        &self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_method_data: &Option<domain::PaymentMethodData>,
+    ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
+        let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
+            state,
+            merchant_context,
+            payment_method_data,
+        )
+        .await?;
+        if should_payment_be_blocked {
+            Ok(Some(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Deny {
+                    message: "Card number is blocklisted".to_string(),
+                },
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+// Eligibility Pipeline to run all the eligibility checks in sequence
+#[cfg(feature = "v1")]
+pub struct EligibilityPipeline;
+
+#[cfg(feature = "v1")]
+impl EligibilityPipeline {
+    pub async fn run(
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        payment_method_data: &Option<domain::PaymentMethodData>,
+    ) -> CustomResult<api_models::payments::SdkNextAction, errors::ApiErrorResponse> {
+        // Run all checks in order and return the first action that requires sdk next action
+        if let Some(action) = BlockListCheck
+            .check(state, merchant_context, payment_method_data)
+            .await?
+        {
+            return Ok(action);
+        }
+        // Default SDK next action after all the eligibility checks are performed
+        Ok(api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+        })
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+pub async fn payments_submit_eligibility(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: api_models::payments::PaymentsEligibilityRequest,
+    payment_id: id_type::PaymentId,
+) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
+    let payment_method_data = req
+        .payment_method_data
+        .payment_method_data
+        .map(domain::PaymentMethodData::from);
+    let sdk_next_action =
+        EligibilityPipeline::run(&state, &merchant_context, &payment_method_data).await?;
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsEligibilityResponse {
+            payment_id,
+            sdk_next_action,
         },
     ))
 }
