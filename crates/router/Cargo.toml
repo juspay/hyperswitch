@@ -94,7 +94,7 @@ unified-connector-service-cards = { git = "https://github.com/juspay/connector-s
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
 serde_qs = "0.12.0"
