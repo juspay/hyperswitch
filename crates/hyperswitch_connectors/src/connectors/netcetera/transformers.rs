@@ -39,6 +39,33 @@ impl<T> TryFrom<(&CurrencyUnit, enums::Currency, i64, T)> for NetceteraRouterDat
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn amount_is_preserved_in_router_data() {
+        let amount: i64 = 1050; // represents $10.50 in minor units
+        let currency = enums::Currency::USD;
+        let unit = &hyperswitch_interfaces::api::CurrencyUnit::Minor;
+        let rd = NetceteraRouterData::try_from((unit, currency, amount, ())).unwrap();
+        assert_eq!(rd.amount, amount);
+    }
+
+    #[test]
+    fn test_amount_conversion_for_different_currencies() {
+        let usd_amount: i64 = 1050;
+        let rd_usd = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::USD, usd_amount, ())).unwrap();
+        assert_eq!(rd_usd.amount, 1050);
+        let inr_amount: i64 = 1050;
+        let rd_inr = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::INR, inr_amount, ())).unwrap();
+        assert_eq!(rd_inr.amount, 1050);
+        let jpy_amount: i64 = 1050;
+        let rd_jpy = NetceteraRouterData::try_from((&hyperswitch_interfaces::api::CurrencyUnit::Minor, enums::Currency::JPY, jpy_amount, ())).unwrap();
+        assert_eq!(rd_jpy.amount, 1050);
+    }
+}
+
 impl<T> TryFrom<(i64, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from((amount, router_data): (i64, T)) -> Result<Self, Self::Error> {
