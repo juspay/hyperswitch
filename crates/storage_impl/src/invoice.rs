@@ -100,6 +100,27 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
                 subscription_id
             ))))
     }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        self.find_optional_resource(
+            state,
+            key_store,
+            Invoice::get_invoice_by_subscription_id_connector_invoice_id(
+                &conn,
+                subscription_id,
+                connector_invoice_id,
+            ),
+        )
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -154,6 +175,24 @@ impl<T: DatabaseStore> InvoiceInterface for KVRouterStore<T> {
             .get_latest_invoice_for_subscription(state, key_store, subscription_id)
             .await
     }
+
+    #[instrument(skip_all)]
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
+        self.router_store
+            .find_invoice_by_subscription_id_connector_invoice_id(
+                state,
+                key_store,
+                subscription_id,
+                connector_invoice_id,
+            )
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -195,6 +234,16 @@ impl InvoiceInterface for MockDb {
         _key_store: &MerchantKeyStore,
         _subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        _state: &KeyManagerState,
+        _key_store: &MerchantKeyStore,
+        _subscription_id: String,
+        _connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<DomainInvoice>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 }
