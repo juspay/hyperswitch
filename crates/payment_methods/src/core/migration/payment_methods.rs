@@ -60,7 +60,7 @@ pub async fn migrate_payment_method(
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
-        card_network: card_bin_details.card_network.clone(),
+        card_network: card_bin_details.card_network,
         card_issuer: card_bin_details.card_issuer.clone(),
         card_type: card_bin_details.card_type.clone(),
         ..card_details.clone()
@@ -72,7 +72,7 @@ pub async fn migrate_payment_method(
                 merchant_context.get_merchant_key_store(),
                 connector_mandate_details,
                 merchant_id,
-                card_bin_details.card_network.clone(),
+                card_bin_details.card_network,
             )
             .await?;
     };
@@ -248,8 +248,7 @@ impl
             Ok(Self {
                 scheme: card_details
                     .card_network
-                    .clone()
-                    .or(card_bin_info.card_network.clone())
+                    .or(card_bin_info.card_network)
                     .map(|card_network| card_network.to_string()),
                 last4_digits: Some(last4_digits.clone()),
                 issuer_country: card_details
@@ -268,10 +267,7 @@ impl
                     .card_issuer
                     .clone()
                     .or(card_bin_info.card_issuer),
-                card_network: card_details
-                    .card_network
-                    .clone()
-                    .or(card_bin_info.card_network),
+                card_network: card_details.card_network.or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
                 saved_to_locker: false,
             })
@@ -279,7 +275,6 @@ impl
             Ok(Self {
                 scheme: card_details
                     .card_network
-                    .clone()
                     .map(|card_network| card_network.to_string()),
                 last4_digits: Some(last4_digits.clone()),
                 issuer_country: card_details.card_issuing_country.clone(),
@@ -292,7 +287,7 @@ impl
                 nick_name: card_details.nick_name.clone(),
                 card_isin: Some(card_isin.clone()),
                 card_issuer: card_details.card_issuer.clone(),
-                card_network: card_details.card_network.clone(),
+                card_network: card_details.card_network,
                 card_type: card_details.card_type.clone(),
                 saved_to_locker: false,
             })
@@ -347,10 +342,7 @@ impl
                     .card_issuer
                     .clone()
                     .or(card_bin_info.card_issuer),
-                card_network: card_details
-                    .card_network
-                    .clone()
-                    .or(card_bin_info.card_network),
+                card_network: card_details.card_network.or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
                 saved_to_locker: false,
             })
@@ -372,7 +364,7 @@ impl
                 nick_name: card_details.nick_name.clone(),
                 card_isin: Some(card_isin.clone()),
                 card_issuer: card_details.card_issuer.clone(),
-                card_network: card_details.card_network.clone(),
+                card_network: card_details.card_network,
                 card_type: card_details.card_type.clone(),
                 saved_to_locker: false,
             })

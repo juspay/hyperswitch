@@ -122,14 +122,14 @@ pub struct CoBadgedCardNetworks(pub Vec<CoBadgedCardNetworksInfo>);
 
 impl CoBadgedCardNetworks {
     pub fn get_card_networks(&self) -> Vec<common_enums::CardNetwork> {
-        self.0.iter().map(|info| info.network.clone()).collect()
+        self.0.iter().map(|info| info.network).collect()
     }
 
     pub fn get_signature_network(&self) -> Option<common_enums::CardNetwork> {
         self.0
             .iter()
             .find(|info| info.network.is_signature_network())
-            .map(|info| info.network.clone())
+            .map(|info| info.network)
     }
 }
 

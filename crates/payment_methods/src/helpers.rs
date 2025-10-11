@@ -19,7 +19,7 @@ pub async fn populate_bin_details_for_payment_method_create(
     {
         api::CardDetail {
             card_issuer: card_details.card_issuer.to_owned(),
-            card_network: card_details.card_network.clone(),
+            card_network: card_details.card_network,
             card_type: card_details.card_type.to_owned(),
             card_issuing_country: card_details.card_issuing_country.to_owned(),
             card_exp_month: card_details.card_exp_month.clone(),
@@ -41,7 +41,7 @@ pub async fn populate_bin_details_for_payment_method_create(
             .flatten()
             .map(|card_info| api::CardDetail {
                 card_issuer: card_info.card_issuer,
-                card_network: card_info.card_network.clone(),
+                card_network: card_info.card_network,
                 card_type: card_info.card_type,
                 card_issuing_country: card_info.card_issuing_country,
                 card_exp_month: card_details.card_exp_month.clone(),

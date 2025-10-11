@@ -526,8 +526,7 @@ pub async fn save_payout_data_to_locker(
                     payment_method
                         .payment_method_issuer
                         .clone_from(&card_info.card_issuer);
-                    payment_method.card_network =
-                        card_info.card_network.clone().map(|cn| cn.to_string());
+                    payment_method.card_network = card_info.card_network.map(|cn| cn.to_string());
                     api::payment_methods::PaymentMethodsData::Card(
                         api::payment_methods::CardDetailsPaymentMethod {
                             last4_digits: card_details.as_ref().map(|c| c.card_number.get_last4()),
@@ -1494,7 +1493,7 @@ pub async fn get_additional_payout_data(
                     payout_additional::AdditionalPayoutMethodData::Card(Box::new(
                         payout_additional::CardAdditionalData {
                             card_issuer: card_info.card_issuer,
-                            card_network: card_info.card_network.clone(),
+                            card_network: card_info.card_network,
                             bank_code: card_info.bank_code,
                             card_type: card_info.card_type,
                             card_issuing_country: card_info.card_issuing_country,

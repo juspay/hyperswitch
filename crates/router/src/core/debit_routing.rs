@@ -734,7 +734,7 @@ fn find_matching_networks(
 
             api::ConnectorRoutingData {
                 connector_data: connector_routing_data.connector_data.clone(),
-                network: Some(network.clone()),
+                network: Some(*network),
                 action_type: connector_routing_data.action_type.clone(),
             }
         })
