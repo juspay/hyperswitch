@@ -137,6 +137,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::payment_method_update_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_delete_api,
+        routes::payment_method::network_token_status_check_api,
         routes::payment_method::list_customer_payment_method_api,
 
         //Routes for payment method session
@@ -273,6 +274,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payment_methods::CardType,
         api_models::payment_methods::PaymentMethodListData,
+        api_models::payment_methods::NetworkTokenStatusCheckResponse,
+        api_models::payment_methods::NetworkTokenStatusCheckSuccessResponse,
+        api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
+        api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
         api_models::customers::CustomerResponse,
