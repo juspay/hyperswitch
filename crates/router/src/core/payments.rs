@@ -36,7 +36,7 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api},
 };
-pub use common_enums::enums::{CallConnectorAction, ExecutionMode, GatewaySystem};
+pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
@@ -551,7 +551,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync + 'static + 'a,
+    F: Send + Clone + Sync + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -566,7 +566,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -2105,8 +2105,8 @@ pub async fn payments_core<'a, F, Res, Req, Op, FData, D>(
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4250,8 +4250,8 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -4262,7 +4262,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let execution_path = should_call_unified_connector_service(
+    let (gateway_system, execution_path) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -4276,9 +4276,9 @@ where
     );
 
     record_time_taken_with(|| async {
-        match (execution_path, is_handle_response_action) {
+        match (gateway_system, execution_path, is_handle_response_action) {
             // Process through UCS when system is UCS and not handling response
-            (GatewaySystem::UnifiedConnectorService, false) => {
+            (GatewaySystem::UnifiedConnectorService, ExecutionPath::UnifiedConnectorService, false) => {
                 process_through_ucs(
                     state,
                     req_state,
@@ -4297,8 +4297,33 @@ where
                 .await
             }
 
+            // Process through Direct with Shadow UCS
+            (GatewaySystem::Direct, ExecutionPath::ShadowUnifiedConnectorService, _) => {
+                process_through_direct_with_shadow_unified_connector_service(
+                    state,
+                    req_state,
+                    merchant_context,
+                    connector,
+                    operation,
+                    payment_data,
+                    customer,
+                    call_connector_action,
+                    validate_result,
+                    schedule_time,
+                    header_payload,
+                    frm_suggestion,
+                    business_profile,
+                    is_retry_payment,
+                    all_keys_required,
+                    merchant_connector_account,
+                    router_data,
+                    tokenization_action,
+                )
+                .await
+            }
+
             // Process through Direct gateway
-            (GatewaySystem::Direct, _) | (GatewaySystem::UnifiedConnectorService, true) => {
+            (GatewaySystem::Direct, ExecutionPath::Direct, _) | (GatewaySystem::UnifiedConnectorService, ExecutionPath::UnifiedConnectorService, true) => {
                 process_through_direct(
                     state,
                     req_state,
@@ -4322,9 +4347,14 @@ where
                 .await
             }
 
-            // Process through Direct with Shadow UCS
-            (GatewaySystem::ShadowUnifiedConnectorService, _) => {
-                process_through_direct_with_shadow_unified_connector_service(
+            // Catch-all for unexpected combinations
+            _ => {
+                router_env::logger::error!(
+                    "Unexpected gateway/execution path combination: gateway={:?}, execution_path={:?}",
+                    gateway_system,
+                    execution_path
+                );
+                process_through_direct(
                     state,
                     req_state,
                     merchant_context,
@@ -4374,8 +4404,8 @@ async fn process_through_ucs<'a, F, RouterDReq, ApiRequest, D>(
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
@@ -4477,8 +4507,8 @@ async fn process_through_direct<'a, F, RouterDReq, ApiRequest, D>(
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
@@ -4555,8 +4585,8 @@ async fn process_through_direct_with_shadow_unified_connector_service<
     helpers::MerchantConnectorAccountType,
 )>
 where
-    F: Send + Clone + Sync + 'static + 'a,
-    RouterDReq: Send + Sync + Clone + 'static + 'a + serde::Serialize,
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
@@ -5163,7 +5193,7 @@ where
         .await?;
 
     // do order creation
-    let should_call_unified_connector_service = should_call_unified_connector_service(
+    let (gateway_system, _execution_path) = should_call_unified_connector_service(
         state,
         merchant_context,
         &router_data,
@@ -5171,49 +5201,48 @@ where
     )
     .await?;
 
-    let (connector_request, should_continue_further) = if matches!(
-        should_call_unified_connector_service,
-        GatewaySystem::Direct | GatewaySystem::ShadowUnifiedConnectorService
-    ) {
-        let mut should_continue_further = true;
+    let (connector_request, should_continue_further) =
+        if matches!(gateway_system, GatewaySystem::Direct) {
+            let mut should_continue_further = true;
 
-        let should_continue = match router_data
-            .create_order_at_connector(state, &connector, should_continue_further)
-            .await?
-        {
-            Some(create_order_response) => {
-                if let Ok(order_id) = create_order_response.clone().create_order_result {
-                    payment_data.set_connector_response_reference_id(Some(order_id))
+            let should_continue = match router_data
+                .create_order_at_connector(state, &connector, should_continue_further)
+                .await?
+            {
+                Some(create_order_response) => {
+                    if let Ok(order_id) = create_order_response.clone().create_order_result {
+                        payment_data.set_connector_response_reference_id(Some(order_id))
+                    }
+
+                    // Set the response in routerdata response to carry forward
+                    router_data.update_router_data_with_create_order_response(
+                        create_order_response.clone(),
+                    );
+                    create_order_response.create_order_result.ok().map(|_| ())
                 }
+                // If create order is not required, then we can proceed with further processing
+                None => Some(()),
+            };
 
-                // Set the response in routerdata response to carry forward
-                router_data
-                    .update_router_data_with_create_order_response(create_order_response.clone());
-                create_order_response.create_order_result.ok().map(|_| ())
-            }
-            // If create order is not required, then we can proceed with further processing
-            None => Some(()),
+            let should_continue: (Option<common_utils::request::Request>, bool) =
+                match should_continue {
+                    Some(_) => {
+                        router_data
+                            .build_flow_specific_connector_request(
+                                state,
+                                &connector,
+                                call_connector_action.clone(),
+                            )
+                            .await?
+                    }
+                    None => (None, false),
+                };
+            should_continue
+        } else {
+            // If unified connector service is called, these values are not used
+            // as the request is built in the unified connector service call
+            (None, false)
         };
-
-        let should_continue: (Option<common_utils::request::Request>, bool) = match should_continue
-        {
-            Some(_) => {
-                router_data
-                    .build_flow_specific_connector_request(
-                        state,
-                        &connector,
-                        call_connector_action.clone(),
-                    )
-                    .await?
-            }
-            None => (None, false),
-        };
-        should_continue
-    } else {
-        // If unified connector service is called, these values are not used
-        // as the request is built in the unified connector service call
-        (None, false)
-    };
 
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -5231,7 +5260,7 @@ where
         .await?;
 
     record_time_taken_with(|| async {
-        if matches!(should_call_unified_connector_service, GatewaySystem::UnifiedConnectorService) {
+        if matches!(gateway_system, GatewaySystem::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Processing payment through UCS gateway system- payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5298,14 +5327,14 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let execution = should_call_unified_connector_service(
+        let (gateway_system, execution_path) = should_call_unified_connector_service(
             state,
             merchant_context,
             &router_data,
             Some(payment_data),
         )
         .await?;
-        if matches!(execution, GatewaySystem::UnifiedConnectorService) {
+        if matches!(gateway_system, GatewaySystem::UnifiedConnectorService) {
             router_env::logger::info!(
                 "Executing payment through UCS gateway system - payment_id={}, attempt_id={}",
                 payment_data.get_payment_intent().id.get_string_repr(),
@@ -5356,7 +5385,7 @@ where
 
             Ok(router_data)
         } else {
-            if matches!(execution, GatewaySystem::ShadowUnifiedConnectorService) {
+            if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService) {
                 router_env::logger::info!(
                     "Shadow UCS mode not implemented in v2, processing through direct path - payment_id={}, attempt_id={}",
                     payment_data.get_payment_intent().id.get_string_repr(),
