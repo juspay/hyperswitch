@@ -1405,6 +1405,8 @@ payment_method_type = "UnionPay"
   payment_method_type = "apple_pay"
 [[braintree.wallet]]
   payment_method_type = "google_pay"
+[[braintree.wallet]]
+  payment_method_type = "paypal"
 [braintree.connector_webhook_details]
 merchant_secret = "Source verification key"
 
@@ -1453,6 +1455,9 @@ label="Display Name"
 placeholder="Enter Display Name"
 required=true
 type="Text"
+
+[braintree.metadata.paypal_sdk]
+client_id="Client ID"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -7283,6 +7288,12 @@ type = "Text"
 api_key = "Username"
 api_secret = "Password"
 key1 = "Merchant Id"
+[finix.metadata.merchant_id]
+name = "merchant_id"
+label = "Merchant Identity Id"
+placeholder = "Enter Merchant Identity Id"
+required = true
+type = "Text"
 [[finix.credit]]
 payment_method_type = "Mastercard"
 [[finix.credit]]
@@ -7301,7 +7312,8 @@ payment_method_type = "UnionPay"
 payment_method_type = "Interac"
 [[finix.credit]]
 payment_method_type = "Maestro"
-
+[[finix.wallet]]
+  payment_method_type = "google_pay"
 
 [loonio]
 [loonio.connector_auth.BodyKey]
