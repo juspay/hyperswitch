@@ -1711,7 +1711,7 @@ pub(crate) fn get_order_status(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentsCollectionItem {
-    amount: OrderAmount,
+    pub amount: OrderAmount,
     expiration_time: Option<String>,
     id: String,
     final_capture: Option<bool>,
@@ -1720,8 +1720,8 @@ pub struct PaymentsCollectionItem {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentsCollection {
-    authorizations: Option<Vec<PaymentsCollectionItem>>,
-    captures: Option<Vec<PaymentsCollectionItem>>,
+    pub authorizations: Option<Vec<PaymentsCollectionItem>>,
+    pub captures: Option<Vec<PaymentsCollectionItem>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -1823,7 +1823,7 @@ pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
-    purchase_units: Vec<PurchaseUnitItem>,
+    pub purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
 }
 
@@ -1871,7 +1871,7 @@ pub enum PaypalSyncResponse {
 pub struct PaypalPaymentsSyncResponse {
     id: String,
     status: PaypalPaymentStatus,
-    amount: OrderAmount,
+    pub amount: OrderAmount,
     invoice_id: Option<String>,
     supplementary_data: PaypalSupplementaryData,
 }
@@ -2906,7 +2906,7 @@ impl From<RefundStatus> for storage_enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
-    amount: Option<OrderAmount>,
+    pub amount: Option<OrderAmount>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -2928,6 +2928,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
 pub struct RefundSyncResponse {
     id: String,
     status: RefundStatus,
+    pub amount: Option<OrderAmount>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRouterData<RSync> {
@@ -3363,6 +3364,7 @@ impl TryFrom<(PaypalRefundWebhooks, PaypalWebhookEventType)> for RefundSyncRespo
             id: webhook_body.id,
             status: RefundStatus::try_from(webhook_event)
                 .attach_printable("Could not find suitable webhook event")?,
+            amount: None, // Webhook doesn't contain amount information
         })
     }
 }
