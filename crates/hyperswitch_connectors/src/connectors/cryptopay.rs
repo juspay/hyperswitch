@@ -102,6 +102,10 @@ where
                     .get_inner_value()
                     .peek()
                     .to_owned();
+                // SECURITY WARNING: MD5 is cryptographically broken and vulnerable to collision attacks.
+                // This is used here ONLY because the Cryptopay API specification requires MD5.
+                // Do NOT use MD5 for new implementations. Prefer SHA-256 or stronger.
+                // Reference: https://www.kb.cert.org/vuls/id/836068
                 let md5_payload = crypto::Md5
                     .generate_digest(body.as_bytes())
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
