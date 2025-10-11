@@ -820,6 +820,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
             | enums::PaymentMethodType::Bluecode
+            | enums::PaymentMethodType::SepaGuarenteedDebit
             | enums::PaymentMethodType::Oxxo => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1215,13 +1216,19 @@ fn get_stripe_payment_method_type_from_wallet_data(
     }
 }
 
-impl From<&payment_method_data::BankDebitData> for StripePaymentMethodType {
-    fn from(bank_debit_data: &payment_method_data::BankDebitData) -> Self {
+impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
+    type Error = ConnectorError;
+    fn try_from(bank_debit_data: &payment_method_data::BankDebitData) -> Result<Self, Self::Error> {
         match bank_debit_data {
-            payment_method_data::BankDebitData::AchBankDebit { .. } => Self::Ach,
-            payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::Sepa,
-            payment_method_data::BankDebitData::BecsBankDebit { .. } => Self::Becs,
-            payment_method_data::BankDebitData::BacsBankDebit { .. } => Self::Bacs,
+            payment_method_data::BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
+            payment_method_data::BankDebitData::SepaBankDebit { .. } => Ok(Self::Sepa),
+            payment_method_data::BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
+            payment_method_data::BankDebitData::BacsBankDebit { .. } => Ok(Self::Bacs),
+            payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                ))
+            }
         }
     }
 }
@@ -1243,6 +1250,12 @@ fn get_bank_debit_data(
             (StripePaymentMethodType::Ach, ach_data)
         }
         payment_method_data::BankDebitData::SepaBankDebit { iban, .. } => {
+            let sepa_data: BankDebitData = BankDebitData::Sepa {
+                iban: iban.to_owned(),
+            };
+            (StripePaymentMethodType::Sepa, sepa_data)
+        }
+        payment_method_data::BankDebitData::SepaGuarenteedBankDebit { iban, .. } => {
             let sepa_data: BankDebitData = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };

@@ -2595,6 +2595,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingThailand,
     AchBankDebit,
     SepaBankDebit,
+    SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
     AchBankTransfer,
@@ -2758,6 +2759,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 match bank_debit_data {
                     domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
                     domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
                 }

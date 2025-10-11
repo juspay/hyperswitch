@@ -370,6 +370,7 @@ pub enum UpiType {
 pub enum BankDebitType {
     Ach,
     Sepa,
+    SepaGuarenteedDebit,
     Bacs,
     Becs,
 }

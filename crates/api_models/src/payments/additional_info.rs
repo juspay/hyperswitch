@@ -13,6 +13,7 @@ pub enum BankDebitAdditionalData {
     Bacs(Box<BacsBankDebitAdditionalData>),
     Becs(Box<BecsBankDebitAdditionalData>),
     Sepa(Box<SepaBankDebitAdditionalData>),
+    SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

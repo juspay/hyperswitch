@@ -77,6 +77,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
             enums::BankDebitType::Sepa => Self::Sepa,
+            enums::BankDebitType::SepaGuarenteedDebit => Self::SepaGuarenteedDebit,
             enums::BankDebitType::Bacs => Self::Bacs,
             enums::BankDebitType::Becs => Self::Becs,
         }

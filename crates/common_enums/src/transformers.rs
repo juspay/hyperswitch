@@ -1872,6 +1872,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PromptPay => Self::RealTimePayment,
             PaymentMethodType::SamsungPay => Self::Wallet,
             PaymentMethodType::Sepa => Self::BankDebit,
+            PaymentMethodType::SepaGuarenteedDebit => Self::BankDebit,
             PaymentMethodType::SepaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Sofort => Self::BankRedirect,
             PaymentMethodType::Swish => Self::BankRedirect,
