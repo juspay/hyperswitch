@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -54,7 +55,17 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Zsl;
+pub struct Zsl {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
+
+impl Zsl {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Zsl {}
 impl api::PaymentSession for Zsl {}

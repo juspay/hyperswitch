@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method};
+use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method, types::{StringMinorUnit, StringMinorUnitForConnector, AmountConvertor, MinorUnit}};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        get_amount_as_string, get_unimplemented_payment_method_error_message,
+        get_unimplemented_payment_method_error_message,
         PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
@@ -32,7 +32,7 @@ mod zsl_version {
 }
 
 pub struct ZslRouterData<T> {
-    pub amount: String,
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
@@ -41,7 +41,12 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZslRouterData
     fn try_from(
         (currency_unit, currency, txn_amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        let amount = get_amount_as_string(currency_unit, txn_amount, currency)?;
+        let amount = StringMinorUnitForConnector::convert(
+            &StringMinorUnitForConnector,
+            MinorUnit::new(txn_amount),
+            currency,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -201,7 +206,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         let mer_txn_date =
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let txn_amt = item.amount.clone();
+        let txn_amt = item.amount.to_string();
         let ccy = item.router_data.request.currency;
         let mer_ref = item.router_data.connector_request_reference_id.clone();
         let signature = calculate_signature(
