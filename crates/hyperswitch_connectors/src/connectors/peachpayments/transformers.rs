@@ -459,6 +459,10 @@ pub struct PeachpaymentsPaymentsResponse {
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub original_transaction_id: Option<String>,
+    pub reference_id: Option<String>,
+    pub error_message: Option<String>,
+    pub payment_method: Option<Secret<String>>,
 }
 
 // Confirm Transaction Response
@@ -703,7 +707,7 @@ pub struct WebhookTransaction {
     pub error_message: Option<String>,
     pub response_code: Option<ResponseCode>,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
-    pub payment_method: String,
+    pub payment_method: Secret<String>,
 }
 
 // Error Response

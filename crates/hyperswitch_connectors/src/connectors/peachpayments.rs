@@ -578,9 +578,11 @@ impl webhooks::IncomingWebhook for Peachpayments {
                         | peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
                         }
-                        peachpayments::PeachpaymentsPaymentStatus::Pending
-                        | peachpayments::PeachpaymentsPaymentStatus::Authorized
+                        peachpayments::PeachpaymentsPaymentStatus::Authorized
                         | peachpayments::PeachpaymentsPaymentStatus::Approved => {
+                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                        }
+                        peachpayments::PeachpaymentsPaymentStatus::Pending => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Declined
@@ -618,20 +620,15 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         let payments_response = peachpayments::PeachpaymentsPaymentsResponse {
-            transaction_id: transaction.transaction_id,
+            transaction_id: transaction.transaction_id.clone(),
             response_code: transaction.response_code,
             transaction_result: transaction.transaction_result,
             ecommerce_card_payment_only_transaction_data: transaction
-                .ecommerce_card_payment_only_transaction_data
-                .map(|data| peachpayments::EcommerceCardPaymentOnlyResponseData {
-                    amount: data.amount,
-                    stan: data.stan,
-                    rrn: data.rrn,
-                    approval_code: data.approval_code,
-                    merchant_advice_code: data.merchant_advice_code,
-                    description: None,
-                    trace_id: data.trace_id,
-                }),
+                .ecommerce_card_payment_only_transaction_data,
+            original_transaction_id: transaction.original_transaction_id,
+            reference_id: Some(transaction.reference_id),
+            error_message: transaction.error_message,
+            payment_method: Some(transaction.payment_method),
         };
 
         Ok(Box::new(payments_response))
