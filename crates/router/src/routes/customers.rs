@@ -243,7 +243,7 @@ pub async fn customers_list(
 pub async fn customers_list_with_count(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<customers::CustomerListRequest>,
+    query: web::Query<customers::CustomerListRequestWithConstraints>,
 ) -> HttpResponse {
     let flow = Flow::CustomersList;
     let payload = query.into_inner();
