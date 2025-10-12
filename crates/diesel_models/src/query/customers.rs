@@ -70,11 +70,7 @@ impl Customer {
                 .eq(merchant_id.clone())
                 .and(dsl::created_at.between(start_time, end_time));
 
-            generics::generic_count::<<Self as HasTable>::Table, _>(
-                conn,
-                predicate,
-            )
-            .await
+            generics::generic_count::<<Self as HasTable>::Table, _>(conn, predicate).await
         } else {
             generics::generic_count::<<Self as HasTable>::Table, _>(
                 conn,

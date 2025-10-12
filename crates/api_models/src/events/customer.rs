@@ -1,8 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::customers::{
-    CustomerDeleteResponse, CustomerListRequestWithConstraints, CustomerListResponse, CustomerRequest, CustomerResponse,
-    CustomerUpdateRequestInternal,
+    CustomerDeleteResponse, CustomerListRequestWithConstraints, CustomerListResponse,
+    CustomerRequest, CustomerResponse, CustomerUpdateRequestInternal,
 };
 
 #[cfg(feature = "v1")]
