@@ -353,6 +353,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_authorise_integrity_object(
+            &data.router_data,
+            &response,
+            self.get_currency_unit(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -428,6 +434,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_sync_integrity_object(
+            &data.router_data,
+            &response,
+            self.get_currency_unit(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -679,6 +691,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Silverf
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_refund_integrity_object(
+            &data.router_data,
+            &response,
+            self.get_currency_unit(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -755,6 +773,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Silverflo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        let integrity_object = utils::get_refund_integrity_object(
+            &data.router_data,
+            &response,
+            self.get_currency_unit(),
+        )?;
+        data.integrity_check = Ok(integrity_object);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
