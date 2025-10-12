@@ -52,6 +52,15 @@ pub struct CustomerListRequest {
     /// Limit
     #[schema(example = 32)]
     pub limit: Option<u16>,
+}
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerListRequestWithConstraints {
+    /// Offset
+    #[schema(example = 32)]
+    pub offset: Option<u32>,
+    /// Limit
+    #[schema(example = 32)]
+    pub limit: Option<u16>,
     /// Unique identifier for a customer
     pub customer_id: Option<id_type::CustomerId>,
     /// filter with created date
@@ -397,5 +406,5 @@ pub struct CustomerListResponse {
     /// List of customers
     pub data: Vec<CustomerResponse>,
     /// Total count of customers
-    pub count: usize,
+    pub total_count: usize,
 }

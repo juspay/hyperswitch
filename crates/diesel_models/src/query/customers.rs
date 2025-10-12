@@ -59,12 +59,29 @@ impl Customer {
     pub async fn count_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
+        time_range: Option<common_utils::types::TimeRange>,
     ) -> StorageResult<usize> {
-        generics::generic_count::<<Self as HasTable>::Table, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-        )
-        .await
+        if let Some(time_range) = time_range {
+            let start_time = time_range.start_time;
+            let end_time = time_range
+                .end_time
+                .unwrap_or_else(common_utils::date_time::now);
+            let predicate = dsl::merchant_id
+                .eq(merchant_id.clone())
+                .and(dsl::created_at.between(start_time, end_time));
+
+            generics::generic_count::<<Self as HasTable>::Table, _>(
+                conn,
+                predicate,
+            )
+            .await
+        } else {
+            generics::generic_count::<<Self as HasTable>::Table, _>(
+                conn,
+                dsl::merchant_id.eq(merchant_id.to_owned()),
+            )
+            .await
+        }
     }
     #[cfg(feature = "v1")]
     pub async fn list_by_merchant_id(

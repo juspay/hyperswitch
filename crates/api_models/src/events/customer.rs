@@ -1,7 +1,7 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::customers::{
-    CustomerDeleteResponse, CustomerListResponse, CustomerRequest, CustomerResponse,
+    CustomerDeleteResponse, CustomerListRequestWithConstraints, CustomerListResponse, CustomerRequest, CustomerResponse,
     CustomerUpdateRequestInternal,
 };
 
@@ -72,6 +72,13 @@ impl ApiEventMetric for CustomerUpdateRequestInternal {
         Some(ApiEventsType::Customer {
             customer_id: Some(self.id.clone()),
         })
+    }
+}
+impl ApiEventMetric for CustomerListRequestWithConstraints {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        self.customer_id
+            .clone()
+            .map(|cid| ApiEventsType::Customer { customer_id: cid })
     }
 }
 

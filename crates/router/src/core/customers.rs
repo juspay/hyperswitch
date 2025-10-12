@@ -590,8 +590,8 @@ pub async fn list_customers(
             .limit
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
-        customer_id: request.customer_id,
-        time_range: request.time_range,
+        customer_id:None,
+        time_range: None,
     };
 
     let domain_customers = db
@@ -624,13 +624,14 @@ pub async fn list_customers_with_count(
     merchant_id: id_type::MerchantId,
     _profile_id_list: Option<Vec<id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
-    request: customers::CustomerListRequest,
+    request: customers::CustomerListRequestWithConstraints,
 ) -> errors::CustomerResponse<customers::CustomerListResponse> {
     let db = state.store.as_ref();
 
     let customer_list_constraints = crate::db::customers::CustomerListConstraints {
         limit: request
             .limit
+            .map(|l| std::cmp::min(l, 100))
             .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
         offset: request.offset,
         customer_id: request.customer_id,
@@ -664,7 +665,7 @@ pub async fn list_customers_with_count(
     Ok(services::ApplicationResponse::Json(
         customers::CustomerListResponse {
             data: customers.into_iter().map(|c| c.0).collect(),
-            count: domain_customers.1,
+            total_count: domain_customers.1,
         },
     ))
 }

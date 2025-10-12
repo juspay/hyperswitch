@@ -688,6 +688,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
+        let time_range = customer_list_constraints.time_range.clone();
         let customers = self
             .find_resources(
                 state,
@@ -699,7 +700,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 ),
             )
             .await?;
-        let total_count = customers::Customer::count_by_merchant_id(&conn, merchant_id)
+        let total_count = customers::Customer::count_by_merchant_id(&conn, merchant_id, time_range)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
