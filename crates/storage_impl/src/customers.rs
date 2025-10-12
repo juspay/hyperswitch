@@ -688,7 +688,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        let time_range = customer_list_constraints.time_range.clone();
+        let time_range = customer_list_constraints.time_range;
         let customers = self
             .find_resources(
                 state,
