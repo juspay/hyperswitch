@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        get_unimplemented_payment_method_error_message,
+        convert_amount, get_unimplemented_payment_method_error_message,
         PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
@@ -36,17 +36,9 @@ pub struct ZslRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZslRouterData<T> {
+impl<T> TryFrom<(StringMinorUnit, T)> for ZslRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, txn_amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = StringMinorUnitForConnector::convert(
-            &StringMinorUnitForConnector,
-            MinorUnit::new(txn_amount),
-            currency,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    fn try_from((amount, item): (StringMinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,

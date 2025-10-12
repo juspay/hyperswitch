@@ -52,17 +52,18 @@ use transformers::{self as zsl, get_status};
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
+    utils::convert_amount,
 };
 
 #[derive(Debug, Clone)]
 pub struct Zsl {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_convertor: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Zsl {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_convertor: &StringMinorUnitForConnector,
         }
     }
 }
@@ -174,12 +175,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = zsl::ZslRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = zsl::ZslRouterData::try_from((amount, req))?;
         let connector_req = zsl::ZslPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
