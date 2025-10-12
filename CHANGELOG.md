@@ -4,6 +4,52 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.10.0
+
+### Features
+
+- **connector:**
+  - Card non3ds | FINIX ([#9680](https://github.com/juspay/hyperswitch/pull/9680)) ([`5c6635b`](https://github.com/juspay/hyperswitch/commit/5c6635be29def50cd64a40a16d906bc21175a381))
+  - [BRAINTREE] Paypal wallet added ([#8984](https://github.com/juspay/hyperswitch/pull/8984)) ([`f71090a`](https://github.com/juspay/hyperswitch/commit/f71090a94c55c421ffffd1d7608c33bac24a84e4))
+- **connectors:** [Paysafe] implement non-3DS card mandates ([#9560](https://github.com/juspay/hyperswitch/pull/9560)) ([`35a20f8`](https://github.com/juspay/hyperswitch/commit/35a20f8e4aac0fcfe6c409964391f2222f3c6770))
+- **subscription:** Domain_model for subscription and invoice ([#9640](https://github.com/juspay/hyperswitch/pull/9640)) ([`17986c3`](https://github.com/juspay/hyperswitch/commit/17986c3b315247996eb1e490e7c34bc4124224f5))
+- Introduce a framework to fetch configs from superposition ([#9289](https://github.com/juspay/hyperswitch/pull/9289)) ([`acc1568`](https://github.com/juspay/hyperswitch/commit/acc1568baab24646425ccff908621332b8d695d9))
+
+### Bug Fixes
+
+- **wasm_changes:** Multisafepay wasm changes ([#9746](https://github.com/juspay/hyperswitch/pull/9746)) ([`a968844`](https://github.com/juspay/hyperswitch/commit/a96884458991213b01f6391609c718ac4ae46782))
+
+**Full Changelog:** [`2025.10.09.0...2025.10.10.0`](https://github.com/juspay/hyperswitch/compare/2025.10.09.0...2025.10.10.0)
+
+- - -
+
+## 2025.10.09.0
+
+### Features
+
+- **connector:** [Loonio] implement payouts ([#9718](https://github.com/juspay/hyperswitch/pull/9718)) ([`abcc70b`](https://github.com/juspay/hyperswitch/commit/abcc70be074130827c14f90ff4cc7de964994efa))
+- **subscription:** Add endpoint to get Subscription estimate ([#9637](https://github.com/juspay/hyperswitch/pull/9637)) ([`15bc0a3`](https://github.com/juspay/hyperswitch/commit/15bc0a3b35b8ff37f68cc46a34d6cbf23e237dd1))
+- **subscriptions:** Add client secret auth support in subscriptions APIs ([#9713](https://github.com/juspay/hyperswitch/pull/9713)) ([`01b4d6a`](https://github.com/juspay/hyperswitch/commit/01b4d6ae7c32b584cfb07d51f839f0ed0fbbd8f5))
+
+### Bug Fixes
+
+- **connectors:** [TSYS] change order of order_number in tsys auth request body ([#9579](https://github.com/juspay/hyperswitch/pull/9579)) ([`0ff6c08`](https://github.com/juspay/hyperswitch/commit/0ff6c08202e5aa19bad9f54a4199cbdbe6fa0ec1))
+- **core:** Add type for fields in juspay threeds server ([#9744](https://github.com/juspay/hyperswitch/pull/9744)) ([`76da7b2`](https://github.com/juspay/hyperswitch/commit/76da7b28bcce8bdeb023431cf69432b7cbaf9ac7))
+- **router:** Fix wasm bug juspay threeds ([#9757](https://github.com/juspay/hyperswitch/pull/9757)) ([`3727995`](https://github.com/juspay/hyperswitch/commit/3727995a0a5f94990ae0094117429c3156a330b5))
+
+### Refactors
+
+- **core:** Add webhook_url for v2 tunnel ([#9625](https://github.com/juspay/hyperswitch/pull/9625)) ([`df51a4f`](https://github.com/juspay/hyperswitch/commit/df51a4ff9430583de205919c54be6bcb71680280))
+
+### Miscellaneous Tasks
+
+- **environment:** [tesouro] update currency environment variables ([#9722](https://github.com/juspay/hyperswitch/pull/9722)) ([`d81baac`](https://github.com/juspay/hyperswitch/commit/d81baac2be28a0cecd959831529835aed067892a))
+- Create indexes on required id columns for v2 application ([#9704](https://github.com/juspay/hyperswitch/pull/9704)) ([`dab0851`](https://github.com/juspay/hyperswitch/commit/dab0851601148669dd6078494cff1cb590e38ca0))
+
+**Full Changelog:** [`2025.10.08.1...2025.10.09.0`](https://github.com/juspay/hyperswitch/compare/2025.10.08.1...2025.10.09.0)
+
+- - -
+
 ## 2025.10.08.1
 
 ### Bug Fixes
