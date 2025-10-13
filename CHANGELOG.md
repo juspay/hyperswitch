@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.10.08.1-hotfix2
+
+### Features
+
+- **connector:** [Peach Payments] add network token support for connector ([#9814](https://github.com/juspay/hyperswitch/pull/9814)) ([`bc15637`](https://github.com/juspay/hyperswitch/commit/bc1563741edc26b354ef3b68cd5ee617faaa82f4))
+
+**Full Changelog:** [`2025.10.08.1-hotfix1...2025.10.08.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.10.08.1-hotfix1...2025.10.08.1-hotfix2)
+
+- - -
+
 ## 2025.10.08.1-hotfix1
 
 ### Features
