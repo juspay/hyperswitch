@@ -197,7 +197,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             customer.clone(),
             request.customer_id.clone(),
-            request.billing.clone(),
+            request.get_billing_address(),
             request
                 .payment_details
                 .payment_method_data
@@ -220,7 +220,7 @@ pub async fn create_and_confirm_subscription(
             &state,
             subs_handler.subscription.clone(),
             request.item_price_id.clone(),
-            request.billing.clone(),
+            request.get_billing_address(),
         )
         .await?;
 
@@ -347,11 +347,12 @@ pub async fn confirm_subscription(
             &state,
             customer.clone(),
             subscription.customer_id.clone(),
-            request.payment_details.payment_method_data.billing.clone(),
+            request.get_billing_address(),
             request
                 .payment_details
                 .payment_method_data
-                .payment_method_data,
+                .payment_method_data
+                .clone(),
         )
         .await?;
     let _customer_updated_response = SubscriptionHandler::update_connector_customer_id_in_customer(
@@ -369,7 +370,7 @@ pub async fn confirm_subscription(
             &state,
             subscription.clone(),
             subscription.item_price_id.clone(),
-            request.payment_details.payment_method_data.billing,
+            request.get_billing_address(),
         )
         .await?;
 

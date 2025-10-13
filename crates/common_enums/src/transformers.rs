@@ -1879,6 +1879,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Twint => Self::Wallet,
             PaymentMethodType::UpiCollect => Self::Upi,
             PaymentMethodType::UpiIntent => Self::Upi,
+            PaymentMethodType::UpiQr => Self::Upi,
             PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Venmo => Self::Wallet,
             PaymentMethodType::VietQr => Self::RealTimePayment,

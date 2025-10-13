@@ -168,7 +168,7 @@ impl InvoiceHandler {
             currency,
             confirm: true,
             customer_id: Some(self.subscription.customer_id.clone()),
-            billing: request.billing.clone(),
+            billing: request.get_billing_address(),
             shipping: request.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
             setup_future_usage: payment_details.setup_future_usage,
@@ -198,7 +198,7 @@ impl InvoiceHandler {
     ) -> errors::RouterResult<subscription_types::PaymentResponseData> {
         let payment_details = &request.payment_details;
         let cit_payment_request = subscription_types::ConfirmPaymentsRequestData {
-            billing: request.payment_details.payment_method_data.billing.clone(),
+            billing: request.get_billing_address(),
             shipping: request.payment_details.shipping.clone(),
             profile_id: Some(self.profile.get_id().clone()),
             payment_method: payment_details.payment_method,

@@ -1,5 +1,5 @@
 use common_types::payments::CustomerAcceptance;
-use common_utils::{errors::ValidationError, events::ApiEventMetric, types::MinorUnit};
+use common_utils::{events::ApiEventMetric, types::MinorUnit};
 use masking::Secret;
 use utoipa::ToSchema;
 
@@ -220,6 +220,7 @@ impl ApiEventMetric for GetPlansResponse {}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
     pub shipping: Option<Address>,
+    pub billing: Option<Address>,
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub payment_method_data: PaymentMethodDataRequest,
@@ -313,6 +314,8 @@ pub struct PaymentResponseData {
     pub error_message: Option<String>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub client_secret: Option<Secret<String>>,
+    pub billing: Option<Address>,
+    pub shipping: Option<Address>,
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
@@ -337,16 +340,13 @@ pub struct ConfirmSubscriptionRequest {
 }
 
 impl ConfirmSubscriptionRequest {
-    pub fn get_billing_address(&self) -> Result<Address, error_stack::Report<ValidationError>> {
+    pub fn get_billing_address(&self) -> Option<Address> {
         self.payment_details
             .payment_method_data
             .billing
-            .clone()
-            .ok_or(error_stack::report!(
-                ValidationError::MissingRequiredField {
-                    field_name: "billing".to_string()
-                }
-            ))
+            .as_ref()
+            .or(self.payment_details.billing.as_ref())
+            .cloned()
     }
 }
 
@@ -383,6 +383,16 @@ pub struct CreateAndConfirmSubscriptionRequest {
 
     /// Merchant specific Unique identifier.
     pub merchant_reference_id: Option<String>,
+}
+
+impl CreateAndConfirmSubscriptionRequest {
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.payment_details
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.billing.clone())
+            .or(self.billing.clone())
+    }
 }
 
 impl ApiEventMetric for CreateAndConfirmSubscriptionRequest {}
