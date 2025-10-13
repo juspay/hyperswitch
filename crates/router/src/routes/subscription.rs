@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
+use error_stack::report;
 use hyperswitch_domain_models::errors;
 use router_env::{
     tracing::{self, instrument},
@@ -60,6 +61,7 @@ pub async fn create_subscription(
         Ok(id) => id,
         Err(response) => return response,
     };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -100,15 +102,25 @@ pub async fn confirm_subscription(
 ) -> impl Responder {
     let flow = Flow::ConfirmSubscription;
     let subscription_id = subscription_id.into_inner();
+    let payload = json_payload.into_inner();
     let profile_id = match extract_profile_id(&req) {
         Ok(id) => id,
         Err(response) => return response,
     };
+
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let (auth_type, _) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
+        };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth: auth::AuthenticationData, payload, _| {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
@@ -122,12 +134,52 @@ pub async fn confirm_subscription(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            }),
+            &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfileSubscriptionWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn get_subscription_plans(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<subscription_types::GetPlansQuery>,
+) -> impl Responder {
+    let flow = Flow::GetPlansForSubscription;
+    let api_auth = auth::ApiKeyAuth::default();
+    let payload = query.into_inner();
+
+    let profile_id = match extract_profile_id(&req) {
+        Ok(profile_id) => profile_id,
+        Err(response) => return response,
+    };
+
+    let (auth_type, _) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return oss_api::log_and_return_error_response(error_stack::report!(err)),
+        };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, query, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::get_subscription_plans(state, merchant_context, profile_id.clone(), query)
+        },
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionRead,
             },
             req.headers(),
         ),
@@ -149,6 +201,7 @@ pub async fn get_subscription(
         Ok(id) => id,
         Err(response) => return response,
     };
+
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -207,10 +260,53 @@ pub async fn create_and_confirm_subscription(
                 payload.clone(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileSubscriptionWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// add support for get subscription estimate
+#[instrument(skip_all)]
+pub async fn get_estimate(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<subscription_types::EstimateSubscriptionQuery>,
+) -> impl Responder {
+    let flow = Flow::GetSubscriptionEstimate;
+    let profile_id = match extract_profile_id(&req) {
+        Ok(id) => id,
+        Err(response) => return response,
+    };
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
+    };
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
+        Ok(auth) => auth,
+        Err(err) => return oss_api::log_and_return_error_response(report!(err)),
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            subscription::get_estimate(state, merchant_context, profile_id.clone(), query)
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
