@@ -1225,6 +1225,7 @@ function upiRedirection(
       case "upi_collect":
         cy.visit(redirectionUrl.href);
         cy.wait(CONSTANTS.TIMEOUT).then(() => {
+          cy.contains("button", "Simulate").should("be.visible").click();
           verifyUrl = true;
         });
         break;
