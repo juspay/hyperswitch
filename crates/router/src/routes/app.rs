@@ -1455,6 +1455,10 @@ impl PaymentMethods {
                 .service(
                     web::resource("/create-intent")
                         .route(web::post().to(payment_methods::create_payment_method_intent_api)),
+                )
+                .service(
+                    web::resource("/{payment_method_id}/check-network-token-status")
+                        .route(web::get().to(payment_methods::network_token_status_check_api)),
                 );
 
             route = route.service(

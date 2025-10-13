@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use common_utils::{
     errors::{CustomResult, ValidationError},
     id_type::GenerateId,
@@ -9,7 +7,6 @@ use common_utils::{
         MinorUnit,
     },
 };
-use error_stack::ResultExt;
 use masking::Secret;
 use utoipa::ToSchema;
 
@@ -27,10 +24,10 @@ pub struct Invoice {
     pub customer_id: common_utils::id_type::CustomerId,
     pub amount: MinorUnit,
     pub currency: String,
-    pub status: String,
+    pub status: common_enums::connector_enums::InvoiceStatus,
     pub provider_name: common_enums::connector_enums::Connector,
     pub metadata: Option<SecretSerdeValue>,
-    pub connector_invoice_id: Option<String>,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
 }
 
 #[async_trait::async_trait]
@@ -89,11 +86,6 @@ impl super::behaviour::Conversion for Invoice {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        let invoice_status = common_enums::connector_enums::InvoiceStatus::from_str(&self.status)
-            .change_context(ValidationError::InvalidValue {
-            message: "Invalid invoice status".to_string(),
-        })?;
-
         Ok(diesel_models::invoice::InvoiceNew::new(
             self.subscription_id,
             self.merchant_id,
@@ -104,7 +96,7 @@ impl super::behaviour::Conversion for Invoice {
             self.customer_id,
             self.amount,
             self.currency.to_string(),
-            invoice_status,
+            self.status,
             self.provider_name,
             None,
             self.connector_invoice_id,
@@ -127,7 +119,7 @@ impl Invoice {
         status: common_enums::connector_enums::InvoiceStatus,
         provider_name: common_enums::connector_enums::Connector,
         metadata: Option<SecretSerdeValue>,
-        connector_invoice_id: Option<String>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     ) -> Self {
         Self {
             id: common_utils::id_type::InvoiceId::generate(),
@@ -140,7 +132,7 @@ impl Invoice {
             customer_id,
             amount,
             currency: currency.to_string(),
-            status: status.to_string(),
+            status,
             provider_name,
             metadata,
             connector_invoice_id,
@@ -179,12 +171,20 @@ pub trait InvoiceInterface {
         key_store: &MerchantKeyStore,
         subscription_id: String,
     ) -> CustomResult<Invoice, Self::Error>;
+
+    async fn find_invoice_by_subscription_id_connector_invoice_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        subscription_id: String,
+        connector_invoice_id: common_utils::id_type::InvoiceId,
+    ) -> CustomResult<Option<Invoice>, Self::Error>;
 }
 
 pub struct InvoiceUpdate {
-    pub status: Option<String>,
+    pub status: Option<common_enums::connector_enums::InvoiceStatus>,
     pub payment_method_id: Option<String>,
-    pub connector_invoice_id: Option<String>,
+    pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
     pub modified_at: time::PrimitiveDateTime,
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
 }
@@ -236,15 +236,15 @@ impl InvoiceUpdate {
     pub fn new(
         payment_method_id: Option<String>,
         status: Option<common_enums::connector_enums::InvoiceStatus>,
-        connector_invoice_id: Option<String>,
+        connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_intent_id: Option<common_utils::id_type::PaymentId>,
     ) -> Self {
         Self {
             payment_method_id,
-            status: status.map(|status| status.to_string()),
-            connector_invoice_id,
+            status,
             modified_at: common_utils::date_time::now(),
             payment_intent_id,
+            connector_invoice_id,
         }
     }
 }

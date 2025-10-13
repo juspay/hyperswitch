@@ -1271,7 +1271,7 @@ where
 
     let operations::GetTrackerResponse {
         operation,
-        customer_details: _,
+        customer_details,
         mut payment_data,
         business_profile,
         mandate_type: _,
@@ -1335,6 +1335,18 @@ where
         None
     };
 
+    let (operation, customer) = operation
+        .to_domain()?
+        .get_or_create_customer_details(
+            state,
+            &mut payment_data,
+            customer_details,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Failed while fetching/creating customer")?;
     let (router_data, mca) = proxy_for_call_connector_service(
         state,
         req_state.clone(),
@@ -1342,7 +1354,7 @@ where
         connector.clone(),
         &operation,
         &mut payment_data,
-        &None,
+        &customer,
         call_connector_action.clone(),
         &validate_result,
         schedule_time,
@@ -4672,7 +4684,7 @@ async fn execute_shadow_unified_connector_service_call<F, RouterDReq>(
     .await
     {
         Ok(_) => logger::debug!("Shadow UCS comparison completed successfully"),
-        Err(e) => logger::error!("Shadow UCS comparison failed: {:?}", e),
+        Err(e) => logger::debug!("Shadow UCS comparison failed: {:?}", e),
     }
 }
 
@@ -4714,7 +4726,7 @@ where
     let _ = send_comparison_data(state, comparison_data)
         .await
         .map_err(|e| {
-            logger::error!("Failed to send comparison data: {:?}", e);
+            logger::debug!("Failed to send comparison data: {:?}", e);
         });
     Ok(())
 }

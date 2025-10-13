@@ -295,6 +295,7 @@ pub struct PaymentMethodRecordUpdateResponse {
     pub network_transaction_id: Option<String>,
     pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub updated_payment_method_data: Option<bool>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -2690,6 +2691,7 @@ pub struct UpdatePaymentMethodRecord {
     pub network_transaction_id: Option<String>,
     pub line_number: Option<i64>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub connector_customer_id: Option<String>,
     pub merchant_connector_ids: Option<String>,
     pub card_expiry_month: Option<masking::Secret<String>>,
     pub card_expiry_year: Option<masking::Secret<String>>,
@@ -2705,6 +2707,7 @@ pub struct PaymentMethodUpdateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub update_error: Option<String>,
     pub updated_payment_method_data: Option<bool>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub line_number: Option<i64>,
 }
 
@@ -2846,6 +2849,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: res.network_transaction_id,
                 connector_mandate_details: res.connector_mandate_details,
                 updated_payment_method_data: res.updated_payment_method_data,
+                connector_customer: res.connector_customer,
                 update_status: UpdateStatus::Success,
                 update_error: None,
                 line_number: record.line_number,
@@ -2856,6 +2860,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
                 network_transaction_id: record.network_transaction_id,
                 connector_mandate_details: None,
                 updated_payment_method_data: None,
+                connector_customer: None,
                 update_status: UpdateStatus::Failed,
                 update_error: Some(e),
                 line_number: record.line_number,
@@ -3261,4 +3266,57 @@ pub struct AuthenticationDetails {
     /// Error details of the authentication
     #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckSuccessResponse {
+    /// The status of the network token
+    #[schema(value_type = TokenStatus)]
+    pub status: api_enums::TokenStatus,
+
+    /// The expiry month of the network token if active
+    #[schema(value_type = String)]
+    pub token_expiry_month: masking::Secret<String>,
+
+    /// The expiry year of the network token if active
+    #[schema(value_type = String)]
+    pub token_expiry_year: masking::Secret<String>,
+
+    /// The last four digits of the card
+    pub card_last_four: String,
+
+    /// The last four digits of the network token
+    pub token_last_four: String,
+
+    /// The expiry date of the card in MM/YY format
+    pub card_expiry: String,
+
+    /// The payment method ID that was checked
+    #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// The customer ID associated with the payment method
+    #[schema(value_type = String, example = "12345_cus_0195dc62bb8e7312a44484536da76aef")]
+    pub customer_id: id_type::GlobalCustomerId,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenStatusCheckFailureResponse {
+    /// Error message describing what went wrong
+    pub error_message: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NetworkTokenStatusCheckResponse {
+    /// Successful network token status check response
+    SuccessResponse(NetworkTokenStatusCheckSuccessResponse),
+    /// Error response for network token status check
+    FailureResponse(NetworkTokenStatusCheckFailureResponse),
 }
