@@ -271,3 +271,4 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
+smithy/models/com_hyperswitch_api_payment_methods.smithy
