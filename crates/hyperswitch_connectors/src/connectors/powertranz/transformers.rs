@@ -1,5 +1,5 @@
 use common_enums::enums::{self, AuthenticationType};
-use common_utils::{pii::IpAddress, types::StringMajorUnit};
+use common_utils::{pii::IpAddress, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -23,13 +23,13 @@ use crate::{
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
 
 pub struct PowertranzRouterData<T> {
-    pub amount: StringMajorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for PowertranzRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for PowertranzRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -41,7 +41,7 @@ impl<T> TryFrom<(StringMajorUnit, T)> for PowertranzRouterData<T> {
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
     transaction_identifier: String,
-    total_amount: StringMajorUnit,
+    total_amount: FloatMajorUnit,
     currency_code: String,
     three_d_secure: bool,
     source: Source,
@@ -382,7 +382,7 @@ fn is_3ds_payment(response_code: String) -> bool {
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseRequest {
     transaction_identifier: String,
-    total_amount: Option<StringMajorUnit>,
+    total_amount: Option<FloatMajorUnit>,
     refund: Option<bool>,
 }
 

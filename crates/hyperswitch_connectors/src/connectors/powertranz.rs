@@ -8,7 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -61,13 +61,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Powertranz {
-    amount_convertor: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Powertranz {
     pub fn new() -> &'static Self {
         &Self {
-            amount_convertor: &StringMajorUnitForConnector,
+            amount_convertor: &FloatMajorUnitForConnector,
         }
     }
 }
