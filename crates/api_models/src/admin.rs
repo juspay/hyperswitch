@@ -2214,6 +2214,9 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+    
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
 }
 
@@ -2376,7 +2379,10 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
-    pub is_l2_l3_enabled: bool,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
+    pub is_l2_l3_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -2581,6 +2587,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
 }
 
@@ -2756,6 +2765,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
 }
 
@@ -2951,6 +2963,9 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Flag to enable Level 2 and Level 3 processing data for card transactions
+    #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
 }
 
